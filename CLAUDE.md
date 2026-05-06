@@ -16,6 +16,16 @@ specification is in `docs/`, with visual references in `design/`.
 5. `docs/quality.md` — lint/format/type-check toolchain (ESLint, Prettier, svelte-check, SQLFluff, ShellCheck, shfmt, lefthook)
 6. The doc most relevant to whatever you're being asked to build
 
+## Where we are in the build
+
+`plans/0000_implementation_order.md` is the master roadmap: a numbered
+list of the ten plans that take Cairn from walking-skeleton to
+production. Each item is a checkbox — `[ ]` means to do, `[x]` means
+done. **Read it at the start of any session** to know which step is
+current and what has shipped. Detailed sub-plans live alongside it
+(`0010_…`, `0020_…`, etc.); tick the box in `0000_…` once the matching
+sub-plan is merged.
+
 ## Visual reference
 
 `design/Cairn - Design Canvas.html` (open in a browser to see every screen —
