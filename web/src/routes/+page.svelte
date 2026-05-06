@@ -23,7 +23,10 @@
 
 <h1>Cairn — walking skeleton</h1>
 
-<p>This page reads <code>/api/profiles</code> via the Vite dev proxy → PostgREST → Postgres. If you see names below, the dev stack is wired correctly.</p>
+<p>
+	This page reads <code>/api/profiles</code> via the Vite dev proxy → PostgREST → Postgres. If you see
+	names below, the dev stack is wired correctly.
+</p>
 
 {#if error}
 	<p style="color: crimson">Error: {error}</p>
