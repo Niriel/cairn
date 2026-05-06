@@ -1,0 +1,358 @@
+# Development
+
+This document is the practical guide to working on Cairn from a developer's laptop. It assumes you've read `architecture.md` (so you know what the pieces are) and `data-model.md` (so you know what the schema looks like). The goal is that a fresh checkout, plus the steps in this document, gets you to a running stack you can develop against in under fifteen minutes.
+
+The design principle behind everything here is **dev/prod parity**: the containers running on your laptop are bit-identical to the ones running in production. The only differences are the things that have to be different — TLS, the mail provider, and the absence of the reverse proxy on loopback (the SvelteKit dev server fills its routing role locally).
+
+## Prerequisites
+
+Three things on your machine:
+
+1. **Docker.** Docker Desktop on macOS or Windows; Docker Engine on Linux. Recent enough to support Compose v2 (`docker compose` as a subcommand). Anything from the last couple of years is fine.
+2. **Node.js (LTS, 20 or 22) and `pnpm`.** `pnpm` is the package manager the SvelteKit project uses; `npm install -g pnpm` works if your distribution doesn't ship it. `pnpm` is preferred over `npm` for its faster, content-addressed install behaviour, but `npm` works at a pinch.
+3. **A code editor.** VS Code with the official Svelte extension is the path of least resistance. Anything else with LSP support works equally well.
+
+You do not need a local Postgres install, a local PostgREST install, an Android emulator, or Xcode. Cairn is a web app; everything runs in containers and a browser.
+
+## Repository layout
+
+```
+cairn/
+├── README.md
+├── architecture.md
+├── data-model.md
+├── development.md          ← you are here
+├── deployment.md
+├── docker-compose.yml      ← the dev stack
+├── .env.example            ← template for local secrets
+├── caddy/
+│   └── Caddyfile.prod      ← used in deployment, not locally
+├── db/
+│   ├── migrations/         ← versioned SQL migrations
+│   │   ├── 0001_initial_schema.sql
+│   │   ├── 0002_rls_policies.sql
+│   │   └── ...
+│   └── seed/
+│       └── dev_seed.sql    ← fake users and lists for dev
+└── web/                    ← the SvelteKit project
+    ├── package.json
+    ├── svelte.config.js
+    ├── vite.config.ts
+    ├── src/
+    │   ├── routes/
+    │   ├── lib/
+    │   └── service-worker.ts
+    └── static/
+        ├── manifest.webmanifest
+        └── icons/
+```
+
+The `docker-compose.yml` at the root defines the backend (Postgres, PostgREST, GoTrue, Mailpit). The web app is *not* in compose during development — you run it directly via `pnpm dev` for fast HMR. The deployment compose file (`docker-compose.prod.yml`) layers on the production-only services including a `web` container; see `deployment.md`.
+
+## First-time setup
+
+```bash
+git clone <repo-url> cairn
+cd cairn
+
+# Backend env
+cp .env.example .env
+
+# Bring up the backend
+docker compose up -d
+
+# Apply migrations
+./scripts/migrate.sh
+
+# (Optional) load the dev seed data
+./scripts/seed.sh
+
+# Web app
+cd web
+pnpm install
+pnpm dev
+```
+
+That's it. After this you have:
+
+- Postgres listening on `localhost:5432`
+- PostgREST on `localhost:3000`
+- GoTrue on `localhost:9999`
+- Mailpit on `localhost:8025` (web UI) and `localhost:1025` (SMTP)
+- The SvelteKit dev server on `localhost:5173`, proxying `/api` to PostgREST and `/auth` to GoTrue.
+
+Open `http://localhost:5173` and you're in.
+
+Verify the backend with:
+
+```bash
+curl http://localhost:3000/
+# → PostgREST's OpenAPI description, JSON
+
+curl http://localhost:9999/health
+# → {"name":"GoTrue","version":"...","description":"..."}
+```
+
+## The development stack
+
+The `docker-compose.yml` defines four backend services. A trimmed sketch:
+
+```yaml
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: cairn
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: cairn
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  postgrest:
+    image: postgrest/postgrest:v12
+    environment:
+      PGRST_DB_URI: postgres://authenticator:${AUTHENTICATOR_PASSWORD}@postgres/cairn
+      PGRST_JWT_SECRET: ${JWT_SECRET}
+      PGRST_DB_ANON_ROLE: anon
+    ports:
+      - "3000:3000"
+    depends_on: [postgres]
+
+  gotrue:
+    image: supabase/gotrue:latest
+    environment:
+      GOTRUE_DB_DRIVER: postgres
+      GOTRUE_DB_DATABASE_URL: postgres://gotrue:${GOTRUE_PASSWORD}@postgres/cairn
+      GOTRUE_JWT_SECRET: ${JWT_SECRET}
+      GOTRUE_SMTP_HOST: mailpit
+      GOTRUE_SMTP_PORT: 1025
+      GOTRUE_SITE_URL: http://localhost:5173
+      GOTRUE_DISABLE_SIGNUP: "false"
+      GOTRUE_MAILER_AUTOCONFIRM: "true"   # dev only — skip email verification
+    ports:
+      - "9999:9999"
+    depends_on: [postgres, mailpit]
+
+  mailpit:
+    image: axllent/mailpit
+    ports:
+      - "8025:8025"   # web UI
+      - "1025:1025"   # SMTP
+```
+
+A few things worth knowing about this:
+
+- **The `JWT_SECRET` is shared** between PostgREST and GoTrue. GoTrue signs JWTs with it; PostgREST verifies signatures with it. They have to match. In dev it's a random string in `.env`; in production it's a stronger random string in a secrets file.
+- **Three Postgres roles**: `cairn` is the superuser used for migrations, `authenticator` is what PostgREST connects as (no rights of its own; it `SET ROLE`s to `anon` or `authenticated` per request), `gotrue` is what GoTrue connects as. The migrations create these roles.
+- **`GOTRUE_MAILER_AUTOCONFIRM: "true"`** is a development convenience: signing up doesn't require clicking a confirmation email. In production this is `false` so users actually have to verify their email. Magic-link login itself works the same way in both environments.
+- **`GOTRUE_SITE_URL: http://localhost:5173`** is the SvelteKit dev server. Magic-link emails point at it; clicking the link opens a browser tab on the dev server. Caddy is not in the loop locally — its cookie shim is approximated by the SvelteKit dev server's API proxy (see below).
+
+## The SvelteKit dev server and the cookie shim
+
+In production, Caddy translates between the JavaScript-side `cairn_session` cookie and the `Authorization: Bearer …` header that PostgREST expects. In development, the SvelteKit dev server (Vite) does the same translation in its proxy config:
+
+```ts
+// web/vite.config.ts (sketch)
+export default defineConfig({
+  server: {
+    proxy: {
+      '/api': {
+        target: 'http://localhost:3000',
+        rewrite: (p) => p.replace(/^\/api/, ''),
+        configure: (proxy) => {
+          proxy.on('proxyReq', (proxyReq, req) => {
+            const cookie = req.headers.cookie ?? '';
+            const m = cookie.match(/cairn_session=([^;]+)/);
+            if (m) proxyReq.setHeader('Authorization', `Bearer ${m[1]}`);
+          });
+        },
+      },
+      '/auth': {
+        target: 'http://localhost:9999',
+        rewrite: (p) => p.replace(/^\/auth/, ''),
+        configure: (proxy) => {
+          proxy.on('proxyRes', (proxyRes, _req, res) => {
+            // Same response-side JWT → Set-Cookie translation as Caddy does.
+            // (Sketch only — the real version reads the JSON body, extracts
+            // access_token, and sets the cookie before letting the response
+            // through.)
+          });
+        },
+      },
+    },
+  },
+});
+```
+
+The exact code lives in the repo. The point is: **the dev experience matches production at the boundary the web app sees** — same paths, same cookie behaviour, same `/api` and `/auth` URLs. You shouldn't be able to tell whether you're hitting Caddy or Vite from inside the SvelteKit code.
+
+## Migrations
+
+Schema changes are managed as numbered SQL files in `db/migrations/`. They run in order and they're idempotent (each one starts with `BEGIN`, ends with `COMMIT`, and uses `IF NOT EXISTS` where appropriate so partial runs don't poison the database).
+
+There's no fancy migration framework — `./scripts/migrate.sh` is a small shell script that:
+
+1. Reads which migrations have already been applied from a `_migrations` table.
+2. Applies any new ones in order via `psql`.
+3. Records each one as applied.
+
+Adding a new migration is "create the next-numbered file, write the SQL, run the script." If we ever need branching, rollbacks, or schema diffing, we'll bring in [sqitch](https://sqitch.org/) or similar.
+
+To start over with a clean database:
+
+```bash
+docker compose down -v       # the -v removes the postgres volume
+docker compose up -d
+./scripts/migrate.sh
+./scripts/seed.sh
+```
+
+This is fast — the whole rebuild takes a few seconds. Don't be precious about doing it.
+
+## Seed data
+
+`db/seed/dev_seed.sql` creates a handful of fake users (Alice, Bob, Carol) and a few lists with items and votes. It's only loaded when you run `./scripts/seed.sh`; it's never run in production.
+
+The fake users are created via direct inserts into `auth.users` and `profiles`, with known UUIDs hardcoded in the seed file. This lets the app's dev configuration log in as "Alice" with a button click, bypassing the magic-link flow entirely during development. The login bypass is gated behind a Vite environment flag (`VITE_DEV_LOGIN_SHORTCUT=true`) and is physically absent from production builds.
+
+## The web app
+
+```bash
+cd web
+pnpm install
+pnpm dev
+```
+
+Vite serves the app on `http://localhost:5173` with HMR. Edit a `.svelte` file, save, the page updates without losing state. The same applies to changes in `src/lib/` and the route files.
+
+The app reads its API and auth URLs from `import.meta.env.VITE_*`:
+
+```bash
+# web/.env (gitignored; copy from .env.example)
+VITE_API_BASE=/api
+VITE_AUTH_BASE=/auth
+VITE_DEV_LOGIN_SHORTCUT=true
+```
+
+`VITE_API_BASE` and `VITE_AUTH_BASE` are paths, not full URLs — same in dev and prod, because Caddy and Vite both serve the API at `/api` and the auth service at `/auth` on the same origin as the app.
+
+### Building for production locally
+
+```bash
+pnpm build
+pnpm preview
+```
+
+`pnpm build` runs the static adapter and produces a `web/build/` directory containing the deployable bundle (HTML, JS, CSS, the manifest, the service worker). `pnpm preview` serves it on `localhost:4173` so you can verify the production build before pushing.
+
+### The service worker in development
+
+The service worker is **disabled by default in `pnpm dev`** because constant cache invalidation during development is more annoying than the offline behaviour is useful. To test it, run `pnpm preview` after `pnpm build`, which serves the production bundle including the worker.
+
+When you do test offline behaviour:
+
+- Open the page once (the worker installs).
+- Close the browser dev tools, open the *Application* tab in dev tools, and check the *Offline* checkbox.
+- Reload — the app shell loads from the cache; cached `/api` GETs serve recent data; uncached routes show the *"No connection"* state.
+
+## The magic-link flow in development
+
+Cairn uses email magic links for real authentication. Locally, no actual email is sent — Mailpit catches everything.
+
+To test the flow:
+
+1. In the app, enter an email (any email; it doesn't have to be real).
+2. The app POSTs to `/auth/magiclink`.
+3. GoTrue sends an email via SMTP to Mailpit.
+4. Open `http://localhost:8025` — Mailpit's web UI shows the email.
+5. Click the link. It opens `localhost:5173/auth/callback?token=...` in your browser. Vite's proxy completes the exchange with GoTrue, sets the `cairn_session` cookie, and redirects you into the app, logged in.
+
+For routine dev where you don't care about exercising the flow, use the dev login shortcut to log in as Alice/Bob/Carol directly.
+
+## Common tasks
+
+A grab bag of things you'll do often:
+
+**Look at the database.** Either use `psql` from inside the container —
+
+```bash
+docker compose exec postgres psql -U cairn -d cairn
+```
+
+— or connect with a GUI client (TablePlus, DBeaver, Postico) to `localhost:5432` with the credentials in `.env`.
+
+**Hit the API directly.** PostgREST is plain HTTP+JSON. You need a JWT for anything beyond the OpenAPI doc. The simplest way to get one in dev is to log in as a seed user via GoTrue:
+
+```bash
+TOKEN=$(curl -s -X POST http://localhost:9999/token?grant_type=password \
+  -H "Content-Type: application/json" \
+  -d '{"email":"alice@example.test","password":"password"}' \
+  | jq -r .access_token)
+
+curl -s http://localhost:3000/lists -H "Authorization: Bearer $TOKEN" | jq
+```
+
+(Password login is enabled for the seed users in dev; production uses magic links only.)
+
+**Watch the logs.**
+
+```bash
+docker compose logs -f postgrest gotrue
+```
+
+PostgREST's logs show every query it issues to Postgres, which is invaluable for debugging policies. GoTrue's logs show the auth flow.
+
+**Reset everything.** Already covered above, but worth repeating because you'll do it often:
+
+```bash
+docker compose down -v && docker compose up -d && ./scripts/migrate.sh && ./scripts/seed.sh
+```
+
+**Run a one-off SQL query against the running database.**
+
+```bash
+docker compose exec postgres psql -U cairn -d cairn -c "SELECT count(*) FROM items;"
+```
+
+## Testing
+
+Three layers, all expected to be in the repo and run on every commit (eventually — not all are present in v1):
+
+**Database tests** — written in [pgTAP](https://pgtap.org/), run with `pg_prove` against a freshly-migrated test database. These verify the row-level security policies do what we think they do: Alice can't see Bob's private list, Carol can't add items to a list she's not on, etc. Schema and policies are the heart of Cairn's security model, so this is the most important layer of testing.
+
+**Component and unit tests** — [Vitest](https://vitest.dev/), shipped with SvelteKit. Standard unit testing for `src/lib/` modules and individual Svelte components, with mocked fetch responses.
+
+**End-to-end tests** — [Playwright](https://playwright.dev/), driving a real browser against the dockerized backend with seeded data. Slow, run less often, but catches the integration bugs that the other layers miss.
+
+The CI pipeline (when set up) brings up the docker-compose stack, runs migrations, runs the database tests, builds and runs the web app, runs the Vitest and Playwright suites, and tears everything down. This matches what a developer does locally.
+
+## Troubleshooting
+
+**`docker compose up` says a port is already in use.** Something else on your machine is using 5432, 3000, 9999, 8025, 1025, or 5173. Either stop it or change the port mapping (and update the env files accordingly).
+
+**PostgREST returns "JWT expired" immediately.** Your machine clock is wrong, or the JWT was issued for a different secret. Restart the stack and log in again.
+
+**The cookie isn't being set in dev.** Vite's proxy is the cookie shim locally; if the response-side translation isn't running, check `vite.config.ts`. A common cause: GoTrue returned a non-200 response, so the response handler short-circuited. Look at GoTrue's logs.
+
+**A migration failed and now nothing works.** Reset the database (the four-command sequence above). Migrations should be idempotent and re-runnable, but if you've gotten into a wedged state, the cost of starting over is approximately zero.
+
+**RLS is blocking a query that I think it shouldn't.** Look at PostgREST's logs for the actual SQL it ran, then run that same SQL manually as the `authenticated` role with the right `request.jwt.claim.sub` set. The bug is almost always in the policy, not the API call.
+
+```sql
+set role authenticated;
+set local request.jwt.claim.sub = '<a-known-user-uuid>';
+select * from lists;
+reset role;
+```
+
+This is the single most useful debugging trick for this stack. Learn it.
+
+## What you should *not* do during development
+
+- **Don't connect the dev app to the production API.** The `.env` files keep these separate; don't override them casually. Production data is real users' data.
+- **Don't commit `.env`.** It's gitignored. The `.env.example` is the committed template.
+- **Don't bypass migrations by editing the schema directly in the running container.** Anything not captured in a migration file is invisible to your collaborators and to production. If you find yourself reaching for `ALTER TABLE` in `psql`, stop, write a migration, and run it.
+- **Don't disable RLS to make a query work.** The query is wrong, or the policy is wrong. Disabling RLS while you debug is fine; shipping that disablement is a security incident.
+- **Don't put the JWT into `localStorage` from the web app.** The whole point of the cookie shim is that JavaScript never holds the token. If you need the token for an experiment, get it from `document.cookie` *only* in dev (where it's deliberately not HttpOnly) — and remove the experiment before commit.

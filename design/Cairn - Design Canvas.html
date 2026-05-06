@@ -1,0 +1,372 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Cairn — Design Canvas</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,wght@0,400;0,500;0,600;1,400;1,500&family=Geist:wght@300;400;500;600;700&family=JetBrains+Mono:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
+
+<style>
+  html, body { margin: 0; padding: 0; height: 100%; background: #efe9df; }
+  * { box-sizing: border-box; }
+  @keyframes cairnBlink { 0%, 49% { opacity: 1; } 50%, 100% { opacity: 0; } }
+  /* canvas pan-zoom area on dark warm */
+  #root { width: 100vw; height: 100vh; }
+  /* prettier scrollbars inside phones */
+  ::-webkit-scrollbar { width: 0; height: 0; }
+</style>
+
+<!-- React + Babel pinned -->
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+</head>
+<body>
+<div id="root"></div>
+
+<script type="text/babel" src="design-canvas.jsx"></script>
+<script type="text/babel" src="ios-frame.jsx"></script>
+<script type="text/babel" src="android-frame.jsx"></script>
+<script type="text/babel" src="tweaks-panel.jsx"></script>
+<script type="text/babel" src="cairn-data.jsx"></script>
+<script type="text/babel" src="cairn-ui.jsx"></script>
+<script type="text/babel" src="cairn-screens.jsx"></script>
+<script type="text/babel" src="cairn-invite-screens.jsx"></script>
+
+<script type="text/babel">
+const { useState, useEffect, useMemo } = React;
+
+const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
+  "theme": "light",
+  "platform": "android",
+  "animate": true
+}/*EDITMODE-END*/;
+
+function App() {
+  const [tweaks, setTweak] = useTweaks(TWEAK_DEFAULTS);
+  const dark = tweaks.theme === 'dark';
+  const theme = useCairnTheme(dark);
+
+  // Wrap a screen in the right device frame
+  const Frame = ({ children, title }) => {
+    if (tweaks.platform === 'android') {
+      return (
+        <AndroidDevice width={412} height={892} dark={dark}>
+          <div style={{ position: 'relative', width: '100%', height: '100%' }}>
+            {children}
+          </div>
+        </AndroidDevice>
+      );
+    }
+    return (
+      <IOSDevice width={402} height={874} dark={dark}>
+        <div style={{ position: 'relative', width: '100%', height: '100%', paddingTop: 54 }}>
+          {/* offset for status bar already absolutely positioned in iOS frame */}
+          <div style={{ position: 'absolute', inset: 0, paddingTop: 54, paddingBottom: 34 }}>
+            {children}
+          </div>
+        </div>
+      </IOSDevice>
+    );
+  };
+
+  // Each artboard's content matches the device's content area exactly
+  const screens = [
+    // === ONBOARDING ===
+    { sec: 'onboarding', id: 'login-request', label: '01  ·  Sign in (request link)',
+      render: () => <LoginRequest theme={theme}/> },
+    { sec: 'onboarding', id: 'login-check', label: '02  ·  Check your inbox',
+      render: () => <LoginCheck theme={theme}/> },
+    { sec: 'onboarding', id: 'empty-lists', label: '03  ·  Empty lists state',
+      render: () => <EmptyListsScreen theme={theme}/> },
+
+    // === BROWSE ===
+    { sec: 'browse', id: 'lists', label: '04  ·  Lists (two descriptions expanded)',
+      render: () => <ListsScreen theme={theme}/> },
+    { sec: 'browse', id: 'list-menu', label: '05  ·  Long-press menu (rename / delete / leave)',
+      render: () => <ListMenuScreen theme={theme}/> },
+    { sec: 'browse', id: 'add-list', label: '06  ·  New list',
+      render: () => <AddListScreen theme={theme}/> },
+
+    // === ITEMS & VOTING ===
+    { sec: 'items', id: 'items-collapsed', label: '07  ·  Items (collapsed, sorted by score)',
+      render: () => <ItemsScreen theme={theme} voteStyle="ascii" showAggregate={true}/> },
+    { sec: 'items', id: 'items-open', label: '08  ·  Item accordion unfolded',
+      render: () => <ItemsScreen theme={theme} voteStyle="ascii" showAggregate={true} openItemId="i2"/> },
+    { sec: 'items', id: 'empty-list', label: '09  ·  Empty list — "Drop the first stone"',
+      render: () => <EmptyListScreen theme={theme}/> },
+    { sec: 'items', id: 'add-item', label: '10  ·  New item',
+      render: () => <AddItemScreen theme={theme}/> },
+    { sec: 'items', id: 'edit-item', label: '11  ·  Edit item',
+      render: () => <EditItemScreen theme={theme}/> },
+    { sec: 'items', id: 'delete-item', label: '12  ·  Delete item — confirmation sheet',
+      render: () => <DeleteItemScreen theme={theme}/> },
+    { sec: 'items', id: 'items-undo', label: '13  ·  Undo snackbar after delete',
+      render: () => <ItemsScreenWithUndo theme={theme}/> },
+
+    // === SHARING ===
+    { sec: 'sharing', id: 'members', label: '14  ·  Members list',
+      render: () => <MembersScreen theme={theme}/> },
+    { sec: 'sharing', id: 'invite-picker', label: '14b ·  Add someone — picker (circle + co-members + email)',
+      render: () => <InvitePickerScreen theme={theme}/> },
+    { sec: 'sharing', id: 'profile-stranger', label: '14c ·  Member profile — stranger',
+      render: () => <ProfileSheet theme={theme} user="bob" state="stranger"/> },
+    { sec: 'sharing', id: 'profile-circle', label: '14d ·  Member profile — already in your circle',
+      render: () => <ProfileSheet theme={theme} user="bob" state="in-circle"/> },
+    { sec: 'sharing', id: 'profile-blocked', label: '14e ·  Member profile — blocked',
+      render: () => <ProfileSheet theme={theme} user="carol" state="blocked"/> },
+
+    // === INVITES & PRIVACY ===
+    { sec: 'invites', id: 'lists-with-inbox', label: '20  ·  Lists screen — with pending invite banner',
+      render: () => <ListsScreenWithInbox theme={theme}/> },
+    { sec: 'invites', id: 'invites-inbox', label: '21  ·  Invites inbox',
+      render: () => <InvitesInboxScreen theme={theme}/> },
+    { sec: 'invites', id: 'privacy', label: '22  ·  Privacy — who can invite you',
+      render: () => <PrivacyScreen theme={theme} policy="everybody"/> },
+    { sec: 'invites', id: 'privacy-circle', label: '23  ·  Privacy — set to circle only',
+      render: () => <PrivacyScreen theme={theme} policy="circle"/> },
+    { sec: 'invites', id: 'circle', label: '24  ·  Your circle — manage',
+      render: () => <CircleScreen theme={theme}/> },
+    { sec: 'invites', id: 'circle-explainer', label: '24b ·  "What is a circle?" explainer sheet',
+      render: () => <CircleExplainerSheet theme={theme}/> },
+    { sec: 'invites', id: 'blocked-empty', label: '25  ·  Blocked — empty state',
+      render: () => <BlockedScreen theme={theme} empty/> },
+    { sec: 'invites', id: 'blocked', label: '26  ·  Blocked — with one person',
+      render: () => <BlockedScreen theme={theme}/> },
+    { sec: 'invites', id: 'settings-v2', label: '27  ·  Settings — with Invites & Privacy',
+      render: () => <SettingsScreenV2 theme={theme} themeChoice={dark ? 'dark' : 'light'} invitesPending={2}/> },
+
+    // === RECOVERY & SETTINGS ===
+    { sec: 'recovery', id: 'trash', label: '15  ·  Trash — soft-deleted items, restore one',
+      render: () => <TrashScreen theme={theme}/> },
+    { sec: 'recovery', id: 'settings', label: '16  ·  Settings — theme + text size on profile',
+      render: () => <SettingsScreen theme={theme} themeChoice={dark ? 'dark' : 'light'} fontSize="m"/> },
+    { sec: 'recovery', id: 'delete-account', label: '17  ·  Delete account — full-screen, plain language',
+      render: () => <DeleteAccountScreen theme={theme} confirmed={false}/> },
+    { sec: 'recovery', id: 'delete-account-confirmed', label: '18  ·  Delete account — confirmation typed',
+      render: () => <DeleteAccountScreen theme={theme} confirmed={true}/> },
+    { sec: 'recovery', id: 'tombstone', label: '19  ·  Item added by deleted user (tombstone)',
+      render: () => <ItemsScreenTombstone theme={theme}/> },
+  ];
+
+  const sections = [
+    { id: 'system', title: 'Design system' },
+    { id: 'onboarding', title: 'Onboarding' },
+    { id: 'browse', title: 'Browse — lists' },
+    { id: 'items', title: 'Items & voting' },
+    { id: 'sharing', title: 'Sharing — members & profiles' },
+    { id: 'invites', title: 'Invites, circles & privacy' },
+    { id: 'recovery', title: 'Recovery & settings' },
+  ];
+
+  // Artboard width slightly wider than phone for breathing room
+  const artW = tweaks.platform === 'android' ? 460 : 450;
+  const artH = tweaks.platform === 'android' ? 940 : 920;
+
+  return (
+    <>
+      <DesignCanvas
+        title="Cairn"
+        subtitle={<span style={{ fontFamily: '"Newsreader", Georgia, serif', fontStyle: 'italic' }}>here's the way, you'll like this</span>}
+      >
+        {/* ============ DESIGN SYSTEM (overview row) ============ */}
+        <DCSection id="system" title="Design system" subtitle="The core ingredients before the screens.">
+          <DCArtboard id="palette" label="Palette · type · vote indicator" width={1300} height={600}>
+            <SystemBoard theme={theme} dark={dark} voteStyle="ascii"/>
+          </DCArtboard>
+        </DCSection>
+
+        {sections.filter(s => s.id !== 'system').map(s => (
+          <DCSection key={s.id} id={s.id} title={s.title}>
+            {screens.filter(sc => sc.sec === s.id).map(sc => (
+              <DCArtboard key={sc.id} id={sc.id} label={sc.label} width={artW} height={artH}>
+                <div style={{
+                  width: '100%', height: '100%',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  background: 'transparent',
+                }}>
+                  <Frame>{sc.render()}</Frame>
+                </div>
+              </DCArtboard>
+            ))}
+          </DCSection>
+        ))}
+      </DesignCanvas>
+
+      <TweaksPanel title="Cairn">
+        <TweakSection title="Theme & frame">
+          <TweakRadio label="Theme"
+            value={tweaks.theme}
+            onChange={v => setTweak('theme', v)}
+            options={[
+              { value: 'light', label: 'Light' },
+              { value: 'dark', label: 'Dark' },
+            ]}/>
+          <TweakRadio label="Platform"
+            value={tweaks.platform}
+            onChange={v => setTweak('platform', v)}
+            options={[
+              { value: 'ios', label: 'iOS' },
+              { value: 'android', label: 'Android' },
+            ]}/>
+        </TweakSection>
+        <TweakSection title="Motion">
+          <TweakToggle label="Animate (cursor blink etc.)"
+            value={tweaks.animate}
+            onChange={v => setTweak('animate', v)}/>
+        </TweakSection>
+      </TweaksPanel>
+    </>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
+// Design system overview board (palette, type, indicator scale)
+// ─────────────────────────────────────────────────────────────
+function SystemBoard({ theme, dark, voteStyle }) {
+  const swatch = (label, color, on = '#fff') => (
+    <div style={{
+      width: 110, height: 86, borderRadius: 12,
+      background: color, color: on,
+      padding: '10px 12px', display: 'flex', flexDirection: 'column',
+      justifyContent: 'space-between',
+      fontFamily: '"Geist", system-ui, sans-serif',
+      fontSize: 11, fontWeight: 600,
+      boxShadow: theme.shadow,
+      border: `1px solid ${theme.rule}`,
+    }}>
+      <span style={{ opacity: 0.85 }}>{label}</span>
+      <span style={{ fontFamily: '"JetBrains Mono", monospace', fontSize: 10, opacity: 0.85 }}>{color}</span>
+    </div>
+  );
+
+  return (
+    <div style={{
+      width: '100%', height: '100%', overflow: 'hidden',
+      background: theme.paper, borderRadius: 16,
+      padding: '32px 36px',
+      fontFamily: '"Geist", system-ui, sans-serif',
+      color: theme.ink,
+      display: 'grid',
+      gridTemplateColumns: '1.1fr 1fr 1.1fr',
+      gap: 32,
+      border: `1px solid ${theme.rule}`,
+    }}>
+
+      {/* PALETTE */}
+      <div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14 }}>
+          <CairnGlyph size={32} color={theme.accent}/>
+          <div>
+            <div style={{
+              fontFamily: '"Newsreader", Georgia, serif',
+              fontSize: 28, fontWeight: 500, letterSpacing: '-0.02em', lineHeight: 1,
+            }}>Cairn</div>
+            <div style={{ fontSize: 11, color: theme.stone, marginTop: 4, fontStyle: 'italic',
+              fontFamily: '"Newsreader", Georgia, serif',
+            }}>here's the way, you'll like this</div>
+          </div>
+        </div>
+        <div style={{ fontSize: 11, color: theme.stone, fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', marginTop: 18, marginBottom: 10 }}>Palette</div>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
+          {swatch('paper', theme.paper, theme.ink)}
+          {swatch('ink', theme.ink, theme.paper)}
+          {swatch('stone', theme.stone)}
+          {swatch('sage · positive', theme.sage)}
+          {swatch('ember · negative', theme.ember)}
+          {swatch('accent', theme.accent)}
+        </div>
+        <div style={{ marginTop: 18, fontSize: 12, color: theme.inkSoft, lineHeight: 1.55, maxWidth: 360 }}>
+          A warm cream paper, a near-black ink, and one calm sage and one calm rust.
+          Sage and rust double as the semantic <i>positive</i> / <i>negative</i> for votes —
+          so the whole app speaks one quiet color language.
+        </div>
+      </div>
+
+      {/* TYPE */}
+      <div>
+        <div style={{ fontSize: 11, color: theme.stone, fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 10 }}>Type</div>
+        <div style={{
+          fontFamily: '"Newsreader", Georgia, serif',
+          fontSize: 44, fontWeight: 500, letterSpacing: '-0.02em', lineHeight: 1,
+          color: theme.ink,
+        }}>Newsreader</div>
+        <div style={{ fontSize: 11, color: theme.stone, marginTop: 6, fontFamily: '"Geist", system-ui' }}>
+          Display · list names · titles
+        </div>
+
+        <div style={{
+          marginTop: 22,
+          fontFamily: '"Geist", system-ui, sans-serif',
+          fontSize: 36, fontWeight: 500, letterSpacing: '-0.01em',
+        }}>Geist</div>
+        <div style={{ fontSize: 11, color: theme.stone, marginTop: 6 }}>
+          UI · body · controls
+        </div>
+
+        <div style={{
+          marginTop: 22,
+          fontFamily: '"JetBrains Mono", ui-monospace, monospace',
+          fontSize: 28, fontWeight: 500,
+        }}>JetBrains Mono</div>
+        <div style={{ fontSize: 11, color: theme.stone, marginTop: 6 }}>
+          Vote indicator · scores · timestamps
+        </div>
+
+        <div style={{
+          marginTop: 24, padding: '14px 16px',
+          background: theme.paperAlt, borderRadius: 12,
+          border: `1px solid ${theme.rule}`,
+          fontFamily: '"Newsreader", Georgia, serif',
+          fontStyle: 'italic', fontSize: 14, color: theme.inkSoft, lineHeight: 1.5,
+        }}>
+          "A cairn is a small stack of stones that hikers leave on trails to mark
+          the way for the people coming behind them."
+        </div>
+      </div>
+
+      {/* VOTE INDICATOR */}
+      <div>
+        <div style={{ fontSize: 11, color: theme.stone, fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 10 }}>Vote indicator · 7 steps</div>
+        <div style={{
+          padding: '16px 18px', background: theme.paperAlt, borderRadius: 12,
+          border: `1px solid ${theme.rule}`,
+        }}>
+          {[-3,-2,-1,0,1,2,3].map(v => (
+            <div key={v} style={{
+              display: 'grid', gridTemplateColumns: '60px 1fr 80px',
+              alignItems: 'center', gap: 10,
+              padding: '6px 0', borderBottom: v < 3 ? `1px solid ${theme.rule}` : 'none',
+            }}>
+              <span style={{ fontSize: 12, color: theme.stone, fontFamily: '"JetBrains Mono", monospace' }}>
+                {v > 0 ? '+' + v : v}
+              </span>
+              <VoteIndicator value={v} style={voteStyle} theme={theme} width={70}/>
+              <span style={{
+                fontSize: 11, color: v > 0 ? theme.sage : v < 0 ? theme.ember : theme.stone,
+                fontWeight: 600, textAlign: 'right',
+              }}>
+                {v === 0 ? 'no vote / neutral' : v === 3 ? 'love it' : v === -3 ? 'really not' : v > 0 ? 'like' : 'meh'}
+              </span>
+            </div>
+          ))}
+        </div>
+        <div style={{ marginTop: 16, fontSize: 12, color: theme.inkSoft, lineHeight: 1.55 }}>
+          The slot is fixed-width — rows never reflow. Tapping a thumb nudges by one,
+          clamped at the ends. <code style={{
+            fontFamily: '"JetBrains Mono", monospace', background: theme.paperAlt,
+            padding: '1px 5px', borderRadius: 4, border: `1px solid ${theme.rule}`,
+          }}>=</code> doubles as "haven't voted" — neutrality and absence are the same thing.
+        </div>
+      </div>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+</script>
+</body>
+</html>
