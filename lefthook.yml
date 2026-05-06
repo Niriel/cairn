@@ -9,14 +9,21 @@ pre-commit:
   parallel: true
   commands:
     eslint:
+      root: 'web/'
       glob: 'web/**/*.{ts,js,svelte}'
-      run: cd web && pnpm exec eslint {staged_files}
+      # --no-error-on-unmatched-pattern: don't fail when a staged file
+      # matches an ignore pattern in eslint.config.js — just skip it.
+      run: pnpm exec eslint --no-error-on-unmatched-pattern {staged_files}
     prettier:
+      root: 'web/'
       glob: 'web/**/*.{ts,js,svelte,css,json,md,yaml,yml}'
-      run: cd web && pnpm exec prettier --check {staged_files}
+      # --ignore-unknown skips files Prettier doesn't know how to format
+      # or that are listed in .prettierignore.
+      run: pnpm exec prettier --check --ignore-unknown {staged_files}
     svelte-check:
+      root: 'web/'
       glob: 'web/**/*.{ts,svelte}'
-      run: cd web && pnpm check
+      run: pnpm check
     sqlfluff:
       glob: '{db,scripts}/**/*.sql'
       run: sqlfluff lint {staged_files}
@@ -33,4 +40,5 @@ pre-push:
     test-db:
       run: ./scripts/test-db.sh
     vitest:
-      run: cd web && pnpm test
+      root: 'web/'
+      run: pnpm test
