@@ -36,5 +36,32 @@ it as a file in `plans/` on a dedicated branch.
    copy/refine its content into the new file. Otherwise write from
    conversation context. Do not commit — the user reviews first.
 
-5. **Confirm** in one sentence: the branch you're on, the file path,
+5. **Order tests before implementation (TDD: red before green).**
+   Cairn prefers writing the failing tests first, then the code
+   that makes them pass. If the plan involves work that has tests
+   (most things do), the "Order of execution" section must put the
+   red phase ahead of the green phase. Per-unit interleaving (one
+   test → one chunk of code → repeat) is fine; bulk-red-then-green
+   (write every failing test, then write the implementation) is
+   fine. What's not fine is implementation-then-tests-after — flag
+   and reorder anything shaped like that.
+
+6. **Audit the plan's risks/gotchas for doc gaps.** If any risk reads
+   "the doc doesn't address this" or "the doc says X but X is
+   wrong," that's a sign that `docs/*.md` needs reconciling *before*
+   the implementation begins. The docs in this repo are canonical
+   for downstream steps (account deletion's FK semantics in step 8,
+   for example, are pre-baked in step 1 because the docs say so);
+   if the implementation diverges silently, later steps reference a
+   stale spec and the divergence compounds.
+
+   For every such risk, add an entry to a **Phase 0 — reconcile
+   docs** section at the top of the plan's "Order of execution",
+   listing the exact `file:line` to edit and a one-line summary of
+   the change. Phase 0 lands before bootstrap/red/green. The doc
+   edit and the matching code change should land together (or the
+   doc edit lands first as its own commit) so reviewers see the
+   spec change explicitly.
+
+7. **Confirm** in one sentence: the branch you're on, the file path,
    and what was written.
