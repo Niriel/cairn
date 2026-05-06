@@ -80,7 +80,34 @@ docker compose version
 You need Compose v2 (the `docker compose` subcommand, not the legacy
 `docker-compose` binary).
 
-### 4. VS Code extensions
+### 4. SQL, shell, and hook tooling
+
+Cairn is polyglot — there's hand-written SQL in `db/` and shell scripts in
+`scripts/` — and we lint and format both. Install these once on your
+machine; the pre-commit hook expects them on `PATH`:
+
+- **[SQLFluff](https://sqlfluff.com/)** — SQL linter and formatter, Postgres dialect.
+  Python tool; install via `pipx install sqlfluff` (preferred) or `pip install --user sqlfluff`.
+- **[ShellCheck](https://www.shellcheck.net/)** — shell-script linter. Single static binary;
+  install via your package manager (`apt install shellcheck`, `brew install shellcheck`,
+  `winget install koalaman.shellcheck`).
+- **[shfmt](https://github.com/mvdan/sh)** — shell-script formatter. Single static binary;
+  install via your package manager (`apt install shfmt`, `brew install shfmt`,
+  `scoop install shfmt`).
+- **[lefthook](https://github.com/evilmartians/lefthook)** — Git hook manager that
+  runs the lint/format/check gauntlet on staged files. Single static binary;
+  install via your package manager or download a release.
+
+After cloning, register the hooks once:
+
+```powershell
+lefthook install
+```
+
+The full toolchain — what each tool catches and how it's configured — is
+documented in [`docs/quality.md`](docs/quality.md).
+
+### 5. VS Code extensions
 
 If you're using VS Code (recommended for Svelte newcomers — best out-of-box
 experience), install:
@@ -88,9 +115,14 @@ experience), install:
 - **Svelte for VS Code** — `svelte.svelte-vscode`
 - **ESLint** — `dbaeumer.vscode-eslint`
 - **Prettier** — `esbenp.prettier-vscode`
+- **SQLFluff** — `dorzey.vscode-sqlfluff`
+- **shell-format** — `foxundermoon.shell-format`
 
 These give you autocomplete, jump-to-definition, type errors inline,
-on-save formatting, and lint feedback as you type.
+on-save formatting, and lint feedback as you type. The repo's
+`.vscode/settings.json` and `.vscode/extensions.json` wire them together;
+opening the folder in VS Code prompts you to install whichever you're
+missing.
 
 ## Verify your environment
 
@@ -156,13 +188,37 @@ pnpm preview
 ## Test
 
 ```powershell
+./scripts/test-db.sh           # pgTAP — database / RLS tests
 cd web
-pnpm test          # unit tests via Vitest
-pnpm test:e2e      # end-to-end tests (needs the backend running)
+pnpm test                      # Vitest — unit and component tests
+pnpm test:e2e                  # Playwright — end-to-end (needs the backend up)
 ```
 
-Database tests (pgTAP, run via `pg_prove` against the Docker Postgres) are
-described in `docs/development.md`.
+Schema and RLS policies are the heart of Cairn's security model, so the
+pgTAP suite is the load-bearing one. The full reference for what each
+layer is for, where the tests live, and how to write them, is in
+[`docs/testing.md`](docs/testing.md).
+
+## Lint, format, type check
+
+```powershell
+cd web
+pnpm check                     # type check (svelte-check)
+pnpm lint                      # ESLint
+pnpm format:check              # Prettier
+sqlfluff lint ../db            # SQL lint
+shellcheck ../scripts/*.sh     # shell lint
+```
+
+Or run the whole gauntlet — exactly what CI runs — in one shot:
+
+```powershell
+./scripts/check.sh
+```
+
+If you've installed the lefthook pre-commit hook (see prerequisites
+above), the right subset of these runs on every commit automatically.
+The full toolchain is documented in [`docs/quality.md`](docs/quality.md).
 
 ## Where to next
 
@@ -170,4 +226,6 @@ described in `docs/development.md`.
 - [`docs/README.md`](docs/README.md) — full spec, with reading order.
 - [`docs/development.md`](docs/development.md) — day-to-day dev workflow.
 - [`docs/architecture.md`](docs/architecture.md) — runtime topology and why.
+- [`docs/testing.md`](docs/testing.md) — the three test layers (pgTAP, Vitest, Playwright).
+- [`docs/quality.md`](docs/quality.md) — lint, format, type check, hooks.
 - `design/Cairn - Design Canvas.html` — open in a browser to see every screen.

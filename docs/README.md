@@ -40,6 +40,8 @@ The same code, the same data, every device.
 - **`invites.md`** — invitations, the three-way invite policy, and blocks. The full data flow for who can reach you and how.
 - **`circles.md`** — what a circle is (and isn't). The single canonical reference for the circle model — read this first if you've never encountered it.
 - **`development.md`** — how to set up and work on Cairn from a developer's laptop.
+- **`testing.md`** — the three test layers (pgTAP, Vitest, Playwright), what each catches, and how to run them.
+- **`quality.md`** — linting, formatting, type checking, and the pre-commit hook that runs them.
 - **`deployment.md`** — how Cairn runs in production on a Hetzner VPS, including TLS, backups, and releases.
 
 The docs are written to be read in roughly that order. `architecture.md` is the load-bearing one — the others build on its choices.

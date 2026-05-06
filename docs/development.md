@@ -324,15 +324,38 @@ docker compose exec postgres psql -U cairn -d cairn -c "SELECT count(*) FROM ite
 
 ## Testing
 
-Three layers, all expected to be in the repo and run on every commit (eventually — not all are present in v1):
+Cairn tests in three layers — pgTAP for the database, Vitest for unit and component tests, Playwright for end-to-end. Schema and RLS policies are the heart of Cairn's security model, so the pgTAP suite is the load-bearing one.
 
-**Database tests** — written in [pgTAP](https://pgtap.org/), run with `pg_prove` against a freshly-migrated test database. These verify the row-level security policies do what we think they do: Alice can't see Bob's private list, Carol can't add items to a list she's not on, etc. Schema and policies are the heart of Cairn's security model, so this is the most important layer of testing.
+The full reference for what each layer is for, where the tests live, and how to run them is in **[`testing.md`](testing.md)**. The short version of the local commands:
 
-**Component and unit tests** — [Vitest](https://vitest.dev/), shipped with SvelteKit. Standard unit testing for `src/lib/` modules and individual Svelte components, with mocked fetch responses.
+```bash
+./scripts/test-db.sh           # pgTAP
+cd web
+pnpm test                      # Vitest (one-shot)
+pnpm test:watch                # Vitest (watch mode — the usual local loop)
+pnpm test:e2e                  # Playwright (needs the backend up)
+```
 
-**End-to-end tests** — [Playwright](https://playwright.dev/), driving a real browser against the dockerized backend with seeded data. Slow, run less often, but catches the integration bugs that the other layers miss.
+## Code quality checks
 
-The CI pipeline (when set up) brings up the docker-compose stack, runs migrations, runs the database tests, builds and runs the web app, runs the Vitest and Playwright suites, and tears everything down. This matches what a developer does locally.
+Linting, formatting, and type checking are documented in **[`quality.md`](quality.md)** — what each tool is, why we picked it, and how it's wired up. The short version:
+
+```bash
+cd web
+pnpm check                     # type check (svelte-check)
+pnpm lint                      # eslint
+pnpm format:check              # prettier
+sqlfluff lint db/              # SQL lint
+shellcheck scripts/*.sh        # shell lint
+```
+
+Or run everything CI runs, in one shot:
+
+```bash
+./scripts/check.sh
+```
+
+A pre-commit hook (lefthook) runs the right subset of these on staged files automatically; install it once with `lefthook install`. See `quality.md` for the full configuration.
 
 ## Troubleshooting
 
