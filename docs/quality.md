@@ -224,6 +224,8 @@ Other editors are equally fine. Anything with LSP support reads the same configs
 
 We use [lefthook](https://github.com/evilmartians/lefthook) to wire the toolchain into Git. Lefthook is a single static binary (Go), reads one YAML config, and handles polyglot repos cleanly — which matters because pre-commit-the-Python-tool would force Python on every contributor for an accidental reason, and Husky would lock us into Node-only hooks.
 
+Practically, we ship lefthook as a `web/` `devDependency`. The npm package wraps a per-platform binary that pnpm fetches automatically as an optional dependency, so contributors don't need a separate system install. (We considered a Fedora COPR / Homebrew install, but the COPR is no longer published and the cross-distro story for "single binary on `PATH`" turned out to be more friction than the npm package.)
+
 ```yaml
 # lefthook.yml
 pre-commit:
@@ -260,11 +262,20 @@ pre-push:
 
 ### Installing the hooks
 
+Hooks are registered automatically by `web/package.json`'s `prepare` script, which runs at the end of every `pnpm install`. A fresh clone goes:
+
 ```bash
-lefthook install
+cd web && pnpm install
+# → "sync hooks: ✔️ (pre-commit, pre-push)"
 ```
 
-A one-time per-clone command, idempotent. We do not auto-install hooks via `postinstall` — silently registering hooks during `pnpm install` is the kind of "magic" that ruins someone's day when they thought they were just installing a package. Document the command, run it once.
+To register manually (e.g. after a hand-edit to `lefthook.yml`):
+
+```bash
+cd web && pnpm exec lefthook install
+```
+
+We considered keeping the install manual to avoid silently registering hooks during `pnpm install`. The countervailing argument won: a contributor who clones, runs `pnpm install`, and never reads the README still gets the linters fired on their first commit, instead of bypassing the gauntlet for weeks because the manual step was missed. Re-running `lefthook install` overwrites hooks unconditionally, so a developer who has hand-customized `.git/hooks/` will have those overwritten — a real but narrow risk for this project's audience.
 
 ### Bypassing the hook
 

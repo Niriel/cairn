@@ -93,15 +93,10 @@ machine; the pre-commit hook expects them on `PATH`:
 - **[shfmt](https://github.com/mvdan/sh)** — shell-script formatter. Single static binary;
   install via your package manager (`apt install shfmt`, `brew install shfmt`,
   `scoop install shfmt`).
-- **[lefthook](https://github.com/evilmartians/lefthook)** — Git hook manager that
-  runs the lint/format/check gauntlet on staged files. Single static binary;
-  install via your package manager or download a release.
-
-After cloning, register the hooks once:
-
-```powershell
-lefthook install
-```
+[lefthook](https://github.com/evilmartians/lefthook), the Git hook manager
+that runs the lint/format/check gauntlet on staged files, ships as a
+`web/` devDependency — `pnpm install` registers the hooks automatically
+(see `web/package.json` → `prepare`). No host install required.
 
 The full toolchain — what each tool catches and how it's configured — is
 documented in [`docs/quality.md`](docs/quality.md).
