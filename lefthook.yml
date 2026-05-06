@@ -1,0 +1,36 @@
+# Cairn pre-commit / pre-push hooks. See docs/quality.md for rationale.
+# Register once per clone: `lefthook install`.
+#
+# pre-commit runs on staged files only — fast, fails early.
+# pre-push runs the slower test suites once before the push goes out.
+# Playwright is intentionally NOT in pre-push — it's CI-only.
+
+pre-commit:
+  parallel: true
+  commands:
+    eslint:
+      glob: 'web/**/*.{ts,js,svelte}'
+      run: cd web && pnpm exec eslint {staged_files}
+    prettier:
+      glob: 'web/**/*.{ts,js,svelte,css,json,md,yaml,yml}'
+      run: cd web && pnpm exec prettier --check {staged_files}
+    svelte-check:
+      glob: 'web/**/*.{ts,svelte}'
+      run: cd web && pnpm check
+    sqlfluff:
+      glob: '{db,scripts}/**/*.sql'
+      run: sqlfluff lint {staged_files}
+    shellcheck:
+      glob: 'scripts/**/*.sh'
+      run: shellcheck {staged_files}
+    shfmt:
+      glob: 'scripts/**/*.sh'
+      run: shfmt -d -i 2 -ci -bn {staged_files}
+
+pre-push:
+  parallel: false
+  commands:
+    test-db:
+      run: ./scripts/test-db.sh
+    vitest:
+      run: cd web && pnpm test

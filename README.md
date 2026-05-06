@@ -11,12 +11,10 @@ workflow (migrations, seed data, debugging RLS, the dev-server proxy), see
 [`docs/development.md`](docs/development.md). For *what Cairn is*, start with
 [`docs/README.md`](docs/README.md).
 
-> **Status:** The SvelteKit shell, Docker Compose stack, and migration/seed
-> scripts are in place. The lint, format, and test toolchain documented in
-> [`docs/quality.md`](docs/quality.md) and [`docs/testing.md`](docs/testing.md)
-> is not yet wired up — `pnpm check` (svelte-check) works, but `pnpm lint`,
-> `pnpm test`, `./scripts/check.sh`, and the pgTAP/Vitest/Playwright suites
-> are still pending.
+> **Status:** The SvelteKit shell, Docker Compose stack, migration/seed
+> scripts, and the lint/format/test toolchain are all in place. The
+> three test layers carry only smoke tests so far — real RLS, unit,
+> and end-to-end coverage lands with the features they exercise.
 
 ## What you're building
 
@@ -99,8 +97,7 @@ machine; the pre-commit hook expects them on `PATH`:
   runs the lint/format/check gauntlet on staged files. Single static binary;
   install via your package manager or download a release.
 
-After cloning, register the hooks once (a no-op until `lefthook.yml`
-lands — see [`docs/quality.md`](docs/quality.md)):
+After cloning, register the hooks once:
 
 ```powershell
 lefthook install
@@ -179,8 +176,7 @@ pnpm preview
 
 The three test layers — pgTAP for database/RLS, Vitest for unit and
 component, Playwright for end-to-end — are documented in
-[`docs/testing.md`](docs/testing.md). None of the runners are wired up
-yet; once they are, the commands will be:
+[`docs/testing.md`](docs/testing.md):
 
 ```powershell
 ./scripts/test-db.sh           # pgTAP — database / RLS tests
@@ -192,19 +188,33 @@ pnpm test:e2e                  # Playwright — end-to-end (needs the backend up
 Schema and RLS policies are the heart of Cairn's security model, so the
 pgTAP suite is the load-bearing one.
 
-## Lint, format, type check
-
-Today, only the type check is wired up:
+Playwright also needs the browser binaries downloaded once per machine:
 
 ```powershell
 cd web
-pnpm check                     # svelte-check (TypeScript + Svelte)
+pnpm exec playwright install --with-deps chromium firefox webkit
 ```
 
-The full gauntlet — ESLint, Prettier, SQLFluff, ShellCheck, shfmt, plus
-a `./scripts/check.sh` runner and lefthook pre-commit hook — is
-documented in [`docs/quality.md`](docs/quality.md) and pending
-installation.
+## Lint, format, type check
+
+```powershell
+cd web
+pnpm check                     # type check (svelte-check)
+pnpm lint                      # ESLint
+pnpm format:check              # Prettier
+sqlfluff lint ../db            # SQL lint
+shellcheck ../scripts/*.sh     # shell lint
+```
+
+Or run the whole gauntlet — exactly what CI runs — in one shot:
+
+```powershell
+./scripts/check.sh
+```
+
+If you've installed the lefthook pre-commit hook (see prerequisites
+above), the right subset of these runs on every commit automatically.
+The full toolchain is documented in [`docs/quality.md`](docs/quality.md).
 
 ## Where to next
 
