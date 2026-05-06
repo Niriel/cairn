@@ -11,9 +11,12 @@ workflow (migrations, seed data, debugging RLS, the dev-server proxy), see
 [`docs/development.md`](docs/development.md). For *what Cairn is*, start with
 [`docs/README.md`](docs/README.md).
 
-> **Status:** The SvelteKit project and Docker Compose stack don't exist in
-> this repo yet — only the spec and design canvas. The "First-time project
-> setup" section below walks through generating the skeleton.
+> **Status:** The SvelteKit shell, Docker Compose stack, and migration/seed
+> scripts are in place. The lint, format, and test toolchain documented in
+> [`docs/quality.md`](docs/quality.md) and [`docs/testing.md`](docs/testing.md)
+> is not yet wired up — `pnpm check` (svelte-check) works, but `pnpm lint`,
+> `pnpm test`, `./scripts/check.sh`, and the pgTAP/Vitest/Playwright suites
+> are still pending.
 
 ## What you're building
 
@@ -59,9 +62,7 @@ corepack enable
 corepack prepare pnpm@latest --activate
 ```
 
-This puts `pnpm` on your PATH without a separate global install. The repo's
-`packageManager` field will pin a specific pnpm version once the SvelteKit
-project exists.
+This puts `pnpm` on your PATH without a separate global install.
 
 ### 3. Docker Desktop
 
@@ -98,7 +99,8 @@ machine; the pre-commit hook expects them on `PATH`:
   runs the lint/format/check gauntlet on staged files. Single static binary;
   install via your package manager or download a release.
 
-After cloning, register the hooks once:
+After cloning, register the hooks once (a no-op until `lefthook.yml`
+lands — see [`docs/quality.md`](docs/quality.md)):
 
 ```powershell
 lefthook install
@@ -120,9 +122,8 @@ experience), install:
 
 These give you autocomplete, jump-to-definition, type errors inline,
 on-save formatting, and lint feedback as you type. The repo's
-`.vscode/settings.json` and `.vscode/extensions.json` wire them together;
-opening the folder in VS Code prompts you to install whichever you're
-missing.
+`.vscode/extensions.json` recommends them; opening the folder in VS
+Code prompts you to install whichever you're missing.
 
 ## Verify your environment
 
@@ -135,28 +136,17 @@ docker compose version
 All three should print versions without error. Node should be on the current
 LTS; pnpm should be 8 or newer; Docker Compose should be v2.x.
 
-## First-time project setup
-
-The SvelteKit project doesn't exist in this repo yet. Generate it once:
-
-```powershell
-pnpm create svelte@latest web
-```
-
-Pick the **Skeleton project** template, **TypeScript** for type checking,
-and add **ESLint** and **Prettier** when prompted. Then install dependencies:
+## Install dependencies
 
 ```powershell
 cd web
 pnpm install
 ```
 
-Switch the SvelteKit adapter to the static adapter (so we ship a folder of
-files, not a Node server) — `docs/architecture.md` and
-`docs/development.md` cover the configuration.
-
-The Docker Compose stack and migration scripts described in
-`docs/development.md` also need to be created — they are not yet present.
+The SvelteKit project is already wired up with the static adapter and a
+dev-server cookie shim that proxies `/api` to PostgREST and `/auth` to
+GoTrue (see `web/vite.config.ts`). [`docs/architecture.md`](docs/architecture.md)
+and [`docs/development.md`](docs/development.md) cover why.
 
 ## Run the app
 
@@ -178,7 +168,7 @@ The dev server runs on <http://localhost:5173> and proxies `/api` and
 shim (see `docs/development.md`). Save a `.svelte` file and the running
 page hot-reloads in milliseconds without losing state.
 
-To preview the production build (with the real service worker), run:
+To preview the production build, run:
 
 ```powershell
 pnpm build
@@ -186,6 +176,11 @@ pnpm preview
 ```
 
 ## Test
+
+The three test layers — pgTAP for database/RLS, Vitest for unit and
+component, Playwright for end-to-end — are documented in
+[`docs/testing.md`](docs/testing.md). None of the runners are wired up
+yet; once they are, the commands will be:
 
 ```powershell
 ./scripts/test-db.sh           # pgTAP — database / RLS tests
@@ -195,30 +190,21 @@ pnpm test:e2e                  # Playwright — end-to-end (needs the backend up
 ```
 
 Schema and RLS policies are the heart of Cairn's security model, so the
-pgTAP suite is the load-bearing one. The full reference for what each
-layer is for, where the tests live, and how to write them, is in
-[`docs/testing.md`](docs/testing.md).
+pgTAP suite is the load-bearing one.
 
 ## Lint, format, type check
 
+Today, only the type check is wired up:
+
 ```powershell
 cd web
-pnpm check                     # type check (svelte-check)
-pnpm lint                      # ESLint
-pnpm format:check              # Prettier
-sqlfluff lint ../db            # SQL lint
-shellcheck ../scripts/*.sh     # shell lint
+pnpm check                     # svelte-check (TypeScript + Svelte)
 ```
 
-Or run the whole gauntlet — exactly what CI runs — in one shot:
-
-```powershell
-./scripts/check.sh
-```
-
-If you've installed the lefthook pre-commit hook (see prerequisites
-above), the right subset of these runs on every commit automatically.
-The full toolchain is documented in [`docs/quality.md`](docs/quality.md).
+The full gauntlet — ESLint, Prettier, SQLFluff, ShellCheck, shfmt, plus
+a `./scripts/check.sh` runner and lefthook pre-commit hook — is
+documented in [`docs/quality.md`](docs/quality.md) and pending
+installation.
 
 ## Where to next
 
