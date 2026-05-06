@@ -42,6 +42,14 @@ whatever you spot that doesn't fit them:
   to touch but doesn't list.
 - **Doc divergence** — places where the plan diverges from
   `docs/*.md` without a Phase 0 to reconcile them.
+- **Code smell / unusual practices** — patterns the plan implies
+  that work but a seasoned practitioner of the language, framework,
+  or tool would flag: fighting the framework, reinventing a
+  built-in, idioms that read fine to a generalist but a specialist
+  would call out as non-idiomatic. The user is not always able to
+  spot these themselves and is counting on you to know what good
+  looks like in the relevant ecosystem (SvelteKit, Postgres,
+  PostgREST, GoTrue, pgTAP, ESLint, etc.) and call it out.
 - **Anything else** — scope creep, unrealistic estimates, missed
   rollback paths, security holes, performance traps, etc.
 
@@ -51,28 +59,34 @@ architecture) on top; small clarifications and typos at the bottom.
 Aim for ~5–15 entries; if you produce more, you're nitpicking —
 collapse related ones.
 
-Format:
+Format — each concern starts with an unchecked checkbox `[ ]` so
+the file doubles as a progress tracker during the resolution phase:
 
 ```
 # Concerns — plans/<NNNN_slug>.md
 
 Generated <YYYY-MM-DD>.
 
-1. **<short title>** — one sentence stating the concern.
+1. [ ] **<short title>** — one sentence stating the concern.
    - Proposed: one sentence stating the fix.
 
-2. ...
+2. [ ] ...
 ```
 
-Then tell the user: "Drafted `CONCERNS.md` with N concerns; run
-`/concerns` again to resolve."
-
-Stop here. The user reads `CONCERNS.md`, then re-invokes the
-command.
+Tell the user: "Drafted `CONCERNS.md` with N concerns." Then
+proceed directly into the **Resolution phase** below — don't make
+the user re-invoke the command.
 
 ## Resolution phase
 
-Read `CONCERNS.md`. Use `AskUserQuestion` to ask:
+Read `CONCERNS.md`. Before asking how to proceed, **summarise the
+concerns in chat** — one short line per concern, in the same order
+as the file (gravity-first), so the user can see the whole punch
+list at a glance without opening the file. Group them lightly if
+it helps readability ("top three could change the plan; 4–6 are
+real bugs in the spec; the rest are clarifications") but don't
+re-rank — the file's order is the order. Then use
+`AskUserQuestion` to ask:
 
 > Walk through one by one, or quick-fix all?
 
@@ -92,18 +106,25 @@ For each concern, top to bottom:
      `/concerns` will likely surface this again.
    - **chat** — discuss in conversation, then return to this same
      four-option prompt for the same concern.
-3. Carry out the action, then remove the concern from
-   `CONCERNS.md`.
+3. Carry out the action, then tick the concern's checkbox from `[ ]`
+   to `[x]` in `CONCERNS.md`. Don't delete it, don't renumber the
+   remaining entries — the numbering stays stable so the user can
+   refer back to "concern #4" throughout the session.
 
 ### Quick-fix mode
 
-Apply every "Proposed" fix to the plan file in one pass. Then tell
-the user the list of concerns that were applied.
+Apply every "Proposed" fix to the plan file in one pass, ticking
+each concern's checkbox to `[x]` as you go. Then tell the user the
+list of concerns that were applied.
 
 ### Cleanup
 
-Once every concern has been handled (walk-through complete or
-quick-fix done), delete `CONCERNS.md`.
+Once every concern has been handled (every checkbox is `[x]`), use
+`AskUserQuestion` to ask the user whether to delete `CONCERNS.md`
+or leave it for reference. Default-recommend deleting it — it's a
+scratch artefact and the plan file is the system of record — but
+let the user keep it if they want a paper trail of what was raised
+and how each item landed.
 
 ## Notes
 
