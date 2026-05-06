@@ -29,8 +29,9 @@ cairn/
 │   └── Caddyfile.prod      ← used in deployment, not locally
 ├── db/
 │   ├── migrations/         ← versioned SQL migrations
-│   │   ├── 0001_initial_schema.sql
-│   │   ├── 0002_rls_policies.sql
+│   │   ├── 0001_init.sql
+│   │   ├── 0002_auth_schema.sql
+│   │   ├── 0003_postgres_role.sql
 │   │   └── ...
 │   └── seed/
 │       └── dev_seed.sql    ← fake users and lists for dev
@@ -121,10 +122,13 @@ services:
     depends_on: [postgres]
 
   gotrue:
-    image: supabase/gotrue:latest
+    image: supabase/gotrue:v2.158.1
     environment:
+      # Note: GoTrue reads API_EXTERNAL_URL without the GOTRUE_ prefix
+      # (envconfig quirk). Every other key uses the prefix.
+      API_EXTERNAL_URL: http://localhost:9999
       GOTRUE_DB_DRIVER: postgres
-      GOTRUE_DB_DATABASE_URL: postgres://gotrue:${GOTRUE_PASSWORD}@postgres/cairn
+      GOTRUE_DB_DATABASE_URL: postgres://gotrue:${GOTRUE_PASSWORD}@postgres/cairn?search_path=auth
       GOTRUE_JWT_SECRET: ${JWT_SECRET}
       GOTRUE_SMTP_HOST: mailpit
       GOTRUE_SMTP_PORT: 1025
@@ -145,7 +149,7 @@ services:
 A few things worth knowing about this:
 
 - **The `JWT_SECRET` is shared** between PostgREST and GoTrue. GoTrue signs JWTs with it; PostgREST verifies signatures with it. They have to match. In dev it's a random string in `.env`; in production it's a stronger random string in a secrets file.
-- **Three Postgres roles**: `cairn` is the superuser used for migrations, `authenticator` is what PostgREST connects as (no rights of its own; it `SET ROLE`s to `anon` or `authenticated` per request), `gotrue` is what GoTrue connects as. The migrations create these roles.
+- **Postgres roles**: `cairn` is the superuser used for migrations (created by Postgres from `POSTGRES_USER`); the rest are created by the migrations. `authenticator` is what PostgREST connects as — it has no rights of its own and `SET ROLE`s to `anon` or `authenticated` per request based on the JWT. `anon` and `authenticated` are no-login group roles that RLS policies reference. `gotrue` is what GoTrue connects as; it owns the `auth` schema. There is also a no-login `postgres` stub role: recent supabase/gotrue migrations hardcode `GRANT ... TO postgres` against their auth tables, so the role has to exist even though our superuser is named `cairn`.
 - **`GOTRUE_MAILER_AUTOCONFIRM: "true"`** is a development convenience: signing up doesn't require clicking a confirmation email. In production this is `false` so users actually have to verify their email. Magic-link login itself works the same way in both environments.
 - **`GOTRUE_SITE_URL: http://localhost:5173`** is the SvelteKit dev server. Magic-link emails point at it; clicking the link opens a browser tab on the dev server. Caddy is not in the loop locally — its cookie shim is approximated by the SvelteKit dev server's API proxy (see below).
 
@@ -199,6 +203,8 @@ There's no fancy migration framework — `./scripts/migrate.sh` is a small shell
 3. Records each one as applied.
 
 Adding a new migration is "create the next-numbered file, write the SQL, run the script." If we ever need branching, rollbacks, or schema diffing, we'll bring in [sqitch](https://sqitch.org/) or similar.
+
+One non-obvious thing the migrations do: **pre-create the `auth` schema and hand ownership to the `gotrue` role** before GoTrue first connects. GoTrue's DSN sets `search_path=auth` and its first action is `CREATE TABLE schema_migrations`, which fails with "no schema has been selected to create in" if the schema doesn't already exist. Don't "simplify" this back out — the standard "let GoTrue create its own schema" advice doesn't apply when `search_path` is set in the DSN.
 
 To start over with a clean database:
 
