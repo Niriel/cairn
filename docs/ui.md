@@ -135,11 +135,11 @@ This is invisible work — done right, the user never notices. Done wrong, the F
 A Settings screen, reachable from an overflow on the lists screen. Two preferences in v1:
 
 - **Theme.** Light / dark / system. Default: system. The app re-themes immediately on change; no restart.
-- **Font size.** Five steps: XS, S, M, L, XL. Default: M. Implemented as a single scale factor applied to the root `font-size` (with all type sizes in `rem`) so every text style scales together and the layout stays balanced. The scale factor lives on the user's profile (see `data-model.md`) so it follows them across devices.
+- **Font size.** Five steps: XS, S, M, L, XL. Default: M. Implemented as a single scale factor applied to the root `font-size` (with all type sizes in `rem`) so every text style scales together and the layout stays balanced.
 
 Larger sizes are not just an accessibility nicety — Cairn is read in cafés, on a couch, with a glass of wine. The defaults should look good at M; L should feel like a proper "large text" mode without breaking any layout.
 
-Both preferences are stored on the `profiles` row, written via PostgREST like any other field. No local-only settings in v1 — if it's worth a control, it's worth following the user.
+Both preferences are **device-local** — stored in `localStorage`, not in the database. Theme and font size are properties of the screen you're reading on (a phone in bright sun versus a laptop indoors at night), not properties of the user, so they shouldn't follow you across devices. Anything that genuinely *should* follow the user — invite policy, future notification preferences — lives on `user_settings` (see `data-model.md`).
 
 Below the preferences, Settings has three navigation rows that open dedicated screens:
 

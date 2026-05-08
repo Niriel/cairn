@@ -47,7 +47,9 @@ slip new ones in between without renumbering.
 4. [ ] **MVP product surface (single-user happy path).** Lists overview,
    create list, items list with one-at-a-time accordion, add/edit
    item, vote control (±1 nudges, ±3 clamp), settings (theme + font
-   size persisted to `user_settings`). Empty states for both screens. No
+   size persisted to the browser's `localStorage` — they're
+   device-local, not in `user_settings`; see `docs/data-model.md` →
+   "Where Cairn stores data"). Empty states for both screens. No
    sharing yet — solo end-to-end.
 
 5. [ ] **Soft-delete UX.** Undo snackbar pattern, per-list trash, account
@@ -55,12 +57,15 @@ slip new ones in between without renumbering.
    soft-deletable in step 1, this exposes the surface.
 
 6. [ ] **Invites + circles + blocks: DB layer.** Tier 3 from data-model:
-   create `circle_members`, `blocks`, `invitations` (the
-   `invite_policy` column already ships on `user_settings` from step 1
-   — see `data-model.md` "Why `profiles` and `user_settings` are
-   split"). The five RPCs (`send_invitation`,
+   create `relationships` (the merged circle/blocklist — one row per
+   directed pair, with `status` enum `'circle' | 'blocked'`) and
+   `invitations`. The `invite_policy` column already ships on
+   `user_settings` from step 1 — see `data-model.md` "Why `profiles`
+   and `user_settings` are split". The five RPCs (`send_invitation`,
    `accept_invitation`, `decline_invitation`, `add_circle_by_email`,
-   `add_circle_by_id`) as `security definer`. RLS + pgTAP.
+   `add_circle_by_id`) as `security definer` — function names keep
+   the user-facing "circle" vocabulary even though the bodies write
+   `relationships` rows. RLS + pgTAP.
 
 7. [ ] **Invites + circles + blocks: UI layer.** Privacy settings screen,
    circle screen, blocked screen, circle explainer sheet, invites

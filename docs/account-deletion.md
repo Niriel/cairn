@@ -12,15 +12,14 @@ This is the same pattern GitHub, Slack, Discord, and most collaborative tools us
 |---|---|---|
 | `auth.users` row (email, hashed credentials) | Hard deleted | Personal data; the whole point of the deletion |
 | `profiles` row (display_name) | Hard deleted | Personal data; cascades from `auth.users` |
-| `user_settings` row (theme, font_size, invite_policy) | Hard deleted | Personal preferences; cascades from `auth.users`. Lives in a separate table from `profiles` so owner-only RLS makes every column structurally private — see `data-model.md` "Why `profiles` and `user_settings` are split". |
+| `user_settings` row (invite_policy) | Hard deleted | Personal preferences; cascades from `auth.users`. Lives in a separate table from `profiles` so owner-only RLS makes every column structurally private — see `data-model.md` "Why `profiles` and `user_settings` are split". (Theme and font size are device-local, in `localStorage`, not in this table — see `ui.md`.) |
 | `votes` rows | Hard deleted | A vote *is* a personal opinion. Score recomputes automatically; other members' votes are unaffected. |
 | `list_members` rows for the deleted user | Hard deleted | Membership is personal; with no membership row, the user no longer appears anywhere |
-| `circle_members` rows (either side) | Hard deleted | Personal allowlist data; nothing of value to preserve. See `invites.md`. |
-| `blocks` rows (either side) | Hard deleted | Same — personal data, no shared value. |
-| `invitations` rows (sender or recipient) | Hard deleted | Pending state; no audit value once the user is gone. |
+| `relationships` rows (either side, regardless of `status`) | Hard deleted | Personal allowlist / blocklist data; nothing of value to preserve. See `invites.md`. |
+| `invitations` rows (sender via `created_by` or recipient via `target_user_id`) | Hard deleted | Pending state; no audit value once the user is gone. |
 | `items.created_by` / `items.modified_by` / `items.deleted_by` pointing at the user | Repointed to the tombstone user | The item itself is shared content; its existence is not personal data |
 | `lists.created_by` / `lists.deleted_by` pointing at the user | Repointed to the tombstone user | Same |
-| `list_members.added_by` / `list_members.deleted_by` pointing at the user | Repointed to the tombstone user | Same |
+| `list_members.created_by` / `list_members.deleted_by` pointing at the user | Repointed to the tombstone user | Same |
 | Lists where the user was the *only* remaining member | Hard deleted, with their items | No one is harmed by removing them, and they were effectively private |
 
 A "list with no live members" was already an implied dead state in the schema — this gives it an explicit cleanup point.
@@ -46,7 +45,7 @@ Both inserts use `on conflict (id) do nothing`. The migration is run exactly onc
 
 The two-column `(id, email)` form above is deliberately minimal. It works against `supabase/gotrue:v2.158.1` (the version pinned in `docker-compose.yml`) because every other column GoTrue declares either has a server-side default, accepts NULL, or is filled in by GoTrue's own startup migrations *before* our migration runs (`scripts/migrate.sh` waits for `auth.users` to exist before applying any migration numbered `0004` or later, so by the time the tombstone insert lands, GoTrue's column defaults are in place). The columns the rest of the schema depends on are tiny:
 
-- `id uuid primary key` — the FK target for every `created_by` / `modified_by` / `deleted_by` / `added_by` / `user_id` column in `public.*`.
+- `id uuid primary key` — the FK target for every `created_by` / `modified_by` / `deleted_by` / `user_id` column in `public.*`.
 - `email text` — required to exist because GoTrue stores the signup address there and the magic-link delivery reads it. The migration writes only the tombstone's `null` value into this column; the schema deliberately does **not** read it elsewhere. The on-signup trigger creates `profiles` rows with the fixed placeholder `'New user'` rather than deriving from the email's local part, because the local part is frequently the user's real name and rendering it back as `display_name` would leak email content.
 
 Test parity: `db/test-bootstrap.sql` stubs `auth.users` with exactly `(id, email, role, created_at)`. The first two are what the migration needs; `role` and `created_at` are carried because GoTrue and PostgREST both reference `role` for JWT-claim defaulting and `created_at` is universal enough to be cheap. Anything beyond those four is deliberately *not* stubbed, so the test path can't paper over a divergence — it has the same surface area as the migration.
@@ -69,7 +68,7 @@ The seven columns:
 
 - `lists.created_by`, `lists.deleted_by`
 - `items.created_by`, `items.modified_by`, `items.deleted_by`
-- `list_members.added_by`, `list_members.deleted_by`
+- `list_members.created_by`, `list_members.deleted_by`
 
 `list_members.user_id` and `votes.{item_id, user_id}` keep `on delete cascade` instead — those are records of a personal action by the user, and cascade is the desired semantics. `profiles.id` keeps `on delete cascade` from `auth.users` for the same reason: when the user goes, their profile goes with them.
 
