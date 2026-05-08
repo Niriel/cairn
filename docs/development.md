@@ -367,14 +367,16 @@ A pre-commit hook (lefthook) runs the right subset of these on staged files auto
 
 **A migration failed and now nothing works.** Reset the database (the four-command sequence above). Migrations should be idempotent and re-runnable, but if you've gotten into a wedged state, the cost of starting over is approximately zero.
 
-**RLS is blocking a query that I think it shouldn't.** Look at PostgREST's logs for the actual SQL it ran, then run that same SQL manually as the `authenticated` role with the right `request.jwt.claim.sub` set. The bug is almost always in the policy, not the API call.
+**RLS is blocking a query that I think it shouldn't.** Look at PostgREST's logs for the actual SQL it ran, then run that same SQL manually as the `authenticated` role with the right `request.jwt.claims` set. The bug is almost always in the policy, not the API call.
 
 ```sql
 set role authenticated;
-set local request.jwt.claim.sub = '<a-known-user-uuid>';
+set local request.jwt.claims = '{"sub":"<a-known-user-uuid>"}';
 select * from lists;
 reset role;
 ```
+
+`public.uid()` reads the `sub` field out of the `request.jwt.claims` JSON object — that's the GUC PostgREST sets per request in v10+. Older snippets that set `request.jwt.claim.sub` (singular, no JSON) won't work; that per-claim form was removed in PostgREST v10 and we run v12.
 
 This is the single most useful debugging trick for this stack. Learn it.
 

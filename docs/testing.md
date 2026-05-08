@@ -77,30 +77,36 @@ BEGIN;
 SELECT plan(2);
 
 -- Fixture: user_a is a member of list_a; user_b is not.
-\i fixtures/users_and_one_shared_list.sql
+\i /db/tests/fixtures/list_shared_alice_bob.sql
 
--- As user_a, list_a is visible.
-SET LOCAL request.jwt.claim.sub = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
+-- As Alice, list_a is visible.
+SET LOCAL request.jwt.claims = '{"sub":"aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"}';
 SET LOCAL ROLE authenticated;
 SELECT is(
   (SELECT count(*)::int FROM lists WHERE id = 'list_a'),
   1,
-  'user_a sees list_a (their own membership)'
+  'Alice sees list_a (her own membership)'
 );
 
--- As user_b, list_a is invisible.
-SET LOCAL request.jwt.claim.sub = 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb';
+-- As Carol (non-member), list_a is invisible.
+SET LOCAL request.jwt.claims = '{"sub":"cccccccc-cccc-cccc-cccc-cccccccccccc"}';
 SELECT is(
   (SELECT count(*)::int FROM lists WHERE id = 'list_a'),
   0,
-  'user_b does not see list_a (no membership)'
+  'Carol does not see list_a (no membership)'
 );
 
 SELECT * FROM finish();
 ROLLBACK;
 ```
 
-Two conventions: every test wraps in `BEGIN ... ROLLBACK`, and every assertion has a human-readable message. The message is what shows up in `pg_prove` output when something fails at 2 a.m.; future-you will thank present-you for spelling out *what* the assertion meant.
+Three conventions to notice:
+
+- **Every test wraps in `BEGIN ... ROLLBACK`.** No test mutates state another test will see; fixtures load fresh inside each transaction.
+- **Every assertion has a human-readable message.** That's what shows up in `pg_prove` output when something fails at 2 a.m.; future-you will thank present-you for spelling out *what* the assertion meant.
+- **Fixture `\i` paths are absolute** — `/db/tests/fixtures/<name>.sql`, not `fixtures/<name>.sql`. `pg_prove` runs inside the postgres container with WORKDIR `/`, not `/db/tests`, so a relative path resolves to `/fixtures/...` and the include fails. The absolute path matches the read-only volume mount in `docker-compose.yml` (`./db:/db`) and is robust regardless of invocation cwd.
+
+The JWT-claim form is also worth noting: `SET LOCAL request.jwt.claims = '{"sub":"<uuid>"}'` — the JSON-object GUC PostgREST v10+ sets per request. The old per-claim form `request.jwt.claim.sub` was removed in PostgREST v10; we run v12, so the JSON form is what `public.uid()` reads from. `SET LOCAL` scopes the GUC to the current transaction, so the surrounding `BEGIN ... ROLLBACK` resets it automatically; subsequent `SET LOCAL` calls within the same transaction overwrite it (e.g., when a test switches from "act as Alice" to "act as Carol" mid-file, as above).
 
 ## Unit and component tests (Vitest)
 

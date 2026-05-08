@@ -242,15 +242,15 @@ policy, RPC, and trigger function in this migration calls
       policy; the RPC is only for the create path.
   12. `ENABLE ROW LEVEL SECURITY` on all five `public` tables.
   13. All RLS policies, exactly per the "Row-level security
-      policies" section of `docs/data-model.md` (post-Phase-0).
-      Two notes: (a) see Risk #1 below — `list_members_update`
-      likely needs `WITH CHECK (is_list_member(list_id) OR user_id
-      = public.uid())` to allow members to soft-remove themselves;
+      policies" section of `docs/data-model.md`. Two notes: (a) see
+      Risk #1 below — `list_members_update` likely needs
+      `WITH CHECK (is_list_member(list_id) OR user_id =
+      public.uid())` to allow members to soft-remove themselves;
       we'll write the test first and let it dictate the final
-      form. (b) After Phase 0, the doc no longer has `lists_insert`
-      — it's intentionally absent here too, so direct `POST /lists`
-      is denied by RLS (no permissive INSERT policy). List creation
-      goes through `create_list()` (step 11) only.
+      form. (b) The doc has no `lists_insert` policy — direct
+      `POST /lists` is denied by RLS (no permissive INSERT policy)
+      and by the absence of an INSERT grant; list creation goes
+      through `create_list()` (step 11) only.
   14. Three views, with deliberately asymmetric
       `security_invoker` settings so soft-deleted rows are
       **never** readable through base-table queries:
@@ -261,10 +261,8 @@ policy, RPC, and trigger function in this migration calls
         clause hides soft-deleted items automatically. The view
         body's `where i.deleted_at is null` is defensive
         redundancy.
-      - `items_deleted` (matching the `items_deleted` view
-        definition) and `lists_deleted` (matching the
-        `lists_deleted` view paragraph, which Phase 0 expands to
-        a full `CREATE VIEW`): both
+      - `items_deleted` and `lists_deleted` (both matching their
+        view definitions in `docs/data-model.md`): both
         `WITH (security_invoker = false)`. They run as the view
         owner (`cairn`, table-owner exempt from RLS) so they can
         read soft-deleted rows the policies hide. To compensate
@@ -694,197 +692,6 @@ There's not much in this repo yet (it's pre-production), but:
 
 ## Order of execution (TDD)
 
-0. **Phase 0 — reconcile docs.** The risks above surface points where
-   the docs are silent or contradict what the migration must do. Fix
-   the docs first so step 1's migration encodes "what the doc says,"
-   not "what we figured out." Land as a separate commit before any
-   code.
-
-   **Anchor caveat**: the `docs/<file>.md:<lineno>` references below
-   were correct at plan-write time. The first doc edit shifts every
-   subsequent line number, so don't trust them once you start
-   editing — use the prose anchor in each bullet ("the `lists_insert`
-   policy block", "the Triggers section", etc.) to find the right
-   block, and treat the line number as a rough hint only.
-
-   - **`docs/data-model.md:362-366`** — `list_members_update` policy.
-     Change `with check (public.is_list_member(list_id))` to
-     `with check (public.is_list_member(list_id) or user_id =
-     public.uid())`. Reason: `is_list_member()` returns false for a
-     member after their own row's `deleted_at` is set, so the
-     current `WITH CHECK` rejects the very update that removes them
-     (Risk #1).
-
-   - **`docs/data-model.md:304`** (and every policy/trigger
-     reference downstream of it) — "a helper function provided by
-     the GoTrue conventions, returns the UUID extracted from the
-     JWT" is wrong on two counts. (a) Vanilla GoTrue ships no such
-     helper; Supabase's hosted helpers ship `auth.uid()`. (b) We
-     deliberately do *not* put our helper in the `auth` schema,
-     because that schema is owned by GoTrue and a future GoTrue
-     release could clobber it. Replace with: Cairn ships
-     `public.uid()` in migration `0004`, sibling to
-     `public.is_list_member()`, reading the `sub` claim out of
-     PostgREST's `request.jwt.claims` GUC (a JSON object set
-     per-request). Show the function body. Then sweep every
-     `auth.uid()` reference in policies and trigger descriptions
-     (`:322`, `:339`, `:359`, `:380`, `:406`, `:415`, `:416`,
-     `:420`, `:435`, `:436`, `:449`, `:451`, `:453`, `:457`,
-     `:459`, `:461`, `:465`, `:482` — eighteen call sites) to read
-     `public.uid()`.
-
-   - **`docs/data-model.md:431`** — `profiles_select` policy. Change
-     `using (auth.role() = 'authenticated')` to
-     `using (public.uid() is not null)`. Reason: vanilla GoTrue
-     ships no `auth.role()` helper any more than it ships
-     `auth.uid()`; rather than introduce a second Cairn helper
-     (`public.role()`) for one call site, lean on the existing
-     `public.uid()` — a non-null result is the same proof of
-     authentication, and the policy reads consistently with every
-     other policy in the migration.
-
-   - **`docs/architecture.md:211`** — currently says PostgREST runs
-     `SET LOCAL request.jwt.claim.sub = '<user-id>'`. PostgREST
-     removed those per-claim GUCs in v10; v12.2.3 (the version we
-     run) sets a single `request.jwt.claims` GUC whose value is the
-     full claims JSON. Update the sentence accordingly.
-
-   - **`docs/development.md:370,374`** — the "RLS is blocking a query"
-     debugging recipe shows `set local request.jwt.claim.sub = ...`.
-     Replace with `set local request.jwt.claims = '{"sub":"<uuid>"}'`
-     so the snippet matches what `public.uid()` actually reads.
-
-   - **`docs/testing.md:83,92`** — the worked pgTAP example uses
-     `SET LOCAL request.jwt.claim.sub = ...` twice. Replace both
-     with `SET LOCAL request.jwt.claims = '{"sub":"<uuid>"}'` for
-     the same reason; this becomes the canonical pattern every test
-     file in this plan follows.
-
-   - **`docs/testing.md:80`** — the worked example's `\i
-     fixtures/users_and_one_shared_list.sql` uses a relative path.
-     Replace with the absolute form (`\i
-     /db/tests/fixtures/<name>.sql`) so the doc and the plan agree
-     on one fixture-include style; relative paths break under
-     pg_prove because the container's WORKDIR is `/`, not
-     `/db/tests`. The fixture filename in the example is
-     illustrative; pick one that matches the new fixture set
-     (`users_alice_bob_carol.sql` is the obvious choice).
-
-   - **`docs/data-model.md:472-484`** (Triggers section) — three
-     edits. (a) `profiles_create_on_signup` description: add that
-     the trigger skips `new.id = '00000000-…'` (the tombstone) so
-     the manual tombstone-profile insert from
-     `account-deletion.md:36-37` isn't double-handled, and uses
-     `coalesce(new.email, '')` defensively to handle the
-     tombstone's null email (Risks #9, #10). It's
-     `SECURITY DEFINER` because `auth.users` INSERTs run under the
-     `gotrue` role, and `profiles` has no INSERT policy. (b)
-     **Remove `lists_creator_is_member` from this section** — it
-     no longer exists. List creation is now an RPC
-     (`create_list()`), not a trigger; cross-table privileged
-     writes go through RPCs in this codebase, not triggers, and
-     this brings list creation into line with `send_invitation`,
-     `accept_invitation`, etc. (c) Note that `set_attribution`
-     and the modified-at triggers are `SECURITY INVOKER`
-     (default) since they only mutate `NEW`.
-
-   - **`docs/data-model.md:338-339`** (`lists_insert` policy) —
-     remove the policy from the doc entirely. List creation is
-     now RPC-only (`create_list()`), and a permissive INSERT
-     policy on `lists` would re-open the orphan-list footgun
-     (direct `POST /lists` succeeds but skips the matching
-     `list_members` row). Replace the deleted block with a short
-     paragraph explaining that `public.lists` deliberately has no
-     INSERT policy and no INSERT grant to `authenticated` — the
-     only create path is `/rpc/create_list`. Cross-link to the
-     RPC entry in the API surface section.
-
-   - **`docs/data-model.md:486-521`** (API surface) — add
-     `POST /rpc/create_list` to the list of RPCs (alongside
-     `send_invitation`, `accept_invitation`, etc.) with body
-     `{name, description?}`. **Remove** the `POST /lists` entry
-     entirely — direct list creation is no longer permitted. The
-     remaining `lists` routes are `GET /lists` and
-     `PATCH /lists?id=eq.<uuid>` (rename / soft-delete /
-     restore), both gated by the live `lists_select` /
-     `lists_update` policies. Cross-link to `delete_account` for
-     the parallel RPC-only pattern.
-
-   - **`docs/data-model.md:248-298`** (the three views) — three
-     edits, with deliberately asymmetric `security_invoker`
-     settings so that soft-deleted rows are **never** readable
-     through the base-table API path. (a) `items_ranked` is the
-     live aggregation view; create it `WITH (security_invoker =
-     true)` so it inherits the caller's RLS. The `items_select`
-     policy keeps its `deleted_at IS NULL` filter (see the
-     `lists_select` / `items_select` entry below), which is what
-     hides soft-deleted items from this view; the `where
-     i.deleted_at is null` in the view body becomes a defensive
-     redundancy. (b) `items_deleted` and `lists_deleted` are the
-     trash views; create both `WITH (security_invoker = false)`
-     so they run as the *owner* (`cairn`, table-owner exempt
-     from RLS) and can therefore read soft-deleted rows that the
-     `*_select` policies would otherwise hide. To compensate for
-     the bypassed RLS, each view body adds `and
-     public.is_list_member(<list-id>)` to its WHERE — this is now
-     the *only* authorization gate for the trash, so it has to be
-     covered by tests (see `views_items_deleted.sql` and
-     `views_lists_deleted.sql`). `lists_deleted` is currently a
-     one-sentence footnote with no SQL; add the full
-     `CREATE VIEW … WITH (security_invoker = false) AS …`
-     definition mirroring `items_deleted`. (c) Update the line at
-     `:273` ("the view inherits row-level security from the
-     underlying tables") to spell out the asymmetry: live views
-     use `security_invoker = true` and lean on policies; trash
-     views use `security_invoker = false` and lean on an
-     explicit `is_list_member()` filter — chosen this way so the
-     base tables never expose soft-deleted rows to direct queries.
-
-   - **`docs/data-model.md:330-345` and `:370-390`** (`lists_select`
-     and `items_select`) — keep the `and deleted_at is null`
-     clause in both policies. This is the load-bearing rule that
-     makes soft-deleted rows invisible through `GET /lists` and
-     `GET /items` (and through `items_ranked`, which inherits the
-     caller's RLS). The trash views read soft-deleted rows by
-     explicitly elevating to owner privileges with
-     `security_invoker = false`, gated by their own
-     `is_list_member()` filter — the only path through which
-     soft-deleted rows are readable. Update the prose around the
-     two policies to call this out so a future reader doesn't
-     "simplify" by removing the live filter (which would silently
-     leak soft-deleted content via the base tables).
-
-   - **`docs/data-model.md:330-436`** (RLS policies, all tables) —
-     add a callout near the top of the policies section that
-     **`GRANT SELECT, INSERT, UPDATE [, DELETE] ON <table> TO
-     authenticated`** is required for PostgREST to expose the
-     tables; RLS without grants returns silently empty. Currently
-     the doc shows policies but says nothing about grants
-     (Risk #6).
-
-   - **`docs/account-deletion.md:33-37`** — the tombstone insert
-     snippet shows raw `INSERT INTO auth.users (id, email) VALUES
-     (...);` and `INSERT INTO public.profiles (id, display_name)
-     VALUES (...);`. Update both to append `ON CONFLICT (id) DO
-     NOTHING` and add a one-line note that this is the migration
-     pattern: re-applying the migration (or running it after the
-     `tg_profile_on_signup` trigger has handled a real user) must
-     be a no-op. Keeps the doc and migration on the same page
-     (per the "docs are right or migration is wrong" rule in
-     `data-model.md:5`).
-
-   - **`docs/account-deletion.md:80`** (and any other `auth.uid()` /
-     `auth.role()` reference in that file) — the `delete_account()`
-     function body shows `uid uuid := auth.uid();`. Same sweep as
-     `data-model.md` above: vanilla GoTrue ships no `auth.uid()`,
-     and we deliberately keep our helper in the Cairn-owned `public`
-     schema. Replace with `uid uuid := public.uid();`. The function
-     itself is built in step 8, not here, but leaving the doc on
-     `auth.uid()` would mean step 8 either re-introduces a
-     non-existent helper or diverges silently from the migration.
-     Land this edit in Phase 0 alongside the other helper-sweep
-     edits so the rule is uniform across `docs/*.md`.
-
 1. **Phase A — bootstrap + infra check.** Add `db/tests/bootstrap.sql`
    and patch `scripts/test-db.sh`. Add the
    `db/tests/fixtures/users_alice_bob_carol.sql` fixture (the
@@ -892,11 +699,7 @@ There's not much in this repo yet (it's pre-production), but:
    Phase B). Write `infra_auth_stub.sql` (4 assertions). All
    fixture includes are absolute paths (`\i
    /db/tests/fixtures/...`) per the fixture-path convention in
-   "Files → New files"; the same convention applies to the worked
-   example in the "Writing a test" subsection of
-   `docs/testing.md`, so update that snippet in the Phase 0
-   doc-edit pass to use the absolute path too. The
-   `public.uid()` assertion is gated by
+   "Files → New files". The `public.uid()` assertion is gated by
    `skip_unless(has_function('public','uid'), 1, ...)` so it
    short-circuits cleanly in Phase A (where `0004` hasn't shipped
    yet) instead of aborting the file with `function does not

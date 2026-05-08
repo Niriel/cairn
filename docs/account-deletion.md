@@ -31,11 +31,15 @@ A single sentinel row in `auth.users` represents every deleted account, uniforml
 ```sql
 -- Inserted by migration, never deleted.
 insert into auth.users (id, email)
-values ('00000000-0000-0000-0000-000000000000', null);
+values ('00000000-0000-0000-0000-000000000000', null)
+on conflict (id) do nothing;
 
 insert into public.profiles (id, display_name)
-values ('00000000-0000-0000-0000-000000000000', 'Deleted user');
+values ('00000000-0000-0000-0000-000000000000', 'Deleted user')
+on conflict (id) do nothing;
 ```
+
+Both inserts use `on conflict (id) do nothing`. The migration is run exactly once via the `_migrations` ledger, but the idempotency belongs in the SQL anyway: it protects against a re-applied migration on a non-empty test DB and against the `tg_profile_on_signup` trigger racing the manual profile insert (the trigger handles the tombstone case by skipping `new.id = '00000000-…'`, but the conflict guard is correct defence-in-depth).
 
 Why a sentinel UUID rather than `null`?
 
@@ -77,7 +81,7 @@ security definer
 set search_path = public, auth
 as $$
 declare
-  uid uuid := auth.uid();
+  uid uuid := public.uid();
 begin
   if uid is null then
     raise exception 'not authenticated';
@@ -113,7 +117,7 @@ A few notes:
 
 - **Order matters.** Lists-where-only-this-user is computed *before* the delete on `auth.users`, because membership cascades clear out the `list_members` rows we need for that query.
 - **The function is the only sanctioned path.** PostgREST does not expose `DELETE /auth.users` to authenticated clients (that table is in the `auth` schema, not `public`). The function is what the API surface offers; the policy is in the function body, not in RLS.
-- **It runs as the user.** The `security definer` bit elevates privileges *for the duration of the function body* — but the body's first act is to read `auth.uid()` from the caller's JWT and use it as the deletion target. There is no way to delete someone else's account through this function.
+- **It runs as the user.** The `security definer` bit elevates privileges *for the duration of the function body* — but the body's first act is to read `public.uid()` from the caller's JWT and use it as the deletion target. There is no way to delete someone else's account through this function.
 - **No undo.** Once committed, the data is gone. The user-facing flow makes this very clear before calling.
 
 ## API surface
