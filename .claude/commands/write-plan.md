@@ -46,7 +46,22 @@ it as a file in `plans/` on a dedicated branch.
    fine. What's not fine is implementation-then-tests-after — flag
    and reorder anything shaped like that.
 
-6. **Audit the plan's risks/gotchas for doc gaps.** If any risk reads
+6. **Checkbox each step of "Order of execution".** Same convention
+   as `plans/0000_implementation_order.md`: each top-level step
+   (Phase A / Phase B / step 1 / step 2 / …) gets a leading `[ ]`
+   so the file doubles as a progress tracker. The reader ticks
+   `[ ]` → `[x]` when the commit for that step is merged. Without
+   the checkboxes the plan is a description; with them, it's
+   executable across sessions without re-deriving where things
+   stand. Add a short note under the section heading explaining
+   the convention (mirroring `plans/0000_implementation_order.md`'s
+   "How to read this file" preamble) the first time a plan uses
+   them — once the convention is widespread the note can shrink
+   to a sentence. Sub-bullets within a step don't need checkboxes
+   unless the step is large enough that ticking the parent feels
+   premature; use judgement.
+
+7. **Audit the plan's risks/gotchas for doc gaps.** If any risk reads
    "the doc doesn't address this" or "the doc says X but X is
    wrong," that's a sign that `docs/*.md` needs reconciling *before*
    the implementation begins. The docs in this repo are canonical
@@ -63,5 +78,5 @@ it as a file in `plans/` on a dedicated branch.
    doc edit lands first as its own commit) so reviewers see the
    spec change explicitly.
 
-7. **Confirm** in one sentence: the branch you're on, the file path,
+8. **Confirm** in one sentence: the branch you're on, the file path,
    and what was written.

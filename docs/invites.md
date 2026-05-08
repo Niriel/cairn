@@ -189,7 +189,7 @@ invite_policy text not null default 'everybody'
                 check (invite_policy in ('everybody', 'circle', 'nobody'))
 ```
 
-The column lives on `user_settings` rather than `profiles` because `profiles_select` is world-readable to authenticated callers — `invite_policy` belongs in the owner-only table for the same privacy reason as `theme` and `font_size`. `user_settings_select` reduces to `id = public.uid()`, so `invite_policy` is structurally private: only the user themselves can read their own setting. RPCs that need to read another user's `invite_policy` (the policy/block check below) are `security definer` and read it as the function owner; that's the only path another user's setting becomes visible.
+The column lives on `user_settings` rather than `profiles` because `profiles_select` is world-readable to authenticated callers — `invite_policy` belongs in the owner-only table for the structural-privacy reason explained in `data-model.md`'s "Why `profiles` and `user_settings` are split" section. `user_settings_select` reduces to `id = public.uid()`, so `invite_policy` is structurally private: only the user themselves can read their own setting. RPCs that need to read another user's `invite_policy` (the policy/block check below) are `security definer` and read it as the function owner; that's the only path another user's setting becomes visible.
 
 ### `relationships`
 

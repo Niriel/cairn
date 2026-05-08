@@ -94,11 +94,9 @@ policy, RPC, and trigger function in this migration calls
      unambiguous "post-0004 schema not yet in place" sentinel),
      issue `DROP TABLE public.profiles CASCADE`; otherwise no-op.
      **Don't gate on a column-shape predicate against `profiles`** —
-     under the privacy split (step 4b) and the device-local-preferences
-     decision (theme/font_size now live client-side, not in the
-     database), the new `profiles` table is shape-compatible with
-     the smoke `profiles` for any straightforward column predicate
-     a hand-run might reach for. A wrong predicate would
+     under the privacy split (step 4b), the new `profiles` table
+     is shape-compatible with the smoke `profiles` for any
+     straightforward column predicate a hand-run might reach for. A wrong predicate would
      irreversibly drop real data; the `user_settings`-presence
      sentinel above is the load-bearing distinguisher. The guard's only
      job is to prevent that DROP; it is **not** a back door to
@@ -123,11 +121,9 @@ policy, RPC, and trigger function in this migration calls
      block in `docs/data-model.md`, **including the `ALTER TABLE …
      ENABLE ROW LEVEL SECURITY` statement that follows the `CREATE
      TABLE` block in the doc** — see step 12). Columns:
-     `id`, `display_name`, `created_at`, `modified_at`. The one
-     server-side personal preference (`invite_policy`) lives in
-     `user_settings` — see step 4b. Theme and font_size are
-     device-local (`localStorage`, see `docs/ui.md`) and don't
-     appear in any table. `id` FK to
+     `id`, `display_name`, `created_at`, `modified_at`. Server-side
+     personal preferences (`invite_policy`) live in `user_settings`
+     — see step 4b. `id` FK to
      `auth.users(id) ON DELETE CASCADE`. Insert tombstone profile
      row immediately after, literal: `INSERT INTO public.profiles
      (id, display_name) VALUES
@@ -148,14 +144,9 @@ policy, RPC, and trigger function in this migration calls
       CASCADE`), `invite_policy`, `created_at`, `modified_at` —
       one preference column with its CHECK enum and default
       (`'everybody'`) per the doc, plus the standardized
-      timestamp pair every table now ships with. Earlier drafts
-      of this plan also held `theme` and `font_size` here; those
-      are now device-local (browser `localStorage`, see
-      `docs/ui.md`) on the principle that "device" preferences
-      describe the screen rather than the user, while
-      `invite_policy` is genuinely a follow-the-user setting and
-      stays. `user_settings` is deliberately the home for any
-      future private-and-follow-the-user field, even though
+      timestamp pair every table now ships with. `user_settings`
+      is deliberately the home for any future
+      private-and-follow-the-user field, even though
       `invite_policy` is the only such field today. The split
       from `profiles` is structural privacy: `profiles_select`
       is world-readable to `authenticated`, so anything in
@@ -242,9 +233,19 @@ policy, RPC, and trigger function in this migration calls
         bucket). Inserts **two** rows for the new auth user:
         a `public.profiles` row with `display_name = 'New user'`
         (the fixed placeholder), and a `public.user_settings`
-        row with the default `invite_policy = 'everybody'` —
-        i.e., bare `INSERT INTO public.user_settings (id)
-        VALUES (NEW.id)`, the column DEFAULT provides the rest.
+        row with `invite_policy = 'everybody'` written
+        *explicitly* — `INSERT INTO public.user_settings (id,
+        invite_policy) VALUES (NEW.id, 'everybody')`. The
+        explicit form is deliberate: the bare `INSERT ... (id)
+        VALUES (NEW.id)` shape would lean on the column DEFAULT
+        for the policy value, which silently couples trigger
+        correctness to the table default in a non-obvious way
+        (a future migration that drops the default — because
+        some new policy makes the explicit value mandatory —
+        would surface as "every new user's first request 500s
+        on the `NOT NULL` constraint" rather than as a
+        migration-time error). Writing the value at the call
+        site keeps the coupling local to this trigger function.
         Both inserts use `ON CONFLICT (id) DO NOTHING` for
         safety. Both are skipped
         when `new.id = tombstone` so the manual tombstone-profile
@@ -384,17 +385,52 @@ policy, RPC, and trigger function in this migration calls
           column shape as `lists`, same cascade-passthrough gate
           per Risk #12, same per-rule keying). Plus the
           deleted_by transition rules.
-        - **deleted_by transition rules** (all three tables):
-          - if `OLD.deleted_at IS NULL AND NEW.deleted_at IS NOT
-            NULL` (soft-delete transition), set `deleted_by =
-            public.uid()`;
-          - if `OLD.deleted_at IS NOT NULL AND NEW.deleted_at IS
-            NULL` (restore transition), set `deleted_by = NULL`.
-            Without this branch, restored rows leave `deleted_by`
-            pointing at whoever previously soft-deleted them,
-            forcing every client to remember to send `deleted_by:
-            null` alongside `deleted_at: null` (and silently
-            corrupting attribution if they don't).
+        - **deleted_by transition rules** (all three tables) —
+          single IF/ELSIF/ELSE chain on `deleted_at` so every UPDATE
+          falls into exactly one branch:
+            ```
+            IF OLD.deleted_at IS NULL
+               AND NEW.deleted_at IS NOT NULL THEN
+              -- soft-delete transition
+              NEW.deleted_by := public.uid();
+            ELSIF OLD.deleted_at IS NOT NULL
+                  AND NEW.deleted_at IS NULL THEN
+              -- restore transition
+              NEW.deleted_by := NULL;
+            ELSE
+              -- deleted_at unchanged OR re-stamped to a different
+              -- non-null timestamp: freeze deleted_by against
+              -- client spoofing, tombstone-gated so the SET DEFAULT
+              -- cascade can still set NEW.deleted_by := tombstone.
+              IF NEW.deleted_by IS DISTINCT FROM
+                 '00000000-0000-0000-0000-000000000000'
+              THEN
+                NEW.deleted_by := OLD.deleted_by;
+              END IF;
+            END IF;
+            ```
+          The restore-clears-deleted_by branch is load-bearing:
+          without it, restored rows leave `deleted_by` pointing
+          at whoever previously soft-deleted them, forcing every
+          client to remember to send `deleted_by: null` alongside
+          `deleted_at: null` (and silently corrupting attribution
+          if they don't). The ELSE branch closes a separate
+          attribution-spoof: a member who can PATCH a row (which
+          on soft-deleted rows includes any list member, since
+          `*_update`'s `using` clause has no `deleted_at IS NULL`
+          filter) can otherwise rewrite `deleted_by` to frame
+          another user in the trash UI's "deleted by …"
+          attribution — same shape that the `created_by` freeze
+          closes for the create attribution. Folding "unchanged"
+          and "re-stamped" into one ELSE branch covers both
+          surfaces in the same test sweep. Tombstone-gated for
+          the same `ON DELETE SET DEFAULT` cascade reason as the
+          `created_by` freeze (Risk #12.a): when account deletion
+          cascades on the `deleted_by` FK of an already-
+          soft-deleted row, the cascade UPDATE sets
+          `NEW.deleted_by := tombstone` while leaving
+          `deleted_at` unchanged, and the gate must let that
+          transition through.
           The INSERT-time `deleted_by := NULL` is load-bearing:
           the column DEFAULT is the tombstone UUID (so `ON
           DELETE SET DEFAULT` on the FK has somewhere to land
@@ -745,19 +781,19 @@ in the same transaction overwrite it (e.g., when a test switches from
 
   | File | What it proves |
   |---|---|
-  | `infra_auth_stub.sql` | (1) bootstrap created `auth.users` (`has_table('auth','users')`); (2) gated `public.uid()` returns the JWT-claim UUID; (3) tombstone row exists in `auth.users` (id = `'00000000-…'`); (4) the fixture include works (`\i /db/tests/fixtures/users_alice_bob_carol.sql`, assert Alice's row). Assertion (2) is gated so the file parses cleanly in Phase A (where `public.uid()` doesn't exist yet) and is *skipped* rather than failed. The canonical gate body, the `pg_temp` shim fallback, and the Phase A skip-counter probe step all live in **Order of execution → Phase A** — that section is the single home for the gate spec; this row points there rather than restating it. In Phase A, (1) and (4) pass, (3) fails, (2) is skipped; in Phase C, all four pass. |
-  | `schema_shape.sql` | `has_table` for each new table + `has_column` for every column of profiles (`id`, `display_name`, `created_at`, `modified_at`), user_settings (`id`, `invite_policy`, `created_at`, `modified_at`), lists (no `modified_by`), list_members (`created_by` not `added_by`, plus `created_at`/`modified_at`), items, votes (`created_at` not `voted_at`, plus `modified_at`) — cheap regression net for accidental column drops or adds. **Plus load-bearing absence assertions**: `hasnt_column('public', 'list_members', 'added_by')` (locks in the rename to `created_by` — a future migration that re-adds `added_by` should red), and `hasnt_column('public', 'user_settings', 'theme')` / `hasnt_column('public', 'user_settings', 'font_size')` (locks in the device-local-preferences decision — a future migration that re-adds either column should red). |
+  | `infra_auth_stub.sql` | (1) bootstrap created `auth.users` (`has_table('auth','users')`); (2) gated `public.uid()` returns the JWT-claim UUID; (3) tombstone row exists in `auth.users` (id = `'00000000-…'`); (4) the fixture include works (`\i /db/tests/fixtures/users_alice_bob_carol.sql`, assert Alice's row). Assertion (2) is gated so the file parses cleanly in Phase A (where `public.uid()` doesn't exist yet) and is *skipped* rather than failed. The canonical gate body lives in **Order of execution → Phase A**: a `pg_temp.uid_or_zero()` plpgsql shim defined at the top of the file (returning `NULL` on `undefined_function`), wrapped in a `SELECT CASE WHEN EXISTS (SELECT 1 FROM pg_proc … WHERE proname = 'uid' …) THEN is(pg_temp.uid_or_zero(), …) ELSE skip(…) END;` statement-level pgTAP form — both branches statement-level so the counter advances cleanly in either Phase. The plan deliberately does **not** ship the `DO $$ … PERFORM skip(why, n); … END$$` variant: the `PERFORM skip()` form has unclear pg_prove counter behaviour and would force a Phase A → Phase B re-edit pass if it produced `1..3` instead of `1..4`. The shim form sidesteps that gating entirely. In Phase A, (1) and (4) pass, (3) fails, (2) is skipped; in Phase C, all four pass. |
+  | `schema_shape.sql` | `has_table` for each new table + `has_column` for every column of profiles (`id`, `display_name`, `created_at`, `modified_at`), user_settings (`id`, `invite_policy`, `created_at`, `modified_at`), lists (no `modified_by`), list_members (`created_by` not `added_by`, plus `created_at`/`modified_at`), items, votes (`created_at` not `voted_at`, plus `modified_at`) — cheap regression net for accidental column drops or adds. **Plus `has_view` for the three views** (`items_ranked`, `items_deleted`, `lists_deleted`) and **`has_function` for the three functions** (`public.uid()` with `'{}'` argtypes, `public.is_list_member(uuid)` with `'{uuid}'`, `public.create_list(text, text)` with `'{text,text}'`) — so a migration that silently drops a view or function reds at the schema-shape layer rather than only through downstream test files (where the failure mode is cluttered with unrelated reds). **Plus one load-bearing absence assertion**: `hasnt_column('public', 'list_members', 'added_by')` — locks in the rename to `created_by` that this plan performs, so a future migration that re-introduces `added_by` reds. |
   | `fk_set_default.sql` | For each of the 7 attribution FKs (lists.{created_by,deleted_by}, items.{created_by,modified_by,deleted_by}, list_members.{created_by,deleted_by}): delete the user from `auth.users` directly under the test session (the `cairn` superuser owns the bootstrap-stub `auth.users`, so direct DELETE works without `delete_account()`), assert the column equals the tombstone UUID. `delete_account()` itself is out of scope for step 1 — it lands in step 8. **Seed shape for the two `list_members` legs**: the row under test must have `user_id <> deleted_user` — e.g., Bob's membership row added by Alice, with the test then deleting Alice. The `user_id` CASCADE from `auth.users` runs *before* `SET DEFAULT` on `created_by`/`deleted_by`, so the obvious first attempt (Alice creates her own membership via `create_list()`, delete Alice) silently wipes the row before the assertion can read it. Cross-actor seeding (`created_by` = deleted user, `user_id` = surviving user) is the only shape that exposes the SET DEFAULT semantic. **Seed shape for the three `deleted_by` legs** (`lists.deleted_by`, `items.deleted_by`, `list_members.deleted_by`): the row under test must have `deleted_by = alice_uid` *before* the test deletes Alice. For each leg, soft-delete the row first under Alice's claims (e.g. `SET LOCAL request.jwt.claims = '{"sub":"<alice>"}'; UPDATE lists SET deleted_at = now() WHERE id = '<seeded-list>'`) — the `tg_set_attribution_*` deleted_at-transition rule fills `deleted_by` with `public.uid()` automatically. Without this precondition, `deleted_by IS NULL` on a live row, the SET DEFAULT cascade has no FK reference to repoint, and the assertion fails for reasons unrelated to the cascade (NULL ≠ tombstone). **Seed shape for the `items.modified_by` leg**: the row under test must have `modified_by = alice_uid`, *not* a different user — i.e. seed by inserting an item under Alice's claims and don't have any other user re-edit it (or have Alice re-edit her own item). The cascade for `items.modified_by` is computed against rows where `modified_by = alice` at cascade-start; if the seed has `modified_by = bob` and `created_by = alice`, the modified_by cascade has no candidate row, only the created_by cascade fires, and the modified_by assertion fails for reasons unrelated to the cascade itself — that "cascade-for-other-column doesn't spuriously rewrite modified_by" property is the load-bearing assertion in `triggers_set_attribution.sql`, not this one. Loadbearing for account-deletion. |
   | `fk_cascade.sql` | Seven CASCADE legs declared in `docs/data-model.md`'s table blocks, one assertion each so a regression in any single one surfaces independently: (a) `profiles.id` cascades on `auth.users` delete; (b) `user_settings.id` cascades on `auth.users` delete; (c) `list_members.user_id` cascades on `auth.users` delete; (d) `votes.user_id` cascades on `auth.users` delete; (e) `items.list_id` cascades on `lists` delete; (f) `list_members.list_id` cascades on `lists` delete; (g) `votes.item_id` cascades on `items` delete. (a)–(d) are tested by deleting the target row from `auth.users` directly under the test session (cairn owns the bootstrap-stub `auth.users`). (e)/(f) are tested by `DELETE FROM public.lists` (bypassing the no-DELETE-policy via cairn-superuser); (g) by `DELETE FROM public.items`. The user_settings leg is load-bearing for `delete_account()` (step 8): without the cascade, deleting an account leaves an orphan settings row in a table whose RLS policy would never let anyone read it again — invisible cruft accumulating forever. |
-  | `constraints_user_settings.sql` | `invite_policy` enum CHECK constraint rejects bad values (`'everybody'`, `'circle'`, `'nobody'` accepted; anything else raises). The `theme` and `font_size` enums earlier drafts placed here are gone — those preferences are device-local now (browser `localStorage`, see `docs/ui.md`); the `hasnt_column` assertions in `schema_shape.sql` lock that decision in. `profiles` has no CHECK constraints to test (`display_name` is unconstrained text in v1, `id` is FK-bound, `created_at` is timestamptz with default), so there is no `constraints_profiles.sql` file. |
-  | `constraints_lists.sql` | name length 1..200; description ≤2000; reject empty name. |
+  | `constraints_user_settings.sql` | `invite_policy` enum CHECK constraint rejects bad values (`'everybody'`, `'circle'`, `'nobody'` accepted; anything else raises). `profiles` has no CHECK constraints to test (`display_name` is unconstrained text in v1, `id` is FK-bound, `created_at` is timestamptz with default), so there is no `constraints_profiles.sql` file. |
+  | `constraints_lists.sql` | name length 1..200; description ≤2000; reject empty name; **NULL `description` accepted** — locks in the `description IS NULL OR length(description) <= 2000` two-clause CHECK; without the explicit NULL assertion, a regression that drops the `IS NULL OR` half would silently make `description` NOT NULL by CHECK and pass the rest of this row green. |
   | `constraints_items.sql` | name length 1..500; reject empty name. |
   | `constraints_votes.sql` | value in [-3,3]; value <> 0; PK uniqueness; "no vote" = no row; **`created_at` unchanged by re-vote** — INSERT a vote with value = +1, capture its `created_at`, then `INSERT … ON CONFLICT (item_id, user_id) DO UPDATE SET value = -2` (the merge-duplicates path PostgREST takes for the `POST /votes` re-vote flow per `data-model.md:558`), and assert `created_at` matches the original capture. Load-bearing for the doc's "first vote" semantic that the renamed column now carries; without this assertion a future migration could quietly add `created_at = excluded.created_at` to the conflict-merge or drop the `tg_set_timestamps` UPDATE-side freeze and silently flip the column to "most recent vote", breaking any later UI surface that reads `created_at` as "when did Alice first weigh in on this." **Plus 1 load-bearing assertion that `modified_at` *is* bumped by re-vote** — same merge-duplicates dance, but assert the post-update `modified_at` is within a few seconds of `now()` and strictly greater than the captured original. This proves the trigger pair works as designed: `tg_set_timestamps` freezes `created_at`, `tg_set_modified_at OF (value)` bumps `modified_at`. The generic timestamp-trigger behaviour (INSERT-time client-override defeated; UPDATE-time freeze of `created_at` against direct PATCH backdating) is covered uniformly across every table by `triggers_set_timestamps.sql`, not duplicated here. |
   | `triggers_profile_on_signup.sql` | INSERT a *fresh* (non-fixture) `auth.users` row with `id = 'dddddddd-…'` and assert: (1) `public.profiles` now has that id with `display_name = 'New user'` (fixed placeholder; see Risk #10 for why the trigger doesn't read `new.email`); (2) `public.user_settings` now has that id with the default `invite_policy = 'everybody'` — load-bearing for the privacy split (without this, a regression that drops the user_settings INSERT leaves fresh users with no settings row and the Settings screen 404s on first PATCH). Fresh UUID is deliberate so the assertions describe the *test's* trigger invocation, not Alice/Bob/Carol's earlier one from the fixture. (3) `prosecdef = true` for `tg_profile_on_signup` in `pg_proc` (a direct catalog probe; reproducing the gotrue-role INSERT path in tests would require role-granting overhead for one assertion). (4) Tombstone insert is idempotent. (5) Tombstone profile row exists with `display_name = 'Deleted user'` (load-bearing for the `account-deletion.md` contract). (6) **Skip-branch for `profiles`**: `DELETE FROM auth.users WHERE id = '00000000-…'` (cascades both rows away), re-INSERT the auth row, assert `public.profiles` has zero rows for that id — proves the trigger took the `new.id = tombstone` branch and didn't insert a `'New user'` row that `ON CONFLICT DO NOTHING` then masked. (7) **Skip-branch for `user_settings`**: same dance, assert zero `public.user_settings` rows for the tombstone id. Without (7), a regression that drops *only* the user_settings tombstone-skip would silently start creating tombstone settings rows (no migration-inserted row exists for `ON CONFLICT` to suppress against, since step 4b deliberately doesn't insert one). Whole dance runs inside the test's `BEGIN ... ROLLBACK`. |
   | `rpc_create_list.sql` | Calling `create_list('My list')` under `SET LOCAL ROLE authenticated`: returns a `lists` row; the `lists` row has `created_by = public.uid()`; exactly one matching `list_members` row exists with `user_id = creator` and `created_by = creator`; under `SET LOCAL ROLE anon`, the call raises `permission denied for function create_list` (verified via `throws_ok`) — the function GRANT excludes anon, so the call is rejected before the body runs; **plus 1 load-bearing assertion for the body's `public.uid() IS NULL` guard** — under `SET LOCAL ROLE authenticated` with `request.jwt.claims` deliberately *not set* (so `public.uid()` returns NULL), `throws_ok` that the call raises SQLSTATE `28000` with errmsg `'not authenticated'`. This exercises the in-body guard separately from the GRANT-layer denial: a future grant slip that re-exposes EXECUTE to anon would still trip the guard, but only this assertion proves the guard exists. **Plus 1 load-bearing assertion for the body's tombstone-UID guard** — under `SET LOCAL ROLE authenticated` with `request.jwt.claims = '{"sub":"00000000-0000-0000-0000-000000000000"}'`, `throws_ok` that the call raises SQLSTATE `28000` with errmsg `'cannot act as the tombstone user'`. Same defence-in-depth shape as the NULL guard, on the second guard line: the only way to prove this branch exists is to drive `public.uid()` to the tombstone literal and observe the reject. |
-  | `triggers_modified_at.sql` | One bump-on-real-content-change assertion per table — `tg_set_modified_at` is bound on every table now, with a per-table `OF (cols)` clause, so each binding is its own potential regression: (1) UPDATE `lists.name` bumps `modified_at`; (2) UPDATE `items.name` bumps; (3) UPDATE `profiles.display_name` bumps; (4) UPDATE `user_settings.invite_policy` bumps (the only column in that table's `OF` clause now that `theme` and `font_size` have moved to `localStorage`); (5) UPDATE `list_members.deleted_at` (soft-remove) bumps; (6) UPDATE `votes.value` bumps. (The INSERT-time "modified_at = created_at = now()" property belongs to `tg_set_timestamps` and is covered by `triggers_set_timestamps.sql`'s six INSERT-override assertions — duplicating it here would muddy this file's purpose, which is `tg_set_modified_at`'s per-table bindings.) **Three load-bearing cascade-skip assertions, one per attribution-bearing table** — `ON DELETE SET DEFAULT` cascade leaves `modified_at` unchanged on (7) `lists`, (8) `items`, (9) `list_members`. For each: capture the table's `modified_at` for an Alice-attributed row, `DELETE FROM auth.users WHERE id = '<alice>'` (which fires the cascade UPDATE on the relevant attribution column), assert the post-cascade `modified_at` exactly equals the captured value. Load-bearing for Risk #12 (b): without the column-restricted `BEFORE UPDATE OF` declaration on each binding, the trigger fires on cascade and silently rewrites `modified_at` on every row the deleted user ever touched. One assertion per table is needed because each binding has its own per-table `OF (cols)` list — a regression that drops the `OF` clause from one binding wouldn't be caught by another's assertion. |
+  | `triggers_modified_at.sql` | One bump-on-real-content-change assertion per table — `tg_set_modified_at` is bound on every table now, with a per-table `OF (cols)` clause, so each binding is its own potential regression: (1) UPDATE `lists.name` bumps `modified_at`; (2) UPDATE `items.name` bumps; (3) UPDATE `profiles.display_name` bumps; (4) UPDATE `user_settings.invite_policy` bumps; (5) UPDATE `list_members.deleted_at` (soft-remove) bumps; (6) UPDATE `votes.value` bumps. (The INSERT-time "modified_at = created_at = now()" property belongs to `tg_set_timestamps` and is covered by `triggers_set_timestamps.sql`'s six INSERT-override assertions — duplicating it here would muddy this file's purpose, which is `tg_set_modified_at`'s per-table bindings.) **Three load-bearing cascade-skip assertions, one per attribution-bearing table** — `ON DELETE SET DEFAULT` cascade leaves `modified_at` unchanged on (7) `lists`, (8) `items`, (9) `list_members`. For each: capture the table's `modified_at` for an Alice-attributed row, `DELETE FROM auth.users WHERE id = '<alice>'` (which fires the cascade UPDATE on the relevant attribution column), assert the post-cascade `modified_at` exactly equals the captured value. Load-bearing for Risk #12 (b): without the column-restricted `BEFORE UPDATE OF` declaration on each binding, the trigger fires on cascade and silently rewrites `modified_at` on every row the deleted user ever touched. One assertion per table is needed because each binding has its own per-table `OF (cols)` list — a regression that drops the `OF` clause from one binding wouldn't be caught by another's assertion. **Plus 1 load-bearing positive non-`OF` assertion** — the cascade-skip legs prove "trigger doesn't fire when only an attribution column changes via cascade," but the complementary "trigger doesn't fire when only an attribution column changes via a direct UPDATE" is its own regression surface. Capture `lists.modified_at` for an Alice-attributed row; under the `cairn` superuser (which bypasses RLS and the attribution-freeze, so a direct `UPDATE lists SET created_by = '<carol>'` actually lands), assert the post-update `modified_at` exactly equals the captured value. Locks in the OF-clause restriction as a positive property and catches a future migration that adds an attribution column to the OF list (e.g. listing `created_by` alongside `name`) — the cascade-skip legs would still pass for the cascade-via-tombstone path, but this leg would red on the direct-UPDATE path. |
   | `triggers_set_timestamps.sql` | Covers the universal `tg_set_timestamps` BEFORE INSERT OR UPDATE trigger across every table that has `created_at` and `modified_at` (profiles, user_settings, lists, list_members, items, votes). For every such table, three assertions: (a) **INSERT-override** — INSERT a row with both timestamps deliberately backdated to `'2020-01-01'` and assert both stored values are within `interval '5 seconds'` of `now()`; (b) **UPDATE-freeze `created_at`** — seed, capture, then PATCH-style UPDATE with `created_at = '2020-01-01'`, assert the stored value matches the capture; (c) **UPDATE-freeze `modified_at`** — same shape, with *only* `modified_at = '2030-01-01'` in the SET list (no other columns; deliberately not in any per-table `tg_set_modified_at` `OF` list, so `t20` doesn't fire and `t05`'s freeze is the only thing standing). Without (c), a member could `PATCH /lists?id=eq.<x>` with `{"modified_at": "2030-01-01"}` and silently distort every "last modified" surface. Per-table coverage matters: a regression that drops the binding on, say, `votes` would surface as that table's assertions failing while the others stayed green. Lists-leg and items-leg INSERTs run as `cairn` (bypasses the no-INSERT-grant from step 15.a — see `triggers_set_attribution.sql`'s "Role context" note), with `request.jwt.claims` set to Alice; the other four legs can run as `cairn` or `authenticated`. |
-  | `triggers_set_attribution.sql` | The attribution-bearing tables (lists, items, list_members) × the rules that apply per column. Underlying rationale lives in **Risk #11** (DEFAULT-traps) and **Risk #12** (cascade-aware gating, content-detection branch); this file triangulates every rule. Per-table-applicable: (i) **INSERT client-override** — `created_by` from a client-supplied UUID is overwritten with `public.uid()` on all three tables. (ii) **INSERT `deleted_by := NULL`** — INSERT with `deleted_by = bob_uid` (a real, non-tombstone, FK-valid UUID; an unknown UUID would be FK-rejected before the trigger fires) and assert `deleted_by IS NULL`. (iii) **UPDATE-time attribution-lock** — under Bob's claims, attempt to PATCH the per-row "this user did it" column to Bob; assert it stays Alice. The `data-model.md:538` "prevents spoofing" claim is true for INSERT today; this assertion makes it true for UPDATE too. (iv) **deleted_by set on `deleted_at` null→non-null**. (v) **deleted_by NOT set when `deleted_at` unchanged**. (vi) **deleted_by cleared on `deleted_at` non-null→null restore**. Items-only: (vii) **INSERT `modified_by := public.uid()`**. (viii) **UPDATE-time content-edit stamps `modified_by`** — under Bob's claims, edit Alice's item's `name`, assert `modified_by = Bob`. (ix) **UPDATE-time `modified_by` anti-spoof freeze** — under Bob's claims, PATCH `modified_by = bob` with no content change, assert `modified_by` stays Alice. (x) **cascade for `items.created_by` leaves `items.modified_by` unchanged when `modified_by` points at a non-deleted user** — the load-bearing assertion for Risk #12's content-aware gate: seed `(created_by=Alice, modified_by=Bob)` (Alice creates, Bob edits), `DELETE FROM auth.users WHERE id = '<alice>'`, assert post-cascade `modified_by = Bob` *and* `created_by = '00000000-…'`. Without the gate, the trigger rewrites Bob → Alice during cascade, leaving a dangling FK once Alice's auth row is gone. **Role context**: lists-leg and list_members-leg INSERTs run as `cairn` superuser (both tables omit the INSERT grant from step 15.a; without the cairn bypass the test would hit the GRANT denial and never reach the trigger). Items can run as `cairn` or `authenticated`; pick `cairn` uniformly. Grant-layer denials are covered separately in `grants.sql`, `rls_lists.sql`, and `rls_list_members.sql`. |
+  | `triggers_set_attribution.sql` | The attribution-bearing tables (lists, items, list_members) × the rules that apply per column. Underlying rationale lives in **Risk #11** (DEFAULT-traps) and **Risk #12** (cascade-aware gating, content-detection branch); this file triangulates every rule. Per-table-applicable: (i) **INSERT client-override** — `created_by` from a client-supplied UUID is overwritten with `public.uid()` on all three tables. (ii) **INSERT `deleted_by := NULL`** — INSERT with `deleted_by = bob_uid` (a real, non-tombstone, FK-valid UUID; an unknown UUID would be FK-rejected before the trigger fires) and assert `deleted_by IS NULL`. (iii) **UPDATE-time `created_by` attribution-lock** — under Bob's claims, attempt to PATCH `created_by = bob`; assert it stays Alice. The `data-model.md:538` "prevents spoofing" claim is true for INSERT today; this assertion makes it true for UPDATE too. (iii.b) **UPDATE-time `deleted_by` anti-spoof freeze on the ELSE branch** — load-bearing companion to step 10's IF/ELSIF/ELSE chain. Three sub-assertions exercising the ELSE branch from both inputs it must catch: (1) **deleted_at unchanged on a soft-deleted row** — soft-delete a row under Alice's claims (so trigger sets `deleted_by = alice`), then under Bob's claims PATCH `{"deleted_by": "<bob>"}` with `deleted_at` unchanged, assert `deleted_by` stays Alice; (2) **deleted_at unchanged on a live row** — under Alice's claims insert a row (so `deleted_by IS NULL`), then under Bob's claims PATCH `{"deleted_by": "<bob>"}` with `deleted_at` unchanged, assert `deleted_by` stays NULL; (3) **deleted_at re-stamped to a different non-null** — soft-delete a row under Alice's claims at `t1` (so `deleted_by = alice`), then under Bob's claims PATCH `{"deleted_at": "<t2>", "deleted_by": "<bob>"}` (both old and new `deleted_at` non-null and distinct), assert `deleted_by` stays Alice. Without (1)/(2), a member can rewrite the trash UI's "deleted by …" attribution; without (3), the same spoof works through the re-stamp loophole. Same shape that (iii) closes for `created_by`, on the column the original rule set deliberately left open. (iv) **deleted_by set on `deleted_at` null→non-null**. (v) **deleted_by frozen against client spoof when `deleted_at` unchanged** — narrower restatement of (iii.b)'s soft-deleted case kept here for symmetry with (iv) and (vi)'s transition coverage; (iii.b) is the load-bearing assertion. (vi) **deleted_by cleared on `deleted_at` non-null→null restore**. Items-only: (vii) **INSERT `modified_by := public.uid()`**. (viii) **UPDATE-time content-edit stamps `modified_by`** — under Bob's claims, edit Alice's item's `name`, assert `modified_by = Bob`. (ix) **UPDATE-time `modified_by` anti-spoof freeze** — under Bob's claims, PATCH `modified_by = bob` with no content change, assert `modified_by` stays Alice. (x) **cascade for `items.created_by` leaves `items.modified_by` unchanged when `modified_by` points at a non-deleted user** — the load-bearing assertion for Risk #12's content-aware gate: seed `(created_by=Alice, modified_by=Bob)` (Alice creates, Bob edits), `DELETE FROM auth.users WHERE id = '<alice>'`, assert post-cascade `modified_by = Bob` *and* `created_by = '00000000-…'`. Without the gate, the trigger rewrites Bob → Alice during cascade, leaving a dangling FK once Alice's auth row is gone. (xi) **cascade-ordering coverage with two FK legs to the same deleted user** — the harder shape (x) doesn't reach: seed `(created_by=Alice, modified_by=Alice)` (Alice creates and edits her own item), `DELETE FROM auth.users WHERE id = '<alice>'`, assert post-cascade `created_by = '00000000-…'` AND `modified_by = '00000000-…'` AND `modified_at` exactly equals its captured pre-cascade value. Postgres fires *two* sequential cascade UPDATEs (one per FK constraint), and this assertion locks in that the trigger logic is cascade-order independent — Risk #12's "per-rule keying" rationale hangs on this and (x) only exercises one cascade leg. **Role context**: lists-leg and list_members-leg INSERTs run as `cairn` superuser (both tables omit the INSERT grant from step 15.a; without the cairn bypass the test would hit the GRANT denial and never reach the trigger). Items can run as `cairn` or `authenticated`; pick `cairn` uniformly. Grant-layer denials are covered separately in `grants.sql`, `rls_lists.sql`, and `rls_list_members.sql`. |
   | `rls_profiles.sql` | SELECT positive (Alice sees Bob), SELECT positive (Bob sees Alice); **load-bearing unauthenticated negatives, one per defence layer**: (a) `throws_ok` under `SET LOCAL ROLE anon` that `SELECT FROM profiles` raises SQLSTATE `42501` (the GRANT-layer denial — anon has no SELECT grant in step 15.a); (b) `is(count, 0)` under `SET LOCAL ROLE authenticated` with `request.jwt.claims` deliberately *not set* — exercises the `profiles_select` policy itself, which reduces to `public.uid() IS NOT NULL` (NULL for an authenticated session with no JWT claims) and returns zero rows. Together the pair proves an unauthenticated read is denied at *both* layers — RLS without GRANT silently returns empty, GRANT without RLS would expose every profile, so testing each in isolation is the only way to catch a regression that drops one. UPDATE own succeeds; UPDATE other fails. |
   | `rls_user_settings.sql` | The structural-privacy table — every assertion exercises the `id = public.uid()` rule from a different angle. SELECT positive (Alice's claims → Alice sees her own row); **SELECT negative (Alice's claims → Alice cannot see Bob's row)** — the load-bearing assertion that distinguishes `user_settings` from `profiles`: same shape of test as `profiles_select` but the *opposite* expected outcome (Alice sees nothing, not Bob's row), proving the owner-only policy actually filters by id rather than just letting any authenticated caller through. Two unauthenticated negatives, one per defence layer (same shape as `rls_profiles.sql`): (a) `throws_ok` under `SET LOCAL ROLE anon` that `SELECT FROM user_settings` raises SQLSTATE `42501` (anon has no SELECT grant in step 15.a — see `grants.sql` for the matrix lock-in); (b) `is(count, 0)` under `SET LOCAL ROLE authenticated` with `request.jwt.claims` deliberately *not set` — the policy reduces to `id = NULL` which is never true, so zero rows. UPDATE own positive (Alice patches her own `invite_policy`); UPDATE other negative (Alice attempts to patch Bob's `invite_policy` — `with check (id = public.uid())` rejects). Together these six assertions form the regression net for the structural privacy that the `profiles` ↔ `user_settings` split is *for*. |
   | `rls_lists.sql` | SELECT positive (member sees), SELECT negative (non-member doesn't), SELECT negative (soft-deleted list hidden even from members through the base table — the only read path is `lists_deleted`); **load-bearing INSERT-denied assertions, one per defence layer** (the create path goes through `create_list()` only — see `rpc_create_list.sql` — and `public.lists` deliberately has no INSERT grant *and* no INSERT policy): (a) `throws_ok` under `SET LOCAL ROLE authenticated` that `INSERT INTO public.lists` raises SQLSTATE `42501` (the GRANT-layer denial — step 15.a's matrix omits INSERT for `lists`); (b) inside the same `BEGIN ... ROLLBACK`, `GRANT INSERT ON public.lists TO authenticated` (rolled back at file end), then under `SET LOCAL ROLE authenticated` with Alice's claims, assert that `INSERT INTO public.lists` raises a row-level-security policy violation (`throws_ok` on SQLSTATE `42501` with `new row violates row-level security policy`) — the policy-layer denial, since step 13's matrix omits a `lists_insert` policy. **Don't try to run leg (b) as `cairn`**: cairn is both the cluster superuser and the table owner, and Postgres exempts both from RLS unless `FORCE ROW LEVEL SECURITY` is set (it isn't), so the INSERT would silently succeed. Same anon/authenticated split shape as `rls_profiles.sql`, per the convention in `docs/testing.md` § "Database tests"; without splitting, a future change that adds an INSERT grant *or* an INSERT policy would silently re-open the orphan-list footgun while still passing a single combined check. **Plus 2 load-bearing DELETE-denied assertions, one per defence layer** — symmetric closure of "no hard-delete via API," which the doc enforces by omitting both a `lists_delete` policy and a DELETE grant: (c) `throws_ok` under `SET LOCAL ROLE authenticated` that `DELETE FROM public.lists` raises SQLSTATE `42501` (GRANT-layer denial); (d) inside the same `BEGIN ... ROLLBACK`, `GRANT DELETE ON public.lists TO authenticated` (rolled back), then under `SET LOCAL ROLE authenticated` with Alice's claims, `throws_ok` that `DELETE FROM public.lists` raises a row-level-security policy violation — the policy-layer denial, since step 13's matrix omits a `lists_delete` policy. Same "don't run leg (d) as `cairn`" caveat as (b). Without these, a future change that adds a DELETE grant *or* a permissive `lists_delete` policy would silently re-open hard-delete on shared content while still passing the rest of the suite. UPDATE positive (member can rename), UPDATE negative (non-member can't). |
@@ -765,8 +801,8 @@ in the same transaction overwrite it (e.g., when a test switches from
   | `rls_items.sql` | SELECT positive (member sees), SELECT negative (non-member doesn't), SELECT negative (soft-deleted item hidden even from members through the base table — the only read path is `items_deleted`); INSERT positive; INSERT negative (non-member); UPDATE positive (any member edits); UPDATE negative (outsider); **plus 2 load-bearing DELETE-denied assertions, one per defence layer** (symmetric to `rls_lists.sql`'s DELETE-denied legs — the doc closes "no hard-delete via API" on items by omitting both a `items_delete` policy and a DELETE grant): (a) `throws_ok` under `SET LOCAL ROLE authenticated` that `DELETE FROM public.items` raises SQLSTATE `42501` (GRANT-layer denial — step 15.a's matrix omits DELETE for `items`); (b) inside the same `BEGIN ... ROLLBACK`, `GRANT DELETE ON public.items TO authenticated` (rolled back), then under `SET LOCAL ROLE authenticated` with Alice's claims, `throws_ok` that `DELETE FROM public.items` raises a row-level-security policy violation — the policy-layer denial, since step 13's matrix omits an `items_delete` policy. Same "don't run leg (b) as `cairn`" caveat as `rls_lists.sql`'s. Without these, a future change that adds a DELETE grant *or* a permissive `items_delete` policy would silently re-open hard-delete on shared content. |
   | `rls_votes.sql` | SELECT positive (member sees vote on a live item), SELECT negative (non-member sees nothing); **SELECT positive (member sees vote on a *soft-deleted* item)** — load-bearing companion to the trailing parenthetical on this row, locking in the doc's deliberate decision to leave `votes_select` unfiltered on `items.deleted_at` (`docs/data-model.md:447-451`). Seed: Alice votes +2 on an item, then a member soft-deletes the item (`PATCH /items` with `deleted_at`); under Bob's claims, assert the vote row is still visible through `GET /votes` (and through the equivalent direct `SELECT FROM public.votes`). Without this assertion, a regression that copy-pasted `votes_insert`'s `i.deleted_at IS NULL` filter into `votes_select` would silently strip historical-vote visibility from the trash UI without lighting up any other test red. INSERT positive; INSERT negative (user_id ≠ public.uid()); INSERT negative (non-member); **INSERT negative (member, but item is soft-deleted)** — the `votes_insert` policy filters its `exists` subquery on `is_list_member(i.list_id) and i.deleted_at is null`, so a vote on a trashed item is rejected by the policy even from a member; load-bearing because the `score` for an item resurfaces the moment it's restored, and an unfiltered policy would let votes accumulate on trash and silently change the post-restore ordering. UPDATE own positive; UPDATE other negative; **UPDATE negative (member, but item is soft-deleted)** — same shape as the INSERT negative, against `votes_update`'s mirrored filter; without it, a member could keep changing their vote on a trashed item. DELETE own positive; DELETE other negative. (`votes_select` deliberately stays unfiltered — historical votes on a deleted item remain visible per the doc's "members can see all votes" rule, and the new SELECT-positive-on-soft-deleted-item assertion above is what locks that intent in.) |
   | `views_items_ranked.sql` | score = sum; positive/negative/total voters counts; soft-deleted items excluded; no-votes item has score=0; view inherits RLS (non-member sees nothing). |
-  | `views_items_deleted.sql` | only soft-deleted rows visible to a member; `deleted_at`/`deleted_by` exposed; live items absent; **non-member sees zero rows through the view** — the load-bearing test that the explicit `is_list_member()` filter is the only authorization gate (since the view runs `security_invoker = false` and bypasses RLS); **soft-removed (former) member sees zero rows through the view** — load-bearing companion that locks in `is_list_member()`'s `deleted_at IS NULL` clause (per `docs/data-model.md:307` "a member who has soft-removed themselves can no longer restore items in a list they've left"); without this, a regression that drops the membership-deleted-at filter would silently re-expose every list's trash to every ex-member. |
-  | `views_lists_deleted.sql` | only soft-deleted lists visible to a current member; live lists absent; **non-member sees zero rows through the view** — same load-bearing assertion as `views_items_deleted.sql`; **soft-removed (former) member sees zero rows through the view** — same load-bearing companion as `views_items_deleted.sql`, locking in the "current member only" semantic per `docs/data-model.md:328`. |
+  | `views_items_deleted.sql` | only soft-deleted rows visible to a member; `deleted_at`/`deleted_by` exposed; live items absent; **non-member sees zero rows through the view** — the load-bearing test that the explicit `is_list_member()` filter is the only authorization gate (since the view runs `security_invoker = false` and bypasses RLS); **soft-removed (former) member sees zero rows through the view** — load-bearing companion that locks in `is_list_member()`'s `deleted_at IS NULL` clause (per `docs/data-model.md:307` "a member who has soft-removed themselves can no longer restore items in a list they've left"); without this, a regression that drops the membership-deleted-at filter would silently re-expose every list's trash to every ex-member. **Plus column-shape pinning**: `has_column('public', 'items_deleted', <col>)` for `id`, `list_id`, `name`, `notes`, `created_by`, `modified_by`, `deleted_by`, `created_at`, `modified_at`, `deleted_at` — locks in the column set the trash UI reads. Without this, a future refactor that drops `modified_by` (or any of the attribution columns the trash screen renders as the "deleted by …" line) from the view body wouldn't red here, and `schema_shape.sql`'s view-presence assertions only check the view exists, not its shape. |
+  | `views_lists_deleted.sql` | only soft-deleted lists visible to a current member; live lists absent; **non-member sees zero rows through the view** — same load-bearing assertion as `views_items_deleted.sql`; **soft-removed (former) member sees zero rows through the view** — same load-bearing companion as `views_items_deleted.sql`, locking in the "current member only" semantic per `docs/data-model.md:328`. **Plus column-shape pinning**: `has_column('public', 'lists_deleted', <col>)` for `id`, `name`, `description`, `created_by`, `deleted_by`, `created_at`, `modified_at`, `deleted_at` — same rationale as the `items_deleted` column-shape pin. |
   | `grants.sql` | `has_table_privilege('authenticated', …)` for the step 15.a matrix — every (table, verb) granted to authenticated asserted positive, plus **load-bearing INSERT negatives** for `public.lists` (closes the orphan-list footgun), `public.list_members` (closes the consent-bypass footgun — a future grant slip that re-added INSERT to authenticated would silently let any member add any user to a list without going through `accept_invitation`), `public.profiles`, and `public.user_settings` (locks in that profile and settings rows are trigger-only — a future grant slip that added INSERT to authenticated would silently let clients race the trigger and create stub rows with arbitrary defaults). `has_table_privilege` SELECT positives on the three views; `has_function_privilege` EXECUTE positives on `public.{uid, is_list_member, create_list}` for authenticated; **load-bearing EXECUTE negative for anon on `create_list`** (mirrors the `rpc_create_list.sql` `throws_ok`). **Anon-coverage negatives** that lock in the doc's "Anonymous users have no access to any table" rule — `has_table_privilege('anon', …, …)` returns `false` for every (new-table, verb) and `has_function_privilege('anon', …, 'EXECUTE')` is `false` for `public.is_list_member(uuid)` and `public.uid()` (the latter included for symmetry with the other two helpers — step 15.b's `REVOKE EXECUTE … FROM PUBLIC` covers all three, and a future grant slip that re-exposed any one of them would otherwise slip past the regression net). Without the anon coverage, the GRANT matrix only mechanically pins authenticated; a future migration that grants any verb to anon (or re-grants `EXECUTE` to `PUBLIC`) would silently widen the surface. Closes Risk #6 — RLS without GRANT silently returns empty, and the smoke check no longer hits `/profiles` so it can't catch a missing grant. |
 
   The whole suite runs in well under a second.
@@ -795,8 +831,14 @@ in the same transaction overwrite it (e.g., when a test switches from
        echo "no test files in db/tests" >&2
        exit 1
      fi
-     if missing=$(grep -L 'plan(' "${files[@]}") && [ -n "$missing" ]; then
-       echo "test files missing plan(N) declaration:" >&2
+     # Match the canonical call form (`SELECT plan(N)`), not the
+     # bare substring `plan(` — a stray mention inside an SQL
+     # comment ("-- TODO: switch from plan(N) to no_plan()")
+     # would otherwise satisfy a substring match and let a
+     # genuinely plan-less file slip through.
+     if missing=$(grep -LE '^[[:space:]]*SELECT[[:space:]]+plan[[:space:]]*\(' "${files[@]}") \
+       && [ -n "$missing" ]; then
+       echo "test files missing SELECT plan(N) declaration:" >&2
        echo "$missing" >&2
        exit 1
      fi
@@ -1299,7 +1341,12 @@ There's not much in this repo yet (it's pre-production), but:
 
 ## Order of execution (TDD)
 
-1. **Phase A — bootstrap + infra check.** Add `db/test-bootstrap.sql`
+Each phase is a checkbox: `[ ]` to do, `[x]` done. Tick a phase when
+its commit is merged. Same convention as `plans/0000_implementation_order.md`,
+applied per-plan so a plan can be executed step-by-step across sessions
+without re-deriving where things stand.
+
+1. [ ] **Phase A — bootstrap + infra check.** Add `db/test-bootstrap.sql`
    (top-level under `db/`, not under `db/tests/`, so pg_prove won't
    enumerate it as a test) and patch `scripts/test-db.sh` to apply it. Add the
    `db/tests/fixtures/users_alice_bob_carol.sql` fixture (the
@@ -1307,18 +1354,23 @@ There's not much in this repo yet (it's pre-production), but:
    Phase B). Write `infra_auth_stub.sql` (4 assertions). All
    fixture includes are absolute paths (`\i
    /db/tests/fixtures/...`) per the fixture-path convention in
-   "Files → New files". The `public.uid()` assertion is gated by
-   a `DO $$ ... END$$` block that uses `EXECUTE 'SELECT
-   public.uid()' INTO v;` inside the THEN branch (full snippet
-   in the `infra_auth_stub.sql` row of the test table); the
-   dynamic-SQL form is required because a plain `SELECT CASE
-   WHEN has_function(…) THEN is(public.uid(), …) ELSE skip(…)
-   END;` would error at parse time with `function public.uid()
-   does not exist` (Postgres resolves both CASE branches during
-   analysis to derive the result type). The `EXECUTE` defers
-   parsing to runtime so the file short-circuits cleanly in
-   Phase A (where `0004` hasn't shipped yet) instead of aborting
-   with a parse error. **Also gut `db/seed/dev_seed.sql` to its top-of-file
+   "Files → New files". The `public.uid()` assertion is gated
+   via the `pg_temp.uid_or_zero()` shim form: a plpgsql wrapper
+   defined at the top of `infra_auth_stub.sql` that `RETURN
+   public.uid()` with `EXCEPTION WHEN undefined_function THEN
+   RETURN NULL`, called from a statement-level `SELECT CASE
+   WHEN EXISTS (SELECT 1 FROM pg_proc … WHERE proname = 'uid'
+   …) THEN is(pg_temp.uid_or_zero(), …, …) ELSE skip(…) END;`.
+   Both branches are statement-level pgTAP, both parse cleanly
+   in Phase A (the wrapper defers `public.uid()` resolution to
+   runtime, the EXCEPTION handler short-circuits on missing
+   function), and the counter advances cleanly in either Phase
+   without the runtime-discovery hedge an earlier draft of
+   this plan carried. The plan deliberately does **not** ship
+   the `DO $$ ... PERFORM skip(why, n); … END$$` variant: that
+   form has unclear pg_prove counter behaviour and would force
+   a Phase A → Phase B re-edit pass if it produced `1..3`
+   instead of `1..4`. **Also gut `db/seed/dev_seed.sql` to its top-of-file
    comment now** (final shape is described in "Modified files"):
    the existing seed inserts `display_name` only into
    `public.profiles`, and once `0004` lands in Phase C the
@@ -1342,24 +1394,21 @@ There's not much in this repo yet (it's pre-production), but:
    fails; the fixture-include assertion passes. The skipped
    assertion is the marker that the gate works; the failures are
    the marker that the migration genuinely hasn't run yet.
-   **Pin the skip-counter idiom before Phase B.** The
-   `DO $$ … PERFORM skip(why, n); … END$$` form is unusual
-   pgTAP and may not advance the counter. Verify pg_prove
-   reports `1..4` (not `1..3`) and that the skip line carries
-   the expected reason. If the count is `1..3`, do **not**
-   proceed to Phase B — switch to the `pg_temp` shim form:
-   create `pg_temp.uid_or_zero()` (a plpgsql wrapper that
-   `RETURN public.uid()` with `EXCEPTION WHEN
-   undefined_function THEN RETURN NULL`) at the top of
-   `infra_auth_stub.sql` and lift assertion (2) to the
-   statement-level `SELECT CASE WHEN EXISTS (… pg_proc …)
-   THEN is(pg_temp.uid_or_zero(), …) ELSE skip(…) END;` form
-   — both branches statement-level pgTAP, parse-safe in Phase
-   A, well-exercised counter behaviour. Whichever form lands,
-   update the `infra_auth_stub.sql` row in the test table to
-   match.
+   pg_prove should report `1..4` with one skipped, one failed,
+   two passed — verify the count line is correct (the
+   shim form is well-exercised, so this is a sanity check
+   rather than a Phase A → Phase B gating step).
+   **Heads-up on stale dev-DB rows.** Gutting `dev_seed.sql`
+   prevents *new* smoke-profile inserts but doesn't touch
+   rows already inserted by a prior `./scripts/seed.sh` run;
+   those persist in `public.profiles` until either `0004`
+   drops the smoke table in Phase C or the dev DB is rebuilt
+   (`docker compose down -v && up -d &&
+   ./scripts/migrate.sh`). Either is fine; the rows are
+   harmless during the gap, but a developer poking the dev
+   DB with `psql` will see them and shouldn't be surprised.
 
-2. **Phase B — bulk red.** Add the remaining two fixture files
+2. [ ] **Phase B — bulk red.** Add the remaining two fixture files
    (`list_shared_alice_bob.sql` and `list_solo_alice.sql`; the
    `users_alice_bob_carol.sql` fixture landed in Phase A as the
    fixture-path probe). They will reference tables that don't
@@ -1380,12 +1429,12 @@ There's not much in this repo yet (it's pre-production), but:
    cascade, attribution overrides that don't override, trigger
    functions that don't exist) — not 100% red across the board.
 
-3. **Phase C — green.** Write
+3. [ ] **Phase C — green.** Write
    `db/migrations/0004_domain_schema.sql` top-to-bottom. Run
    `./scripts/test-db.sh` and iterate. The cycle is fast (under a
    second per run); aim for green in one or two passes.
 
-4. **Phase D — clean up.** Delete `db/tests/smoke.sql`
+4. [ ] **Phase D — clean up.** Delete `db/tests/smoke.sql`
    (`dev_seed.sql` was already gutted in Phase A — see above).
    Run `./scripts/check.sh` (full gauntlet — sqlfluff,
    shellcheck, shfmt, vitest, pg_prove, prettier, svelte-check).
@@ -1474,6 +1523,32 @@ Accepted trade-offs (considered, intentional, not bugs):
   finds itself wanting to add a third restatement of the same
   rule, edit the canonical anchor instead and add a one-line
   pointer at the new site.
+- **`tg_set_attribution_items` tuple-drift is comment-only.**
+  The "Maintenance contract" in step 10 (and mirrored in
+  `docs/data-model.md`'s Triggers section) warns that adding a
+  payload column to `items` without extending the
+  content-detection tuple silently no-ops `modified_by` for
+  edits to that new column. There is no regression test that
+  catches this — `schema_shape.sql` only counts columns, and
+  `triggers_set_attribution.sql`'s assertion (viii) only
+  exercises `name`. A hypothetical "for every payload column,
+  Bob-edits-Alice's-item stamps `modified_by = Bob`" sweep is
+  the right shape but adds one assertion per future column with
+  no immediate value, so the gap stays open here. Future
+  column-adders: extend the tuple at the same time as the
+  schema, per the inline comment in the trigger function.
+  Tracked here so it doesn't get lost.
+- **`t05_set_timestamps` runs on every UPDATE of every row by
+  design.** No `OF (cols)` restriction, because its job is to
+  freeze both `created_at` and `modified_at` against direct
+  PATCH backdating *regardless* of which other columns the
+  request touches — adding an `OF` clause would create gaps
+  the freeze couldn't reach. The per-row plpgsql cost is one
+  extra trigger invocation on every UPDATE on six tables,
+  plus the same on every cascade UPDATE during account
+  deletion. Acceptable at Cairn's scale (small lists, low
+  write volume). Recorded so it isn't re-discovered later as
+  a surprise.
 
 ## After this lands
 
