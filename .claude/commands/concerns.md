@@ -41,7 +41,18 @@ whatever you spot that doesn't fit them:
 - **Forgotten dependencies** — files/configs/scripts the plan needs
   to touch but doesn't list.
 - **Doc divergence** — places where the plan diverges from
-  `docs/*.md` without a Phase 0 to reconcile them.
+  `docs/*.md` without a Phase 0 to reconcile them. Cairn is
+  pre-alpha; the docs in `docs/` are still living
+  specifications, not frozen prose. When a plan's design choice
+  is *better* than what the doc says, the right fix is often
+  to **edit the doc** (or add a *Phase 0* to the plan that
+  edits the doc as its first step) rather than to wedge a
+  contradiction into the plan. As the codebase grows, more of
+  what the docs describe is already implemented in code —
+  changing a doc then implies changing code, migrations, or
+  tests too. Use judgement: a doc-only edit is cheap when the
+  doc is purely descriptive of an unbuilt area, and expensive
+  when the described thing is already shipped.
 - **Code smell / unusual practices** — patterns the plan implies
   that work but a seasoned practitioner of the language, framework,
   or tool would flag: fighting the framework, reinventing a
@@ -97,7 +108,28 @@ For each concern, top to bottom:
 1. Show the concern (one sentence) and your proposed solution (one
    sentence).
 2. Use `AskUserQuestion` with four options:
-   - **fix** — apply the solution to the plan file now.
+   - **fix** — apply the solution now. The fix can land in any
+     of three places, and the right one depends on the
+     concern:
+     - **the plan file** — the default, for concerns about
+       test mechanics, migration ordering, file paths, scripts,
+       or anything else specific to this plan's execution.
+     - **a `docs/*.md` file** — for concerns where the
+       underlying gap is in the living spec rather than this
+       plan. Cairn is pre-alpha; the docs are still alive, and
+       fixing the doc is often cheaper than wedging a workaround
+       into the plan. Be aware: as the codebase grows, more of
+       what the docs describe is already shipped, so a doc edit
+       may also imply a code/migration/test change.
+     - **a Phase 0 in the plan** — for concerns where the
+       *plan* depends on a *doc* edit happening first as part
+       of executing the plan. Add (or extend) a "Phase 0 — doc
+       reconciliation" section near the top of the plan listing
+       the doc edits that must land before the rest of the plan
+       executes. Use this when the doc is the thing being
+       *taught* by the plan's execution, not just referenced.
+     Pick the cheapest home that makes the concern not come
+     back. If unsure, ask the user via **chat**.
    - **accept** — record in the plan file that this was considered
      and is intentional, so future runs don't re-raise it. The
      home is the plan's "What this plan does not cover" / "Out of
@@ -113,9 +145,12 @@ For each concern, top to bottom:
 
 ### Quick-fix mode
 
-Apply every "Proposed" fix to the plan file in one pass, ticking
-each concern's checkbox to `[x]` as you go. Then tell the user the
-list of concerns that were applied.
+Apply every "Proposed" fix in one pass — into the plan file by
+default, into a `docs/*.md` file when the proposed fix is a doc
+edit, or as a Phase 0 entry in the plan when the proposed fix
+explicitly says so. Tick each concern's checkbox to `[x]` as you
+go. Then tell the user the list of concerns that were applied
+and where each one landed.
 
 ### Cleanup
 

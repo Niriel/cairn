@@ -26,6 +26,15 @@ current and what has shipped. Detailed sub-plans live alongside it
 (`0010_…`, `0020_…`, etc.); tick the box in `0000_…` once the matching
 sub-plan is merged.
 
+Cairn is **pre-alpha**. The docs in `docs/` are living
+specifications, not holy tablets — when a plan finds a better
+design than the doc describes, the right move is often to update
+the doc (sometimes via a Phase 0 in the plan) rather than to wedge
+a contradiction into the plan. As more of the spec lands in code,
+doc edits increasingly imply code/migration/test edits too —
+something purely descriptive today may be load-bearing tomorrow.
+Use judgement, and prefer the cheapest home for a fix.
+
 ## Visual reference
 
 `design/Cairn - Design Canvas.html` (open in a browser to see every screen —
