@@ -201,10 +201,13 @@ There's no fancy migration framework — `./scripts/migrate.sh` is a small shell
 1. Reads which migrations have already been applied from a `_migrations` table.
 2. Applies any new ones in order via `psql`.
 3. Records each one as applied.
+4. Issues `NOTIFY pgrst, 'reload schema'` so the running PostgREST container reloads its in-memory schema cache without a container bounce. PostgREST otherwise serves the pre-migration schema until it's restarted, which is a sharp surprise the first time you `curl /<new_table>` and get a 404.
 
 Adding a new migration is "create the next-numbered file, write the SQL, run the script." If we ever need branching, rollbacks, or schema diffing, we'll bring in [sqitch](https://sqitch.org/) or similar.
 
 One non-obvious thing the migrations do: **pre-create the `auth` schema and hand ownership to the `gotrue` role** before GoTrue first connects. GoTrue's DSN sets `search_path=auth` and its first action is `CREATE TABLE schema_migrations`, which fails with "no schema has been selected to create in" if the schema doesn't already exist. Don't "simplify" this back out — the standard "let GoTrue create its own schema" advice doesn't apply when `search_path` is set in the DSN.
+
+A second non-obvious thing: **`migrate.sh` waits for GoTrue to create `auth.users` before applying any migration numbered `0004` or later**, because those migrations reference `auth.users` (FKs, triggers) and would fail against a database where GoTrue hasn't yet completed its own startup migrations. The wait is bounded by the `MIGRATE_AUTH_USERS_TIMEOUT` env var (default 60 s, override only for slow CI or a cold VPS). If `migrate.sh` hangs at `==> waiting for gotrue to create auth.users` for longer than that, bump the var or check `docker compose logs gotrue` — most often it's a misconfigured GoTrue connection string. The wait is *not* applied to `0001`–`0003`, which create the `gotrue` role itself; an unconditional wait would deadlock on a fresh `docker compose up -d`.
 
 To start over with a clean database:
 

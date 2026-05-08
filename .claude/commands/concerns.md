@@ -26,8 +26,45 @@ Read the plan in full. Also skim any docs the plan references (so
 you can spot divergences). Use your judgement — anything that
 would slow down, mislead, or burn an executor is fair game. The
 categories below are *examples*, not a closed checklist; raise
-whatever you spot that doesn't fit them:
+whatever you spot that doesn't fit them.
 
+**Security and privacy concerns are top priority** — look for
+them first, and when present they belong at the top of the
+gravity ordering (above contradictions, doc divergence, etc.).
+They're easy to introduce in subtle ways and expensive to
+unbreak after the fact, so a thin one is still worth raising.
+
+- **Security vulnerabilities** — anything that could let a
+  caller see or mutate data they shouldn't, or that widens
+  the attack surface. Examples to scan for, not an exhaustive
+  list: missing/weak authorization checks (in Cairn that's
+  usually RLS — but also RPCs, triggers, views), `SECURITY
+  DEFINER` functions without a locked-down `search_path`,
+  policy/grant matrices that hand verbs to roles that
+  shouldn't have them, policy/trigger interactions that let
+  clients spoof attribution, missing identity re-checks
+  inside RPCs, trust placed in unsigned or unvalidated
+  input (JWT claims, request bodies, env vars), injection
+  vectors (SQL, command, template) in migrations or
+  scripts, secrets committed to the repo, side-channels
+  (timing, error-message oracles, status-code differences),
+  and tests that only prove the positive case when the
+  policy *is* the boundary.
+- **Privacy issues** — anything that risks leaking personal
+  data or violating the project's privacy contract as
+  expressed in `docs/`. Examples to scan for, not exhaustive:
+  fields surfaced in UI/API/logs that the docs say must
+  stay private, joins or views that expose one user's
+  relationships to another, error messages or status codes
+  that act as enumeration oracles, soft-deleted or
+  tombstoned data reachable from the wrong path, telemetry
+  or analytics fields that capture identifiable content,
+  and any path where a deleted user's data persists past
+  the contract in `docs/account-deletion.md`. The docs
+  (especially `docs/invites.md`, `docs/circles.md`,
+  `docs/account-deletion.md`) are the source of truth for
+  what counts as private — read them before deciding
+  whether a thing is a leak.
 - **Contradictions** — two parts of the plan that disagree.
 - **Unclear instructions** — places where an executor would have to
   guess.
@@ -62,13 +99,14 @@ whatever you spot that doesn't fit them:
   looks like in the relevant ecosystem (SvelteKit, Postgres,
   PostgREST, GoTrue, pgTAP, ESLint, etc.) and call it out.
 - **Anything else** — scope creep, unrealistic estimates, missed
-  rollback paths, security holes, performance traps, etc.
+  rollback paths, performance traps, etc.
 
-Write `CONCERNS.md` at the repo root, **ordered by gravity** — the
-concerns that could make us rethink the plan (or even the
-architecture) on top; small clarifications and typos at the bottom.
-Aim for ~5–15 entries; if you produce more, you're nitpicking —
-collapse related ones.
+Write `CONCERNS.md` at the repo root, **ordered by gravity** — any
+**security or privacy concerns first** (these top everything else,
+even an architecture-level rethink), then concerns that could
+otherwise make us rethink the plan, then small clarifications and
+typos at the bottom. Aim for ~5–15 entries; if you produce more,
+you're nitpicking — collapse related ones.
 
 Format — each concern starts with an unchecked checkbox `[ ]` so
 the file doubles as a progress tracker during the resolution phase:

@@ -65,7 +65,7 @@ Email addresses are **never** shown on the profile screen, or anywhere else a us
 
 ## The three-way invite policy
 
-Stored on `profiles.invite_policy`. Three values:
+Stored on `user_settings.invite_policy`. Three values:
 
 - **`everybody`** *(default for new accounts)*. Anyone with a Cairn account can invite this user to a list.
 - **`circle`**. Only users in this person's circle can invite them. Invites from anyone else fail with the generic "Couldn't send invite" message (see "What blocked invites look like" below).
@@ -177,15 +177,19 @@ A user has a soft cap of **20 pending invites** at any one time. Reaching the ca
 
 ## Schema additions
 
-Three new tables and one new column on `profiles`. All inherit Cairn's existing conventions: UUIDs, timestamps, RLS, and the cascade rules from `account-deletion.md`.
+Three new tables. The `invite_policy` column itself is **not** added here — it lives on `user_settings` from day one (see `data-model.md` → "Why `profiles` and `user_settings` are split"), where owner-only RLS makes it structurally private. All Tier 3 tables inherit Cairn's existing conventions: UUIDs, timestamps, RLS, and the cascade rules from `account-deletion.md`.
 
-### `profiles.invite_policy`
+### `user_settings.invite_policy`
+
+Already shipped in plan 0010 alongside the rest of `user_settings`; reproduced here for reference:
 
 ```sql
-alter table public.profiles
-  add column invite_policy text not null default 'everybody'
-    check (invite_policy in ('everybody', 'circle', 'nobody'));
+-- in the user_settings table block, see data-model.md
+invite_policy text not null default 'everybody'
+                check (invite_policy in ('everybody', 'circle', 'nobody'))
 ```
+
+The column lives on `user_settings` rather than `profiles` because `profiles_select` is world-readable to authenticated callers — `invite_policy` belongs in the owner-only table for the same privacy reason as `theme` and `font_size`. `user_settings_select` reduces to `id = public.uid()`, so `invite_policy` is structurally private: only the user themselves can read their own setting. RPCs that need to read another user's `invite_policy` (the policy/block check below) are `security definer` and read it as the function owner; that's the only path another user's setting becomes visible.
 
 ### `circle_members`
 
@@ -250,27 +254,27 @@ alter table public.blocks enable row level security;
 ```sql
 -- circle_members: visible only to the owner of the circle.
 create policy circle_select on public.circle_members
-  for select using (user_id = auth.uid());
+  for select using (user_id = public.uid());
 -- (the *member* of the circle does NOT get to see who has them on their
 -- list — it's the owner's private permission setting on themselves.)
 
 create policy circle_insert on public.circle_members
-  for insert with check (user_id = auth.uid());
+  for insert with check (user_id = public.uid());
 create policy circle_delete on public.circle_members
-  for delete using (user_id = auth.uid());
+  for delete using (user_id = public.uid());
 -- (only the owner can remove rows from their own circle.)
 
 -- blocks: visible only to blocker
 create policy blocks_select on public.blocks
-  for select using (blocker_id = auth.uid());
+  for select using (blocker_id = public.uid());
 create policy blocks_insert on public.blocks
-  for insert with check (blocker_id = auth.uid());
+  for insert with check (blocker_id = public.uid());
 create policy blocks_delete on public.blocks
-  for delete using (blocker_id = auth.uid());
+  for delete using (blocker_id = public.uid());
 
 -- invitations: visible to both inviter and invitee
 create policy invitations_select on public.invitations
-  for select using (inviter_id = auth.uid() or invitee_user_id = auth.uid());
+  for select using (inviter_id = public.uid() or invitee_user_id = public.uid());
 ```
 
 Insert and delete on `invitations`, and the email-add path for `circle_members` (which writes two rows including one for another user), go through stored procedures: `send_invitation`, `accept_invitation`, `decline_invitation`, `add_circle_by_email`, `add_circle_by_id`. These run as `security definer` functions because they need privileges to read other users' `invite_policy` and `blocks` rows for the policy/block checks, and to write the `circle_members` row on the other user's behalf during email-add. The web app calls them via PostgREST RPCs; it doesn't touch the tables directly for these operations.
@@ -286,7 +290,7 @@ language plpgsql security definer
 set search_path = public, auth
 as $$
 declare
-  me     uuid := auth.uid();
+  me     uuid := public.uid();
   target uuid;
 begin
   select id into target from auth.users where lower(email) = lower(p_email);
@@ -330,7 +334,7 @@ language plpgsql security definer
 set search_path = public, auth
 as $$
 declare
-  inviter uuid := auth.uid();
+  inviter uuid := public.uid();
   target  uuid;
   policy  text;
   in_circle boolean;
@@ -357,7 +361,7 @@ begin
       return null;
     end if;
     -- Policy check
-    select invite_policy into policy from public.profiles where id = target;
+    select invite_policy into policy from public.user_settings where id = target;
     if policy = 'nobody' then return null; end if;
     if policy = 'circle' then
       select exists (select 1 from public.circle_members

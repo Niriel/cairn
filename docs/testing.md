@@ -20,7 +20,7 @@ The numbers in the [test pyramid](https://martinfowler.com/articles/practical-te
 
 ### What lives here
 
-- **RLS policies.** For every policy on every table, a positive test ("Alice sees her own list") and a negative test ("Alice does not see Bob's private list").
+- **RLS policies.** For every policy on every table, a positive test ("Alice sees her own list") and a negative test ("Alice does not see Bob's private list"). When a verb is denied by *both* the absence of a `GRANT` *and* the absence of a permissive policy (e.g., `INSERT` on `public.lists`, where creation goes through an RPC instead), test the two layers as **separate assertions** — one `throws_ok` on SQLSTATE `42501` under the role with no grant, and one assertion under a grant-bearing role exercising the missing policy. Conflating them into a single check hides regressions: `GRANT` without a policy returns silent empty results, a policy without `GRANT` returns 401/`42501`, and only the layered tests catch a future change that drops one layer while leaving the other in place.
 - **Triggers.** Soft-delete cascades, `updated_at` bumps, audit/attribution rows.
 - **Views.** The shape and filtering of every view exposed via PostgREST.
 - **Constraints and check expressions.** Anywhere we encode an invariant in the schema, a test verifies it actually rejects what it claims to reject.
