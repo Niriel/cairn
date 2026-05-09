@@ -329,11 +329,18 @@ in PLAN.md → Architecture → "Test files" and TASKS.md → Phase B.
 Three fixtures under `db/tests/fixtures/`:
 
 - `users_alice_bob_carol.sql` — three `auth.users` rows with stable
-  UUIDs (`aaaa…`, `bbbb…`, `cccc…`).
-- `list_shared_alice_bob.sql` — a list created by Alice with Bob as
-  a second member (Carol is non-member). Self-includes the users
-  fixture.
-- `list_solo_alice.sql` — a list with Alice as the only member.
+  literal UUIDs (`aaaa…`, `bbbb…`, `cccc…`).
+- `list_shared_alice_bob.sql` — a list with stable literal UUID
+  `'11111111-1111-1111-1111-111111111111'`, named `'Shared list'`,
+  with Alice and Bob as members (Carol non-member). Direct
+  `INSERT INTO public.lists (id, name) VALUES (…)` then a two-row
+  `INSERT INTO public.list_members (list_id, user_id) VALUES …`,
+  both running as the test session's `cairn` superuser (the
+  fixture loads before any `SET LOCAL ROLE`). Self-includes the
+  users fixture.
+- `list_solo_alice.sql` — a list with stable literal UUID
+  `'22222222-2222-2222-2222-222222222222'`, named `'Solo list'`,
+  with Alice as the only member. Same direct-INSERT shape.
   Self-includes the users fixture.
 
 Conventions (see PLAN.md → Architecture → "Fixture conventions" for
@@ -347,9 +354,20 @@ full rationale):
   NOTHING`).
 - **No `BEGIN;`/`COMMIT;` inside fixtures** (each test file owns
   its own `BEGIN ... ROLLBACK`).
-- **Name-as-stable-handle** — list fixtures expose their lists by
-  unique name (`'Shared list'`, `'Solo list'`); UUIDs are
-  `gen_random_uuid()` and not deterministic across runs.
+- **Stable UUID literals** — every fixture row uses a literal UUID,
+  never `gen_random_uuid()` (matches `docs/testing.md:262`'s
+  fixture-stability rule). List fixtures override the
+  `lists.id default gen_random_uuid()` by passing `id` explicitly
+  in the INSERT — safe because the fixture runs as cairn. Convention
+  by table: users `aaaa…`/`bbbb…`/`cccc…`, lists `1111…`/`2222…`,
+  items `3333…`/`4444…`/… as needed in per-test setup.
+- **Direct INSERT, not RPC** — list fixtures INSERT into `lists` and
+  `list_members` directly under cairn rather than calling
+  `public.create_list()`. The RPC is covered separately by
+  `rpc_create_list.sql`; fixtures should be minimal, deterministic,
+  and stupid. The `tg_set_attribution_*` BEFORE-INSERT triggers
+  still fire and stamp `created_by` from the JWT claim, matching
+  what `create_list` would have produced.
 - **Attribution context** — any fixture that INSERTs into an
   attribution-bearing table sets `request.jwt.claims` first, before
   the INSERT, because the `tg_set_attribution_*` BEFORE-INSERT
@@ -388,6 +406,50 @@ compose down -v && up -d && ./scripts/migrate.sh && ./scripts/seed.sh`
 
 Tick the step 1 checkbox in `plans/0000_implementation_order.md`
 once this plan is merged.
+
+## R25. `public.is_items_list_member(uuid)` helper for `votes_select`
+
+A sibling helper to `public.is_list_member`, with the same shape
+(`language sql stable security definer set search_path = public`).
+Body:
+
+```sql
+CREATE OR REPLACE FUNCTION public.is_items_list_member(target_item uuid)
+RETURNS boolean
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM public.items i
+    WHERE i.id = target_item
+      AND public.is_list_member(i.list_id)
+  );
+$$;
+```
+
+`votes_select`'s body is `for select using (public.is_items_list_member(
+item_id))`. The helper is genuinely load-bearing, not a stylistic
+wrapper: an inline `EXISTS (SELECT 1 FROM public.items …)` in the
+policy body would be subject to `items_select`'s `deleted_at IS NULL`
+filter (Postgres applies RLS recursively to subqueries within policy
+bodies), and historical votes on a soft-deleted item would silently
+disappear — contradicting the "members can see all votes including
+historical ones on soft-deleted items" rule the policy is meant to
+encode (the trash UI's "deleted by Alice — at the time, +2 from Bob,
+-1 from Carol" rendering depends on it).
+
+`votes_insert` and `votes_update` deliberately do **not** use the
+helper — those policies *want* the recursive `items.deleted_at`
+filter, since casting or changing a vote on a soft-deleted item is
+what they're closing off. `is_items_list_member` is therefore a
+read-side helper only.
+
+`REVOKE EXECUTE … FROM PUBLIC` then `GRANT EXECUTE … TO authenticated`
+applies, same as the other two functions per R15. Tested in
+`schema_shape.sql` (signature) and `grants.sql` (positive for
+authenticated, negative for anon).
 
 ## Non-requirements (explicitly excluded)
 

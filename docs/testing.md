@@ -76,24 +76,27 @@ Each test file loads only the fixtures it needs, inside a `BEGIN ... ROLLBACK` s
 BEGIN;
 SELECT plan(2);
 
--- Fixture: user_a is a member of list_a; user_b is not.
+-- Fixture: Alice is a member of the shared list (id 11111111-...);
+-- Bob is too; Carol is not.
 \i /db/tests/fixtures/list_shared_alice_bob.sql
 
--- As Alice, list_a is visible.
+-- As Alice, the shared list is visible.
 SET LOCAL request.jwt.claims = '{"sub":"aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"}';
 SET LOCAL ROLE authenticated;
 SELECT is(
-  (SELECT count(*)::int FROM lists WHERE id = 'list_a'),
+  (SELECT count(*)::int FROM lists
+    WHERE id = '11111111-1111-1111-1111-111111111111'),
   1,
-  'Alice sees list_a (her own membership)'
+  'Alice sees the shared list (her own membership)'
 );
 
--- As Carol (non-member), list_a is invisible.
+-- As Carol (non-member), the shared list is invisible.
 SET LOCAL request.jwt.claims = '{"sub":"cccccccc-cccc-cccc-cccc-cccccccccccc"}';
 SELECT is(
-  (SELECT count(*)::int FROM lists WHERE id = 'list_a'),
+  (SELECT count(*)::int FROM lists
+    WHERE id = '11111111-1111-1111-1111-111111111111'),
   0,
-  'Carol does not see list_a (no membership)'
+  'Carol does not see the shared list (no membership)'
 );
 
 SELECT * FROM finish();
@@ -259,7 +262,7 @@ The choice of CI host is deliberately not prescribed here: any runner that can r
 
 ## Common failure modes
 
-**A pgTAP test passes locally and fails in CI.** Almost always a fixture-ordering issue (one test's data leaking into the next). Confirm every test is wrapped in `BEGIN ... ROLLBACK` and that fixtures use stable UUIDs, not `gen_random_uuid()`.
+**A pgTAP test passes locally and fails in CI.** Almost always a fixture-ordering issue (one test's data leaking into the next). Confirm every test is wrapped in `BEGIN ... ROLLBACK` and that fixtures use stable literal UUIDs, never `gen_random_uuid()`. Cairn's convention by table: users `aaaa…`/`bbbb…`/`cccc…` (Alice/Bob/Carol), lists `1111…`/`2222…` (shared/solo), items `3333…`/`4444…`/… as needed in per-test setup. List fixtures override `lists.id default gen_random_uuid()` by passing `id` explicitly in the INSERT — safe because the fixture runs as the test session's `cairn` superuser.
 
 **A Vitest component test passes locally and fails in CI.** Time-of-day or locale dependency. Pin `Intl` formatters and avoid `new Date()` without a fixed argument.
 

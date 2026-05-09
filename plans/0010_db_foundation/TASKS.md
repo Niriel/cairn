@@ -256,15 +256,24 @@ involved).
    entirely. Add a comment near where it used to live recording
    the gap and pointing at the manual schema-up check in
    PLAN.md.
-5. Run `./scripts/check.sh`: it should be green for everything
-   except the intentional pgTAP reds from A.2 (which don't break
-   `check.sh` because pg_prove reports `not ok` lines, not
-   process failures, until the suite as a whole fails).
-   `./scripts/smoke.sh` should still pass against the running
-   stack.
+5. Run `./scripts/check.sh`: it will **exit non-zero** because of
+   the intentional pgTAP reds from A.2. pg_prove exits non-zero
+   on any failed assertion; `test-db.sh` runs under `set -euo
+   pipefail`, and `check.sh:52` is `./scripts/test-db.sh
+   >/dev/null && ok "pg_prove"` — the failure propagates straight
+   through. That's expected through Phase A and Phase B. The
+   check at this point is qualitative: confirm everything *before*
+   `==> database tests (pgTAP)` printed `ok` (svelte-check,
+   eslint, prettier, sqlfluff, shellcheck, shfmt), so the red is
+   contained to the pgTAP layer and not a stray lint/type/format
+   regression we introduced in this task. `./scripts/smoke.sh`
+   should still pass against the running stack.
 
-**Verify:** `./scripts/check.sh` green except expected pgTAP reds
-from A.2 · `./scripts/smoke.sh` green
+**Verify:** every `check.sh` step before `==> database tests
+(pgTAP)` prints `ok` (svelte-check, eslint, prettier, sqlfluff,
+shellcheck, shfmt); pgTAP exits non-zero with the expected reds
+from A.2 — that's the intended Phase A/B state, not a regression
+· `./scripts/smoke.sh` green
 
 ## Phase B — bulk red
 
@@ -299,28 +308,49 @@ through downstream test failures.
 
 **Decisions:**
 - `list_shared_alice_bob.sql` self-includes
-  `users_alice_bob_carol.sql` as its first non-comment
-  statement, sets `request.jwt.claims` to Alice's UUID before
-  any INSERT (attribution-context convention), creates the
-  list via `public.create_list('Shared list')`, then `INSERT
-  INTO public.list_members (list_id, user_id) VALUES (…,
-  '<bob>')` to add Bob. The fixture loads before any `SET
-  LOCAL ROLE`, so the direct INSERT runs as the test session's
-  `cairn` superuser — that bypass is what lets the row land
-  despite the no-INSERT-grant on `list_members`.
-- `list_solo_alice.sql` follows the same pattern, creating
-  `'Solo list'` via `public.create_list('Solo list')` and
-  stopping there.
-- Lists are referenced by name (unique across the fixture set),
-  not by UUID — UUIDs come from `gen_random_uuid()` and aren't
-  deterministic across runs. Tests look up the id via `(SELECT
-  id FROM public.lists WHERE name = 'Shared list')`.
+  `users_alice_bob_carol.sql` as its first non-comment statement,
+  sets `SET LOCAL request.jwt.claims = '{"sub":"<alice-uuid>"}';`
+  (attribution-context convention), then issues two direct
+  INSERTs:
+  ```sql
+  INSERT INTO public.lists (id, name)
+  VALUES ('11111111-1111-1111-1111-111111111111', 'Shared list')
+  ON CONFLICT (id) DO NOTHING;
+  INSERT INTO public.list_members (list_id, user_id) VALUES
+    ('11111111-1111-1111-1111-111111111111', '<alice>'),
+    ('11111111-1111-1111-1111-111111111111', '<bob>')
+  ON CONFLICT (list_id, user_id) DO NOTHING;
+  ```
+  The fixture loads before any `SET LOCAL ROLE`, so both INSERTs
+  run as the test session's `cairn` superuser — that bypass is
+  what lets the rows land despite the no-INSERT-grant on either
+  table. The `tg_set_attribution_*` BEFORE-INSERT triggers still
+  fire under cairn and stamp `created_by` from the JWT claim
+  (Alice).
+- `list_solo_alice.sql` follows the same pattern with literal id
+  `'22222222-2222-2222-2222-222222222222'` and only Alice's row in
+  `list_members`. Same direct-INSERT shape.
+- **Direct INSERT, not RPC.** Fixtures don't call
+  `public.create_list()` — that RPC is covered by
+  `rpc_create_list.sql` separately. Fixtures should be minimal,
+  deterministic, and stupid; one extra `INSERT INTO list_members`
+  line beats a `(SELECT id FROM lists WHERE name = …)` lookup
+  threaded through every downstream test.
+- **Stable UUID literals everywhere** — never `gen_random_uuid()`
+  in fixtures (matches `docs/testing.md:262`). Convention by
+  table: users `aaaa…`/`bbbb…`/`cccc…`, lists `1111…`/`2222…`,
+  items `3333…`/`4444…`/… as needed in per-test setup. Tests
+  refer to the list directly by its literal id — `WHERE id =
+  '11111111-1111-1111-1111-111111111111'` — without any subquery
+  lookup.
 - `schema_shape.sql` covers `has_table` for the six new tables,
   `has_column` for every column of each, `has_view` for the
-  three views, `has_function` for the three functions (with
-  argtype signatures), plus `hasnt_column('public',
-  'list_members', 'added_by')` to lock in the rename to
-  `created_by`.
+  three views, `has_function` for the **four** functions
+  (`public.uid()` `'{}'`, `public.is_list_member(uuid)` `'{uuid}'`,
+  `public.is_items_list_member(uuid)` `'{uuid}'` per R25,
+  `public.create_list(text, text)` `'{text,text}'`), plus
+  `hasnt_column('public', 'list_members', 'added_by')` to lock
+  in the rename to `created_by`.
 - `constraints_user_settings.sql` covers the `invite_policy`
   CHECK enum (accept `'everybody'`, `'circle'`, `'nobody'`;
   reject anything else). No `constraints_profiles.sql` —
@@ -357,20 +387,28 @@ including which assertions are load-bearing and why.
 1. RED — Create the two list fixtures per Decisions. Each opens
    with `\i /db/tests/fixtures/users_alice_bob_carol.sql`, then
    `SET LOCAL request.jwt.claims = '{"sub":"<alice-uuid>"}';`,
-   then the `create_list(...)` call (and the direct
-   `list_members` INSERT for the shared fixture).
+   then the direct `INSERT INTO public.lists (id, name) VALUES
+   …` and `INSERT INTO public.list_members (list_id, user_id)
+   VALUES …` block (with the literal UUIDs from Decisions). Both
+   INSERTs use `ON CONFLICT … DO NOTHING` for re-include safety.
 2. RED — Create the five test files. Each opens with `BEGIN;`,
    `SELECT plan(N);`, the assertions, `SELECT * FROM
    finish();`, `ROLLBACK;`. Set `request.jwt.claims` before any
    INSERT into attribution-bearing tables. Tests that need a
    list-shaped fixture `\i` only the most specific list fixture
-   they need (the users fixture is auto-included).
+   they need (the users fixture is auto-included). Refer to the
+   list directly by literal id — `WHERE id =
+   '11111111-1111-1111-1111-111111111111'` — never via a
+   `SELECT id FROM lists WHERE name = …` subquery.
 3. RED — Run `./scripts/test-db.sh`. Expect most assertions red
    (tables/views/functions don't exist yet), a small handful
    green (whatever's already true under the pre-0004 schema).
 
-**Verify:** `./scripts/test-db.sh` runs without errors and
-reports the expected red signal across the new files
+**Verify:** `./scripts/test-db.sh` exits non-zero (expected — the
+positive assertions on the post-0004 schema are red because 0004
+hasn't landed yet) and the pg_prove output shows the expected red
+signal across the new files; `./scripts/check.sh` is correspondingly
+red on the pgTAP step but green on every step before it
 
 ### [ ] B.2 FK + trigger tests
 
@@ -467,8 +505,9 @@ restriction in `triggers_modified_at.sql`.
    these files (tables/triggers don't exist; cascades don't
    cascade).
 
-**Verify:** `./scripts/test-db.sh` runs and reports the
-expected red signal across the six new files
+**Verify:** `./scripts/test-db.sh` exits non-zero (expected) and
+the pg_prove output shows the expected red signal across the six
+new files; `./scripts/check.sh` red on pgTAP, green before it
 
 ### [ ] B.3 RPC + grants + RLS tests
 
@@ -499,7 +538,11 @@ covers both positive and negative cases per the
   user_settings), plus the EXECUTE negative for anon on
   `create_list`, plus the anon-coverage negatives for every
   (table, verb) and helper function (locks in "anon has no
-  access").
+  access"). The function set is **four**: `public.uid`,
+  `public.is_list_member(uuid)`,
+  `public.is_items_list_member(uuid)` (R25), and
+  `public.create_list(text, text)` — EXECUTE positive for
+  authenticated and EXECUTE negative for anon on each.
 - `rls_profiles.sql`, `rls_user_settings.sql`, `rls_lists.sql`,
   `rls_list_members.sql`, `rls_items.sql`, `rls_votes.sql` —
   one file per table. Every file ships **per-defence-layer**
@@ -527,9 +570,14 @@ covers both positive and negative cases per the
   catches it."
 - `rls_votes.sql` ships a load-bearing positive assertion that
   members can SELECT votes on a *soft-deleted* item (locks in
-  the doc's deliberate decision to leave `votes_select`
-  unfiltered on `items.deleted_at`). Plus mirrored INSERT/UPDATE
-  negatives for soft-deleted items.
+  the doc's deliberate "historical votes remain visible" rule,
+  which only works because `votes_select` calls
+  `public.is_items_list_member(uuid)` — a SECURITY DEFINER
+  helper that bypasses `items_select`'s recursive
+  `deleted_at IS NULL` filter; an inline `EXISTS … FROM
+  items …` would silently fail this assertion, see PLAN.md
+  Risk #14). Plus mirrored INSERT/UPDATE negatives for
+  soft-deleted items.
 
 **Files:**
 - `db/tests/rpc_create_list.sql` (create)
@@ -553,8 +601,10 @@ PK-freeze rationale in `rls_list_members.sql`.
    `tg_freeze_list_members_pk` assertions.
 2. RED — Run `./scripts/test-db.sh`. Expect heavy red.
 
-**Verify:** `./scripts/test-db.sh` runs and reports the expected
-red signal across the eight new files
+**Verify:** `./scripts/test-db.sh` exits non-zero (expected) and
+the pg_prove output shows the expected red signal across the
+eight new files; `./scripts/check.sh` red on pgTAP, green before
+it
 
 ### [ ] B.4 View tests
 
@@ -610,8 +660,10 @@ soft-delete-unreachability rationale.
    `./scripts/test-db.sh` should report a large set of failing
    assertions; this is the spec, in executable form.
 
-**Verify:** `./scripts/test-db.sh` runs and reports the
-expected red signal across the three new view test files
+**Verify:** `./scripts/test-db.sh` exits non-zero (expected — end
+of Phase B's bulk-red state) and the pg_prove output shows the
+expected red signal across the three new view test files;
+`./scripts/check.sh` red on pgTAP, green before it
 
 ## Phase C — green
 
@@ -664,6 +716,36 @@ existing test).
   the content-aware `modified_by` gate (Risk #12.a); each
   attribution function carries the deleted_by transition
   IF/ELSIF/ELSE chain.
+- `public.is_items_list_member(target_item uuid)` (R25) lands
+  immediately after `public.is_list_member(target_list uuid)`
+  in the migration body — same shape (`language sql stable
+  security definer set search_path = public`), body wraps an
+  `is_list_member(i.list_id)` call so the items reference
+  inside it bypasses `items_select`'s recursive RLS. The
+  `security definer` is what makes the helper exist (PLAN.md
+  Risk #14): `votes_select` calls it instead of an inline
+  `EXISTS (SELECT 1 FROM public.items …)` so historical votes
+  on soft-deleted items remain visible. `votes_insert` /
+  `votes_update` deliberately *don't* call the helper — they
+  keep the inline subquery so items_select's `deleted_at`
+  filter applies recursively, which is the desired closure for
+  cast/change.
+- `tg_set_attribution_items` content-detection uses **row-wise
+  `IS DISTINCT FROM`**: the gate is `(NEW.list_id, NEW.name,
+  NEW.notes, NEW.deleted_at) IS DISTINCT FROM (OLD.list_id,
+  OLD.name, OLD.notes, OLD.deleted_at)`, not a boolean-OR of
+  per-column `IS DISTINCT FROM` (both forms are null-safe; the
+  row form is shorter and keeps the maintenance contract as a
+  single tuple).
+- `CREATE TRIGGER tg_profile_on_signup ON auth.users` ships
+  with an inline comment cross-linking
+  `docs/account-deletion.md:53`'s post-image-bump checklist
+  (PLAN.md Risk #15). The risk: a future `supabase/gotrue` image
+  bump that handles a schema change by `DROP TABLE auth.users;
+  CREATE TABLE auth.users …` silently takes our trigger with it,
+  and new signups land without `profiles` / `user_settings`
+  rows. The comment is two lines on the binding; it's a diff
+  signpost for the next image-bump PR, not a runtime check.
 - `tg_set_attribution_items` carries an inline comment
   spelling out the **maintenance contract** for the content-
   detection tuple (`NEW.list_id, NEW.name, NEW.notes,
@@ -718,11 +800,36 @@ load-bearing trigger / view / freeze rationale.
    step.
 2. GREEN — Update `scripts/migrate.sh`: inside the `for f in
    db/migrations/*.sql; do` loop, immediately after the
-   skip-if-already-applied check, extract the numeric prefix
-   (`prefix="${name%%_*}"`); if `$((10#$prefix)) -ge 4`,
-   poll `to_regclass('auth.users') IS NOT NULL` capped at
-   `MIGRATE_AUTH_USERS_TIMEOUT` (default 60). After the loop,
-   `"${PSQL[@]}" -c "NOTIFY pgrst, 'reload schema'" >/dev/null`.
+   skip-if-already-applied check and before the `applying $name`
+   echo, insert the prefix-gated `auth.users` poll. The
+   load-bearing details: `10#$prefix` forces base-10 parsing so
+   a leading-zero filename (`0010_foo.sql`) doesn't get parsed
+   as octal; the `while !` form keeps `set -e` happy because the
+   condition's exit status is "checked" rather than the script's
+   exit status; the `grep -q '^t$'` matches the literal `t` that
+   `psql -tAc` prints for a true `to_regclass(...) IS NOT NULL`
+   (any non-empty / non-`t` output, including the `f` for false,
+   re-enters the loop). Worked shape:
+   ```bash
+   prefix="${name%%_*}"
+   if [ "$((10#$prefix))" -ge 4 ]; then
+     start=$SECONDS
+     timeout="${MIGRATE_AUTH_USERS_TIMEOUT:-60}"
+     while ! "${PSQL[@]}" -tAc \
+       "SELECT to_regclass('auth.users') IS NOT NULL" \
+       2>/dev/null | grep -q '^t$'; do
+       if [ $((SECONDS - start)) -ge "$timeout" ]; then
+         echo "timed out after ${timeout}s waiting for auth.users." >&2
+         echo "hint: check 'docker compose logs gotrue'." >&2
+         exit 1
+       fi
+       sleep 1
+     done
+   fi
+   ```
+   After the migration loop ends and before the final
+   `migrations up to date` echo: `"${PSQL[@]}" -c "NOTIFY pgrst,
+   'reload schema'" >/dev/null`.
 3. GREEN — Add the commented `MIGRATE_AUTH_USERS_TIMEOUT` line
    to `.env.example`.
 4. GREEN — Mirror the `tg_set_attribution_items` maintenance

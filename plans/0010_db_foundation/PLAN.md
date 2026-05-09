@@ -99,12 +99,43 @@ so the migration uses four numeric prefixes — `t01_*`, `t05_*`,
 are load-bearing (Risks & gotchas → #3). Function names stay
 un-prefixed (`tg_*`); only bindings carry the prefix.
 
+**`tg_set_attribution_items` content-detection uses row-wise `IS
+DISTINCT FROM`.** The "did the user change content?" gate (Risk
+#12.a) compares `(NEW.list_id, NEW.name, NEW.notes,
+NEW.deleted_at) IS DISTINCT FROM (OLD.list_id, OLD.name,
+OLD.notes, OLD.deleted_at)`, not a boolean-OR of per-column
+`IS DISTINCT FROM`. Both forms produce the same result for null
+inputs (Postgres lifts row-`IS DISTINCT FROM` to column-wise
+null-safe semantics), but the row form is shorter, easier to
+read at the call site, and lives next to its maintenance contract
+as a single tuple. The maintenance contract (R10 /
+`docs/data-model.md:608`) is "whenever a payload column is added
+to `items`, extend this tuple in lockstep" — keeping the columns
+together as one tuple makes that contract a single textual edit
+rather than two parallel ones (the comparison and the comment).
+
 **Three small per-table attribution functions, not one branching
 on `TG_TABLE_NAME`.** `tg_set_attribution_lists`,
 `tg_set_attribution_items`, `tg_set_attribution_list_members` —
 three small functions are easier to read and test than one with
 column-shape branching, and a future attribution-bearing table
 just gets its own function in the same shape.
+
+**`is_items_list_member(uuid)` helper for `votes_select` (R25).**
+Cairn's three SECURITY DEFINER read-side helpers are the trio
+`public.uid()`, `public.is_list_member(uuid)`, and
+`public.is_items_list_member(uuid)`. The third exists specifically
+because Postgres applies RLS recursively to subqueries inside
+policy bodies: an inline `EXISTS (SELECT 1 FROM public.items …)`
+in `votes_select`'s body would be filtered by `items_select`'s
+`deleted_at IS NULL` clause, and historical votes on soft-deleted
+items would silently disappear from the trash UI — contradicting
+the doc's "votes vanish only when the item itself is hard-deleted"
+rule. Wrapping the items lookup in a `security definer` helper
+bypasses the recursion. `votes_insert` and `votes_update`
+deliberately keep their inline subqueries — they *want* the
+recursive `deleted_at` filter, since casting a vote on a
+soft-deleted item is what they're closing off.
 
 **Asymmetric `security_invoker` on the views.** `items_ranked`
 inherits caller RLS (`security_invoker = true`); `items_deleted`
@@ -150,6 +181,11 @@ connection before `0004` lands.
   9. `CREATE FUNCTION public.is_list_member(target_list uuid)`
      (per `docs/data-model.md`, `stable security definer set
      search_path = public`).
+  9b. `CREATE FUNCTION public.is_items_list_member(target_item uuid)`
+      (per R25; same shape as `is_list_member`, body wraps an
+      `is_list_member(i.list_id)` call so it depends on step 9 and
+      so the items reference inside it bypasses items_select's
+      recursive RLS).
   10. Trigger functions and bindings (per R7–R13). Function names
       un-prefixed (`tg_*`), bindings prefixed (`t01_*`, `t05_*`,
       `t10_*`, `t20_*`).
@@ -197,20 +233,31 @@ connection before `0004` lands.
   users fixture with one list created by Alice, with Bob as a
   second member; Carol is non-member. Self-includes the users
   fixture as its first non-comment statement. After the include,
-  sets `request.jwt.claims` to Alice; creates the list via
-  `public.create_list('Shared list')`; then `INSERT INTO
-  public.list_members (list_id, user_id) VALUES (..., '<bob>')`.
-  The fixture loads before any `SET LOCAL ROLE`, so the direct
-  INSERT runs as the test session's `cairn` superuser — that
-  bypass is what lets the row land despite the no-INSERT-grant on
-  `list_members`. In production, a multi-member list shape comes
-  from `accept_invitation` (step 6); the fixture stands in until
-  the RPC lands.
+  sets `SET LOCAL request.jwt.claims = '{"sub":"<alice>"}'`, then
+  `INSERT INTO public.lists (id, name) VALUES
+  ('11111111-1111-1111-1111-111111111111', 'Shared list') ON
+  CONFLICT (id) DO NOTHING;` and a two-row `INSERT INTO
+  public.list_members (list_id, user_id) VALUES (<list>, <alice>),
+  (<list>, <bob>) ON CONFLICT (list_id, user_id) DO NOTHING;`.
+  Stable literal UUIDs (`11111111-…` for the list) so error
+  messages stay readable and test bodies can refer to the list
+  by literal id without a `SELECT id FROM lists WHERE name = …`
+  subquery. The fixture loads before any `SET LOCAL ROLE`, so
+  both INSERTs run as the test session's `cairn` superuser —
+  that bypass is what lets the rows land despite the
+  no-INSERT-grant on either table. The `tg_set_attribution_*`
+  BEFORE-INSERT triggers fire under both INSERTs and stamp
+  `created_by` from the JWT claim (Alice), matching what the
+  `create_list` RPC would have produced. The RPC itself is
+  covered separately by `rpc_create_list.sql`; the fixture
+  doesn't need to re-exercise it.
 
 - **`db/tests/fixtures/list_solo_alice.sql`** — list with Alice as
   the only member. Same self-include pattern as
-  `list_shared_alice_bob.sql`; creates the list via
-  `public.create_list(...)` and stops there.
+  `list_shared_alice_bob.sql`; uses the literal UUID
+  `'22222222-2222-2222-2222-222222222222'` for the list, INSERTs
+  the list and Alice's `list_members` row directly under cairn,
+  and stops there.
 
 #### Fixture conventions
 
@@ -232,11 +279,20 @@ connection before `0004` lands.
   that opens its own transaction either commits independently
   (persisting rows across tests) or issues a `COMMIT` that
   silently ends the test's transaction mid-file.
-- **Name-as-stable-handle** — list fixtures expose lists by
-  unique name (`'Shared list'`, `'Solo list'`); UUIDs are
-  `gen_random_uuid()` and not deterministic across runs. Tests
-  look the id up via `(SELECT id FROM public.lists WHERE name =
-  'Shared list')`.
+- **Stable UUID literals** — every fixture row uses a literal
+  UUID, never `gen_random_uuid()`. The convention by table:
+  users `aaaa…`/`bbbb…`/`cccc…` (Alice/Bob/Carol), lists
+  `1111…`/`2222…` (shared/solo), items `3333…`/`4444…`/… as
+  needed in per-test setup. This matches `docs/testing.md`'s
+  fixture-stability rule, keeps `WHERE id = '11111111-…'` legible
+  in test bodies (no `SELECT id FROM lists WHERE name = …`
+  subquery), and makes `pg_prove` failure messages recognizable
+  ("not ok 7 — Alice cannot see list 11111111-…" beats an opaque
+  generated id). The list fixtures override the
+  `lists.id default gen_random_uuid()` by passing `id`
+  explicitly in the INSERT — safe because the fixture runs as
+  cairn (table owner) and the explicit value satisfies both PK
+  and FK targets.
 - **Attribution context** — any fixture that INSERTs into an
   attribution-bearing table (`lists`, `items`, `list_members`)
   sets `SET LOCAL request.jwt.claims = '{"sub":"<uuid>"}'`
@@ -258,7 +314,7 @@ second.
 | File | What it proves |
 |---|---|
 | `infra_auth_stub.sql` | (1) bootstrap created `auth.users` (`has_table('auth','users')`); (2) gated `public.uid()` returns the JWT-claim UUID; (3) tombstone row exists in `auth.users` (id = `'00000000-…'`); (4) the fixture include works (`\i /db/tests/fixtures/users_alice_bob_carol.sql`, assert Alice's row). Assertion (2) is gated so the file parses cleanly in Phase A (where `public.uid()` doesn't exist yet) and is *skipped* rather than failed. The canonical gate body is a `pg_temp.uid_or_zero()` plpgsql shim defined at the top of the file (returning `NULL` on `undefined_function`), wrapped in a `SELECT CASE WHEN EXISTS (SELECT 1 FROM pg_proc … WHERE proname = 'uid' …) THEN is(pg_temp.uid_or_zero(), …) ELSE skip(…) END;` statement-level pgTAP form — both branches statement-level so the counter advances cleanly in either Phase. The plan deliberately does **not** ship the `DO $$ … PERFORM skip(why, n); … END$$` variant (unclear pg_prove counter behaviour). In Phase A, (1) and (4) pass, (3) fails, (2) is skipped; in Phase C, all four pass. |
-| `schema_shape.sql` | `has_table` for each new table + `has_column` for every column of profiles (`id`, `display_name`, `created_at`, `modified_at`), user_settings (`id`, `invite_policy`, `created_at`, `modified_at`), lists (no `modified_by`), list_members (`created_by` not `added_by`, plus `created_at`/`modified_at`), items, votes (`created_at` not `voted_at`, plus `modified_at`). **Plus `has_view` for the three views** (`items_ranked`, `items_deleted`, `lists_deleted`) and **`has_function` for the three functions** (`public.uid()` with `'{}'` argtypes, `public.is_list_member(uuid)` with `'{uuid}'`, `public.create_list(text, text)` with `'{text,text}'`) — so a migration that silently drops a view or function reds at the schema-shape layer rather than only through downstream tests. **Plus one load-bearing absence assertion**: `hasnt_column('public', 'list_members', 'added_by')` — locks in the rename to `created_by`. |
+| `schema_shape.sql` | `has_table` for each new table + `has_column` for every column of profiles (`id`, `display_name`, `created_at`, `modified_at`), user_settings (`id`, `invite_policy`, `created_at`, `modified_at`), lists (no `modified_by`), list_members (`created_by` not `added_by`, plus `created_at`/`modified_at`), items, votes (`created_at` not `voted_at`, plus `modified_at`). **Plus `has_view` for the three views** (`items_ranked`, `items_deleted`, `lists_deleted`) and **`has_function` for the four functions** (`public.uid()` with `'{}'` argtypes, `public.is_list_member(uuid)` with `'{uuid}'`, `public.is_items_list_member(uuid)` with `'{uuid}'`, `public.create_list(text, text)` with `'{text,text}'`) — so a migration that silently drops a view or function reds at the schema-shape layer rather than only through downstream tests. **Plus one load-bearing absence assertion**: `hasnt_column('public', 'list_members', 'added_by')` — locks in the rename to `created_by`. |
 | `fk_set_default.sql` | For each of the 7 attribution FKs (lists.{created_by,deleted_by}, items.{created_by,modified_by,deleted_by}, list_members.{created_by,deleted_by}): delete the user from `auth.users` directly under the test session (`cairn` superuser owns the bootstrap-stub `auth.users`, so direct DELETE works without `delete_account()`), assert the column equals the tombstone UUID. **Seed shape for the two `list_members` legs**: the row under test must have `user_id <> deleted_user` (cross-actor seed) — e.g. Bob's membership row added by Alice, with the test then deleting Alice. The `user_id` CASCADE from `auth.users` runs *before* `SET DEFAULT` on `created_by`/`deleted_by`, so the obvious first attempt (Alice creates her own membership via `create_list()`, delete Alice) silently wipes the row before the assertion can read it. **Seed shape for the three `deleted_by` legs**: the row under test must have `deleted_by = alice_uid` *before* the test deletes Alice — soft-delete the row first under Alice's claims (the `tg_set_attribution_*` deleted_at-transition rule fills `deleted_by` automatically). **Seed shape for `items.modified_by` leg**: row must have `modified_by = alice_uid`, *not* a different user. The cascade for `items.modified_by` is computed against rows where `modified_by = alice` at cascade-start; cross-user seed leaves the modified_by cascade with no candidate row. (That cross-user shape is the load-bearing "cascade-for-other-column doesn't spuriously rewrite modified_by" property in `triggers_set_attribution.sql`, not this one.) Load-bearing for account-deletion. |
 | `fk_cascade.sql` | Seven CASCADE legs from `docs/data-model.md`'s table blocks, one assertion each so a regression in any single one surfaces independently: (a) `profiles.id` cascades on `auth.users` delete; (b) `user_settings.id` cascades on `auth.users` delete; (c) `list_members.user_id` cascades on `auth.users` delete; (d) `votes.user_id` cascades on `auth.users` delete; (e) `items.list_id` cascades on `lists` delete; (f) `list_members.list_id` cascades on `lists` delete; (g) `votes.item_id` cascades on `items` delete. (a)–(d) tested by deleting from `auth.users` directly under the test session (cairn-superuser bypass). (e)/(f) by `DELETE FROM public.lists`; (g) by `DELETE FROM public.items`. The user_settings leg is load-bearing for `delete_account()`: without the cascade, deleting an account leaves an orphan settings row in a table whose RLS would never let anyone read it again — invisible cruft accumulating forever. |
 | `constraints_user_settings.sql` | `invite_policy` enum CHECK constraint rejects bad values (`'everybody'`, `'circle'`, `'nobody'` accepted; anything else raises). `profiles` has no CHECK constraints to test (no `constraints_profiles.sql` file). |
@@ -279,7 +335,7 @@ second.
 | `views_items_ranked.sql` | score = sum; positive/negative/total voters counts; soft-deleted items excluded; no-votes item has score=0; view inherits RLS (non-member sees nothing). |
 | `views_items_deleted.sql` | only soft-deleted rows visible to a member; `deleted_at`/`deleted_by` exposed; live items absent; **non-member sees zero rows through the view** — load-bearing test that the explicit `is_list_member()` filter is the only authorization gate (the view runs `security_invoker = false` and bypasses RLS); **soft-removed (former) member sees zero rows** — load-bearing companion locking in `is_list_member()`'s `deleted_at IS NULL` clause (a member who has soft-removed themselves can no longer restore items in a list they've left). **Plus column-shape pinning**: `has_column('public', 'items_deleted', <col>)` for `id`, `list_id`, `name`, `notes`, `created_by`, `modified_by`, `deleted_by`, `created_at`, `modified_at`, `deleted_at`. |
 | `views_lists_deleted.sql` | only soft-deleted lists visible to a current member; live lists absent; **non-member sees zero rows**; **soft-removed (former) member sees zero rows**. **Plus column-shape pinning**: `has_column` for `id`, `name`, `description`, `created_by`, `deleted_by`, `created_at`, `modified_at`, `deleted_at`. |
-| `grants.sql` | `has_table_privilege('authenticated', …)` for the granted matrix — every (table, verb) granted to authenticated asserted positive, plus **load-bearing INSERT negatives** for `lists`, `list_members`, `profiles`, `user_settings` (closes the orphan-list, consent-bypass, and trigger-only footguns). `has_table_privilege` SELECT positives on the three views; `has_function_privilege` EXECUTE positives on `public.{uid, is_list_member, create_list}` for authenticated; **load-bearing EXECUTE negative for anon on `create_list`**. **Anon-coverage negatives** that lock in the doc's "Anonymous users have no access to any table" rule — `has_table_privilege('anon', …, …)` returns `false` for every (new-table, verb) and `has_function_privilege('anon', …, 'EXECUTE')` is `false` for `public.is_list_member(uuid)` and `public.uid()`. Closes Risk #6 — RLS without GRANT silently returns empty, and the smoke check no longer hits `/profiles` so it can't catch a missing grant. |
+| `grants.sql` | `has_table_privilege('authenticated', …)` for the granted matrix — every (table, verb) granted to authenticated asserted positive, plus **load-bearing INSERT negatives** for `lists`, `list_members`, `profiles`, `user_settings` (closes the orphan-list, consent-bypass, and trigger-only footguns). `has_table_privilege` SELECT positives on the three views; `has_function_privilege` EXECUTE positives on `public.{uid, is_list_member, is_items_list_member, create_list}` for authenticated; **load-bearing EXECUTE negative for anon on `create_list`**. **Anon-coverage negatives** that lock in the doc's "Anonymous users have no access to any table" rule — `has_table_privilege('anon', …, …)` returns `false` for every (new-table, verb) and `has_function_privilege('anon', …, 'EXECUTE')` is `false` for `public.is_list_member(uuid)`, `public.is_items_list_member(uuid)`, and `public.uid()`. Closes Risk #6 — RLS without GRANT silently returns empty, and the smoke check no longer hits `/profiles` so it can't catch a missing grant. |
 
 ### Modified files
 
@@ -507,10 +563,15 @@ specific risk; this section is the *why*, the test rows are the
    privilege — the `SET search_path = public` clause on it is
    hygiene rather than a security boundary, kept for symmetry
    with `is_list_member()` and to keep both helper definitions
-   structurally identical. `tg_profile_on_signup()` is the third
-   `SECURITY DEFINER` body in the migration and gets the same
-   treatment for the same load-bearing reason. See
-   `docs/data-model.md:316`.
+   structurally identical. `is_items_list_member()` is the
+   second-of-three `SECURITY DEFINER` read-side helpers (added
+   per R25) and gets the same `SET search_path = public` for the
+   same load-bearing reason — and on top of that, the
+   `security definer` is *what makes the helper exist*, not just
+   schema-shadow defense (see Risk #14 below).
+   `tg_profile_on_signup()` is the third `SECURITY DEFINER` body
+   in the migration and gets the same treatment for the same
+   load-bearing reason. See `docs/data-model.md:316`.
 
 6. **GRANTs are mandatory.** RLS without `GRANT` produces a silent
    empty result via PostgREST. Easy to forget; covered in step 15
@@ -692,6 +753,50 @@ specific risk; this section is the *why*, the test rows are the
     caller is *not* a member of, which is privilege escalation
     and has to land here. Test coverage: the two `throws_ok`
     assertions in `rls_list_members.sql` (one per PK column).
+
+14. **RLS recursion in policy bodies — the `votes_select` footgun.**
+    Postgres applies RLS recursively to subqueries within policy
+    bodies: a `for select using (EXISTS (SELECT 1 FROM public.items
+    i WHERE …))` policy is itself filtered by `items_select` when
+    it queries `items`. The result is silent: the `EXISTS` returns
+    false for any row hidden from the caller's `items_select`,
+    even rows the policy author meant to surface. Cairn's
+    motivating case is `votes_select` — the doc's intent is that
+    members can see historical votes on soft-deleted items (so
+    the trash UI's "deleted by Alice — at the time, +2 from Bob,
+    -1 from Carol" rendering works), but a direct `EXISTS …
+    public.items …` subquery would inherit `items_select`'s
+    `deleted_at IS NULL` filter and silently hide them. Closure:
+    a `SECURITY DEFINER SET search_path = public` helper
+    (`public.is_items_list_member(uuid)`, R25) wrapping the
+    items+membership lookup. The `security definer` is what
+    bypasses the recursion — the function runs as its
+    cairn-superuser owner, so `items_select` doesn't apply
+    inside it. `votes_insert` and `votes_update` deliberately
+    keep their inline subqueries because they *want* the
+    recursive `deleted_at` filter (casting a vote on a
+    soft-deleted item is what they're closing off). Test
+    coverage: the load-bearing positive assertion in
+    `rls_votes.sql` ("member sees vote on a *soft-deleted*
+    item"), which would otherwise fail green-then-red against
+    the inline form.
+
+15. **GoTrue upgrades can silently detach `tg_profile_on_signup`
+    from `auth.users`.** `tg_profile_on_signup` is bound to
+    `auth.users` from this migration onward. A future
+    `supabase/gotrue` image bump that handles a schema change by
+    `DROP TABLE auth.users; CREATE TABLE auth.users …` (rather
+    than `ALTER`) takes the trigger with it: new signups land in
+    `auth.users` but no `profiles` or `user_settings` row gets
+    created, surfacing days later as 404s on every fresh user's
+    first profile read. The doc already carries the post-bump
+    checklist (`docs/account-deletion.md:53`): after any image
+    bump, run `select tgname from pg_trigger where tgrelid =
+    'auth.users'::regclass` and re-attach the trigger if it has
+    gone missing, plus extend `db/test-bootstrap.sql`'s stub for
+    any new NOT-NULL columns. This plan ships an inline comment
+    on the `CREATE TRIGGER tg_profile_on_signup` binding pointing
+    at that checklist so the next image-bump PR sees it on diff.
 
 ## Existing patterns to reuse
 

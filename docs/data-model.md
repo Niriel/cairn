@@ -393,6 +393,26 @@ $$;
 
 `security definer` lets this function read `list_members` without itself being subject to RLS — otherwise we'd have a chicken-and-egg problem. The function is only callable to check membership, so this doesn't widen the attack surface.
 
+A sibling helper covers the parallel question for an item:
+
+```sql
+create or replace function public.is_items_list_member(target_item uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select exists (
+    select 1 from public.items i
+    where i.id = target_item
+      and public.is_list_member(i.list_id)
+  );
+$$;
+```
+
+This is what `votes_select` (below) calls, and it is genuinely load-bearing: an inline `EXISTS (SELECT 1 FROM public.items …)` in the policy body would be subject to `items_select`'s `deleted_at IS NULL` filter (Postgres applies RLS recursively to subqueries within policy bodies), and historical votes on a soft-deleted item would silently disappear from the trash UI's "at the time, +2 from Bob, -1 from Carol" rendering — contradicting the "members can see all votes" rule the policy is meant to encode. `security definer` plus `set search_path = public` lets the helper read `items` without inheriting `items_select`, and locks against schema-shadowing the same way `is_list_member` does. `votes_insert` and `votes_update` deliberately do *not* use this helper — those policies *want* the recursive `deleted_at` filter, since casting or changing a vote on a soft-deleted item is what they're closing off.
+
 ### `lists`
 
 ```sql
@@ -460,18 +480,17 @@ The `and deleted_at is null` clause on `items_select` is the same load-bearing r
 ### `votes`
 
 ```sql
--- Read: members can see all votes on items in their lists.
--- Deliberately unfiltered on items.deleted_at: historical votes on
--- a soft-deleted item remain visible per the "members can see all
--- votes" rule below — votes vanish only when the item itself is
+-- Read: members can see all votes on items in their lists, including
+-- historical votes on items that have since been soft-deleted (so the
+-- trash UI can render "deleted by Alice — at the time, +2 from Bob,
+-- -1 from Carol"). The check goes through public.is_items_list_member,
+-- a security-definer helper, deliberately so the recursive RLS that
+-- would otherwise apply to a direct `select … from public.items …`
+-- subquery doesn't silently filter on items.deleted_at — see the
+-- helper's rationale above. Votes vanish only when the item itself is
 -- hard-deleted (which cascades them via votes.item_id).
 create policy votes_select on public.votes
-  for select using (
-    exists (
-      select 1 from public.items i
-      where i.id = item_id and public.is_list_member(i.list_id)
-    )
-  );
+  for select using (public.is_items_list_member(item_id));
 
 -- Insert: members can vote on items in their lists, as themselves.
 -- The i.deleted_at is null filter is load-bearing: without it, a
