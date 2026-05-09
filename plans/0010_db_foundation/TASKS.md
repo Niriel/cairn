@@ -1,0 +1,783 @@
+# Tasks
+
+## Reference skills and docs
+
+- **`PLAN.md`** (sibling) — full design context, the test-file
+  inventory with per-file assertion specs (`Architecture` →
+  `Test files`), and the Risks & gotchas section that explains
+  *why* several trigger and view shapes are unusual. Phase B
+  tasks reference specific rows of the test inventory by
+  filename rather than re-inlining each per-file spec.
+- **`docs/data-model.md`** — canonical table / policy / trigger
+  / view shapes. Every `CREATE` statement in the `0004`
+  migration mirrors this doc.
+- **`docs/account-deletion.md`** — tombstone seeding, FK `ON
+  DELETE SET DEFAULT` semantics, GoTrue-version caveat.
+- **`docs/testing.md`** — pgTAP conventions: every test file
+  wraps in `BEGIN ... ROLLBACK`; every policy gets positive AND
+  negative coverage.
+- **`docs/development.md`** — start-over recovery, schema-cache
+  reload bullet, `MIGRATE_AUTH_USERS_TIMEOUT` paragraph.
+- **`.claude/skills/writing-tasks.md`** — TDD ordering (RED
+  before GREEN), self-contained-task convention, per-task
+  Verify lines.
+
+## Phase A — bootstrap + infra check
+
+### [ ] A.1 Add `db/test-bootstrap.sql` and patch `scripts/test-db.sh`
+
+**Created:** 2026-05-09T00:00:00Z
+**Completed:**
+
+**Why:** The pgTAP test path runs against `cairn_test`, which has
+no GoTrue and therefore no `auth.users`. Every later test file in
+this plan references `auth.users` (FKs, fixtures, attribution
+triggers), so `auth.users` must be stubbed before any test
+migration runs. The bootstrap also creates `authenticated` and
+`anon` roles so test files can `SET LOCAL ROLE` to exercise both
+authenticated and anonymous paths.
+
+**Prerequisites:** None. Phase A first task.
+
+**Decisions:**
+- Bootstrap lives in `db/`, not `db/tests/`, because `pg_prove
+  --ext .sql ... /db/tests` enumerates everything `.sql` at the
+  top of `db/tests/` as a test file. A bootstrap with no
+  `plan(N)` would fail with "no plan declared" or trip a parse
+  error and red the whole suite. Outside `db/tests/` keeps it
+  off pg_prove's scan list while staying inside the `./db:/db`
+  volume mount.
+- Idempotent role creation via `DO $$ … END$$` blocks mirroring
+  `0001_init.sql`'s `IF NOT EXISTS` shape — so a subsequent
+  `0001` re-run is a no-op.
+- No `GRANT authenticated TO cairn` etc. — `cairn` is the cluster
+  superuser and bypasses role-membership checks on `SET LOCAL
+  ROLE` (see PLAN.md Risk #2).
+- `auth` schema created without `AUTHORIZATION gotrue` (the
+  `gotrue` role doesn't exist in the test DB, and ownership
+  doesn't matter when GoTrue never runs).
+- Stub `auth.users` columns: `id uuid PK`, `email text`, `role
+  text DEFAULT 'authenticated'`, `created_at timestamptz DEFAULT
+  now()`. Top-of-file comment links to `docs/data-model.md`'s
+  "auth.users is owned by GoTrue" paragraph and includes a
+  rule-and-checklist: any future migration referencing a new
+  `auth.users` column must extend the stub at the same time, or
+  the test suite silently masks a divergence from the real GoTrue
+  schema.
+- `scripts/test-db.sh` runs the bootstrap between `CREATE
+  DATABASE` and the migration loop. Same script also gains a
+  fail-fast guard before `pg_prove` that rejects any
+  `db/tests/*.sql` lacking a `SELECT plan(N)` declaration —
+  matched as `^[[:space:]]*SELECT[[:space:]]+plan[[:space:]]*\(`,
+  not the bare substring `plan(` (a stray mention in an SQL
+  comment would otherwise satisfy a substring match).
+- Capture into an array first because `shopt -s nullglob` is in
+  effect — a literal `grep -L 'plan(' db/tests/*.sql` would
+  expand to `grep -L 'plan('` (no files) and read from stdin
+  forever.
+
+**Files:**
+- `db/test-bootstrap.sql` (create)
+- `scripts/test-db.sh` (modify)
+
+**Steps:**
+1. Create `db/test-bootstrap.sql` with the top-of-file comment
+   (rule + auth.users column checklist + cross-link to
+   `docs/data-model.md`), the two role-creation `DO $$ … END$$`
+   blocks (one for `authenticated`, one for `anon`), the
+   `CREATE SCHEMA IF NOT EXISTS auth;`, and the `CREATE TABLE
+   auth.users (id uuid PRIMARY KEY, email text, role text
+   DEFAULT 'authenticated', created_at timestamptz DEFAULT
+   now());`.
+2. In `scripts/test-db.sh`, between the `CREATE DATABASE` line
+   and the migration loop, add a `psql` invocation that applies
+   `db/test-bootstrap.sql` to `cairn_test`. Keep `set -euo
+   pipefail` so a bootstrap failure aborts the run.
+3. Immediately before the `pg_prove` invocation in
+   `scripts/test-db.sh`, add the plan-declaration guard:
+   capture `db/tests/*.sql` into a `files` array, bail with a
+   scoped message if empty, then `grep -LE
+   '^[[:space:]]*SELECT[[:space:]]+plan[[:space:]]*\(' "${files[@]}"`
+   and bail with the missing-files list if non-empty.
+4. Run `./scripts/test-db.sh` to confirm the bootstrap applies
+   cleanly and the plan-guard accepts existing test files.
+
+**Verify:** `./scripts/test-db.sh` (bootstrap applies cleanly;
+existing `db/tests/smoke.sql` still passes for now)
+
+### [ ] A.2 Add users fixture + `infra_auth_stub.sql` infra-check test
+
+**Created:** 2026-05-09T00:00:00Z
+**Completed:**
+
+**Why:** Establishes the test infrastructure that Phase B will
+build on: the canonical fixture for the three test users
+(Alice/Bob/Carol), the absolute-path `\i` convention, and the
+gated-assertion pattern that lets a single test file cover both
+the pre-`0004` and post-`0004` schemas without re-editing.
+
+**Prerequisites:** A.1 (bootstrap creates `auth.users`).
+
+**Decisions:**
+- Fixture file: `db/tests/fixtures/users_alice_bob_carol.sql`,
+  three `auth.users` rows with stable UUIDs (`aaaa…`, `bbbb…`,
+  `cccc…`) and emails `alice@test`, `bob@test`, `carol@test`.
+  Each `INSERT` uses `ON CONFLICT (id) DO NOTHING` so re-includes
+  are no-ops.
+- The fixture has no `BEGIN;`/`COMMIT;` of its own — each test
+  file owns its own transaction (per `docs/testing.md:103`).
+- Includes use **absolute** paths: `\i
+  /db/tests/fixtures/users_alice_bob_carol.sql`. `pg_prove` runs
+  with the container WORKDIR `/`, so a relative `\i fixtures/…`
+  resolves to `/fixtures/…` and fails. Absolute paths match the
+  `./db:/db` volume mount and are robust to invocation cwd.
+- `infra_auth_stub.sql` declares `SELECT plan(4);` and asserts:
+  (1) `has_table('auth','users')`; (2) gated `public.uid()`
+  returns the JWT-claim UUID; (3) tombstone row exists in
+  `auth.users` (`id = '00000000-…'`); (4) the fixture include
+  works (Alice's row is present after `\i
+  /db/tests/fixtures/users_alice_bob_carol.sql`).
+- The gate for assertion (2) is a `pg_temp.uid_or_zero()`
+  plpgsql shim defined at the top of the test file, returning
+  `NULL` on `EXCEPTION WHEN undefined_function`. Wrapped in a
+  `SELECT CASE WHEN EXISTS (SELECT 1 FROM pg_proc … WHERE
+  proname = 'uid' AND pronamespace = 'public'::regnamespace)
+  THEN is(pg_temp.uid_or_zero(), …) ELSE skip(…) END;` —
+  statement-level pgTAP, both branches are statement-level so
+  the counter advances cleanly in either Phase. Deliberately not
+  using the `DO $$ … PERFORM skip(why, n); … END$$` variant
+  (unclear pg_prove counter behaviour; would force a Phase A →
+  Phase B re-edit pass).
+- Phase A run shape: `1..4` with one passed (1), one passed (4),
+  one skipped (2), one failed (3 — tombstone doesn't exist
+  yet). Phase C all-pass.
+
+**Files:**
+- `db/tests/fixtures/users_alice_bob_carol.sql` (create)
+- `db/tests/infra_auth_stub.sql` (create)
+
+**Steps:**
+1. Create `db/tests/fixtures/users_alice_bob_carol.sql` with the
+   three `INSERT INTO auth.users (id, email) VALUES …` rows,
+   each with `ON CONFLICT (id) DO NOTHING`. No transaction
+   wrapping. Top comment notes the absolute-path include
+   convention and that the file is safe to re-include.
+2. Create `db/tests/infra_auth_stub.sql`. Open with `BEGIN;`,
+   `SELECT plan(4);`, the `pg_temp.uid_or_zero()` plpgsql shim,
+   the four assertions, `SELECT * FROM finish();`, `ROLLBACK;`.
+   Use `\i /db/tests/fixtures/users_alice_bob_carol.sql` to
+   load the fixture (this exercises the include for assertion
+   4).
+3. Run `./scripts/test-db.sh`. Expect `1..4` with one skip
+   (assertion 2), one fail (assertion 3), two passes (1 and 4).
+   This is the load-bearing red signal that the test
+   infrastructure works and the migration genuinely hasn't
+   landed yet.
+
+**Verify:** `./scripts/test-db.sh` reports `1..4` with the
+expected skip/fail/pass shape
+
+### [ ] A.3 Phase A non-test cleanup: gut `dev_seed.sql`, update `docs/development.md`, drop `/profiles` from `smoke.sh`
+
+**Created:** 2026-05-09T00:00:00Z
+**Completed:**
+
+**Why:** Once `0004` lands and `profiles.id` becomes an FK to
+`auth.users(id)`, the existing `db/seed/dev_seed.sql` rows can't
+survive — they violate the FK with no `auth.users` parent.
+Doing this in Phase A (rather than waiting for Phase C) keeps
+`./scripts/seed.sh` from breaking for the duration of Phases B
+and C, and keeps `./scripts/check.sh` from reding for *unrelated*
+reasons across the whole TDD run. The intentional pgTAP reds in
+Phases A–B remain; everything else stays green.
+
+**Prerequisites:** None (independent of A.1/A.2 — no test files
+involved).
+
+**Decisions:**
+- `db/seed/dev_seed.sql` becomes a top-of-file comment only
+  (no SQL statements). Comment cross-links to
+  `docs/testing.md:65-68` and notes that real seed users
+  (Alice/Bob) land in step 3 of
+  `plans/0000_implementation_order.md` once GoTrue and the
+  magic-link shortcut are wired up. We deliberately do *not*
+  insert into `auth.users` directly: GoTrue's real schema has
+  version-dependent NOT NULL columns we can't satisfy with a
+  bare two-column insert, and any row we hand-craft would be
+  one GoTrue refuses to authenticate against.
+- `docs/development.md` gets two edits in the same commit so
+  doc and code never disagree on disk:
+  - **Seed data section** (lines 221–225): rewrite to a short
+    paragraph saying the dev DB starts empty until step 3,
+    that developers create their own account via Mailpit, and
+    that the `VITE_DEV_LOGIN_SHORTCUT` paragraph will return
+    alongside step 3's plan.
+  - **"Hit the API directly" snippet** (lines 295–306, the
+    `curl … alice@example.test … password` GoTrue
+    token-fetch example): replace with a one-line note that
+    the dev-token shortcut returns alongside step 3's GoTrue
+    + magic-link wiring; until then the API is reachable via
+    the manual `psql` path above and via PostgREST's anon
+    OpenAPI root.
+  - **No edit** for the `MIGRATE_AUTH_USERS_TIMEOUT`
+    paragraph (already at line 210 from a prior reconciliation
+    pass).
+- `scripts/smoke.sh`: drop the `/profiles` block. After `0004`,
+  anon has no SELECT grant on `profiles`, so PostgREST returns
+  401 *before* RLS even runs — the previously proposed "accept
+  empty array" relaxation can't help when the response isn't
+  an array. Add a comment near the deleted block recording
+  the schema-reachability gap (until step 3 lands an
+  authenticated probe, the schema-up check is the manual
+  `\dt`/`\dv`/`\df` step in PLAN.md → Verification).
+- **Heads-up note** for the next reader: gutting
+  `dev_seed.sql` prevents *new* smoke-profile inserts but
+  doesn't touch rows already inserted by a prior `seed.sh`
+  run; those persist in `public.profiles` until either `0004`
+  drops the smoke table in Phase C or the dev DB is rebuilt
+  (`docker compose down -v && up -d && ./scripts/migrate.sh`).
+  Either is fine; the rows are harmless during the gap, but a
+  developer poking the dev DB with `psql` will see them and
+  shouldn't be surprised.
+
+**Files:**
+- `db/seed/dev_seed.sql` (modify — gut)
+- `docs/development.md` (modify — two sections)
+- `scripts/smoke.sh` (modify — drop `/profiles` block + comment)
+
+**Steps:**
+1. Replace the body of `db/seed/dev_seed.sql` with the
+   top-of-file comment described in Decisions.
+2. Rewrite the "Seed data" section of `docs/development.md` per
+   Decisions.
+3. Replace the "Hit the API directly" snippet in
+   `docs/development.md` per Decisions.
+4. In `scripts/smoke.sh`, remove the `/profiles` curl block
+   entirely. Add a comment near where it used to live recording
+   the gap and pointing at the manual schema-up check in
+   PLAN.md.
+5. Run `./scripts/check.sh`: it should be green for everything
+   except the intentional pgTAP reds from A.2 (which don't break
+   `check.sh` because pg_prove reports `not ok` lines, not
+   process failures, until the suite as a whole fails).
+   `./scripts/smoke.sh` should still pass against the running
+   stack.
+
+**Verify:** `./scripts/check.sh` green except expected pgTAP reds
+from A.2 · `./scripts/smoke.sh` green
+
+## Phase B — bulk red
+
+Phase B writes the spec, in executable form. Most assertions
+fail red against the pre-`0004` schema; a small handful of
+"absence-of-post-0004-structure" assertions pass vacuously
+(e.g. the tombstone-skip step in `triggers_profile_on_signup.sql`
+reads zero rows because the smoke `profiles` table never had a
+tombstone row) — that's expected. The load-bearing red signal is
+the *positive* assertions failing.
+
+Per-file assertion specs and rationale live in **PLAN.md →
+Architecture → Test files** (rows by filename). Each Phase B
+task below lists the files it covers and inlines a one-line
+per-file summary; for the load-bearing assertion details and
+"why each assertion exists," follow the matching row of the
+PLAN.md inventory.
+
+### [ ] B.1 Add list fixtures + `schema_shape.sql` + `constraints_*.sql`
+
+**Created:** 2026-05-09T00:00:00Z
+**Completed:**
+
+**Why:** The list fixtures are needed by every later RLS / view
+/ trigger test that operates on a multi-member shape. Schema-
+shape and constraint tests are the cheapest regression net:
+they catch column drops, view/function drops, and CHECK-
+constraint regressions at the schema-shape layer rather than
+through downstream test failures.
+
+**Prerequisites:** A.1, A.2 (bootstrap, users fixture).
+
+**Decisions:**
+- `list_shared_alice_bob.sql` self-includes
+  `users_alice_bob_carol.sql` as its first non-comment
+  statement, sets `request.jwt.claims` to Alice's UUID before
+  any INSERT (attribution-context convention), creates the
+  list via `public.create_list('Shared list')`, then `INSERT
+  INTO public.list_members (list_id, user_id) VALUES (…,
+  '<bob>')` to add Bob. The fixture loads before any `SET
+  LOCAL ROLE`, so the direct INSERT runs as the test session's
+  `cairn` superuser — that bypass is what lets the row land
+  despite the no-INSERT-grant on `list_members`.
+- `list_solo_alice.sql` follows the same pattern, creating
+  `'Solo list'` via `public.create_list('Solo list')` and
+  stopping there.
+- Lists are referenced by name (unique across the fixture set),
+  not by UUID — UUIDs come from `gen_random_uuid()` and aren't
+  deterministic across runs. Tests look up the id via `(SELECT
+  id FROM public.lists WHERE name = 'Shared list')`.
+- `schema_shape.sql` covers `has_table` for the six new tables,
+  `has_column` for every column of each, `has_view` for the
+  three views, `has_function` for the three functions (with
+  argtype signatures), plus `hasnt_column('public',
+  'list_members', 'added_by')` to lock in the rename to
+  `created_by`.
+- `constraints_user_settings.sql` covers the `invite_policy`
+  CHECK enum (accept `'everybody'`, `'circle'`, `'nobody'`;
+  reject anything else). No `constraints_profiles.sql` —
+  `profiles` has no CHECK constraints to test in v1.
+- `constraints_lists.sql` covers name length 1..200, description
+  ≤2000, reject empty name, **NULL `description` accepted** (locks
+  in the `description IS NULL OR length(description) <= 2000`
+  two-clause CHECK).
+- `constraints_items.sql` covers name length 1..500, reject
+  empty name.
+- `constraints_votes.sql` covers value in [-3,3], value <> 0,
+  PK uniqueness, "no vote" = no row, **`created_at` unchanged
+  by re-vote** (INSERT, capture, `ON CONFLICT DO UPDATE SET
+  value = …`, assert match), **`modified_at` *is* bumped by
+  re-vote** (assert post-update modified_at within seconds of
+  `now()` and strictly greater than the captured original).
+
+**Files:**
+- `db/tests/fixtures/list_shared_alice_bob.sql` (create)
+- `db/tests/fixtures/list_solo_alice.sql` (create)
+- `db/tests/schema_shape.sql` (create)
+- `db/tests/constraints_user_settings.sql` (create)
+- `db/tests/constraints_lists.sql` (create)
+- `db/tests/constraints_items.sql` (create)
+- `db/tests/constraints_votes.sql` (create)
+
+**Reference:** PLAN.md → Architecture → Test files, rows
+`schema_shape.sql`, `constraints_user_settings.sql`,
+`constraints_lists.sql`, `constraints_items.sql`,
+`constraints_votes.sql` for the full per-file assertion specs
+including which assertions are load-bearing and why.
+
+**Steps:**
+1. RED — Create the two list fixtures per Decisions. Each opens
+   with `\i /db/tests/fixtures/users_alice_bob_carol.sql`, then
+   `SET LOCAL request.jwt.claims = '{"sub":"<alice-uuid>"}';`,
+   then the `create_list(...)` call (and the direct
+   `list_members` INSERT for the shared fixture).
+2. RED — Create the five test files. Each opens with `BEGIN;`,
+   `SELECT plan(N);`, the assertions, `SELECT * FROM
+   finish();`, `ROLLBACK;`. Set `request.jwt.claims` before any
+   INSERT into attribution-bearing tables. Tests that need a
+   list-shaped fixture `\i` only the most specific list fixture
+   they need (the users fixture is auto-included).
+3. RED — Run `./scripts/test-db.sh`. Expect most assertions red
+   (tables/views/functions don't exist yet), a small handful
+   green (whatever's already true under the pre-0004 schema).
+
+**Verify:** `./scripts/test-db.sh` runs without errors and
+reports the expected red signal across the new files
+
+### [ ] B.2 FK + trigger tests
+
+**Created:** 2026-05-09T00:00:00Z
+**Completed:**
+
+**Why:** FK behaviour is load-bearing for `delete_account()`
+(step 8): without `SET DEFAULT` repointing attribution to the
+tombstone, deleting a user would leave dangling attribution
+references. The `tg_set_attribution_*` trigger logic is the
+hardest part of `0004` (cascade-aware gating, content-aware
+modified_by) — these tests are the regression net for the
+risks documented in PLAN.md → Risks #11 and #12.
+
+**Prerequisites:** B.1 (`schema_shape.sql` exists; list
+fixtures exist).
+
+**Decisions:**
+- `fk_set_default.sql` covers all 7 attribution FKs. Cross-
+  actor seed shape is mandatory for the `list_members` legs
+  (the `user_id` CASCADE runs *before* `SET DEFAULT` on
+  `created_by`/`deleted_by`, so Alice-creates-her-own-membership
+  + delete-Alice silently wipes the row before the assertion
+  reads it). Seed shape for the three `deleted_by` legs:
+  soft-delete the row first under Alice's claims so
+  `deleted_by = alice_uid` *before* the cascade test fires.
+  Seed shape for `items.modified_by`: `modified_by = alice_uid`
+  (not Bob's) so the cascade has a candidate row.
+- `fk_cascade.sql` covers the seven CASCADE legs from the doc
+  (one assertion each so a regression in any single one
+  surfaces independently). The `user_settings` leg is
+  load-bearing for `delete_account()`.
+- `triggers_profile_on_signup.sql` exercises the trigger via a
+  fresh non-fixture `auth.users` INSERT (`id = 'dddddddd-…'`)
+  to keep assertions about the *test's* trigger invocation
+  rather than the fixture's earlier one. Asserts both inserts
+  happen, both skip on tombstone (separately for `profiles` and
+  `user_settings` — without separate skip-branch coverage, a
+  regression dropping only the user_settings tombstone-skip
+  would silently start creating tombstone settings rows, and
+  no migration-inserted row would exist for `ON CONFLICT` to
+  suppress against).
+- `triggers_modified_at.sql` covers all six per-table bindings
+  (one bump assertion each), all three cascade-skip legs
+  (load-bearing for Risk #12.b), and one positive non-`OF`
+  assertion (locks in the `OF`-clause restriction by catching
+  a future regression that adds an attribution column to the
+  `OF` list).
+- `triggers_set_timestamps.sql` covers the universal
+  `tg_set_timestamps` trigger across all six tables. Three
+  per-table assertions: INSERT-override, UPDATE-freeze
+  `created_at`, UPDATE-freeze `modified_at` (the last with
+  *only* `modified_at` in the SET list, deliberately not in
+  any per-table `tg_set_modified_at` `OF` list, so `t05`'s
+  freeze is the only thing standing).
+- `triggers_set_attribution.sql` is the largest test file (~22
+  assertions). Triangulates every rule across the three
+  attribution-bearing tables. Crucially includes the cascade-
+  ordering coverage (assertion xi: seed `(created_by=Alice,
+  modified_by=Alice)`, delete Alice, assert cascade-order
+  independence) — Risk #12's per-rule keying rationale hangs
+  on this and assertion (x) only exercises one cascade leg.
+- **Role context** for fixture-bearing INSERTs: lists-leg and
+  list_members-leg INSERTs run as `cairn` superuser (both
+  tables omit the INSERT grant; without the cairn bypass the
+  test would hit the GRANT denial and never reach the
+  trigger). Items-leg INSERTs can run as `cairn` or
+  `authenticated` — pick `cairn` uniformly. Grant-layer
+  denials are covered separately in `grants.sql`,
+  `rls_lists.sql`, `rls_list_members.sql`.
+
+**Files:**
+- `db/tests/fk_set_default.sql` (create)
+- `db/tests/fk_cascade.sql` (create)
+- `db/tests/triggers_profile_on_signup.sql` (create)
+- `db/tests/triggers_modified_at.sql` (create)
+- `db/tests/triggers_set_timestamps.sql` (create)
+- `db/tests/triggers_set_attribution.sql` (create)
+
+**Reference:** PLAN.md → Architecture → Test files, rows for
+each of the six files above. PLAN.md → Risks #11 and #12 for
+the rationale behind the cascade-aware gating in
+`triggers_set_attribution.sql` and the `OF`-clause
+restriction in `triggers_modified_at.sql`.
+
+**Steps:**
+1. RED — Create the six test files per Decisions and the
+   PLAN.md inventory rows. Use the `list_shared_alice_bob.sql`
+   fixture for tests that need a multi-member shape; use
+   `list_solo_alice.sql` for tests that need a single-member
+   list; use only the users fixture for tests that don't need
+   a list.
+2. RED — Run `./scripts/test-db.sh`. Expect heavy red across
+   these files (tables/triggers don't exist; cascades don't
+   cascade).
+
+**Verify:** `./scripts/test-db.sh` runs and reports the
+expected red signal across the six new files
+
+### [ ] B.3 RPC + grants + RLS tests
+
+**Created:** 2026-05-09T00:00:00Z
+**Completed:**
+
+**Why:** RLS is the security boundary; `grants.sql` is the only
+mechanical check that the GRANT matrix is correct (the smoke
+script's `/profiles` probe is gone, and the magic-link
+authenticated probe doesn't land until step 3). Each RLS file
+covers both positive and negative cases per the
+`CLAUDE.md` rule.
+
+**Prerequisites:** B.1 (fixtures and schema-shape).
+
+**Decisions:**
+- `rpc_create_list.sql` covers the happy path (returns a
+  `lists` row, `created_by` is Alice, exactly one matching
+  `list_members` row), plus the two defence-in-depth body
+  guards (`uid() IS NULL` → SQLSTATE `28000` `'not
+  authenticated'`; `uid() = tombstone` → SQLSTATE `28000`
+  `'cannot act as the tombstone user'`), plus the GRANT-layer
+  denial for anon (`throws_ok` `permission denied for function
+  create_list` under `SET LOCAL ROLE anon`).
+- `grants.sql` covers the full positive matrix, plus
+  load-bearing INSERT negatives on the four trigger-only /
+  RPC-only tables (lists, list_members, profiles,
+  user_settings), plus the EXECUTE negative for anon on
+  `create_list`, plus the anon-coverage negatives for every
+  (table, verb) and helper function (locks in "anon has no
+  access").
+- `rls_profiles.sql`, `rls_user_settings.sql`, `rls_lists.sql`,
+  `rls_list_members.sql`, `rls_items.sql`, `rls_votes.sql` —
+  one file per table. Every file ships **per-defence-layer**
+  unauthenticated negatives (one for the GRANT layer, one for
+  the policy layer) per the convention in `docs/testing.md`'s
+  "Database tests" section. Without splitting, a future change
+  that adds an INSERT/DELETE grant *or* a permissive policy
+  would silently re-open a footgun while still passing a
+  single combined check.
+- **Critical role-context rule for the policy-layer negative
+  legs**: don't run the leg as `cairn`. Cairn is both the
+  cluster superuser and the table owner, exempt from RLS unless
+  `FORCE ROW LEVEL SECURITY` is set (it isn't). Run under
+  `SET LOCAL ROLE authenticated` with claims set, after
+  granting the missing privilege inside the test's
+  `BEGIN ... ROLLBACK` (the GRANT is rolled back at file
+  end). Otherwise the INSERT/DELETE would silently succeed and
+  the policy-layer leg wouldn't actually exercise the policy.
+- `rls_list_members.sql` ships two extra `throws_ok`
+  assertions for the `tg_freeze_list_members_pk` trigger
+  (Risk #13). Run them under Alice's claims (a live member),
+  not as `cairn`. The freeze fires for both, but only the
+  `authenticated` role exercises the policy layer that we
+  want to lock in as "policy lets it through, only the freeze
+  catches it."
+- `rls_votes.sql` ships a load-bearing positive assertion that
+  members can SELECT votes on a *soft-deleted* item (locks in
+  the doc's deliberate decision to leave `votes_select`
+  unfiltered on `items.deleted_at`). Plus mirrored INSERT/UPDATE
+  negatives for soft-deleted items.
+
+**Files:**
+- `db/tests/rpc_create_list.sql` (create)
+- `db/tests/grants.sql` (create)
+- `db/tests/rls_profiles.sql` (create)
+- `db/tests/rls_user_settings.sql` (create)
+- `db/tests/rls_lists.sql` (create)
+- `db/tests/rls_list_members.sql` (create)
+- `db/tests/rls_items.sql` (create)
+- `db/tests/rls_votes.sql` (create)
+
+**Reference:** PLAN.md → Architecture → Test files, rows for
+each of the eight files above. PLAN.md → Risk #13 for the
+PK-freeze rationale in `rls_list_members.sql`.
+
+**Steps:**
+1. RED — Create the eight test files per Decisions and the
+   PLAN.md inventory rows. Apply the role-context rule
+   carefully: per-defence-layer negatives must run under
+   `authenticated`, not `cairn`. The same rule applies to the
+   `tg_freeze_list_members_pk` assertions.
+2. RED — Run `./scripts/test-db.sh`. Expect heavy red.
+
+**Verify:** `./scripts/test-db.sh` runs and reports the expected
+red signal across the eight new files
+
+### [ ] B.4 View tests
+
+**Created:** 2026-05-09T00:00:00Z
+**Completed:**
+
+**Why:** The trash views (`items_deleted`, `lists_deleted`)
+run `security_invoker = false`, bypassing RLS — their only
+authorization gate is the explicit `is_list_member()` filter
+in the view body. The "non-member sees zero rows" and
+"soft-removed (former) member sees zero rows" assertions are
+load-bearing because they are the only thing standing between
+a future refactor and re-exposure of every list's trash to
+every authenticated user.
+
+**Prerequisites:** B.1 (fixtures and schema-shape).
+
+**Decisions:**
+- `views_items_ranked.sql` exercises the live, RLS-inheriting
+  view: score = sum, positive/negative/total voters counts,
+  soft-deleted items excluded, no-votes item has score = 0,
+  non-member sees nothing.
+- `views_items_deleted.sql` and `views_lists_deleted.sql` are
+  the trash views. Each ships:
+  - "only soft-deleted rows visible to a current member"
+  - **"non-member sees zero rows"** — load-bearing
+  - **"soft-removed (former) member sees zero rows"** — load-
+    bearing companion locking in `is_list_member()`'s
+    `deleted_at IS NULL` clause (per `docs/data-model.md:307`).
+    Without this, a regression dropping the membership-
+    deleted-at filter would silently re-expose every list's
+    trash to every ex-member.
+  - column-shape pinning via `has_column` for each column the
+    trash UI reads. Without this, a future refactor dropping
+    a column from the view body wouldn't red here, and
+    `schema_shape.sql`'s view-presence assertions only check
+    the view exists, not its shape.
+
+**Files:**
+- `db/tests/views_items_ranked.sql` (create)
+- `db/tests/views_items_deleted.sql` (create)
+- `db/tests/views_lists_deleted.sql` (create)
+
+**Reference:** PLAN.md → Architecture → Test files, rows for
+each of the three files. PLAN.md → Risk #8 for the
+soft-delete-unreachability rationale.
+
+**Steps:**
+1. RED — Create the three view test files per Decisions and the
+   PLAN.md inventory rows.
+2. RED — Run `./scripts/test-db.sh`. Expect red across these
+   files (views don't exist yet). End of Phase B —
+   `./scripts/test-db.sh` should report a large set of failing
+   assertions; this is the spec, in executable form.
+
+**Verify:** `./scripts/test-db.sh` runs and reports the
+expected red signal across the three new view test files
+
+## Phase C — green
+
+### [ ] C.1 Write `db/migrations/0004_domain_schema.sql` and update `migrate.sh` + `.env.example`
+
+**Created:** 2026-05-09T00:00:00Z
+**Completed:**
+
+**Why:** The migration is the single artifact that takes the
+suite from red to green. Every test in Phase B describes a
+property `0004` must satisfy. `migrate.sh` and `.env.example`
+update in the same commit so the dev path stays runnable.
+
+**Prerequisites:** All of Phase A and Phase B (the suite is in
+its bulk-red state; everything `0004` ships is exercised by an
+existing test).
+
+**Decisions:**
+- One file, top-to-bottom, wrapped in `BEGIN; … COMMIT;`. No
+  churn, no half-applied intermediate state. Body order
+  follows PLAN.md → Architecture → New files →
+  `0004_domain_schema.sql` (steps 1–15).
+- Each `CREATE TABLE` is **immediately** followed by `ALTER
+  TABLE … ENABLE ROW LEVEL SECURITY`, in the same logical
+  step. Issuing the ALTER right after CREATE means tables are
+  RLS-on the moment they exist; if the migration aborts mid-
+  file there's no half-enabled window.
+- The smoke-`profiles` DROP is gated on `to_regclass(
+  'public.user_settings') IS NULL` — the cheapest unambiguous
+  "post-0004 schema not yet in place" sentinel. Don't gate on
+  a column-shape predicate against `profiles`: under the
+  privacy split, the new `profiles` table is shape-compatible
+  with the smoke `profiles` for any straightforward column
+  predicate, and a wrong predicate would irreversibly drop
+  real data. The guard's only job is to prevent the
+  irreversible DROP; it is *not* a back door to making `0004`
+  re-runnable (the `CREATE TABLE` statements below it will
+  fail on a second run regardless). Inline migration comment
+  spells this out for the next reader.
+- `tg_profile_on_signup` writes `INSERT INTO
+  public.user_settings (id, invite_policy) VALUES (NEW.id,
+  'everybody')` — explicit value, not bare `INSERT … (id)`
+  leaning on the column DEFAULT (see PLAN.md Decisions).
+- Trigger function names un-prefixed (`tg_*`); bindings
+  prefixed (`t01_*`, `t05_*`, `t10_*`, `t20_*`) to lock the
+  alphabetical firing order. Three orderings are load-bearing
+  per Risk #3.
+- Three small per-table attribution functions, not one
+  branching on `TG_TABLE_NAME`. The `items` function carries
+  the content-aware `modified_by` gate (Risk #12.a); each
+  attribution function carries the deleted_by transition
+  IF/ELSIF/ELSE chain.
+- `tg_set_attribution_items` carries an inline comment
+  spelling out the **maintenance contract** for the content-
+  detection tuple (`NEW.list_id, NEW.name, NEW.notes,
+  NEW.deleted_at`): a future migration adding a payload column
+  must extend the tuple in lockstep, or edits to the new
+  column will silently no-op `modified_by`. Mirror the
+  contract in `docs/data-model.md`'s Triggers section.
+- `create_list()` body in order: `uid() IS NULL` guard →
+  tombstone-UID guard → INSERT into `lists` → INSERT matching
+  `list_members` row → RETURN. The `security definer`
+  attribute is what lets the underlying writes succeed despite
+  the missing GRANTs.
+- Function grants: `REVOKE EXECUTE … FROM PUBLIC` *first*,
+  then `GRANT EXECUTE … TO authenticated`. Postgres grants
+  EXECUTE to PUBLIC by default; the revoke-first-then-grant
+  pattern means a future SECURITY DEFINER helper added to
+  this schema with a sensitive body doesn't inherit an
+  unsafe default.
+- `scripts/migrate.sh` updates: filename-gated `auth.users`
+  poll for migrations numbered ≥ 0004 (skip for 0001–0003 so
+  the gotrue-role creation chain doesn't deadlock); cap via
+  `MIGRATE_AUTH_USERS_TIMEOUT` env var (default 60s); after
+  the loop, `NOTIFY pgrst, 'reload schema'`. Use
+  `10#$prefix` to force base-10 parsing so a leading zero
+  doesn't get mistaken for octal.
+- `.env.example`: add a single commented line for
+  `MIGRATE_AUTH_USERS_TIMEOUT`, e.g. `# MIGRATE_AUTH_USERS_TIMEOUT=60
+  # bump if your machine is slow to start GoTrue`. Same commit
+  as the `migrate.sh` change.
+
+**Files:**
+- `db/migrations/0004_domain_schema.sql` (create)
+- `scripts/migrate.sh` (modify — gated poll + schema reload)
+- `.env.example` (modify — add `MIGRATE_AUTH_USERS_TIMEOUT`
+  comment)
+- `docs/data-model.md` (modify — mirror the
+  `tg_set_attribution_items` maintenance contract in the
+  Triggers section)
+
+**Reference:** PLAN.md → Architecture → New files →
+`0004_domain_schema.sql` for the full body order. PLAN.md →
+Decisions for the rationale behind several non-obvious shapes
+(explicit `invite_policy`, asymmetric `security_invoker`,
+RPC-only list creation). PLAN.md → Risks #3, #11, #12, #13 for
+load-bearing trigger / view / freeze rationale.
+
+**Steps:**
+1. GREEN — Write `db/migrations/0004_domain_schema.sql`
+   top-to-bottom per the body order in PLAN.md → Architecture.
+   Wrap in `BEGIN; … COMMIT;`. After each `CREATE TABLE`,
+   issue `ALTER TABLE … ENABLE ROW LEVEL SECURITY` in the same
+   step.
+2. GREEN — Update `scripts/migrate.sh`: inside the `for f in
+   db/migrations/*.sql; do` loop, immediately after the
+   skip-if-already-applied check, extract the numeric prefix
+   (`prefix="${name%%_*}"`); if `$((10#$prefix)) -ge 4`,
+   poll `to_regclass('auth.users') IS NOT NULL` capped at
+   `MIGRATE_AUTH_USERS_TIMEOUT` (default 60). After the loop,
+   `"${PSQL[@]}" -c "NOTIFY pgrst, 'reload schema'" >/dev/null`.
+3. GREEN — Add the commented `MIGRATE_AUTH_USERS_TIMEOUT` line
+   to `.env.example`.
+4. GREEN — Mirror the `tg_set_attribution_items` maintenance
+   contract in `docs/data-model.md`'s Triggers section (one
+   short paragraph; the comment in the migration is canonical,
+   the doc is the cross-reference).
+5. GREEN — Run `./scripts/test-db.sh`. Iterate until green.
+   The cycle is fast (under a second per run); aim for green
+   in one or two passes.
+6. GREEN — Run `./scripts/migrate.sh` against the dev stack
+   (`docker compose up -d` first if needed) and confirm the
+   schema-cache reload makes the new tables visible without a
+   container bounce. Run `./scripts/smoke.sh` (without the
+   `/profiles` probe) to confirm the service mesh is up.
+
+**Verify:** `./scripts/test-db.sh` all green ·
+`./scripts/migrate.sh` applies cleanly against a fresh dev DB
+· `./scripts/smoke.sh` green · manual `psql -U cairn -d cairn
+-c "\dt public.*"` shows the six tables, `\dv public.*` shows
+three views, `\df public.*` shows `is_list_member` and `uid`
+in `public`
+
+## Phase D — clean up
+
+### [ ] D.1 Delete `db/tests/smoke.sql`, run the full check, tick step 1 in the master plan
+
+**Created:** 2026-05-09T00:00:00Z
+**Completed:**
+
+**Why:** `db/tests/smoke.sql` is superseded by
+`infra_auth_stub.sql` (which proves the same things plus the
+gated `public.uid()` and the tombstone). Removing it is the
+final cleanup — the suite, the dev path, and the docs are now
+consistent with the post-0004 contract. Ticking the step 1
+checkbox in the master plan signals the work merged.
+
+**Prerequisites:** C.1 (suite is fully green; migration applies
+to dev DB).
+
+**Decisions:**
+- The full gauntlet must pass: sqlfluff (run `sqlfluff lint
+  db/` before claiming green; lefthook also enforces on
+  commit), shellcheck, shfmt, vitest, pg_prove, prettier,
+  svelte-check.
+- `dev_seed.sql` was already gutted in A.3; there's no
+  additional dev_seed cleanup here.
+
+**Files:**
+- `db/tests/smoke.sql` (delete)
+- `plans/0000_implementation_order.md` (modify — tick step 1)
+
+**Steps:**
+1. Delete `db/tests/smoke.sql`.
+2. Run `./scripts/check.sh`. Confirm full-gauntlet green.
+3. In `plans/0000_implementation_order.md`, change step 1's
+   `[ ]` to `[x]`.
+
+**Verify:** `./scripts/check.sh` all green

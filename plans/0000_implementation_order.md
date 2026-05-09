@@ -18,9 +18,16 @@ is documented but not migrated. The web app has no auth client, no
 PostgREST wrapper, no design tokens, no real screens.
 
 This file decides **the order** in which we build out from here. Each
-numbered step will get its own detailed plan later, slotted into this
-directory at `0010_…`, `0020_…` etc. Plans are zero-padded so we can
-slip new ones in between without renumbering.
+numbered step gets its own detailed plan, slotted into this directory
+as a three-file directory: `plans/<NNNN>_<slug>/{REQUIREMENTS,PLAN,TASKS}.md`
+(see `.claude/commands/write-plan.md`). Master-plan steps are
+numbered in **hundreds** — step 2 → `0200`, step 3 → `0300`, …,
+step 10 → `1000` — leaving 99 free slots between adjacent steps for
+the small fixes and refinements big features generate (e.g. `0210`,
+`0250`). Step 1 is the one-off exception: `plans/0010_db_foundation/`
+keeps its `0010` prefix from before the hundreds convention because
+the branch was already published — renumbering would churn the
+in-flight branch for no gain.
 
 ## The order
 
