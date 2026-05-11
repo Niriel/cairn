@@ -105,10 +105,10 @@ authenticated and anonymous paths.
 **Verify:** `./scripts/test-db.sh` (bootstrap applies cleanly;
 existing `db/tests/smoke.sql` still passes for now)
 
-### [ ] A.2 Add users fixture + `infra_auth_stub.sql` infra-check test
+### [x] A.2 Add users fixture + `infra_auth_stub.sql` infra-check test
 
 **Created:** 2026-05-09T00:00:00Z
-**Completed:**
+**Completed:** 2026-05-11T08:56:21Z
 
 **Why:** Establishes the test infrastructure that Phase B will
 build on: the canonical fixture for the three test users
@@ -176,6 +176,15 @@ the pre-`0004` and post-`0004` schemas without re-editing.
 
 **Verify:** `./scripts/test-db.sh` reports `1..4` with the
 expected skip/fail/pass shape
+
+**Notes:**
+- `SELECT * FROM finish();` trips sqlfluff's `AM04` (ambiguous
+  column count). Suppressed inline with `--noqa: AM04` on that
+  line; pgTAP's `finish()` has a fixed column shape so the rule
+  doesn't apply. `db/tests/smoke.sql` has the same line and is
+  currently unlinted by lefthook (only staged files are checked);
+  it will need the same `--noqa` once it's touched again, or it
+  can be dropped under D.1 anyway.
 
 ### [ ] A.3 Phase A non-test cleanup: gut `dev_seed.sql`, update `docs/development.md`, drop `/profiles` from `smoke.sh`
 
