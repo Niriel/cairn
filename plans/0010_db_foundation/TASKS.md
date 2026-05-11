@@ -649,10 +649,10 @@ new files; `./scripts/check.sh` red on pgTAP, green before it
   greater and fail; the cascade-skip and non-OF assertions are
   unaffected.
 
-### [ ] B.3 RPC + grants + RLS tests
+### [x] B.3 RPC + grants + RLS tests
 
 **Created:** 2026-05-09T00:00:00Z
-**Completed:**
+**Completed:** 2026-05-11T10:21:31Z
 
 **Why:** RLS is the security boundary; `grants.sql` is the only
 mechanical check that the GRANT matrix is correct (the smoke
@@ -745,6 +745,62 @@ PK-freeze rationale in `rls_list_members.sql`.
 the pg_prove output shows the expected red signal across the
 eight new files; `./scripts/check.sh` red on pgTAP, green before
 it
+
+**Notes:**
+- **Deviation — `has_table_privilege` / `has_function_privilege`
+  wrapped in `ok()`.** PLAN inventory implied pgTAP-native
+  wrappers like `has_table_privilege(role, table, privilege,
+  description)`, but pgTAP doesn't ship a 4-arg description
+  wrapper for these — only the Postgres built-in (3-arg,
+  boolean-returning) exists. Rewrote `grants.sql` as `SELECT
+  ok(has_table_privilege(role, table, priv), 'description')` /
+  `SELECT ok(NOT has_table_privilege(...), '…')` throughout. Same
+  semantics; idiomatic pgTAP shape for boolean predicates.
+  Surfaced after a Phase B run errored with `function
+  has_table_privilege(unknown, unknown, unknown, unknown) does
+  not exist` — Postgres couldn't resolve from string literals
+  alone.
+- **Deviation — `rpc_create_list.sql` temp-table SELECT names
+  columns explicitly.** `SELECT *` from `create_list()` returns
+  a `lists` row whose column list sqlfluff can't statically
+  resolve (the function doesn't yet exist in Phase B and
+  references it as a string), tripping AM04 (ambiguous column
+  count). Narrowed to `SELECT id, created_by FROM
+  public.create_list(…)` — the two columns the assertions
+  actually read. Cleaner anyway.
+- **DELETE policy-layer denial is silent, not throwing.** PLAN
+  phrased "DELETE-denied assertions per defence layer" but RLS
+  with no DELETE policy doesn't throw on DELETE — it filters
+  the row via USING (defaulting to false) and the DELETE
+  returns 0 rows. Implemented the policy-layer leg as
+  "post-attempt count of the targeted row = 1" (the row
+  survives) rather than `throws_ok`. The GRANT-layer leg still
+  uses `throws_ok 42501` because the GRANT check is decision-
+  time and does raise. Same shape applies to `rls_lists.sql`
+  and `rls_items.sql`.
+- **Kicked-user self-restore footgun**: `list_members_update`
+  USING is `is_list_member(list_id)` only; the `OR user_id =
+  public.uid()` is only in WITH CHECK. So a kicked Bob can't
+  even *see* his own row through USING — the self-restore
+  UPDATE matches 0 rows. Tested explicitly so a future
+  regression that adds the OR clause to USING (and re-opens
+  self-restore) reds here.
+- **`tg_freeze_list_members_pk` assertions run under Alice
+  (live member), not `cairn`.** As PLAN warned: running these
+  as cairn would still fire the freeze (triggers aren't RLS-
+  bypassed) but skip the policy layer. The assertion we want is
+  "policy lets the self-row PATCH through, only the freeze
+  catches it" — only `authenticated` exercises that path. Both
+  freeze assertions need a second list for the `SET list_id`
+  target, so the file includes both the shared and solo
+  fixtures.
+- **Phase B noise pattern continues.** Most of the eight new
+  files show "Bad plan. You planned N tests but ran 0" because
+  the shared fixture's `INSERT INTO public.lists` aborts before
+  any assertion fires. `grants.sql` and `rls_profiles.sql` run
+  partway because they don't include the list fixture — they
+  red on whatever pre-0004 schema gap they hit first (smoke
+  `profiles` still exists, but `user_settings` does not, etc.).
 
 ### [ ] B.4 View tests
 
