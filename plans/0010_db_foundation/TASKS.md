@@ -802,10 +802,10 @@ it
   red on whatever pre-0004 schema gap they hit first (smoke
   `profiles` still exists, but `user_settings` does not, etc.).
 
-### [ ] B.4 View tests
+### [x] B.4 View tests
 
 **Created:** 2026-05-09T00:00:00Z
-**Completed:**
+**Completed:** 2026-05-11T10:29:10Z
 
 **Why:** The trash views (`items_deleted`, `lists_deleted`)
 run `security_invoker = false`, bypassing RLS — their only
