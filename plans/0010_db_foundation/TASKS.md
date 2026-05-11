@@ -186,10 +186,10 @@ expected skip/fail/pass shape
   it will need the same `--noqa` once it's touched again, or it
   can be dropped under D.1 anyway.
 
-### [ ] A.3 Phase A non-test cleanup: gut `dev_seed.sql`, update `docs/development.md`, drop `/profiles` from `smoke.sh`
+### [x] A.3 Phase A non-test cleanup: gut `dev_seed.sql`, update `docs/development.md`, drop `/profiles` from `smoke.sh`
 
 **Created:** 2026-05-09T00:00:00Z
-**Completed:**
+**Completed:** 2026-05-11T09:09:52Z
 
 **Why:** Once `0004` lands and `profiles.id` becomes an FK to
 `auth.users(id)`, the existing `db/seed/dev_seed.sql` rows can't
@@ -283,6 +283,43 @@ involved).
 shellcheck, shfmt); pgTAP exits non-zero with the expected reds
 from A.2 — that's the intended Phase A/B state, not a regression
 · `./scripts/smoke.sh` green
+
+**Notes:**
+- **Side work — three pre-existing sqlfluff failures fixed properly
+  (not suppressed).** The first run of `check.sh` after this task's
+  three edits surfaced three sqlfluff fails that pre-dated A.3 but
+  blocked the verify line:
+  - `db/migrations/0001_init.sql:35` — `GRANT anon, authenticated
+    TO authenticator;` (granting role membership to a comma list)
+    trips sqlfluff's postgres dialect parser. Split into two
+    single-role `GRANT` statements; both parse cleanly, semantics
+    unchanged.
+  - `db/test-bootstrap.sql:57` — `role text DEFAULT 'authenticated'`
+    used the reserved word `role` as an identifier. On audit,
+    **nothing in our schema, RLS, triggers, or tests actually
+    reads `auth.users.role`** — R19 explicitly says to stub "just
+    the columns FKs and triggers touch," and `role` doesn't
+    qualify. Dropped the column from the stub and from R19's
+    checklist (`REQUIREMENTS.md:288`). This is a real tightening,
+    not a workaround.
+  - `db/tests/smoke.sql:11` and `db/tests/infra_auth_stub.sql:69`
+    — `SELECT * FROM finish();` trips AM04 (unknown column count
+    from `*`). pgTAP's `finish()` is callable as a scalar:
+    rewrote both as `SELECT finish();`. Removed the `--noqa: AM04`
+    I'd added in A.2 — the cleaner form makes the rule
+    inapplicable rather than silencing it.
+- **`check.sh` does not halt on shellcheck / shfmt / pg_prove
+  failures.** Lines 46, 49, and 52 use `cmd && ok "label"` with
+  no `|| fail`, so a non-zero exit from those tools just skips
+  the `ok` print and the script keeps going — it still prints
+  "all checks passed" at the end. Currently visible as info-level
+  shellcheck nags (`SC2015`, `SC2016`, `SC2001`) on lines I didn't
+  touch in `check.sh`, `smoke.sh`, and `test-db.sh`, plus shfmt
+  diffs against the existing `ok()`/`fail()` function definitions.
+  These are pre-existing and outside A.3's scope, but flagging for
+  the user: the check script's silent-pass behaviour is at odds
+  with the way the verify line in this plan reads it, and is worth
+  a small follow-up (likely a `/concerns` item or a tiny chore).
 
 ## Phase B — bulk red
 

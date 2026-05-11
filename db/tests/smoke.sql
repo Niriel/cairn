@@ -8,6 +8,6 @@ SELECT plan(1);
 
 SELECT pass('pgTAP loaded');
 
-SELECT * FROM finish();
+SELECT finish();
 
 ROLLBACK;

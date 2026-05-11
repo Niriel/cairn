@@ -18,10 +18,10 @@
 -- masks a divergence between our schema's expectations and the real GoTrue
 -- schema.
 --
--- auth.users column checklist (keep in sync with GoTrue's real schema):
+-- auth.users column checklist (stub just the columns our FKs and
+-- triggers touch — not a full mirror of GoTrue's real schema):
 --   id          uuid        PRIMARY KEY
 --   email       text
---   role        text        DEFAULT 'authenticated'
 --   created_at  timestamptz DEFAULT now()
 --
 -- This file is intentionally outside `db/tests/` because `pg_prove --ext
@@ -54,7 +54,6 @@ CREATE SCHEMA IF NOT EXISTS auth;
 CREATE TABLE IF NOT EXISTS auth.users (
   id uuid PRIMARY KEY,
   email text,
-  role text DEFAULT 'authenticated',
   created_at timestamptz NOT NULL DEFAULT now()
 );
 

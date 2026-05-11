@@ -1,9 +1,13 @@
 -- Dev seed data. Loaded only by `./scripts/seed.sh`; never runs in
--- production. Real seed users (Alice/Bob/Carol with auth.users rows and
--- the dev login shortcut) land alongside the real schema migration.
--- For now: a couple of profile rows so the smoke check can exercise
--- the API path end-to-end.
-
-INSERT INTO public.profiles (display_name)
-SELECT v FROM (VALUES ('Alice'), ('Bob')) AS t(v)
-WHERE NOT EXISTS (SELECT 1 FROM public.profiles);
+-- production.
+--
+-- Intentionally empty for now. Real seed users (Alice/Bob/Carol with
+-- auth.users rows and the dev login shortcut) land alongside step 3
+-- of plans/0000_implementation_order.md, when GoTrue and the
+-- magic-link shortcut are wired up. See docs/testing.md → "Database
+-- tests (pgTAP)" (around line 65) for the testing-layer rationale.
+--
+-- We deliberately do *not* insert into auth.users directly: GoTrue's
+-- real schema has version-dependent NOT NULL columns that a bare
+-- two-column insert can't satisfy, and any row we hand-craft would
+-- be one GoTrue refuses to authenticate against.

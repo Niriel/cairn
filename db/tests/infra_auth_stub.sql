@@ -66,6 +66,6 @@ SELECT ok(
   'fixture include loaded Alice'
 );
 
-SELECT * FROM finish(); --noqa: AM04
+SELECT finish();
 
 ROLLBACK;

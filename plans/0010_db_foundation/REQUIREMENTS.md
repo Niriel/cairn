@@ -285,7 +285,7 @@ prompt before any other action.
 schema, the `authenticated` and `anon` roles (via idempotent `DO $$
 … END$$` blocks mirroring `0001_init.sql`), and a minimal stub of
 `auth.users` (just the columns FKs and triggers touch — `id`,
-`email`, `role`, `created_at`).
+`email`, `created_at`).
 
 The file lives in `db/`, **not** `db/tests/`, because `pg_prove
 --ext .sql` enumerates everything `.sql` at the top of `db/tests/`

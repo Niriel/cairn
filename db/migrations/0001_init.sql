@@ -32,7 +32,8 @@ BEGIN
   END IF;
 END$$;
 
-GRANT anon, authenticated TO authenticator;
+GRANT anon TO authenticator;
+GRANT authenticated TO authenticator;
 
 GRANT USAGE ON SCHEMA public TO anon, authenticated;
 

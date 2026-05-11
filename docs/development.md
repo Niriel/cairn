@@ -222,9 +222,9 @@ This is fast — the whole rebuild takes a few seconds. Don't be precious about 
 
 ## Seed data
 
-`db/seed/dev_seed.sql` creates a handful of fake users (Alice, Bob, Carol) and a few lists with items and votes. It's only loaded when you run `./scripts/seed.sh`; it's never run in production.
+The dev database starts empty. `db/seed/dev_seed.sql` is intentionally a no-op until step 3 of `plans/0000_implementation_order.md` lands GoTrue and the magic-link wiring; until then, create your own account by entering an email in the app and clicking the link Mailpit catches (see "The magic-link flow in development" below).
 
-The fake users are created via direct inserts into `auth.users` and `profiles`, with known UUIDs hardcoded in the seed file. This lets the app's dev configuration log in as "Alice" with a button click, bypassing the magic-link flow entirely during development. The login bypass is gated behind a Vite environment flag (`VITE_DEV_LOGIN_SHORTCUT=true`) and is physically absent from production builds.
+The dev login shortcut — a button that logs you in as Alice/Bob/Carol without going through the magic-link flow — and its `VITE_DEV_LOGIN_SHORTCUT=true` flag return alongside step 3's plan. They've been pulled out for now because seeding `auth.users` directly is unreliable across GoTrue versions; the right shape is for the seed to drive GoTrue's signup endpoint instead.
 
 ## The web app
 
@@ -292,18 +292,7 @@ docker compose exec postgres psql -U cairn -d cairn
 
 — or connect with a GUI client (TablePlus, DBeaver, Postico) to `localhost:5432` with the credentials in `.env`.
 
-**Hit the API directly.** PostgREST is plain HTTP+JSON. You need a JWT for anything beyond the OpenAPI doc. The simplest way to get one in dev is to log in as a seed user via GoTrue:
-
-```bash
-TOKEN=$(curl -s -X POST http://localhost:9999/token?grant_type=password \
-  -H "Content-Type: application/json" \
-  -d '{"email":"alice@example.test","password":"password"}' \
-  | jq -r .access_token)
-
-curl -s http://localhost:3000/lists -H "Authorization: Bearer $TOKEN" | jq
-```
-
-(Password login is enabled for the seed users in dev; production uses magic links only.)
+**Hit the API directly.** PostgREST is plain HTTP+JSON. You need a JWT for anything beyond the OpenAPI doc; the dev-token shortcut for fetching one returns alongside step 3's GoTrue + magic-link wiring (see `plans/0000_implementation_order.md`). Until then, reach the database via the manual `psql` path above, and the unauthenticated PostgREST surface via its OpenAPI root at `http://localhost:3000/`.
 
 **Watch the logs.**
 

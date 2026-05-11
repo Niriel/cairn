@@ -9,9 +9,13 @@ fail() { printf '  \e[31mFAIL\e[0m %s\n' "$1"; exit 1; }
 echo "PostgREST root (OpenAPI):"
 curl -sf http://localhost:3000/ >/dev/null && ok "http://localhost:3000/" || fail "PostgREST not responding"
 
-echo "PostgREST GET /profiles (anon):"
-n=$(curl -sf http://localhost:3000/profiles | jq 'length')
-[ "$n" -ge 1 ] && ok "$n profile(s) returned" || fail "expected >=1 profile, got $n"
+# Note: there used to be an anon GET /profiles probe here as a
+# schema-up check. Once migration 0004 lands, anon has no SELECT
+# grant on profiles, so PostgREST returns 401 before RLS even runs
+# — not an empty array we could relax against. Until step 3
+# (plans/0000_implementation_order.md) lands an authenticated
+# probe, use the manual \dt/\dv/\df check from PLAN.md →
+# Verification to confirm the schema is up.
 
 echo "GoTrue /health:"
 name=$(curl -sf http://localhost:9999/health | jq -r .name)
