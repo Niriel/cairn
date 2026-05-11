@@ -31,7 +31,7 @@ in-flight branch for no gain.
 
 ## The order
 
-1. [ ] **DB foundation: profiles, lists, list_members, items, votes,
+1. [x] **DB foundation: profiles, lists, list_members, items, votes,
    views, triggers, RLS.** Replaces the smoke `profiles` table. Tiers
    1–2 from `docs/data-model.md`. Set foreign keys with the
    tombstone-friendly `on delete set default` semantics from the start

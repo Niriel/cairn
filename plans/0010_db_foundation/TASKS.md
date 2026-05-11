@@ -1276,10 +1276,10 @@ in `public`
 
 ## Phase D — clean up
 
-### [ ] D.1 Delete `db/tests/smoke.sql`, run the full check, tick step 1 in the master plan
+### [x] D.1 Delete `db/tests/smoke.sql`, run the full check, tick step 1 in the master plan
 
 **Created:** 2026-05-09T00:00:00Z
-**Completed:**
+**Completed:** 2026-05-11T13:08:55Z
 
 **Why:** `db/tests/smoke.sql` is superseded by
 `infra_auth_stub.sql` (which proves the same things plus the

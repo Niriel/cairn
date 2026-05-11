@@ -1,44 +1,20 @@
-<script lang="ts">
-	type Profile = { id: string; display_name: string; created_at: string };
+<!--
+	Placeholder root page. The real UI — design tokens, theming, layout
+	primitives — lands in step 2 of plans/0000_implementation_order.md.
+	Anything beyond this static markup will be thrown away when step 2
+	starts, so resist the urge to wire up auth or routing here.
+-->
 
-	let profiles = $state<Profile[] | null>(null);
-	let error = $state<string | null>(null);
-
-	async function load() {
-		profiles = null;
-		error = null;
-		try {
-			const r = await fetch('/api/profiles');
-			if (!r.ok) throw new Error(`${r.status} ${r.statusText}`);
-			profiles = (await r.json()) as Profile[];
-		} catch (e) {
-			error = (e as Error).message;
-		}
-	}
-
-	$effect(() => {
-		void load();
-	});
-</script>
-
-<h1>Cairn — walking skeleton</h1>
+<h1>Cairn</h1>
 
 <p>
-	This page reads <code>/api/profiles</code> via the Vite dev proxy → PostgREST → Postgres. If you see
-	names below, the dev stack is wired correctly.
+	Pre-alpha. The web UI lands in step 2 of
+	<code>plans/0000_implementation_order.md</code>; the backend (Postgres + PostgREST + GoTrue, Tier
+	1+2 schema) is up as of step 1.
 </p>
 
-{#if error}
-	<p style="color: crimson">Error: {error}</p>
-	<button onclick={load}>Retry</button>
-{:else if profiles === null}
-	<p>Loading…</p>
-{:else if profiles.length === 0}
-	<p>No profiles yet — did you run <code>./scripts/seed.sh</code>?</p>
-{:else}
-	<ul>
-		{#each profiles as p (p.id)}
-			<li>{p.display_name}</li>
-		{/each}
-	</ul>
-{/if}
+<p>
+	Verify the service mesh with <code>./scripts/smoke.sh</code>, the database tests with
+	<code>./scripts/test-db.sh</code>, and the full quality gauntlet with
+	<code>./scripts/check.sh</code>.
+</p>
