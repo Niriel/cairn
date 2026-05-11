@@ -56,6 +56,7 @@ fi
 missing=$(grep -LE '^[[:space:]]*SELECT[[:space:]]+plan[[:space:]]*\(' "${files[@]}" || true)
 if [ -n "$missing" ]; then
   echo "  test files missing a SELECT plan(N) declaration:" >&2
+  # shellcheck disable=SC2001  # sed with ^ anchor is clearer than ${//} for line-prefix
   echo "$missing" | sed 's/^/    /' >&2
   exit 1
 fi

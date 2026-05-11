@@ -3,11 +3,18 @@
 # Run after `docker compose up -d` and `./scripts/migrate.sh`.
 set -euo pipefail
 
-ok()   { printf '  \e[32mok\e[0m  %s\n' "$1"; }
-fail() { printf '  \e[31mFAIL\e[0m %s\n' "$1"; exit 1; }
+ok() { printf '  \e[32mok\e[0m  %s\n' "$1"; }
+fail() {
+  printf '  \e[31mFAIL\e[0m %s\n' "$1"
+  exit 1
+}
 
 echo "PostgREST root (OpenAPI):"
-curl -sf http://localhost:3000/ >/dev/null && ok "http://localhost:3000/" || fail "PostgREST not responding"
+if curl -sf http://localhost:3000/ >/dev/null; then
+  ok "http://localhost:3000/"
+else
+  fail "PostgREST not responding"
+fi
 
 # Note: there used to be an anon GET /profiles probe here as a
 # schema-up check. Once migration 0004 lands, anon has no SELECT
@@ -19,15 +26,24 @@ curl -sf http://localhost:3000/ >/dev/null && ok "http://localhost:3000/" || fai
 
 echo "GoTrue /health:"
 name=$(curl -sf http://localhost:9999/health | jq -r .name)
-[ "$name" = "GoTrue" ] && ok "GoTrue $name" || fail "unexpected health response: $name"
+if [ "$name" = "GoTrue" ]; then
+  ok "GoTrue $name"
+else
+  fail "unexpected health response: $name"
+fi
 
 echo "Mailpit UI:"
-curl -sf http://localhost:8025/ >/dev/null && ok "http://localhost:8025/" || fail "Mailpit UI not reachable"
+if curl -sf http://localhost:8025/ >/dev/null; then
+  ok "http://localhost:8025/"
+else
+  fail "Mailpit UI not reachable"
+fi
 
 echo "SvelteKit dev server (optional):"
 if curl -sIf http://localhost:5173/ >/dev/null 2>&1; then
   ok "http://localhost:5173/"
 else
+  # shellcheck disable=SC2016  # literal backticks: showing the user the command to type
   printf '  skipped (run `pnpm dev` in web/ to test)\n'
 fi
 

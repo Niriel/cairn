@@ -438,8 +438,8 @@ including which assertions are load-bearing and why.
    VALUES …` block (with the literal UUIDs from Decisions). Both
    INSERTs use `ON CONFLICT … DO NOTHING` for re-include safety.
 2. RED — Create the five test files. Each opens with `BEGIN;`,
-   `SELECT plan(N);`, the assertions, `SELECT * FROM
-   finish();`, `ROLLBACK;`. Set `request.jwt.claims` before any
+   `SELECT plan(N);`, the assertions, `SELECT finish();`,
+   `ROLLBACK;`. Set `request.jwt.claims` before any
    INSERT into attribution-bearing tables. Tests that need a
    list-shaped fixture `\i` only the most specific list fixture
    they need (the users fixture is auto-included). Refer to the

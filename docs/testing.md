@@ -99,7 +99,7 @@ SELECT is(
   'Carol does not see the shared list (no membership)'
 );
 
-SELECT * FROM finish();
+SELECT finish();
 ROLLBACK;
 ```
 

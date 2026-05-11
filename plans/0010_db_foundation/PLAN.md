@@ -8,7 +8,7 @@ This is step 1 of `plans/0000_implementation_order.md`.
 ## Context
 
 The walking-skeleton DB only has a smoke `public.profiles` table
-(`db/migrations/0001_init.sql:49`). Step 1 of the master plan
+(`db/migrations/0001_init.sql:50`). Step 1 of the master plan
 replaces it with the real Tier 1+2 schema from
 `docs/data-model.md`. Tier 3 (`relationships`, `invitations`) is
 deferred to step 6.
@@ -803,11 +803,11 @@ specific risk; this section is the *why*, the test rows are the
 There's not much in this repo yet (it's pre-production), but:
 
 - `BEGIN; … COMMIT;` migration wrapping
-  (`db/migrations/0001_init.sql:7, 68`).
+  (`db/migrations/0001_init.sql:7, 69`).
 - `DO $$ … END$$;` idempotent guards
   (`db/migrations/0001_init.sql:13-33`).
 - `IF NOT EXISTS` on `CREATE TABLE` for re-runnability
-  (`db/migrations/0001_init.sql:43, 49`).
+  (`db/migrations/0001_init.sql:44, 50`).
 - `.sqlfluff` style: postgres dialect, 2-space indent, UPPERCASE
   keywords, lowercase identifiers, max 100 chars
   (`/.sqlfluff:1-5`). Run `sqlfluff lint db/` before claiming

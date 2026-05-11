@@ -1,7 +1,7 @@
 # Requirements: DB foundation (Tier 1+2 schema, RLS, triggers)
 
 Replace the walking-skeleton's smoke `public.profiles` table
-(`db/migrations/0001_init.sql:49`) with the real Tier 1+2 schema from
+(`db/migrations/0001_init.sql:50`) with the real Tier 1+2 schema from
 `docs/data-model.md`: profiles, user_settings, lists, list_members,
 items, votes; the helpers and views; all triggers; all RLS policies;
 and the tombstone-user / `ON DELETE SET DEFAULT` FK semantics from
