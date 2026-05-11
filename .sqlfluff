@@ -2,6 +2,11 @@
 dialect = postgres
 exclude_rules = layout.long_lines, structure.column_order
 max_line_length = 100
+# Bump the parser-lock safety threshold (default 20000) so larger
+# pgTAP test files — e.g. triggers_set_attribution.sql at ~22 KB —
+# get actually linted instead of silently skipped. Lifting this is
+# strictly more linting, not less.
+large_file_skip_byte_limit = 50000
 
 [sqlfluff:indentation]
 indent_unit = space

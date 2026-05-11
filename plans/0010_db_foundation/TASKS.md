@@ -501,10 +501,10 @@ red on the pgTAP step but green on every step before it
   appeal was fabricated. Comment removed; the file simply mirrors
   `users_alice_bob_carol.sql`'s shape with no further commentary.
 
-### [ ] B.2 FK + trigger tests
+### [x] B.2 FK + trigger tests
 
 **Created:** 2026-05-09T00:00:00Z
-**Completed:**
+**Completed:** 2026-05-11T10:03:00Z
 
 **Why:** FK behaviour is load-bearing for `delete_account()`
 (step 8): without `SET DEFAULT` repointing attribution to the
@@ -599,6 +599,55 @@ restriction in `triggers_modified_at.sql`.
 **Verify:** `./scripts/test-db.sh` exits non-zero (expected) and
 the pg_prove output shows the expected red signal across the six
 new files; `./scripts/check.sh` red on pgTAP, green before it
+
+**Notes:**
+- **Side fix — `.sqlfluff` `large_file_skip_byte_limit` bumped
+  from default 20000 to 50000.** `triggers_set_attribution.sql`
+  is ~22 KB once written, and sqlfluff silently skips parsing
+  any file over the byte limit. The skip is the worst of both
+  worlds (no error, no checking), so the file was passing
+  vacuously. Bumping the threshold means the linter actually
+  parses larger test files; bigger threshold is strictly more
+  linting, not less. Future B.3 / C.1 files may also brush this
+  limit, so the bump is preventative rather than one-off.
+- **`sqlfluff fix` auto-reformatted all six test files' multi-row
+  VALUES.** Each `INSERT INTO X (cols) VALUES (a, b, c);` with a
+  row body too wide for one line was rewritten by sqlfluff's
+  postgres layout rules into the stacked form (opening `(` on
+  its own line, each literal indented 2 spaces, closing `)` on
+  its own line). The single-row-INSERT shape used in B.1 fixtures
+  doesn't apply here because the tests need many columns
+  (timestamps add two). Applied uniformly across the six files
+  via `sqlfluff fix --force`. Same semantics; just layout.
+- **`EPOCH` keyword casing.** `extract(epoch FROM …)` tripped
+  CP01 because `epoch` is a keyword inside the EXTRACT syntax;
+  `extract` itself stays lowercase (functions policy) but
+  `EPOCH` upper. Fixed by sqlfluff fix as well.
+- **`(x)` and `(xi)` assertion count.** The PLAN inventory says
+  "~22 assertions" for triggers_set_attribution.sql, but
+  enumerating the rules-applies-per-table matrix lands at 26 once
+  (x) is split into its two-column observation (created_by
+  repointed + modified_by preserved) so a regression in either
+  half surfaces independently. `plan(26)` and the docstring updated
+  to match.
+- **Phase B noise pattern continues from B.1.** `fk_set_default`,
+  `fk_cascade`, `triggers_modified_at`, `triggers_set_timestamps`,
+  `triggers_set_attribution` all show "Bad plan. You planned N
+  tests but ran 0" because the included list fixture's `INSERT
+  INTO public.lists` aborts the transaction before any assertion
+  fires. `triggers_profile_on_signup` doesn't include the list
+  fixture (it uses only auth.users), so it gets through assertion
+  1 before erroring on the missing `public.user_settings` table.
+  All of this is the expected bulk-red — once 0004 lands, the
+  fixtures load and individual assertions run.
+- **Phase C heads-up reinforced.** B.1's Notes already flagged
+  the `now()` vs `clock_timestamp()` issue for `tg_set_modified_at`.
+  This task adds three more uses of strict-greater assertions
+  that depend on the same resolution: `triggers_modified_at.sql`'s
+  six bump-on-content-change assertions (1–6). If the migration
+  uses bare `now()`, all six bump assertions stay equal-not-
+  greater and fail; the cascade-skip and non-OF assertions are
+  unaffected.
 
 ### [ ] B.3 RPC + grants + RLS tests
 
