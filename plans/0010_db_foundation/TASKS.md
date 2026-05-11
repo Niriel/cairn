@@ -1026,10 +1026,10 @@ migration hasn't been updated to match yet; that lands under C.1)
 
 ## Phase C — green
 
-### [ ] C.1 Write `db/migrations/0004_domain_schema.sql` and update `migrate.sh` + `.env.example`
+### [x] C.1 Write `db/migrations/0004_domain_schema.sql` and update `migrate.sh` + `.env.example`
 
 **Created:** 2026-05-09T00:00:00Z
-**Completed:**
+**Completed:** 2026-05-11T12:56:05Z
 
 **Why:** The migration is the single artifact that takes the
 suite from red to green. Every test in Phase B describes a
@@ -1210,6 +1210,69 @@ load-bearing trigger / view / freeze rationale.
 -c "\dt public.*"` shows the six tables, `\dv public.*` shows
 three views, `\df public.*` shows `is_list_member` and `uid`
 in `public`
+
+**Notes:**
+- **Body split across two work-sessions, with B.5 in between.**
+  The first /work pass at C.1 wrote the migration plus the
+  `scripts/migrate.sh` / `.env.example` edits, then hit three
+  failing RLS tests with the *same* failure mode — Postgres
+  applies SELECT policies as WITH CHECK on the new row of an
+  UPDATE, so the doc-prescribed `items_select` / `lists_select`
+  / `list_members_select` USING clauses rejected the
+  PATCH-based soft-delete and self-soft-removal UPDATEs that
+  the tests asserted. Captured the contradiction with a plan
+  file, then landed the spec correction as B.5 (self-actor
+  disjunct on all three SELECT policies, R26 + Risk #16). C.1's
+  second pass updated the migration's three CREATE POLICY
+  statements to match. The migration itself was always going to
+  be one commit; the spec revision rode under B.5 so each
+  commit stayed narrowly scoped.
+- **`tg_set_timestamps` and `tg_set_modified_at` use
+  `clock_timestamp()` rather than `now()`.** PLAN.md / docs
+  originally described `now()`; flagged by B.1's Notes as
+  required for `constraints_votes.sql`'s strict-greater
+  re-vote assertion (and by B.2's Notes for the six per-table
+  bump assertions in `triggers_modified_at.sql`) — `now()` is
+  transaction-constant and would make the post-update timestamp
+  equal to the captured pre-update timestamp inside one pgTAP
+  `BEGIN … ROLLBACK`. `docs/data-model.md`'s tg_set_timestamps
+  and tg_set_modified_at paragraphs updated in the same commit
+  so doc and code agree on disk. The column DEFAULTs left as
+  `now()` (they're irrelevant — the triggers override on every
+  INSERT).
+- **`sqlfluff fix` auto-rewrite of two `EXISTS` subqueries
+  broke them.** RF03 ("Unqualified reference") in the
+  `votes_insert` / `votes_update` policy bodies saw bare
+  `item_id` inside `WHERE i.id = item_id` and "fixed" it to
+  `i.id = i.item_id` — nonsense, since `items` has no
+  `item_id` column. `item_id` was the OUTER-scope reference
+  to the votes row being checked, not a column of items.
+  Rewrote the offending lines to `i.id = public.votes.item_id`
+  (explicit schema-qualified outer ref) so the linter has
+  nothing to "fix". Two locations in the migration; both
+  caught after the first post-fix test-db.sh run errored
+  with `column i.item_id does not exist`.
+- **`name` and `value` columns trip RF04 (keywords as
+  identifiers).** Neither is a reserved keyword in Postgres
+  — they're fine unquoted. The canonical schema in
+  `docs/data-model.md` uses them across `lists.name`,
+  `items.name`, and `votes.value`, and renaming or
+  double-quoting them would cascade invasively through tests,
+  the API surface, and the UI for zero behavioural gain.
+  Suppressed three lines with `--noqa: RF04` and an inline
+  comment naming the rationale. This is the writing-sql skill's
+  prescribed shape for "the rule genuinely doesn't apply".
+- **Manual schema check on the dev DB.** `\dt public.*` shows
+  the six new tables (`profiles`, `user_settings`, `lists`,
+  `list_members`, `items`, `votes`) plus the `_migrations`
+  ledger. `\dv public.*` shows the three views. `\df public.*`
+  shows `uid`, `is_list_member`, `is_items_list_member`,
+  `create_list`, and the seven `tg_*` trigger functions
+  (alongside the pgcrypto helpers from 0001). Schema-cache
+  reload via `NOTIFY pgrst, 'reload schema'` made the new
+  tables visible to PostgREST without a container bounce —
+  the smoke probe's PostgREST root check stayed green
+  end-to-end across the migration.
 
 ## Phase D — clean up
 

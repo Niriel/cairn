@@ -46,10 +46,22 @@ load-bearing for the parser rather than for the dialect.
 - **Multi-role `GRANT … TO …`.** `GRANT anon, authenticated TO
   authenticator;` trips the parser. Split into two single-role
   GRANT statements. Semantics unchanged.
-- **Reserved words as unquoted identifiers.** `role` is the most
-  common offender (a column named `role` fails to parse). Rename
-  the column, or quote it (`"role"`) — renaming is usually the
-  cheaper fix.
+- **Reserved words as unquoted identifiers.** Two flavours:
+  - **Actually reserved** in Postgres's grammar — `role` is the
+    canonical offender (a column named `role` fails the linter
+    *and* would force quoting at every call site). Rename the
+    column, or quote it (`"role"`) — renaming is usually the
+    cheaper fix.
+  - **Non-reserved keywords** that Postgres accepts unquoted but
+    the linter (RF04) flags anyway — `name` and `value` are the
+    common ones in this codebase (`lists.name`, `items.name`,
+    `votes.value`). The columns are in the canonical schema and
+    renaming would cascade invasively through tests, API surface,
+    and UI for zero behavioural gain. Use per-line
+    `--noqa: RF04` with an inline comment naming the rationale.
+    The skill's general "no global disables" rule still applies —
+    this is the per-line escape valve that exists for cases where
+    the linter's rule genuinely doesn't catch a problem.
 - **Multi-row `INSERT … VALUES (a), (b)` with stacked literals.**
   sqlfluff's layout rules demand a specific indent for multi-row
   VALUES that doesn't compose well with stable UUID fixtures.
@@ -71,6 +83,40 @@ load-bearing for the parser rather than for the dialect.
 - **References-keywords (`aliases` policy).** Table aliases are
   required when joining; bare table names in JOINed queries get
   flagged.
+
+### Auto-fixer over-corrections — pre-qualify, don't trust
+
+`sqlfluff fix` is mostly safe, but a few rules' auto-rewrites
+can damage valid SQL. Surface area is small; know the traps.
+
+- **RF03 over-qualifying outer-scope references in `EXISTS`
+  subqueries.** RF03 ("unqualified reference") fires inside a
+  subquery on any bare column name, then the auto-fixer guesses a
+  table prefix — and in a correlated subquery it picks the wrong
+  one. Concrete case from `0004_domain_schema.sql`'s
+  `votes_insert` / `votes_update` policy bodies:
+  ```sql
+  WITH CHECK (
+    user_id = public.uid()
+    AND EXISTS (
+      SELECT 1 FROM public.items AS i
+      WHERE i.id = item_id           -- bare `item_id` = the OUTER
+        AND i.deleted_at IS NULL     --   votes row's column.
+        AND public.is_list_member(i.list_id)
+    )
+  );
+  ```
+  `sqlfluff fix` rewrote `i.id = item_id` to `i.id = i.item_id`
+  — but `items` has no `item_id` column, so the migration then
+  errored on apply with `column i.item_id does not exist`. The
+  bare `item_id` is correct *Postgres* (correlated reference to
+  the policy's row) but RF03 doesn't model the outer scope.
+  **Pre-qualify the outer reference**: write
+  `i.id = public.votes.item_id` (schema-qualified) so the linter
+  has nothing to "fix" and the meaning is explicit. Same shape
+  applies to any policy / subquery that names an outer-scope
+  column unqualified. Catch it on the next `sqlfluff fix` pass,
+  not at runtime.
 
 ## pgTAP — test-file conventions
 
@@ -233,17 +279,19 @@ the test's `BEGIN … ROLLBACK` — the GRANT rolls back at file end.
 - `clock_timestamp()` returns the actual wall-clock time —
   advances within a statement.
 
-**Implication for `tg_set_modified_at`.** If a test asserts
-"modified_at strictly greater than its captured original after a
-re-INSERT-ON-CONFLICT" (e.g., `constraints_votes.sql`'s re-vote
-assertion), the trigger must use `clock_timestamp()` or
-`statement_timestamp()` — `now()` will make the two values equal
-and the assertion will fail. `created_at` is fine with `now()`
-because it's set once on INSERT and frozen on UPDATE.
-
-`docs/data-model.md`'s trigger paragraphs use `now()` informally;
-that wording will need to drift toward `clock_timestamp()` as the
-test surface lands.
+**Implication for `tg_set_modified_at` and `tg_set_timestamps`.**
+If a test asserts "modified_at strictly greater than its captured
+original after a re-INSERT-ON-CONFLICT" (e.g.,
+`constraints_votes.sql`'s re-vote assertion, the six per-table
+bump assertions in `triggers_modified_at.sql`), both triggers
+must use `clock_timestamp()` (or `statement_timestamp()`) —
+`now()` will make the two values equal and the assertion will
+fail. The 0004 migration uses `clock_timestamp()` in both
+triggers for exactly this reason; `docs/data-model.md`'s trigger
+paragraphs match. Column DEFAULTs (`DEFAULT now()`) on the
+timestamp columns are vestigial — the BEFORE INSERT trigger
+always overrides — kept only so the NOT NULL constraint stays
+satisfiable if the trigger ever gets dropped.
 
 ## Trigger / cascade testing
 
