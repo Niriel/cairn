@@ -28,6 +28,26 @@ for f in db/migrations/*.sql; do
   if [ "$applied" = "1" ]; then
     continue
   fi
+  # Filename-gated `auth.users` poll: migrations numbered 0004+ depend
+  # on auth.users existing (created by GoTrue's own startup migration).
+  # 0001–0003 must not wait for it — they create the `gotrue` role
+  # GoTrue itself needs to log in with. `10#$prefix` forces base-10
+  # parsing so a leading zero (`0010_…`) isn't read as octal.
+  prefix="${name%%_*}"
+  if [ "$((10#$prefix))" -ge 4 ]; then
+    start=$SECONDS
+    timeout="${MIGRATE_AUTH_USERS_TIMEOUT:-60}"
+    while ! "${PSQL[@]}" -tAc \
+      "SELECT to_regclass('auth.users') IS NOT NULL" \
+      2>/dev/null | grep -q '^t$'; do
+      if [ $((SECONDS - start)) -ge "$timeout" ]; then
+        echo "timed out after ${timeout}s waiting for auth.users." >&2
+        echo "hint: check 'docker compose logs gotrue'." >&2
+        exit 1
+      fi
+      sleep 1
+    done
+  fi
   echo "applying $name"
   "${PSQL[@]}" \
     -c "SET cairn.authenticator_password = '$AUTHENTICATOR_PASSWORD'" \
@@ -36,4 +56,8 @@ for f in db/migrations/*.sql; do
   "${PSQL[@]}" -c \
     "INSERT INTO public._migrations(filename) VALUES ('$name') ON CONFLICT DO NOTHING"
 done
+# PostgREST caches the schema at startup; NOTIFY pgrst makes it pick
+# up the new schema without a container bounce. v10+ listens on the
+# pgrst channel and reloads on receipt.
+"${PSQL[@]}" -c "NOTIFY pgrst, 'reload schema'" >/dev/null
 echo "migrations up to date"

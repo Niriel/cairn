@@ -18,13 +18,20 @@ is documented but not migrated. The web app has no auth client, no
 PostgREST wrapper, no design tokens, no real screens.
 
 This file decides **the order** in which we build out from here. Each
-numbered step will get its own detailed plan later, slotted into this
-directory at `0010_…`, `0020_…` etc. Plans are zero-padded so we can
-slip new ones in between without renumbering.
+numbered step gets its own detailed plan, slotted into this directory
+as a three-file directory: `plans/<NNNN>_<slug>/{REQUIREMENTS,PLAN,TASKS}.md`
+(see `.claude/commands/write-plan.md`). Master-plan steps are
+numbered in **hundreds** — step 2 → `0200`, step 3 → `0300`, …,
+step 10 → `1000` — leaving 99 free slots between adjacent steps for
+the small fixes and refinements big features generate (e.g. `0210`,
+`0250`). Step 1 is the one-off exception: `plans/0010_db_foundation/`
+keeps its `0010` prefix from before the hundreds convention because
+the branch was already published — renumbering would churn the
+in-flight branch for no gain.
 
 ## The order
 
-1. [ ] **DB foundation: profiles, lists, list_members, items, votes,
+1. [x] **DB foundation: profiles, lists, list_members, items, votes,
    views, triggers, RLS.** Replaces the smoke `profiles` table. Tiers
    1–2 from `docs/data-model.md`. Set foreign keys with the
    tombstone-friendly `on delete set default` semantics from the start
@@ -47,7 +54,9 @@ slip new ones in between without renumbering.
 4. [ ] **MVP product surface (single-user happy path).** Lists overview,
    create list, items list with one-at-a-time accordion, add/edit
    item, vote control (±1 nudges, ±3 clamp), settings (theme + font
-   size persisted to `profiles`). Empty states for both screens. No
+   size persisted to the browser's `localStorage` — they're
+   device-local, not in `user_settings`; see `docs/data-model.md` →
+   "Where Cairn stores data"). Empty states for both screens. No
    sharing yet — solo end-to-end.
 
 5. [ ] **Soft-delete UX.** Undo snackbar pattern, per-list trash, account
@@ -55,10 +64,15 @@ slip new ones in between without renumbering.
    soft-deletable in step 1, this exposes the surface.
 
 6. [ ] **Invites + circles + blocks: DB layer.** Tier 3 from data-model:
-   add `profiles.invite_policy`, create `circle_members`, `blocks`,
-   `invitations`. The five RPCs (`send_invitation`,
+   create `relationships` (the merged circle/blocklist — one row per
+   directed pair, with `status` enum `'circle' | 'blocked'`) and
+   `invitations`. The `invite_policy` column already ships on
+   `user_settings` from step 1 — see `data-model.md` "Why `profiles`
+   and `user_settings` are split". The five RPCs (`send_invitation`,
    `accept_invitation`, `decline_invitation`, `add_circle_by_email`,
-   `add_circle_by_id`) as `security definer`. RLS + pgTAP.
+   `add_circle_by_id`) as `security definer` — function names keep
+   the user-facing "circle" vocabulary even though the bodies write
+   `relationships` rows. RLS + pgTAP.
 
 7. [ ] **Invites + circles + blocks: UI layer.** Privacy settings screen,
    circle screen, blocked screen, circle explainer sheet, invites

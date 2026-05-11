@@ -23,8 +23,20 @@ list of the ten plans that take Cairn from walking-skeleton to
 production. Each item is a checkbox — `[ ]` means to do, `[x]` means
 done. **Read it at the start of any session** to know which step is
 current and what has shipped. Detailed sub-plans live alongside it
-(`0010_…`, `0020_…`, etc.); tick the box in `0000_…` once the matching
-sub-plan is merged.
+as three-file directories (`plans/0010_db_foundation/`,
+`plans/0200_<slug>/`, `plans/0300_<slug>/`, etc. — see
+`.claude/commands/write-plan.md` for the numbering and file-format
+conventions); tick the box in `0000_…` once the matching sub-plan is
+merged.
+
+Cairn is **pre-alpha**. The docs in `docs/` are living
+specifications, not holy tablets — when a plan finds a better
+design than the doc describes, the right move is often to update
+the doc (sometimes via a Phase 0 in the plan) rather than to wedge
+a contradiction into the plan. As more of the spec lands in code,
+doc edits increasingly imply code/migration/test edits too —
+something purely descriptive today may be load-bearing tomorrow.
+Use judgement, and prefer the cheapest home for a fix.
 
 ## Visual reference
 

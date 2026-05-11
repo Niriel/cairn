@@ -201,10 +201,13 @@ There's no fancy migration framework — `./scripts/migrate.sh` is a small shell
 1. Reads which migrations have already been applied from a `_migrations` table.
 2. Applies any new ones in order via `psql`.
 3. Records each one as applied.
+4. Issues `NOTIFY pgrst, 'reload schema'` so the running PostgREST container reloads its in-memory schema cache without a container bounce. PostgREST otherwise serves the pre-migration schema until it's restarted, which is a sharp surprise the first time you `curl /<new_table>` and get a 404.
 
 Adding a new migration is "create the next-numbered file, write the SQL, run the script." If we ever need branching, rollbacks, or schema diffing, we'll bring in [sqitch](https://sqitch.org/) or similar.
 
 One non-obvious thing the migrations do: **pre-create the `auth` schema and hand ownership to the `gotrue` role** before GoTrue first connects. GoTrue's DSN sets `search_path=auth` and its first action is `CREATE TABLE schema_migrations`, which fails with "no schema has been selected to create in" if the schema doesn't already exist. Don't "simplify" this back out — the standard "let GoTrue create its own schema" advice doesn't apply when `search_path` is set in the DSN.
+
+A second non-obvious thing: **`migrate.sh` waits for GoTrue to create `auth.users` before applying any migration numbered `0004` or later**, because those migrations reference `auth.users` (FKs, triggers) and would fail against a database where GoTrue hasn't yet completed its own startup migrations. The wait is bounded by the `MIGRATE_AUTH_USERS_TIMEOUT` env var (default 60 s, override only for slow CI or a cold VPS). If `migrate.sh` hangs at `==> waiting for gotrue to create auth.users` for longer than that, bump the var or check `docker compose logs gotrue` — most often it's a misconfigured GoTrue connection string. The wait is *not* applied to `0001`–`0003`, which create the `gotrue` role itself; an unconditional wait would deadlock on a fresh `docker compose up -d`.
 
 To start over with a clean database:
 
@@ -219,9 +222,9 @@ This is fast — the whole rebuild takes a few seconds. Don't be precious about 
 
 ## Seed data
 
-`db/seed/dev_seed.sql` creates a handful of fake users (Alice, Bob, Carol) and a few lists with items and votes. It's only loaded when you run `./scripts/seed.sh`; it's never run in production.
+The dev database starts empty. `db/seed/dev_seed.sql` is intentionally a no-op until step 3 of `plans/0000_implementation_order.md` lands GoTrue and the magic-link wiring; until then, create your own account by entering an email in the app and clicking the link Mailpit catches (see "The magic-link flow in development" below).
 
-The fake users are created via direct inserts into `auth.users` and `profiles`, with known UUIDs hardcoded in the seed file. This lets the app's dev configuration log in as "Alice" with a button click, bypassing the magic-link flow entirely during development. The login bypass is gated behind a Vite environment flag (`VITE_DEV_LOGIN_SHORTCUT=true`) and is physically absent from production builds.
+The dev login shortcut — a button that logs you in as Alice/Bob/Carol without going through the magic-link flow — and its `VITE_DEV_LOGIN_SHORTCUT=true` flag return alongside step 3's plan. They've been pulled out for now because seeding `auth.users` directly is unreliable across GoTrue versions; the right shape is for the seed to drive GoTrue's signup endpoint instead.
 
 ## The web app
 
@@ -289,18 +292,7 @@ docker compose exec postgres psql -U cairn -d cairn
 
 — or connect with a GUI client (TablePlus, DBeaver, Postico) to `localhost:5432` with the credentials in `.env`.
 
-**Hit the API directly.** PostgREST is plain HTTP+JSON. You need a JWT for anything beyond the OpenAPI doc. The simplest way to get one in dev is to log in as a seed user via GoTrue:
-
-```bash
-TOKEN=$(curl -s -X POST http://localhost:9999/token?grant_type=password \
-  -H "Content-Type: application/json" \
-  -d '{"email":"alice@example.test","password":"password"}' \
-  | jq -r .access_token)
-
-curl -s http://localhost:3000/lists -H "Authorization: Bearer $TOKEN" | jq
-```
-
-(Password login is enabled for the seed users in dev; production uses magic links only.)
+**Hit the API directly.** PostgREST is plain HTTP+JSON. You need a JWT for anything beyond the OpenAPI doc; the dev-token shortcut for fetching one returns alongside step 3's GoTrue + magic-link wiring (see `plans/0000_implementation_order.md`). Until then, reach the database via the manual `psql` path above, and the unauthenticated PostgREST surface via its OpenAPI root at `http://localhost:3000/`.
 
 **Watch the logs.**
 
@@ -367,14 +359,16 @@ A pre-commit hook (lefthook) runs the right subset of these on staged files auto
 
 **A migration failed and now nothing works.** Reset the database (the four-command sequence above). Migrations should be idempotent and re-runnable, but if you've gotten into a wedged state, the cost of starting over is approximately zero.
 
-**RLS is blocking a query that I think it shouldn't.** Look at PostgREST's logs for the actual SQL it ran, then run that same SQL manually as the `authenticated` role with the right `request.jwt.claim.sub` set. The bug is almost always in the policy, not the API call.
+**RLS is blocking a query that I think it shouldn't.** Look at PostgREST's logs for the actual SQL it ran, then run that same SQL manually as the `authenticated` role with the right `request.jwt.claims` set. The bug is almost always in the policy, not the API call.
 
 ```sql
 set role authenticated;
-set local request.jwt.claim.sub = '<a-known-user-uuid>';
+set local request.jwt.claims = '{"sub":"<a-known-user-uuid>"}';
 select * from lists;
 reset role;
 ```
+
+`public.uid()` reads the `sub` field out of the `request.jwt.claims` JSON object — that's the GUC PostgREST sets per request in v10+. Older snippets that set `request.jwt.claim.sub` (singular, no JSON) won't work; that per-claim form was removed in PostgREST v10 and we run v12.
 
 This is the single most useful debugging trick for this stack. Learn it.
 

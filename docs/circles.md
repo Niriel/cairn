@@ -78,22 +78,27 @@ Two surfaces touch the circle directly:
 Two surfaces *use* the circle indirectly:
 
 - **The invite picker** (members screen → add member). The first section of the picker shows people in *your* circle who aren't already on the list — these are people you can invite in one tap. (Whether they receive the invite still depends on *their* policy and whether *you* are on *their* circle, but the picker doesn't show you that — it shows you everyone you might plausibly want to invite, and lets the server enforce the policy.)
-- **The block list.** Blocking someone doesn't remove them from any circle (yours or theirs); it just adds a row to your blocklist that the invite-check consults first. Unblocking restores the prior state without any reconciliation needed.
+- **The block list.** Blocking someone overwrites their row's `status` to `blocked` if you previously had them in your circle (or inserts a fresh `blocked` row if you didn't). Unblocking deletes the row outright — your prior circle state is *not* restored across a block/unblock cycle, by design. Their side of the relationship (whether they have *you* in *their* circle) is untouched either way.
 
 ## In the data model
 
-`circle_members(user_id, member_id, added_at)` — one row per directional membership. *"`user_id` has `member_id` on their circle."* RLS:
+`relationships(user_id, other_user_id, status, …)` — one row per directional pair, where `status` is either `'circle'` or `'blocked'`. *"`user_id`'s view of `other_user_id`."* The same table holds both the circle and the blocklist; absence of a row means neither. RLS:
 
 ```sql
-create policy circle_select on public.circle_members
-  for select using (user_id = auth.uid());
-create policy circle_insert on public.circle_members
-  for insert with check (user_id = auth.uid());
-create policy circle_delete on public.circle_members
-  for delete using (user_id = auth.uid());
+create policy relationships_select on public.relationships
+  for select using (user_id = public.uid());
+create policy relationships_insert on public.relationships
+  for insert with check (user_id = public.uid());
+create policy relationships_update on public.relationships
+  for update using (user_id = public.uid())
+  with check (user_id = public.uid());
+create policy relationships_delete on public.relationships
+  for delete using (user_id = public.uid());
 ```
 
-Only the owner of the circle can read or write rows in it. The `member_id` does not get to see them. The email-add path writes a row in the *other* direction via a `security definer` function (`add_circle_by_email`), bypassing RLS as needed but performing the block-check first. See `data-model.md` and `invites.md` for the function bodies.
+Only the owner of the row can read, change, or remove it. The `other_user_id` does not get to see anything. The email-add path writes a row in the *other* direction via a `security definer` function (`add_circle_by_email`), bypassing RLS as needed but performing the block-check first. See `data-model.md` and `invites.md` for the function bodies.
+
+Blocking someone who's already in your circle overwrites the row's `status` from `circle` to `blocked`; unblocking deletes the row. The prior `circle` state is **not** restored across a block/unblock cycle — re-adding requires a deliberate action. Earlier drafts of this doc described "unblock restores the prior state"; collapsing the previous separate `circle_members` and `blocks` tables into one `relationships` row-per-pair makes the simpler "absence = neither" semantic worth more than preserving that low-frequency edge case.
 
 ## Why a circle and not just a blocklist?
 

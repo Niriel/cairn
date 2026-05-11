@@ -65,7 +65,7 @@ Email addresses are **never** shown on the profile screen, or anywhere else a us
 
 ## The three-way invite policy
 
-Stored on `profiles.invite_policy`. Three values:
+Stored on `user_settings.invite_policy`. Three values:
 
 - **`everybody`** *(default for new accounts)*. Anyone with a Cairn account can invite this user to a list.
 - **`circle`**. Only users in this person's circle can invite them. Invites from anyone else fail with the generic "Couldn't send invite" message (see "What blocked invites look like" below).
@@ -84,7 +84,7 @@ The blocklist is checked *after* the policy. So:
 - Even if Alice's policy is `everybody`, she can still individually block Bob, and his invites fail.
 - Even if Alice's policy is `circle` and Bob is in her circle, if Alice has *also* blocked Bob (an unusual but valid state), Bob's invites fail.
 
-The block is the strongest possible signal and overrides every other path. We don't auto-remove the circle membership when the block is added — the user might want to unblock later and have the circle relationship still there. But for invite-permission purposes, block dominates.
+The block is the strongest possible signal and overrides every other path. Blocking someone who was already in your circle overwrites the `relationships` row's `status` from `circle` to `blocked` (the row stays, just changes status). Unblocking deletes the row — the prior `circle` state is *not* restored automatically. If you want them back in your circle, re-add them deliberately. The simpler "absence = neither" semantic is worth more than preserving the prior state across a block/unblock cycle.
 
 ## Blocks
 
@@ -177,103 +177,98 @@ A user has a soft cap of **20 pending invites** at any one time. Reaching the ca
 
 ## Schema additions
 
-Three new tables and one new column on `profiles`. All inherit Cairn's existing conventions: UUIDs, timestamps, RLS, and the cascade rules from `account-deletion.md`.
+Two new tables — `relationships` and `invitations`. The `invite_policy` column itself is **not** added here — it lives on `user_settings` from day one (see `data-model.md` → "Why `profiles` and `user_settings` are split"), where owner-only RLS makes it structurally private. Both tables inherit Cairn's existing conventions: UUIDs, timestamps, RLS, and the cascade rules from `account-deletion.md`.
 
-### `profiles.invite_policy`
+### `user_settings.invite_policy`
+
+Already shipped in plan 0010 alongside the rest of `user_settings`; reproduced here for reference:
 
 ```sql
-alter table public.profiles
-  add column invite_policy text not null default 'everybody'
-    check (invite_policy in ('everybody', 'circle', 'nobody'));
+-- in the user_settings table block, see data-model.md
+invite_policy text not null default 'everybody'
+                check (invite_policy in ('everybody', 'circle', 'nobody'))
 ```
 
-### `circle_members`
+The column lives on `user_settings` rather than `profiles` because `profiles_select` is world-readable to authenticated callers — `invite_policy` belongs in the owner-only table for the structural-privacy reason explained in `data-model.md`'s "Why `profiles` and `user_settings` are split" section. `user_settings_select` reduces to `id = public.uid()`, so `invite_policy` is structurally private: only the user themselves can read their own setting. RPCs that need to read another user's `invite_policy` (the policy/block check below) are `security definer` and read it as the function owner; that's the only path another user's setting becomes visible.
+
+### `relationships`
 
 ```sql
-create table public.circle_members (
-  user_id   uuid not null references auth.users(id) on delete cascade,
-  member_id uuid not null references auth.users(id) on delete cascade,
-  added_at  timestamptz not null default now(),
-  primary key (user_id, member_id),
-  check (user_id <> member_id)
+create table public.relationships (
+  user_id       uuid not null references auth.users(id) on delete cascade,
+  other_user_id uuid not null references auth.users(id) on delete cascade,
+  status        text not null
+                  check (status in ('circle', 'blocked')),
+  created_at    timestamptz not null default now(),
+  modified_at   timestamptz not null default now(),
+  primary key (user_id, other_user_id),
+  check (user_id <> other_user_id)
 );
 
-alter table public.circle_members enable row level security;
+alter table public.relationships enable row level security;
 ```
 
-`(user_id, member_id)` is directional — *"user_id has member_id in their circle."* A symmetric circle relationship (the email-add case) is two rows, one in each direction; the schema doesn't enforce symmetry.
+`(user_id, other_user_id)` is directional — *"user_id's view of other_user_id."* A symmetric circle relationship (the email-add case) is two rows, one in each direction; the schema doesn't enforce symmetry. A single pair is either in the circle or blocked, never both — `status` is mutually exclusive. The column is named `other_user_id` (not `member_id`) because *member* is reserved for `list_members`; uniformity inside the schema beats cross-table puns.
 
-`on delete cascade` on both FKs: if either side deletes their account, the row is hard-deleted. This is correct under the anonymize-don't-cascade rule because the circle membership itself is purely personal data — there's no shared state to preserve.
+Blocking someone who was already in your circle overwrites the row's `status` from `circle` to `blocked` (a `PATCH` on the existing row, or an `INSERT … ON CONFLICT DO UPDATE`). Unblocking *deletes* the row outright — the prior `circle` state is **not** restored across a block/unblock cycle. If you want them in your circle again, you re-add deliberately. This is a small departure from "unblock returns you to the prior state" that earlier drafts of this doc described; collapsing the two tables into one row-per-pair makes the simpler "absence = neither" semantic worth more than preserving a low-frequency edge case.
+
+`on delete cascade` on both FKs: if either side deletes their account, the row is hard-deleted. This is correct under the anonymize-don't-cascade rule because the relationship itself is purely personal data — there's no shared state to preserve.
 
 ### `invitations`
 
 ```sql
 create table public.invitations (
-  id              uuid primary key default gen_random_uuid(),
-  list_id         uuid not null references public.lists(id) on delete cascade,
-  inviter_id      uuid not null references auth.users(id) on delete cascade,
-  invitee_user_id uuid          references auth.users(id) on delete cascade,
-  invitee_email   text,
-  created_at      timestamptz not null default now(),
-  check (invitee_user_id is not null or invitee_email is not null)
+  id             uuid primary key default gen_random_uuid(),
+  list_id        uuid not null references public.lists(id) on delete cascade,
+  created_by     uuid not null references auth.users(id) on delete cascade,
+  target_user_id uuid          references auth.users(id) on delete cascade,
+  target_email   text,
+  created_at     timestamptz not null default now(),
+  check (target_user_id is not null or target_email is not null)
 );
 
 alter table public.invitations enable row level security;
 
-create unique index invitations_user_uniq
-  on public.invitations (list_id, invitee_user_id)
-  where invitee_user_id is not null;
+create unique index invitations_target_user_uniq
+  on public.invitations (list_id, target_user_id)
+  where target_user_id is not null;
 
-create unique index invitations_email_uniq
-  on public.invitations (list_id, lower(invitee_email))
-  where invitee_email is not null and invitee_user_id is null;
+create unique index invitations_target_email_uniq
+  on public.invitations (list_id, lower(target_email))
+  where target_email is not null and target_user_id is null;
 ```
 
-### `blocks`
+The column names follow the schema-wide rule: `created_by` for "who created the row" (uniform with `lists`, `items`, `list_members`); `target_*` for "who the row is *for*" (the invitee). Earlier drafts used `inviter_id` / `invitee_*` for self-documenting role names; the table name already carries that context, so the generic forms are clearer in aggregate. **Note**: `invitations.created_by` uses `on delete cascade` rather than `on delete set default` — invitations are pending state with no audit value once the inviter is gone, unlike `lists.created_by` / `items.created_by` which point to shared content. Same column name, different FK action; the action follows from the table's role, not from the column name.
 
-```sql
-create table public.blocks (
-  blocker_id uuid not null references auth.users(id) on delete cascade,
-  blocked_id uuid not null references auth.users(id) on delete cascade,
-  blocked_at timestamptz not null default now(),
-  primary key (blocker_id, blocked_id),
-  check (blocker_id <> blocked_id)
-);
-
-alter table public.blocks enable row level security;
-```
-
-`blocks` and `circle_members` can coexist for the same pair — a block does not auto-remove the circle relationship (so unblocking restores the prior state). The invite-check logic enforces "block always wins" at the application level.
+The "blocked always wins" rule is enforced at the application level inside the invite RPCs — `send_invitation` checks for a `relationships` row with `status = 'blocked'` *before* consulting `invite_policy` or circle membership.
 
 ## RLS and stored procedures
 
 ```sql
--- circle_members: visible only to the owner of the circle.
-create policy circle_select on public.circle_members
-  for select using (user_id = auth.uid());
--- (the *member* of the circle does NOT get to see who has them on their
--- list — it's the owner's private permission setting on themselves.)
+-- relationships: visible only to the owner of the row.
+create policy relationships_select on public.relationships
+  for select using (user_id = public.uid());
+-- (the *other_user* does NOT get to see whether someone has them in
+-- their circle or has blocked them — it's the owner's private setting
+-- on themselves.)
 
-create policy circle_insert on public.circle_members
-  for insert with check (user_id = auth.uid());
-create policy circle_delete on public.circle_members
-  for delete using (user_id = auth.uid());
--- (only the owner can remove rows from their own circle.)
+create policy relationships_insert on public.relationships
+  for insert with check (user_id = public.uid());
+create policy relationships_update on public.relationships
+  for update using (user_id = public.uid())
+  with check (user_id = public.uid());
+create policy relationships_delete on public.relationships
+  for delete using (user_id = public.uid());
+-- (only the owner can change or remove rows in their own relationships.)
 
--- blocks: visible only to blocker
-create policy blocks_select on public.blocks
-  for select using (blocker_id = auth.uid());
-create policy blocks_insert on public.blocks
-  for insert with check (blocker_id = auth.uid());
-create policy blocks_delete on public.blocks
-  for delete using (blocker_id = auth.uid());
-
--- invitations: visible to both inviter and invitee
+-- invitations: visible to both inviter (created_by) and invitee (target_user_id)
 create policy invitations_select on public.invitations
-  for select using (inviter_id = auth.uid() or invitee_user_id = auth.uid());
+  for select using (created_by = public.uid() or target_user_id = public.uid());
 ```
 
-Insert and delete on `invitations`, and the email-add path for `circle_members` (which writes two rows including one for another user), go through stored procedures: `send_invitation`, `accept_invitation`, `decline_invitation`, `add_circle_by_email`, `add_circle_by_id`. These run as `security definer` functions because they need privileges to read other users' `invite_policy` and `blocks` rows for the policy/block checks, and to write the `circle_members` row on the other user's behalf during email-add. The web app calls them via PostgREST RPCs; it doesn't touch the tables directly for these operations.
+The `relationships_update` policy lets a user flip a row's `status` (e.g., from `circle` to `blocked`) without the round-trip of delete-then-insert. Both `using` and `with check` are gated on `user_id = public.uid()`.
+
+Insert and delete on `invitations`, and the email-add path for `relationships` (which writes a row in *the other user's* direction), go through stored procedures: `send_invitation`, `accept_invitation`, `decline_invitation`, `add_circle_by_email`, `add_circle_by_id`. These run as `security definer` functions because they need privileges to read other users' `invite_policy` and `relationships` rows for the policy/block checks, and to write the symmetric `relationships` row on the other user's behalf during email-add. The web app calls them via PostgREST RPCs; it doesn't touch the tables directly for these operations.
 
 The pattern matches `delete_account` from `account-deletion.md`: when the logic involves cross-user state, it lives in a function, not in a policy.
 
@@ -286,7 +281,7 @@ language plpgsql security definer
 set search_path = public, auth
 as $$
 declare
-  me     uuid := auth.uid();
+  me     uuid := public.uid();
   target uuid;
 begin
   select id into target from auth.users where lower(email) = lower(p_email);
@@ -297,25 +292,26 @@ begin
     raise exception 'cannot add yourself';
   end if;
 
-  -- Always: Alice -> Bob
-  insert into public.circle_members (user_id, member_id)
-  values (me, target)
-  on conflict do nothing;
+  -- Always: Alice -> Bob, but only if Alice hasn't blocked Bob (in which
+  -- case the existing 'blocked' row stands; Alice has to unblock first).
+  insert into public.relationships (user_id, other_user_id, status)
+  values (me, target, 'circle')
+  on conflict (user_id, other_user_id) do update
+    set status = 'circle'
+    where public.relationships.status <> 'blocked';
 
-  -- Mutual: Bob -> Alice, but only if Bob hasn't blocked Alice
-  if not exists (
-    select 1 from public.blocks
-    where blocker_id = target and blocked_id = me
-  ) then
-    insert into public.circle_members (user_id, member_id)
-    values (target, me)
-    on conflict do nothing;
-  end if;
+  -- Mutual: Bob -> Alice, but only if Bob hasn't blocked Alice.
+  -- If Bob already has Alice in his circle, the upsert is a no-op.
+  insert into public.relationships (user_id, other_user_id, status)
+  values (target, me, 'circle')
+  on conflict (user_id, other_user_id) do update
+    set status = 'circle'
+    where public.relationships.status <> 'blocked';
 end;
 $$;
 ```
 
-The `tap_add` (one-sided) path is a direct insert — no stored procedure needed, since Alice is only writing her own row and the standard RLS policy permits it.
+The `ON CONFLICT … DO UPDATE … WHERE status <> 'blocked'` shape is what enforces "block always wins" at write time: an existing `blocked` row is preserved, while an existing `circle` row stays `circle` (the no-op merge keeps `modified_at` honest if the trigger uses `OF (status)`). The `tap_add` (one-sided) path is a direct insert from the client — no stored procedure needed, since Alice is only writing her own row and the standard RLS policy permits it; the same `ON CONFLICT` shape applies if she taps a user she has already blocked (the block stands).
 
 ## The `send_invitation` function (sketch)
 
@@ -330,7 +326,7 @@ language plpgsql security definer
 set search_path = public, auth
 as $$
 declare
-  inviter uuid := auth.uid();
+  inviter uuid := public.uid();
   target  uuid;
   policy  text;
   in_circle boolean;
@@ -352,22 +348,26 @@ begin
 
   if target is not null then
     -- Block check
-    if exists (select 1 from public.blocks
-               where blocker_id = target and blocked_id = inviter) then
+    if exists (select 1 from public.relationships
+               where user_id = target
+                 and other_user_id = inviter
+                 and status = 'blocked') then
       return null;
     end if;
     -- Policy check
-    select invite_policy into policy from public.profiles where id = target;
+    select invite_policy into policy from public.user_settings where id = target;
     if policy = 'nobody' then return null; end if;
     if policy = 'circle' then
-      select exists (select 1 from public.circle_members
-                     where user_id = target and member_id = inviter)
+      select exists (select 1 from public.relationships
+                     where user_id = target
+                       and other_user_id = inviter
+                       and status = 'circle')
         into in_circle;
       if not in_circle then return null; end if;
     end if;
   end if;
 
-  insert into public.invitations (list_id, inviter_id, invitee_user_id, invitee_email)
+  insert into public.invitations (list_id, created_by, target_user_id, target_email)
   values (p_list_id, inviter, target,
           case when target is null then p_email else null end)
   returning id into invitation_id;
@@ -385,9 +385,8 @@ When Alice deletes her account:
 
 | Table | What happens | Why |
 |---|---|---|
-| `circle_members` (rows where she's `user_id` *or* `member_id`) | Hard cascade | Personal allowlist data on both sides; nothing of value to preserve. |
-| `blocks` (rows where she's `blocker_id` *or* `blocked_id`) | Hard cascade | Same. |
-| `invitations` (rows where she's `inviter_id` *or* `invitee_user_id`) | Hard cascade | Pending state; no audit value once she's gone. |
+| `relationships` (rows where she's `user_id` *or* `other_user_id`, regardless of status) | Hard cascade | Personal allowlist / blocklist data on both sides; nothing of value to preserve. |
+| `invitations` (rows where she's `created_by` *or* `target_user_id`) | Hard cascade | Pending state; no audit value once she's gone. |
 
 All cascades happen automatically via the `on delete cascade` clauses set when each table was created. The `delete_account` function from `account-deletion.md` doesn't need to do anything special.
 

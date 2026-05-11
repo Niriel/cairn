@@ -9,7 +9,7 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
-ok()   { printf '  \e[32mok\e[0m   %s\n' "$1"; }
+ok() { printf '  \e[32mok\e[0m   %s\n' "$1"; }
 fail() {
   printf '  \e[31mFAIL\e[0m %s\n' "$1"
   exit 1
@@ -28,31 +28,31 @@ need shfmt
 need docker
 
 echo "==> web: install (frozen)"
-(cd web && pnpm install --frozen-lockfile) >/dev/null && ok "pnpm install"
+if (cd web && pnpm install --frozen-lockfile) >/dev/null; then ok "pnpm install"; else fail "pnpm install"; fi
 
 echo "==> web: type check"
-(cd web && pnpm check) >/dev/null && ok "svelte-check"
+if (cd web && pnpm check) >/dev/null; then ok "svelte-check"; else fail "svelte-check"; fi
 
 echo "==> web: lint"
-(cd web && pnpm lint) && ok "eslint"
+if (cd web && pnpm lint); then ok "eslint"; else fail "eslint"; fi
 
 echo "==> web: format check"
-(cd web && pnpm format:check) >/dev/null && ok "prettier"
+if (cd web && pnpm format:check) >/dev/null; then ok "prettier"; else fail "prettier"; fi
 
 echo "==> sql lint"
-sqlfluff lint db/ scripts/ 2>/dev/null && ok "sqlfluff" || fail "sqlfluff"
+if sqlfluff lint db/ scripts/ 2>/dev/null; then ok "sqlfluff"; else fail "sqlfluff"; fi
 
 echo "==> shell lint"
-shellcheck scripts/*.sh && ok "shellcheck"
+if shellcheck scripts/*.sh; then ok "shellcheck"; else fail "shellcheck"; fi
 
 echo "==> shell format"
-shfmt -d -i 2 -ci -bn scripts/ && ok "shfmt"
+if shfmt -d -i 2 -ci -bn scripts/; then ok "shfmt"; else fail "shfmt"; fi
 
 echo "==> database tests (pgTAP)"
-./scripts/test-db.sh >/dev/null && ok "pg_prove"
+if ./scripts/test-db.sh >/dev/null; then ok "pg_prove"; else fail "pg_prove"; fi
 
 echo "==> web: unit tests"
-(cd web && pnpm test) >/dev/null && ok "vitest"
+if (cd web && pnpm test) >/dev/null; then ok "vitest"; else fail "vitest"; fi
 
 echo
 echo "all checks passed"

@@ -208,7 +208,7 @@ A typical "show me my lists" request, from a logged-in user with the session coo
 1. The browser sends `GET https://cairn.<domain>/api/lists`. The browser automatically attaches `Cookie: cairn_session=...`.
 2. Caddy terminates TLS. The path matches the `/api/*` route.
 3. Caddy reads the `cairn_session` cookie and rewrites the request as `GET /lists` to PostgREST with `Authorization: Bearer <jwt>`.
-4. PostgREST verifies the JWT signature, extracts the user ID, and runs `SET LOCAL request.jwt.claim.sub = '<user-id>'` on the Postgres connection.
+4. PostgREST verifies the JWT signature and runs `SET LOCAL request.jwt.claims = '<jwt-claims-json>'` on the Postgres connection (the JSON-object GUC, set per-request, contains every claim including `sub`). PostgREST v10 removed the per-claim `request.jwt.claim.<name>` GUCs; we run v12, so the JSON-object form is what `public.uid()` reads from.
 5. Postgres executes `SELECT * FROM lists`. The row-level security policy on `lists` filters the result to only those where the user is a member.
 6. PostgREST serializes the result as JSON, Caddy passes it back, the SvelteKit app renders it.
 

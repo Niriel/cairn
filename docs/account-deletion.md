@@ -11,15 +11,15 @@ This is the same pattern GitHub, Slack, Discord, and most collaborative tools us
 | Data | What happens | Why |
 |---|---|---|
 | `auth.users` row (email, hashed credentials) | Hard deleted | Personal data; the whole point of the deletion |
-| `profiles` row (display_name, theme, font_size, invite_policy) | Hard deleted | Personal data; cascades from `auth.users` |
+| `profiles` row (display_name) | Hard deleted | Personal data; cascades from `auth.users` |
+| `user_settings` row (invite_policy) | Hard deleted | Personal preferences; cascades from `auth.users`. Lives in a separate table from `profiles` so owner-only RLS makes every column structurally private — see `data-model.md` "Why `profiles` and `user_settings` are split". (Theme and font size are device-local, in `localStorage`, not in this table — see `ui.md`.) |
 | `votes` rows | Hard deleted | A vote *is* a personal opinion. Score recomputes automatically; other members' votes are unaffected. |
 | `list_members` rows for the deleted user | Hard deleted | Membership is personal; with no membership row, the user no longer appears anywhere |
-| `circle_members` rows (either side) | Hard deleted | Personal allowlist data; nothing of value to preserve. See `invites.md`. |
-| `blocks` rows (either side) | Hard deleted | Same — personal data, no shared value. |
-| `invitations` rows (sender or recipient) | Hard deleted | Pending state; no audit value once the user is gone. |
+| `relationships` rows (either side, regardless of `status`) | Hard deleted | Personal allowlist / blocklist data; nothing of value to preserve. See `invites.md`. |
+| `invitations` rows (sender via `created_by` or recipient via `target_user_id`) | Hard deleted | Pending state; no audit value once the user is gone. |
 | `items.created_by` / `items.modified_by` / `items.deleted_by` pointing at the user | Repointed to the tombstone user | The item itself is shared content; its existence is not personal data |
-| `lists.created_by` / `lists.modified_by` / `lists.deleted_by` pointing at the user | Repointed to the tombstone user | Same |
-| `list_members.added_by` / `list_members.deleted_by` pointing at the user | Repointed to the tombstone user | Same |
+| `lists.created_by` / `lists.deleted_by` pointing at the user | Repointed to the tombstone user | Same |
+| `list_members.created_by` / `list_members.deleted_by` pointing at the user | Repointed to the tombstone user | Same |
 | Lists where the user was the *only* remaining member | Hard deleted, with their items | No one is harmed by removing them, and they were effectively private |
 
 A "list with no live members" was already an implied dead state in the schema — this gives it an explicit cleanup point.
@@ -31,11 +31,26 @@ A single sentinel row in `auth.users` represents every deleted account, uniforml
 ```sql
 -- Inserted by migration, never deleted.
 insert into auth.users (id, email)
-values ('00000000-0000-0000-0000-000000000000', null);
+values ('00000000-0000-0000-0000-000000000000', null)
+on conflict (id) do nothing;
 
 insert into public.profiles (id, display_name)
-values ('00000000-0000-0000-0000-000000000000', 'Deleted user');
+values ('00000000-0000-0000-0000-000000000000', 'Deleted user')
+on conflict (id) do nothing;
 ```
+
+Both inserts use `on conflict (id) do nothing`. The migration is run exactly once via the `_migrations` ledger, but the idempotency belongs in the SQL anyway: it protects against a re-applied migration on a non-empty test DB and against the `tg_profile_on_signup` trigger racing the manual profile insert (the trigger handles the tombstone case by skipping `new.id = '00000000-…'`, but the conflict guard is correct defence-in-depth).
+
+### `auth.users` columns the tombstone insert depends on
+
+The two-column `(id, email)` form above is deliberately minimal. It works against `supabase/gotrue:v2.158.1` (the version pinned in `docker-compose.yml`) because every other column GoTrue declares either has a server-side default, accepts NULL, or is filled in by GoTrue's own startup migrations *before* our migration runs (`scripts/migrate.sh` waits for `auth.users` to exist before applying any migration numbered `0004` or later, so by the time the tombstone insert lands, GoTrue's column defaults are in place). The columns the rest of the schema depends on are tiny:
+
+- `id uuid primary key` — the FK target for every `created_by` / `modified_by` / `deleted_by` / `user_id` column in `public.*`.
+- `email text` — required to exist because GoTrue stores the signup address there and the magic-link delivery reads it. The migration writes only the tombstone's `null` value into this column; the schema deliberately does **not** read it elsewhere. The on-signup trigger creates `profiles` rows with the fixed placeholder `'New user'` rather than deriving from the email's local part, because the local part is frequently the user's real name and rendering it back as `display_name` would leak email content.
+
+Test parity: `db/test-bootstrap.sql` stubs `auth.users` with exactly `(id, email, role, created_at)`. The first two are what the migration needs; `role` and `created_at` are carried because GoTrue and PostgREST both reference `role` for JWT-claim defaulting and `created_at` is universal enough to be cheap. Anything beyond those four is deliberately *not* stubbed, so the test path can't paper over a divergence — it has the same surface area as the migration.
+
+**Caveat for future GoTrue upgrades.** Bumping the `supabase/gotrue` image is the moment this contract can break. Any new GoTrue version that adds a column to `auth.users` declared `NOT NULL` *without* a default will turn the bare `insert into auth.users (id, email)` above into a runtime failure on the first apply of a fresh DB — and the test path won't catch it because `test-bootstrap.sql` doesn't run GoTrue's migrations. A second, quieter failure mode also lives here: our `tg_profile_on_signup` AFTER INSERT trigger is attached to `auth.users` from the first migration that touches it, and a future GoTrue release that DROPs and recreates the table (rather than ALTERing in place) would silently take our trigger with it — new signups would land in `auth.users` but no `profiles` or `user_settings` row would ever be created, surfacing hours or days later as 404s on every fresh user's first profile read. Whoever bumps the image: check the GoTrue CHANGELOG for `auth.users` schema changes, run `\d auth.users` against a freshly-started container, confirm `tg_profile_on_signup` still appears in `select tgname from pg_trigger where tgrelid = 'auth.users'::regclass`, and either extend this insert (and its companion in `test-bootstrap.sql`) or add the new column to the stub — and re-attach the trigger if it has gone missing — before merging the bump.
 
 Why a sentinel UUID rather than `null`?
 
@@ -47,23 +62,15 @@ The tombstone user has no email, no password, cannot log in, and is not a member
 
 ## Schema changes
 
-The original schema (`data-model.md`) declares `created_by` etc. as `not null references auth.users(id)` with no `on delete` action — meaning a `DELETE FROM auth.users` would fail with a foreign-key violation. Account deletion is the one place where we *do* delete from `auth.users`, so the FKs need an action. We use `on delete set default` and set the default to the tombstone UUID.
+There are no ALTERs needed: the table blocks in `data-model.md` already declare the seven attribution FKs with `on delete set default` and a `default` of the tombstone UUID, baked in from the first migration. The `default` is what `on delete set default` repoints attribution to when the referenced `auth.users` row is deleted, so deleting a user's auth row anonymizes every list, item, and membership they touched in one cascade — no per-row UPDATE pass.
 
-```sql
--- Repeat for: lists.created_by, lists.modified_by, lists.deleted_by,
---             items.created_by, items.modified_by, items.deleted_by,
---             list_members.added_by, list_members.deleted_by.
+The seven columns:
 
-alter table public.lists
-  alter column created_by set default '00000000-0000-0000-0000-000000000000',
-  drop constraint lists_created_by_fkey,
-  add  constraint lists_created_by_fkey
-    foreign key (created_by) references auth.users(id) on delete set default;
-```
+- `lists.created_by`, `lists.deleted_by`
+- `items.created_by`, `items.modified_by`, `items.deleted_by`
+- `list_members.created_by`, `list_members.deleted_by`
 
-`votes` and `list_members` keep their existing `on delete cascade` — those are the two places we *do* want hard cascade, because both are records of a personal action by the user.
-
-`profiles` keeps `on delete cascade` from `auth.users` — when the user goes, their profile goes with them.
+`list_members.user_id` and `votes.{item_id, user_id}` keep `on delete cascade` instead — those are records of a personal action by the user, and cascade is the desired semantics. `profiles.id` keeps `on delete cascade` from `auth.users` for the same reason: when the user goes, their profile goes with them.
 
 ## The `delete_account` function
 
@@ -77,7 +84,7 @@ security definer
 set search_path = public, auth
 as $$
 declare
-  uid uuid := auth.uid();
+  uid uuid := public.uid();
 begin
   if uid is null then
     raise exception 'not authenticated';
@@ -97,9 +104,10 @@ begin
   );
 
   -- Delete the auth row. Cascades:
-  --   profiles      → cascade
-  --   votes         → cascade
-  --   list_members  → cascade (where user_id = uid)
+  --   profiles       → cascade
+  --   user_settings  → cascade
+  --   votes          → cascade
+  --   list_members   → cascade (where user_id = uid)
   --   created_by / modified_by / etc. → set default (tombstone)
   delete from auth.users where id = uid;
 end;
@@ -113,7 +121,7 @@ A few notes:
 
 - **Order matters.** Lists-where-only-this-user is computed *before* the delete on `auth.users`, because membership cascades clear out the `list_members` rows we need for that query.
 - **The function is the only sanctioned path.** PostgREST does not expose `DELETE /auth.users` to authenticated clients (that table is in the `auth` schema, not `public`). The function is what the API surface offers; the policy is in the function body, not in RLS.
-- **It runs as the user.** The `security definer` bit elevates privileges *for the duration of the function body* — but the body's first act is to read `auth.uid()` from the caller's JWT and use it as the deletion target. There is no way to delete someone else's account through this function.
+- **It runs as the user.** The `security definer` bit elevates privileges *for the duration of the function body* — but the body's first act is to read `public.uid()` from the caller's JWT and use it as the deletion target. There is no way to delete someone else's account through this function.
 - **No undo.** Once committed, the data is gone. The user-facing flow makes this very clear before calling.
 
 ## API surface

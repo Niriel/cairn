@@ -4,6 +4,19 @@ This document describes the database schema, the row-level security policies, an
 
 The SQL in this document is illustrative — the canonical version lives in the migration files in the repo. If the two ever disagree, the migrations are right and this document is wrong.
 
+## Where Cairn stores data
+
+The database is the system of record for almost everything; a small number of fields live on the device instead. Both inventories are canonical: if a field exists in Cairn, it lives in exactly one of the rows below.
+
+| Field | Storage | Why |
+|---|---|---|
+| `theme` (`'system' \| 'light' \| 'dark'`) | Browser `localStorage`, key `cairn.theme` | Describes the *screen* (bright sun on a phone vs. a dim laptop indoors), not the *user*. Shouldn't follow the account across devices. See `ui.md` → "Settings". |
+| `font_size` (`'xs' \| 's' \| 'm' \| 'l' \| 'xl'`) | Browser `localStorage`, key `cairn.font_size` | Same reasoning — also a screen-level preference. |
+| `cairn_session` (the JWT) | `HttpOnly`, `Secure`, `SameSite=Lax` cookie set by GoTrue | The standard browser-managed auth cookie; never read by client-side JavaScript, never persisted to `localStorage`. See `architecture.md` for the cookie's lifecycle. |
+| Everything else (profiles, settings, lists, members, items, votes, relationships, invitations) | Postgres, in `public.*` and `auth.users` | Multi-device, multi-user, RLS-protected — by definition follows the account. The bulk of this document. |
+
+The list of *device-local* fields is deliberately short. The default home for any new field is the database — falling back to `localStorage` only when the field genuinely describes the device or browser session and *shouldn't* follow the user across phones. If in doubt, put it in the database.
+
 ## Design principles
 
 A few choices that recur throughout the schema, called out once here:
@@ -14,7 +27,11 @@ A few choices that recur throughout the schema, called out once here:
 
 **Timestamps are `timestamptz`, always.** Stored in UTC, displayed in the user's local timezone by the app. Never `timestamp without time zone`.
 
-**The `auth.users` table is owned by GoTrue.** We do not modify it. When we need to reference a user, we foreign-key to `auth.users(id)`. GoTrue creates the row when a user signs up; we add a row to our own `profiles` table afterward to hold app-specific user data.
+**The `auth.users` table is owned by GoTrue.** We do not modify it. When we need to reference a user, we foreign-key to `auth.users(id)`. GoTrue creates the row when a user signs up; we add rows to our own `profiles` and `user_settings` tables afterward — public identity in the first, owner-only preferences in the second.
+
+**Every table has `created_at` and `modified_at`.** Both are `timestamptz`, both have a column DEFAULT of `now()`, both are server-set by the universal `tg_set_timestamps` trigger (which forces `created_at = modified_at = clock_timestamp()` on insert and freezes `created_at` on update); `modified_at` is bumped to `clock_timestamp()` by the per-table `tg_set_modified_at` trigger whenever a non-attribution column is updated (the trigger uses Postgres `BEFORE UPDATE OF (cols)` semantics, so it fires when one of those columns appears in the UPDATE's SET list — even if `NEW` equals `OLD` — rather than only when the value differs; an idempotent re-PATCH that re-sends the existing value still bumps `modified_at`). The trigger pair uses `clock_timestamp()` (not `now()`) so that a re-vote / re-PATCH within a single transaction produces an observably-later `modified_at` than the original write — `now()` is transaction-constant and would make the two timestamps equal. See the Triggers section below for the full rationale. Soft-delete tables additionally carry `deleted_at`. Standardizing the timestamp column names across every table — rather than per-table verbs like `voted_at`, `added_at`, `blocked_at` — keeps debugging queries (`select * from <any> where modified_at > now() - interval '1 hour'`) uniform and removes a class of "what's this table's timestamp called again?" friction.
+
+**Timestamp columns are the last columns of every table** — `created_at`, `modified_at`, and (where applicable) `deleted_at` always come at the end, in that order, with attribution columns (`created_by`, `modified_by`, `deleted_by`) directly preceding them. New payload columns are always inserted *before* `created_at`. The convention keeps payload visually separated from metadata at the bottom of every `\d` output and every `CREATE TABLE` block, and means a reader can scroll to the last three lines of any table to find the timestamps without scanning the column list. Attribution columns standardise on `created_by` across every table — earlier drafts used `added_by` on `list_members` for verb-symmetry with `deleted_by`, but a single consistent name across the schema is worth more than the local pun.
 
 **Row-level security is on for every table.** Every table that holds user data has RLS enabled and explicit policies. There is no "trust the client" path. PostgREST connects as a low-privilege role that has no access without policy grants.
 
@@ -26,10 +43,10 @@ Nine tables in our schema (`public`), plus `auth.users` managed by GoTrue:
 auth.users  (managed by GoTrue)
    │
    ▼
-profiles            ← app-specific user data, 1:1 with auth.users
+profiles            ← cross-user identity data (display_name), world-readable
+user_settings       ← owner-only personal preferences (invite_policy, …)
    │
-   ├──── circle_members      ← your one-sided allowlist of people who can invite you
-   ├──── blocks              ← your blocklist (block always wins)
+   └──── relationships       ← your circle and blocklist (one row per other user, status enum)
    │
 lists               ← a named collection
    │
@@ -43,25 +60,22 @@ lists               ← a named collection
 
 And one view, `items_ranked`, that joins items to vote tallies and applies the sort order. The web app reads from the view, not from the items table directly.
 
-The three tables added in `invites.md` — `circle_members`, `blocks`, `invitations` — along with the `invite_policy` column on `profiles`, are documented in detail in that doc; this doc is the canonical reference for their SQL but the prose is over there.
+The two tables added in `invites.md` — `relationships`, `invitations` — along with the `invite_policy` column on `user_settings`, are documented in detail in that doc; this doc is the canonical reference for their SQL but the prose is over there.
+
+**Why `profiles` and `user_settings` are split.** `profiles` holds *only* what other authenticated users need to see when your name appears in a list — currently `display_name`, eventually `avatar_url`. The whole table is world-readable to authenticated callers, which is what makes "Alice added *Blade Runner*" render without per-list joins. `user_settings` holds the things only *you* should see that *should follow you across devices*: invite policy, future server-side notification or default-view preferences. Owner-only RLS (`using (id = public.uid())`) is the one rule for the whole table, so privacy is enforced *structurally* — every column in `user_settings` is private by virtue of living there, with no per-column grant matrix to maintain or forget. New private user-level fields that follow the user go in `user_settings`; new cross-user-renderable identity fields go in `profiles`. Device-scoped preferences (theme, font size — see `ui.md`) live in the browser's `localStorage`, not in the database, because they describe the *screen* you're reading on rather than the *user*.
 
 ## Tables
 
 ### `profiles`
 
-App-specific user data. One row per `auth.users` row, created by a trigger when a new auth user is inserted.
+Cross-user identity data — what other authenticated users see when your name appears anywhere in the app. One row per `auth.users` row, created by a trigger when a new auth user is inserted.
 
 ```sql
 create table public.profiles (
   id            uuid primary key references auth.users(id) on delete cascade,
   display_name  text not null,
-  theme         text not null default 'system'
-                  check (theme in ('system', 'light', 'dark')),
-  font_size     text not null default 'm'
-                  check (font_size in ('xs', 's', 'm', 'l', 'xl')),
-  invite_policy text not null default 'everybody'
-                  check (invite_policy in ('everybody', 'circle', 'nobody')),
-  created_at    timestamptz not null default now()
+  created_at    timestamptz not null default now(),
+  modified_at   timestamptz not null default now()
 );
 
 alter table public.profiles enable row level security;
@@ -69,11 +83,27 @@ alter table public.profiles enable row level security;
 
 `display_name` is what other list members see — "Alice," "Bob" — and is set by the user on first login. It's mutable. The email address stays in `auth.users` and is never shown to other users.
 
-`theme` and `font_size` are the two preferences exposed on the Settings screen (see `ui.md`). They're stored on the profile, not on the device, so they follow the user across phones. The values are constrained to small enums rather than free-form strings — the app needs to map each to a concrete `ThemeMode` / scale factor anyway, and a closed set is easier to reason about for migrations.
+The table is deliberately tiny. Anything renderable to other users (an avatar URL, a public bio if we ever add one) goes here. Anything private to the owner that follows them across devices — invite policy, notification preferences, defaults — goes in `user_settings` below. Device-scoped settings (theme, font size) live client-side in `localStorage` and don't appear in this schema.
 
-`invite_policy` is the three-way switch governing who can invite this user to a list — `everybody`, `circle`, or `nobody`. See `invites.md` for the full semantics, including how `circle` interacts with the `circle_members` table and how `block` always wins regardless of policy. The default is `everybody` because Cairn is meant to be a low-friction collaboration tool; a more restrictive default would make first-time onboarding feel like a permission system.
+### `user_settings`
 
-We deliberately keep this table small. If app-specific user fields multiply later (avatar, locale), they go here.
+Owner-only personal preferences. One row per `auth.users` row, also created by the on-signup trigger. The whole table is gated by a single owner-only RLS policy (`using (id = public.uid())`), so privacy is structural: every column here is private by virtue of living in this table, no per-column grant matrix.
+
+```sql
+create table public.user_settings (
+  id            uuid primary key references auth.users(id) on delete cascade,
+  invite_policy text not null default 'everybody'
+                  check (invite_policy in ('everybody', 'circle', 'nobody')),
+  created_at    timestamptz not null default now(),
+  modified_at   timestamptz not null default now()
+);
+
+alter table public.user_settings enable row level security;
+```
+
+`invite_policy` is the three-way switch governing who can invite this user to a list — `everybody`, `circle`, or `nobody`. See `invites.md` for the full semantics, including how `circle` interacts with the `relationships` table and how a `blocked` status always wins regardless of policy. The default is `everybody` because Cairn is meant to be a low-friction collaboration tool; a more restrictive default would make first-time onboarding feel like a permission system. The reason `invite_policy` lives here rather than on `profiles` is the privacy point: under a "put it on `profiles`" shape, `profiles_select`'s world-readable policy would have leaked Bob's invite preference to every authenticated user, contradicting `invites.md`'s "Bob's invite preference and his block list are personal data" rule. The split makes that leak structurally impossible — `user_settings` is deliberately the home for any private user-level field that should follow the user across devices, even though `invite_policy` is the only such field today. Theme and font size are *device-local* (see `ui.md`) and live in the browser's `localStorage` rather than this table; they describe the screen, not the user.
+
+`created_at` and `modified_at` are present here — same shape as every other table — even though `created_at` will always equal `profiles.created_at` (both rows are inserted by the same on-signup trigger). The redundancy is deliberate: standardized column names across every table is worth more for debugging ergonomics than the one timestamp column it duplicates.
 
 ### `lists`
 
@@ -84,12 +114,13 @@ create table public.lists (
   id          uuid primary key default gen_random_uuid(),
   name        text not null check (length(name) between 1 and 200),
   description text check (description is null or length(description) <= 2000),
+  created_by  uuid not null default '00000000-0000-0000-0000-000000000000'
+                references auth.users(id) on delete set default,
+  deleted_by  uuid default '00000000-0000-0000-0000-000000000000'
+                references auth.users(id) on delete set default,
   created_at  timestamptz not null default now(),
   modified_at timestamptz not null default now(),
-  deleted_at  timestamptz,
-  created_by  uuid not null references auth.users(id),
-  modified_by uuid not null references auth.users(id),
-  deleted_by  uuid references auth.users(id)
+  deleted_at  timestamptz
 );
 
 alter table public.lists enable row level security;
@@ -99,9 +130,9 @@ create index lists_not_deleted_idx on public.lists (id) where deleted_at is null
 
 `description` is optional, plain-text, free-form — typically a short sentence or two explaining what the list is for. The UI shows the first line in the lists overview and lets users tap to expand the rest (see `ui.md`).
 
-`created_by` is informational — for "who started this list?" — and does not grant special permissions. Membership is tracked separately in `list_members`. The creator is always inserted as a member by the same trigger that creates the list.
+`created_by` is informational — for "who started this list?" — and does not grant special permissions. Membership is tracked separately in `list_members`. List creation goes through the `create_list` RPC (see "What the app sees" below), which inserts the `lists` row and the creator's `list_members` row in the same transaction; direct `POST /lists` is closed off by the absence of an `insert` policy and an `insert` grant on `public.lists`.
 
-`modified_by` records who last touched the row; `deleted_by` records who soft-deleted it (null for live rows). Both are set by triggers from the JWT claim — see "Triggers" below.
+`deleted_by` records who soft-deleted the row (null for live rows), set by a trigger from the JWT claim — see "Triggers" below. Lists track `modified_at` but deliberately not `modified_by`: list-level edits (rename, description tweak) are rare and the audit value of "who renamed this" is low; per-item `modified_by` already covers attribution where it matters.
 
 ### `list_members`
 
@@ -111,15 +142,20 @@ The join table that determines who can see and edit a list. One row per (list, u
 create table public.list_members (
   list_id     uuid not null references public.lists(id) on delete cascade,
   user_id     uuid not null references auth.users(id) on delete cascade,
-  added_at    timestamptz not null default now(),
-  added_by    uuid not null references auth.users(id),
+  created_by  uuid not null default '00000000-0000-0000-0000-000000000000'
+                references auth.users(id) on delete set default,
+  deleted_by  uuid default '00000000-0000-0000-0000-000000000000'
+                references auth.users(id) on delete set default,
+  created_at  timestamptz not null default now(),
+  modified_at timestamptz not null default now(),
   deleted_at  timestamptz,
-  deleted_by  uuid references auth.users(id),
   primary key (list_id, user_id)
 );
 
 alter table public.list_members enable row level security;
 ```
+
+`created_by` records who added this member to the list — same name and shape as `lists.created_by` and `items.created_by`, deliberately uniform across every attribution-bearing table (an earlier draft used `added_by` here for verb-symmetry with `deleted_by`, but a single consistent column name reads better). `modified_at` bumps when membership state changes — i.e., the soft-delete and restore transitions on `deleted_at`.
 
 There are no roles within a list. Every member can read, add, edit, and soft-delete every item, and can also add and remove other members. This matches the project description ("Everybody who has access to the data anyway") and keeps the model dramatically simpler than a roles-and-permissions system. If we later need owner / editor / viewer distinctions, this table is where they would go.
 
@@ -135,12 +171,15 @@ create table public.items (
   list_id     uuid not null references public.lists(id) on delete cascade,
   name        text not null check (length(name) between 1 and 500),
   notes       text,
+  created_by  uuid not null default '00000000-0000-0000-0000-000000000000'
+                references auth.users(id) on delete set default,
+  modified_by uuid not null default '00000000-0000-0000-0000-000000000000'
+                references auth.users(id) on delete set default,
+  deleted_by  uuid default '00000000-0000-0000-0000-000000000000'
+                references auth.users(id) on delete set default,
   created_at  timestamptz not null default now(),
   modified_at timestamptz not null default now(),
-  deleted_at  timestamptz,
-  created_by  uuid not null references auth.users(id),
-  modified_by uuid not null references auth.users(id),
-  deleted_by  uuid references auth.users(id)
+  deleted_at  timestamptz
 );
 
 alter table public.items enable row level security;
@@ -152,7 +191,7 @@ create index items_list_active_idx
 
 `name` is a single line; `notes` is free-form longer text and is nullable. Both are plain text — no markdown rendering in v1.
 
-`modified_by` and `deleted_by` work the same way as on `lists`: set by triggers, never written by the client. This means the UI can faithfully render "Added by Alice on May 1, edited by Bob on May 3" inside the item's unfolded panel without trusting the client to attribute correctly.
+`modified_by` and `deleted_by` are set by triggers from the JWT claim, never written by the client. This means the UI can faithfully render "Added by Alice on May 1, edited by Bob on May 3" inside the item's unfolded panel without trusting the client to attribute correctly. (Items are the table where `modified_by` matters — list-level edits are too rare to bother tracking per-row, so `lists` skips it.)
 
 A trigger updates `modified_at` whenever the row changes, so the app doesn't need to remember to set it.
 
@@ -165,7 +204,8 @@ create table public.votes (
   item_id     uuid not null references public.items(id) on delete cascade,
   user_id     uuid not null references auth.users(id) on delete cascade,
   value       smallint not null check (value between -3 and 3 and value <> 0),
-  voted_at    timestamptz not null default now(),
+  created_at  timestamptz not null default now(),
+  modified_at timestamptz not null default now(),
   primary key (item_id, user_id)
 );
 
@@ -176,41 +216,28 @@ The "no vote" state is represented by the absence of a row, not by a stored zero
 
 Removing a vote is a hard delete, not a soft delete — there's no audit value in remembering that someone briefly voted on something and then took it back.
 
-### `circle_members`
+`created_at` reflects the first vote on the (item, user) pair; `modified_at` reflects the most recent change. Both are server-set by the universal trigger pair: `tg_set_timestamps` forces `created_at = modified_at = clock_timestamp()` on insert and freezes `created_at` on every update; `tg_set_modified_at` (with `OF (value)`) bumps `modified_at = clock_timestamp()` whenever the vote value changes. PostgREST's re-vote flow (`POST /votes` with `Prefer: resolution=merge-duplicates`) translates to `INSERT … ON CONFLICT (item_id, user_id) DO UPDATE SET value = excluded.value`, which exercises both triggers cleanly: `created_at` survives, `modified_at` is bumped to an observably-later wall-clock value (this is why `clock_timestamp()`, not `now()` — `now()` would be transaction-constant and produce equal stamps inside the merge-duplicates transaction). A direct `PATCH /votes` with a client-supplied timestamp body is similarly clamped — neither column can be pinned by the client. The two-column shape replaces the earlier single `voted_at` column whose "first vote" semantic was promise-only against direct PATCH; standardising on `created_at` / `modified_at` made the split natural.
 
-A user's one-sided allowlist of people who are permitted to invite them to a list when their `invite_policy` is `circle`. See `invites.md` for the full semantics.
+### `relationships`
 
-```sql
-create table public.circle_members (
-  user_id   uuid not null references auth.users(id) on delete cascade,
-  member_id uuid not null references auth.users(id) on delete cascade,
-  added_at  timestamptz not null default now(),
-  primary key (user_id, member_id),
-  check (user_id <> member_id)
-);
-
-alter table public.circle_members enable row level security;
-```
-
-`(user_id, member_id)` is directional — *"user_id has member_id in their circle."* A symmetric circle relationship (the email-add case) is two rows, one in each direction; the schema doesn't enforce symmetry. `on delete cascade` on both FKs because circle membership is purely personal data with no shared state to preserve.
-
-### `blocks`
-
-A user's blocklist. Block always wins over circle membership and over `invite_policy`. See `invites.md`.
+A user's one-sided directed relationships with other users — either *circle* (an allowlist of people who are permitted to invite them when `invite_policy = 'circle'`) or *blocked* (the blocklist; a `blocked` status always wins over `invite_policy`). One row per directed pair, with `status` distinguishing the two cases. The absence of a row means *neither* — the default state for any pair of users.
 
 ```sql
-create table public.blocks (
-  blocker_id uuid not null references auth.users(id) on delete cascade,
-  blocked_id uuid not null references auth.users(id) on delete cascade,
-  blocked_at timestamptz not null default now(),
-  primary key (blocker_id, blocked_id),
-  check (blocker_id <> blocked_id)
+create table public.relationships (
+  user_id       uuid not null references auth.users(id) on delete cascade,
+  other_user_id uuid not null references auth.users(id) on delete cascade,
+  status        text not null
+                  check (status in ('circle', 'blocked')),
+  created_at    timestamptz not null default now(),
+  modified_at   timestamptz not null default now(),
+  primary key (user_id, other_user_id),
+  check (user_id <> other_user_id)
 );
 
-alter table public.blocks enable row level security;
+alter table public.relationships enable row level security;
 ```
 
-`blocks` and `circle_members` can coexist for the same pair — a block does not auto-remove the circle relationship (so unblocking restores the prior state). The "block always wins" rule is enforced at the application level inside the invite RPCs.
+`(user_id, other_user_id)` is directional — *"user_id's view of other_user_id."* A symmetric circle relationship (the email-add case) is two rows, one in each direction; the schema doesn't enforce symmetry. `status` is mutually exclusive — a single pair is either in the circle or blocked, never both. Blocking someone who was already in your circle overwrites the row's `status` from `circle` to `blocked`; unblocking deletes the row (the prior `circle` state is *not* preserved across a block/unblock cycle — re-adding requires a deliberate action). `on delete cascade` on both FKs because relationship state is purely personal data with no shared value to preserve. The "blocked always wins" rule is enforced at the application level inside the invite RPCs (which check for `status = 'blocked'` before consulting `invite_policy` or circle membership). The column is named `other_user_id` rather than `member_id` because *member* is already taken by `list_members`, and uniformity within the schema beats cross-table puns.
 
 ### `invitations`
 
@@ -218,47 +245,49 @@ Pending offers of list membership. An invitation has three terminal states: acce
 
 ```sql
 create table public.invitations (
-  id              uuid primary key default gen_random_uuid(),
-  list_id         uuid not null references public.lists(id) on delete cascade,
-  inviter_id      uuid not null references auth.users(id) on delete cascade,
-  invitee_user_id uuid          references auth.users(id) on delete cascade,
-  invitee_email   text,
-  created_at      timestamptz not null default now(),
-  check (invitee_user_id is not null or invitee_email is not null)
+  id             uuid primary key default gen_random_uuid(),
+  list_id        uuid not null references public.lists(id) on delete cascade,
+  created_by     uuid not null references auth.users(id) on delete cascade,
+  target_user_id uuid          references auth.users(id) on delete cascade,
+  target_email   text,
+  created_at     timestamptz not null default now(),
+  modified_at    timestamptz not null default now(),
+  check (target_user_id is not null or target_email is not null)
 );
 
 alter table public.invitations enable row level security;
 
-create unique index invitations_user_uniq
-  on public.invitations (list_id, invitee_user_id)
-  where invitee_user_id is not null;
+create unique index invitations_target_user_uniq
+  on public.invitations (list_id, target_user_id)
+  where target_user_id is not null;
 
-create unique index invitations_email_uniq
-  on public.invitations (list_id, lower(invitee_email))
-  where invitee_email is not null and invitee_user_id is null;
+create unique index invitations_target_email_uniq
+  on public.invitations (list_id, lower(target_email))
+  where target_email is not null and target_user_id is null;
 ```
 
-The dual `invitee_user_id` / `invitee_email` keys handle both paths: a Cairn user (user_id set, email null) and an unregistered email (email set, user_id null). The check constraint requires exactly one of them to be present. The two partial unique indexes prevent duplicate pending invites to the same list.
+The dual `target_user_id` / `target_email` keys handle both paths: a Cairn user (user_id set, email null) and an unregistered email (email set, user_id null). The check constraint requires exactly one of them to be present. The two partial unique indexes prevent duplicate pending invites to the same list. Column names follow the schema-wide rule: `created_by` for the inviter (uniform with `lists`/`items`/`list_members`), and `target_*` for the recipient — the role-specific names `inviter_id` / `invitee_*` are gone, since the table name already carries the role context. Note that `invitations.created_by` uses `on delete cascade` rather than `on delete set default`: invitations are pending state with no audit value once the inviter is gone, so the cascade is the right semantic — same column name as `lists.created_by` / `items.created_by`, different FK action because the table's role is different.
 
 ## The `items_ranked` view
 
 This is what the web app actually queries. It joins items to their votes, filters out soft-deleted rows, and computes the columns the UI needs. The sort order from the project description — highest score first, ties broken by oldest first — is applied as a client-side `ORDER BY` on the view (PostgREST exposes this via the `order` query parameter).
 
 ```sql
-create view public.items_ranked as
+create view public.items_ranked
+with (security_invoker = true) as
 select
   i.id,
   i.list_id,
   i.name,
   i.notes,
-  i.created_at,
-  i.modified_at,
   i.created_by,
   i.modified_by,
   coalesce(sum(v.value), 0)::int                                  as score,
   coalesce(count(v.value) filter (where v.value > 0), 0)::int     as positive_voters,
   coalesce(count(v.value) filter (where v.value < 0), 0)::int     as negative_voters,
-  coalesce(count(v.value), 0)::int                                as total_voters
+  coalesce(count(v.value), 0)::int                                as total_voters,
+  i.created_at,
+  i.modified_at
 from public.items i
 left join public.votes v on v.item_id = i.id
 where i.deleted_at is null
@@ -270,38 +299,75 @@ A few notes:
 - **`score` is a simple sum of vote values.** A single +3 from one excited person outweighs three +1s from mildly interested people. This is deliberate — the seven-step scale exists precisely so that enthusiasm registers, and averaging would erase that. If "two people kinda-like" should ever beat "one person loves," that's a future tweak: change the sort to `(score desc, total_voters desc, created_at asc)` and the items table won't need to know.
 - **The view does not encode the `ORDER BY`.** Sorting is applied by the client query (`?order=score.desc,created_at.asc` in PostgREST). This lets the same view serve other orderings later — by date, by who added it — without duplication.
 - **`positive_voters` and `negative_voters` are counts, not sums.** They tell the UI *how many people* are on each side, regardless of intensity. Combined with `score`, this is enough for any of the displays we might want ("Alice +3, Bob +1, Carol −2" or just a numeric score or a small bar chart).
-- **The view inherits row-level security from the underlying tables.** A user only sees rows for items in lists they're a member of, automatically.
+- **`security_invoker = true` makes the view inherit the caller's RLS.** A user only sees rows for items in lists they're a member of, automatically — and soft-deleted items are hidden by `items_select`'s `deleted_at is null` clause for everyone except the user who soft-deleted them (the `or deleted_by = public.uid()` disjunct admits the deleter on the base-table path; see `items_select` below). The `where i.deleted_at is null` in the view body is therefore **load-bearing**, not defensive — it's what keeps the deleter's own soft-deletes out of the live-feed view too, even though the base-table policy admits them for the deleter alone. This is deliberately the *opposite* setting from the trash views below: the live aggregation view leans on policies plus this filter, while the trash views run as owner and gate themselves with an explicit membership check. The asymmetry is the whole point — the live view never exposes soft-deleted content to anyone; the trash is an explicit, separately-authorized read path.
 
 ## The `items_deleted` view
 
 The trash screen (see `ui.md`) reads from a parallel view that filters to *only* soft-deleted rows. Same shape as `items_ranked` minus the vote tallies — vote counts on a deleted item aren't meaningful — plus the `deleted_at` and `deleted_by` columns the UI displays as the *"deleted by Bob, 3 May 2026"* attribution.
 
 ```sql
-create view public.items_deleted as
+create view public.items_deleted
+with (security_invoker = false) as
 select
   i.id,
   i.list_id,
   i.name,
   i.notes,
-  i.created_at,
-  i.modified_at,
-  i.deleted_at,
   i.created_by,
   i.modified_by,
-  i.deleted_by
+  i.deleted_by,
+  i.created_at,
+  i.modified_at,
+  i.deleted_at
 from public.items i
-where i.deleted_at is not null;
+where i.deleted_at is not null
+  and public.is_list_member(i.list_id);
 ```
 
-The web app queries `GET /items_deleted?list_id=eq.<uuid>&order=deleted_at.desc` to populate the trash. Restoring an item is a `PATCH /items?id=eq.<uuid>` with `{"deleted_at": null, "deleted_by": null}` — the standard update path, gated by the same `items_update` policy as any other edit. There is no separate "restore" endpoint.
+The `security_invoker = false` is deliberate (and the opposite of `items_ranked`): the view runs as its owner (`cairn`, the table owner, exempt from RLS), so it can read soft-deleted rows that the `items_select` policy hides from `authenticated`. To compensate for the bypassed RLS, the view body adds `and public.is_list_member(i.list_id)` — this is now the *only* authorization gate for the trash, and is therefore covered by a load-bearing negative pgTAP test (a non-member sees zero rows through the view).
 
-A matching `lists_deleted` view exists for the per-user list trash reachable from Settings — same idea, filtered to lists the user was a member of.
+The web app queries `GET /items_deleted?list_id=eq.<uuid>&order=deleted_at.desc` to populate the trash. Restoring an item is a `PATCH /items?id=eq.<uuid>` with `{"deleted_at": null, "deleted_by": null}` — the standard update path, gated by the live `items_update` policy. There is no separate "restore" endpoint. Note that `items_update` checks `is_list_member()` against `list_members.deleted_at is null`, so a member who has soft-removed themselves can no longer restore items in a list they've left, even if their session still had the trash open. That's the desired behaviour.
+
+A matching `lists_deleted` view follows the same pattern for the per-user list trash reachable from Settings:
+
+```sql
+create view public.lists_deleted
+with (security_invoker = false) as
+select
+  l.id,
+  l.name,
+  l.description,
+  l.created_by,
+  l.deleted_by,
+  l.created_at,
+  l.modified_at,
+  l.deleted_at
+from public.lists l
+where l.deleted_at is not null
+  and public.is_list_member(l.id);
+```
+
+Same asymmetry, same load-bearing test: the `is_list_member()` filter is the only gate on a view that bypasses RLS. The view shows lists where the requester is *currently* a member (membership row not soft-deleted) — this matches `items_deleted` and means a former member can't see the trash of a list they've left.
 
 ## Row-level security policies
 
 The whole authorization model expressed as Postgres policies. PostgREST runs as a role called `authenticated` (for logged-in users) or `anon` (for not-logged-in requests). Anonymous users have no access to any table; only the policies for `authenticated` matter for Cairn.
 
-The user's identity is available in policies as `auth.uid()` — a helper function provided by the GoTrue conventions that returns the UUID extracted from the JWT.
+The user's identity is available in policies as `public.uid()` — a Cairn-owned helper, sibling to `public.is_list_member()`. Vanilla GoTrue does *not* ship a `uid()` helper (Supabase's hosted helpers ship `auth.uid()`, but Cairn runs the open-source GoTrue, not Supabase's hosted service); we deliberately put ours in `public` rather than `auth` so a future GoTrue release can't clobber it. The function reads the `sub` claim out of `request.jwt.claims`, the JSON-object GUC PostgREST v10+ sets per request (the per-claim `request.jwt.claim.<name>` GUCs were removed in v10):
+
+```sql
+create function public.uid() returns uuid
+  language sql stable
+  set search_path = public
+as $$
+  select (
+    (nullif(current_setting('request.jwt.claims', true), ''))::jsonb
+    ->> 'sub'
+  )::uuid;
+$$;
+```
+
+**Grants are mandatory.** Every table here ships with `grant select, insert, update [, delete] on <table> to authenticated` alongside its policies. RLS without a matching grant produces a silent empty result through PostgREST — easy to miss in a smoke check, easy to ship by accident. The grants are not shown inline with each policy block below to keep the prose readable, but they are part of the migration and tested in `db/tests/grants.sql`.
 
 ### Helper function: am I a member?
 
@@ -319,7 +385,7 @@ as $$
     select 1
     from public.list_members
     where list_id = target_list
-      and user_id = auth.uid()
+      and user_id = public.uid()
       and deleted_at is null
   );
 $$;
@@ -327,16 +393,38 @@ $$;
 
 `security definer` lets this function read `list_members` without itself being subject to RLS — otherwise we'd have a chicken-and-egg problem. The function is only callable to check membership, so this doesn't widen the attack surface.
 
+A sibling helper covers the parallel question for an item:
+
+```sql
+create or replace function public.is_items_list_member(target_item uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select exists (
+    select 1 from public.items i
+    where i.id = target_item
+      and public.is_list_member(i.list_id)
+  );
+$$;
+```
+
+This is what `votes_select` (below) calls, and it is genuinely load-bearing: an inline `EXISTS (SELECT 1 FROM public.items …)` in the policy body would be subject to `items_select`'s `deleted_at IS NULL` filter (Postgres applies RLS recursively to subqueries within policy bodies), and historical votes on a soft-deleted item would silently disappear from the trash UI's "at the time, +2 from Bob, -1 from Carol" rendering — contradicting the "members can see all votes" rule the policy is meant to encode. `security definer` plus `set search_path = public` lets the helper read `items` without inheriting `items_select`, and locks against schema-shadowing the same way `is_list_member` does. `votes_insert` and `votes_update` deliberately do *not* use this helper — those policies *want* the recursive `deleted_at` filter, since casting or changing a vote on a soft-deleted item is what they're closing off.
+
 ### `lists`
 
 ```sql
--- Read: any member can see the list
+-- Read: any member can see live lists; soft-deleted lists are visible
+-- through this view only to the user who deleted them (whose `deleted_by`
+-- equals `public.uid()`). All soft-deleted lists are also reachable
+-- through the lists_deleted view below, which has its own membership check.
 create policy lists_select on public.lists
-  for select using (public.is_list_member(id) and deleted_at is null);
-
--- Insert: any authenticated user can create a list (they become the first member via trigger)
-create policy lists_insert on public.lists
-  for insert with check (auth.uid() = created_by);
+  for select using (
+    public.is_list_member(id)
+    and (deleted_at is null or deleted_by = public.uid())
+  );
 
 -- Update: any member can rename or soft-delete the list
 create policy lists_update on public.lists
@@ -344,40 +432,55 @@ create policy lists_update on public.lists
   with check (public.is_list_member(id));
 ```
 
+The composite `(deleted_at is null or deleted_by = public.uid())` clause on `lists_select` is load-bearing in two halves. The `deleted_at is null` half is what makes soft-deleted rows invisible through the base-table API path (`GET /lists`, and `GET /items_ranked` which inherits the caller's RLS) for everyone *other* than the soft-deleter; without it, soft-deleted content would silently leak through the base tables. The `or deleted_by = public.uid()` half is what makes PATCH-based soft-delete actually work at all: Postgres applies SELECT policies as WITH CHECK against the *new* row of an UPDATE when the caller has SELECT privilege on the table, so a `lists_select` USING that only admitted live rows would reject every soft-delete UPDATE — the new row (`deleted_at` non-null) wouldn't satisfy the policy. The disjunct lets the deleter's own transition pass while still hiding the row from every other member through the base table. Cascade-driven repointing of `deleted_by` to the tombstone (`on delete set default` from `auth.users`) drops abandoned soft-deletes back to "trash-view only" for everyone, since no live caller's `public.uid()` ever equals the tombstone. Soft-deleted content is reachable for everyone-but-the-deleter only through the `lists_deleted` / `items_deleted` views, which run with `security_invoker = false` and gate access with their own explicit `is_list_member()` filter. Don't "simplify" either half of the disjunct away.
+
+There is no `lists_insert` policy, and no `insert` grant on `public.lists` for `authenticated`. List creation goes through the `create_list` RPC only (see "What the app sees" below). A direct `POST /lists` would otherwise succeed under a permissive insert policy but skip the matching `list_members` row, leaving an orphan list invisible to its creator forever; closing off direct insert at both the policy and grant layers makes the RPC the only create path.
+
 There is no `delete` policy. Hard deletion is not allowed via the API.
 
 ### `list_members`
 
 ```sql
--- Read: members can see the membership of lists they're in
+-- Read: members can see the membership of lists they're in; each user
+-- can also see their own membership rows (including a row where they
+-- have been soft-removed, so a kicked user knows they were kicked)
 create policy list_members_select on public.list_members
-  for select using (public.is_list_member(list_id));
-
--- Insert: members can add new members
-create policy list_members_insert on public.list_members
-  for insert with check (
-    public.is_list_member(list_id) and added_by = auth.uid()
+  for select using (
+    public.is_list_member(list_id) or user_id = public.uid()
   );
 
--- Update: a member can soft-delete (remove) another member, or restore one
+-- Update: a member can soft-delete (remove) another member, or restore one,
+-- or soft-remove themselves
 create policy list_members_update on public.list_members
   for update using (public.is_list_member(list_id))
-  with check (public.is_list_member(list_id));
+  with check (public.is_list_member(list_id) or user_id = public.uid());
 ```
 
-A user can remove themselves from a list by soft-deleting their own row. They can also remove any other member — there is no admin role. This matches the flat-permissions model.
+The `or user_id = public.uid()` clause on `list_members_select` is load-bearing for the same reason as on `list_members_update`'s `with check`: Postgres applies SELECT policies as WITH CHECK against the new row of an UPDATE when the caller has SELECT privilege, so a `select using (is_list_member(list_id))` that only admitted live members would reject every self-soft-removal UPDATE — the new row makes the caller a non-member, which fails the policy. The self-row disjunct on the SELECT side lets the transition pass; the same disjunct on the WITH CHECK side lets the row pass the update policy. The pair is the entire mechanism that makes "a user can remove themselves from a list" work under Postgres RLS. The extra read visibility this creates (a kicked user can SELECT their own kicked row) is intentional — it's how the UI surfaces "you were removed from this list."
+
+There is no `list_members_insert` policy, and no `insert` grant on `public.list_members` for `authenticated`. Membership writes happen only through the `create_list` RPC (which inserts the creator's row alongside the list, in-transaction) and the `accept_invitation` RPC (which inserts an invitee's row after they explicitly accept). A permissive insert policy would let any member directly `POST /list_members` to add any other authenticated user without their consent and bypassing the `blocks` / `invite_policy` checks that `accept_invitation` enforces — closing it at the policy and grant layers makes consent structural, parallel to how `lists` makes the `create_list` RPC the only create path. The UPDATE side is closed by `tg_freeze_list_members_pk` (see Triggers below): the `with check`'s self-row branch would otherwise let a member PATCH their own row's `list_id` to any list whose UUID they can obtain, silently undoing the INSERT-side consent closure. Both sides have to be closed for "consent is structural" to hold.
+
+A user can remove themselves from a list by soft-deleting their own row. They can also remove any other member — there is no admin role. This matches the flat-permissions model: any member can kick any member, just as any member can edit or delete any item. The symmetric counterpart — any member can restore another's soft-removed row — falls out of the same policy and is intentional (it's the "oops, sorry" path; the cost is that a vandal's accomplice could un-kick them, which we accept). Self-restoration after being kicked is naturally blocked: the kicked user fails `is_list_member()` and so can't see their own row through the `using` clause to PATCH it.
+
+The `or user_id = public.uid()` in the `with check` is load-bearing for self-removal: the moment a user sets `deleted_at` on their own membership row, `is_list_member()` starts returning false for them on that list (it filters on `deleted_at is null`). A pure `is_list_member(list_id)` check would reject the very update that performs the removal, since the post-update row violates the predicate. Allowing `user_id = public.uid()` as an alternative gate lets the row pass — the user is acting on their own row, which is always permitted.
 
 ### `items`
 
 ```sql
--- Read: members of the parent list can see items
+-- Read: members of the parent list can see live items; soft-deleted items
+-- are visible through this view only to the user who deleted them (whose
+-- `deleted_by` equals `public.uid()`). All soft-deleted items are also
+-- reachable through items_deleted, which has its own membership check.
 create policy items_select on public.items
-  for select using (public.is_list_member(list_id) and deleted_at is null);
+  for select using (
+    public.is_list_member(list_id)
+    and (deleted_at is null or deleted_by = public.uid())
+  );
 
 -- Insert: members can add items, attributed to themselves
 create policy items_insert on public.items
   for insert with check (
-    public.is_list_member(list_id) and created_by = auth.uid()
+    public.is_list_member(list_id) and created_by = public.uid()
   );
 
 -- Update: members can edit or soft-delete any item in their lists
@@ -388,36 +491,64 @@ create policy items_update on public.items
 
 A member can edit any item, not just ones they created. The product is collaborative — Bob can fix the typo in the movie title Alice added.
 
+The composite `(deleted_at is null or deleted_by = public.uid())` clause on `items_select` mirrors the same shape (and the same load-bearing reasoning) as on `lists_select`. The `deleted_at is null` half makes soft-deleted items invisible to non-deleter members through the base-table API path (`GET /items` and `GET /items_ranked`, which inherits this RLS via `security_invoker = true`). The `or deleted_by = public.uid()` half is what makes PATCH-based soft-delete actually possible at all under Postgres RLS — without it, the SELECT policy applied as WITH CHECK on the new row of a soft-delete UPDATE would reject the transition. The disjunct admits the deleter's own row through; cascade-driven repointing of `deleted_by` to the tombstone hides abandoned soft-deletes from everyone once the deleter's account is gone. Soft-deleted items remain reachable for everyone-but-the-deleter only through the `items_deleted` view, which runs as the owner (`security_invoker = false`) and gates access with its own explicit `is_list_member()` filter.
+
 ### `votes`
 
 ```sql
--- Read: members can see all votes on items in their lists
+-- Read: members can see all votes on items in their lists, including
+-- historical votes on items that have since been soft-deleted (so the
+-- trash UI can render "deleted by Alice — at the time, +2 from Bob,
+-- -1 from Carol"). The check goes through public.is_items_list_member,
+-- a security-definer helper, deliberately so the recursive RLS that
+-- would otherwise apply to a direct `select … from public.items …`
+-- subquery doesn't silently filter on items.deleted_at — see the
+-- helper's rationale above. Votes vanish only when the item itself is
+-- hard-deleted (which cascades them via votes.item_id).
 create policy votes_select on public.votes
-  for select using (
-    exists (
-      select 1 from public.items i
-      where i.id = item_id and public.is_list_member(i.list_id)
-    )
-  );
+  for select using (public.is_items_list_member(item_id));
 
--- Insert: members can vote on items in their lists, as themselves
+-- Insert: members can vote on items in their lists, as themselves.
+-- The i.deleted_at is null filter is load-bearing: without it, a
+-- member could cast a vote on a trashed item, which would then
+-- silently change the score the moment the item was restored.
 create policy votes_insert on public.votes
   for insert with check (
-    user_id = auth.uid() and
+    user_id = public.uid() and
     exists (
       select 1 from public.items i
-      where i.id = item_id and public.is_list_member(i.list_id)
+      where i.id = item_id
+        and i.deleted_at is null
+        and public.is_list_member(i.list_id)
     )
   );
 
--- Update: a user can change their own vote
+-- Update: a user can change their own vote — but only on a live
+-- item, mirroring votes_insert's filter. The same trash-vs-live
+-- argument applies on update as on insert.
 create policy votes_update on public.votes
-  for update using (user_id = auth.uid())
-  with check (user_id = auth.uid());
+  for update using (
+    user_id = public.uid() and
+    exists (
+      select 1 from public.items i
+      where i.id = item_id
+        and i.deleted_at is null
+        and public.is_list_member(i.list_id)
+    )
+  )
+  with check (
+    user_id = public.uid() and
+    exists (
+      select 1 from public.items i
+      where i.id = item_id
+        and i.deleted_at is null
+        and public.is_list_member(i.list_id)
+    )
+  );
 
 -- Delete: a user can retract their own vote (votes are hard-deleted)
 create policy votes_delete on public.votes
-  for delete using (user_id = auth.uid());
+  for delete using (user_id = public.uid());
 ```
 
 Vote visibility is open within a list — Alice can see that Bob downvoted *Casablanca*. This is by design: the social context of the votes (who likes what) is part of the value of the app for a small group.
@@ -428,58 +559,88 @@ Vote visibility is open within a list — Alice can see that Bob downvoted *Casa
 -- Read: any authenticated user can see any profile
 -- (display names need to be visible across lists)
 create policy profiles_select on public.profiles
-  for select using (auth.role() = 'authenticated');
+  for select using (public.uid() is not null);
 
 -- Update: a user can edit their own profile
 create policy profiles_update on public.profiles
-  for update using (id = auth.uid())
-  with check (id = auth.uid());
+  for update using (id = public.uid())
+  with check (id = public.uid());
 ```
 
-Profiles are world-readable to authenticated users. This is what lets the app render "Alice added *Blade Runner*" without a separate per-list lookup. Email addresses are *not* in this table — they remain in `auth.users`, which is not exposed via PostgREST.
+Profiles are world-readable to authenticated users. This is what lets the app render "Alice added *Blade Runner*" without a separate per-list lookup. Email addresses are *not* in this table — they remain in `auth.users`, which is not exposed via PostgREST. Personal preferences are *not* in this table either — they live in `user_settings` (next), under owner-only RLS.
 
-### `circle_members`, `blocks`, `invitations`
+### `user_settings`
 
 ```sql
--- circle_members: visible only to the owner of the circle. The fact that
--- Bob has Alice in his circle is Bob's private permission setting on
--- himself; Alice doesn't get to see it. Each user manages only their
--- own circle.
-create policy circle_select on public.circle_members
-  for select using (user_id = auth.uid());
-create policy circle_insert on public.circle_members
-  for insert with check (user_id = auth.uid());
-create policy circle_delete on public.circle_members
-  for delete using (user_id = auth.uid());
+-- Read: only the owner sees their own settings row
+create policy user_settings_select on public.user_settings
+  for select using (id = public.uid());
 
--- blocks: visible only to the blocker
-create policy blocks_select on public.blocks
-  for select using (blocker_id = auth.uid());
-create policy blocks_insert on public.blocks
-  for insert with check (blocker_id = auth.uid());
-create policy blocks_delete on public.blocks
-  for delete using (blocker_id = auth.uid());
+-- Update: only the owner updates their own settings row
+create policy user_settings_update on public.user_settings
+  for update using (id = public.uid())
+  with check (id = public.uid());
+```
+
+One row per user, owned by the user, never visible to anyone else. Inserts go through `tg_profile_on_signup` (the same trigger that creates the matching `profiles` row), so there is no `user_settings_insert` policy and no `INSERT` grant for `authenticated`. Deletes happen via cascade from `auth.users` when the account is deleted; there is no `DELETE` policy either.
+
+### `relationships`, `invitations`
+
+```sql
+-- relationships: visible only to the owner of the row. The fact that
+-- Bob has Alice in his circle (or has blocked her) is Bob's private
+-- setting on himself; Alice doesn't get to see it. Each user manages
+-- only their own relationships, in either direction.
+create policy relationships_select on public.relationships
+  for select using (user_id = public.uid());
+create policy relationships_insert on public.relationships
+  for insert with check (user_id = public.uid());
+create policy relationships_update on public.relationships
+  for update using (user_id = public.uid())
+  with check (user_id = public.uid());
+create policy relationships_delete on public.relationships
+  for delete using (user_id = public.uid());
 
 -- invitations: visible to both inviter and invitee
 create policy invitations_select on public.invitations
-  for select using (inviter_id = auth.uid() or invitee_user_id = auth.uid());
+  for select using (created_by = public.uid() or target_user_id = public.uid());
 ```
 
-Inserts and deletes on `invitations`, and the email-add path for `circle_members`, go through `security definer` RPCs (`send_invitation`, `accept_invitation`, `decline_invitation`, `add_circle_by_email`). These functions need to read other users' `invite_policy` and `blocks` rows for the policy/block check, which RLS would otherwise hide. See `invites.md` for the function bodies.
+Inserts and deletes on `invitations`, and the email-add path for `relationships` (which writes a row in *the other user's* direction), go through `security definer` RPCs (`send_invitation`, `accept_invitation`, `decline_invitation`, `add_circle_by_email`). These functions need to read other users' `invite_policy` and `relationships` rows for the policy/block check, which RLS would otherwise hide. See `invites.md` for the function bodies.
+
+The `relationships_update` policy exists so a user can flip an existing row's `status` (e.g., from `circle` to `blocked`) without the round-trip of delete-then-insert. It is gated on `user_id = public.uid()` for both `using` and `with check`, matching the rest of the policy set — only the owner of the row can change its status.
 
 ## Triggers
 
 A small set of triggers keeps the data consistent without relying on the client to do it correctly.
 
-**`profiles_create_on_signup`** — when a row is inserted into `auth.users`, insert a corresponding `profiles` row with `display_name` defaulted to the email's local-part. The user is prompted to set a real name on first launch.
+**Naming convention.** Trigger *function* names carry a `tg_` prefix so they're easy to grep and never collide with table or column names. Trigger *bindings* (the `CREATE TRIGGER` statement, distinct from the function it calls) get a numeric prefix — `t10_*`, `t20_*`, `t30_*` — that locks alphabetical firing order: when multiple BEFORE or AFTER triggers fire on the same row, Postgres orders them by binding name, so a leading `t10_` always fires before a `t20_`. This is defensive against a future third trigger whose ordering would otherwise depend on insertion order.
 
-**`lists_creator_is_member`** — when a list is inserted, also insert a `list_members` row for the creator. This means a freshly created list always has at least one member, and the policy machinery works uniformly from the start.
+**`tg_profile_on_signup`** — `after insert on auth.users`, insert *two* corresponding rows: a `profiles` row with `display_name` set to the fixed placeholder `'New user'`, and a `user_settings` row with `invite_policy = 'everybody'` written *explicitly* in the INSERT (rather than leaning on the column DEFAULT). The explicit form keeps trigger correctness from being coupled to the table default — a future migration that drops or changes the default shouldn't silently change what the trigger writes for fresh signups. Both rows are 1:1 with the auth user; both cascade-delete with the auth user. The trigger does **not** read `new.email`: the email's local part is often the user's real name, and seeding `display_name` from it would leak email content through every UI surface that renders the placeholder during the brief window before the user sets their own name. The trigger skips when `new.id = '00000000-0000-0000-0000-000000000000'` so the manual tombstone-profile insert from `account-deletion.md` isn't double-handled, and uses `on conflict (id) do nothing` on each insert for safety. The tombstone gets a `profiles` row (rendered as "Deleted user" on every item/list it's attributed to) but **no `user_settings` row** — nobody is ever the owner of the tombstone, so a settings row would have no reader. On first launch the web app detects the `'New user'` placeholder in `profiles.display_name` and forces a "What should we call you?" screen before any other action.
 
-**`items_modified_at`** — `before update on items`, set `modified_at = now()`. The client never sets this column directly.
+This is the *only* `security definer` trigger in the schema, and only because it has to be: `auth.users` is inserted into by the `gotrue` role, not `authenticated`, and neither `profiles` nor `user_settings` has an `insert` policy or `insert` grant — the cross-schema, cross-table writes need to escalate. Other privileged cross-table writes go through RPCs (see `create_list`, `send_invitation`, etc.), not triggers, so this is the lone exception.
 
-**`lists_modified_at`** — same for lists.
+**`tg_set_timestamps`** — `before insert or update`, the universal timestamp guard. `security invoker`, `language plpgsql`, bound to every table that has `created_at` and `modified_at` (so: `profiles`, `user_settings`, `lists`, `list_members`, `items`, `votes` — and the Tier 3 tables when they land). On insert, sets `new.created_at = new.modified_at = clock_timestamp()`, overriding any client-supplied value (same "never trust client-sent attribution" rule the other override triggers apply, lifted to the timestamp columns). On update, sets *both* `new.created_at = old.created_at` *and* `new.modified_at = old.modified_at`, freezing both timestamp columns against direct PATCH-style client backdating regardless of which other columns the request touches. The trigger does **not** independently bump `modified_at` on update — that's `tg_set_modified_at`'s job, gated by an `OF (cols)` clause. Trigger ordering does the right thing without coordination: `t05_set_timestamps` runs first and freezes `new.modified_at` to `old.modified_at`; then `t20_set_modified_at`, gated by `OF (cols)`, runs second and overwrites with `clock_timestamp()` *only* when one of its OF-listed content columns actually changed. When the OF clause doesn't match (a client PATCH that only sets `modified_at` itself, or a cascade SET DEFAULT that only touches attribution columns), `t20` doesn't fire and the freeze holds. Trigger-binding prefix is `t05_*`, so it fires before `t10_set_attribution_*` and `t20_set_modified_at_*`. `clock_timestamp()` (rather than `now()`) is what gives the trigger pair per-call monotonicity inside a single transaction — the "re-vote bumps `modified_at` strictly past its prior value" pgTAP assertion is what locks it in.
 
-**`set_attribution`** — `before insert or update` on `lists` and `items`. On insert, sets `created_by` and `modified_by` to `auth.uid()`. On update, sets `modified_by` to `auth.uid()`; if the update transitions `deleted_at` from null to non-null, also sets `deleted_by`. The same logic applies to `list_members` for `added_by` and `deleted_by`. The client *cannot* override these fields — even if the request body includes a `created_by`, the trigger overwrites it. This makes attribution authoritative and prevents spoofing.
+**`tg_set_modified_at`** — `before update of` non-attribution columns, set `new.modified_at = clock_timestamp()`. `security invoker` (the default), since it only mutates `NEW`. One function, bound per-table with a per-table `OF (cols)` clause: `profiles` (`of display_name`), `user_settings` (`of invite_policy`), `lists` (`of name, description, deleted_at`), `list_members` (`of deleted_at`), `items` (`of list_id, name, notes, deleted_at`), `votes` (`of value`). The client never sets `modified_at` directly. The column-restricted `of` clause is deliberate: `on delete set default` cascades fire user-defined `before update` triggers, but the cascade only touches attribution columns, so an `of (non-attribution)` declaration means the trigger never fires during cascade — `modified_at` stays at its real "last content change" value rather than getting bumped on every row the deleted user ever touched. Tables without attribution columns (`profiles`, `user_settings`, `votes`) don't have a cascade-skip concern, but use the same `OF` pattern for uniformity. The `clock_timestamp()` choice (rather than `now()`, which is transaction-constant) is what makes re-vote / re-PATCH within one transaction observably bump the column — see the `tg_set_timestamps` paragraph above.
+
+**`tg_set_attribution_lists`**, **`tg_set_attribution_items`**, **`tg_set_attribution_list_members`** — `before insert or update`, one function per table, all `security invoker`. Three small functions rather than one with `TG_TABLE_NAME` branching: each one only references the columns its target table actually has, which is easier to read, easier to test in isolation, and means a future fourth attribution-bearing table just gets its own function in the same shape. Behaviour varies per table because the column shapes differ (only `items` has `modified_by`); the per-row "this user did it" column is uniformly named `created_by` across all three tables.
+
+- On **insert**: set `created_by = public.uid()` on all three tables. On `items` only, also set `modified_by = public.uid()`. On all three tables, force `deleted_by` to `null` (overriding any client-sent value and the column DEFAULT — see Risk #11 in the plan for why this matters). The `created_at` and `modified_at` columns are *not* touched by these triggers — `tg_set_timestamps` (above) handles them uniformly across every table.
+- On **update**: each attribution-column rule below is *individually gated* on `new.<that-rule's-target-column> is distinct from '00000000-0000-0000-0000-000000000000'` (the tombstone). The gating is **per-rule**, not shared: the freeze rule is keyed on `new.created_by`, and the items-only `modified_by := public.uid()` rule is keyed on `new.modified_by` separately. When a rule's gate is true, the trigger applies the rule; when the gate is false (the `on delete set default` cascade is transitioning *that specific column* to the tombstone), the trigger leaves `new` alone for that rule and the cascade completes. Per-rule keying matters because the cascade may touch one attribution column at a time — a single shared gate keyed off only one column would let the other rule fire spuriously during the pass that doesn't touch its column. Without the gate at all, the freeze reverts the cascade UPDATE, the FK re-check skips because the columns didn't change, and the referenced `auth.users` row is then deleted — leaving every `created_by` / `modified_by` previously attributed to the deleted user as a dangling FK reference. See plan Risk #12 for the full rationale and test coverage. The rules:
+  - lock `created_by` against client spoofing — `if new.created_by is distinct from '00000000-…' then new.created_by := old.created_by; end if;` on `lists`, `items`, and `list_members`;
+  - on `items` only, `if new.modified_by is distinct from '00000000-…' then new.modified_by := public.uid(); end if;` (`lists` and `list_members` have no `modified_by`);
+  - on all three tables, an IF/ELSIF/ELSE chain on `deleted_at` decides what to do with `deleted_by`. Soft-delete transition (`old.deleted_at is null and new.deleted_at is not null`): set `deleted_by = public.uid()`. Restore transition (`old.deleted_at is not null and new.deleted_at is null`): clear `deleted_by` back to null. Else branch — `deleted_at` unchanged *or* re-stamped to a different non-null timestamp — tombstone-gate-freeze `deleted_by` against client spoofing: `if new.deleted_by is distinct from '00000000-…' then new.deleted_by := old.deleted_by; end if;`. Without the freeze, a member who can PATCH a row (which on soft-deleted rows includes any list member, since `*_update`'s `using` clause has no `deleted_at is null` filter) can rewrite `deleted_by` to frame another user in the trash UI's "deleted by …" attribution — same shape that the `created_by` freeze closes for the create attribution. Tombstone-gated for the same `on delete set default` cascade reason as the `created_by` freeze: when account deletion cascades on the `deleted_by` FK of an already-soft-deleted row, the cascade UPDATE sets `new.deleted_by := tombstone` while leaving `deleted_at` unchanged, and the gate must let that transition through. The transition branches are *not* gated on the tombstone — they only fire when `deleted_at` itself changes, which the cascade doesn't touch.
+
+The client *cannot* override these fields with arbitrary values — even if the request body includes a `created_by`, the trigger overwrites it. The one tombstone-passthrough side-effect: a client can deliberately PATCH `created_by = '00000000-…'` and have it stick, rendering the row as "Deleted user." That's vandalism, not privilege escalation (any user can already self-tombstone via account deletion), and the alternative — detecting cascade context via `pg_trigger_depth()` — is more fragile than the explicit gate.
+
+The forced-`null` `deleted_by` on insert is load-bearing. The seven attribution FKs use `on delete set default`, with the column DEFAULT set to the tombstone UUID — that's how account deletion repoints attribution to "Deleted user" for every column at once. Postgres applies the column DEFAULT on INSERT-without-value too, which is fine for `created_by` and `modified_by` (the trigger overwrites them anyway), but is *wrong* for `deleted_by`: a freshly inserted live row must have `deleted_by is null`, not the tombstone UUID, because the row hasn't been deleted yet. Without the trigger override, every brand-new item would silently render as "deleted by Deleted user."
+
+The cleared-on-restore branch is the symmetric case: without it, a row restored from trash would leave `deleted_by` pointing at whoever previously soft-deleted it, forcing every client to remember to send `deleted_by: null` alongside `deleted_at: null` (and silently corrupting attribution if they don't).
+
+**`tg_freeze_list_members_pk`** — `before update on public.list_members`, raises if `new.list_id is distinct from old.list_id` or `new.user_id is distinct from old.user_id`. Bound with the prefix `t01_*` so it fires before `t05_set_timestamps`, `t10_set_attribution_list_members`, and `t20_set_modified_at`, short-circuiting the statement before any other work runs. The reason this exists: the `list_members_update` policy's `with check (is_list_member(list_id) or user_id = public.uid())` clause is load-bearing for self-removal (a member's own soft-deleted row no longer satisfies `is_list_member()`, so the alternate self-row gate is what lets soft-removal commit) — but the same self-row branch lets a member PATCH the PK columns of their own row. Without the freeze, a live member of list A could `PATCH /list_members?list_id=eq.<A>&user_id=eq.<self>` with body `{"list_id": "<B>"}` and Postgres would accept it: the policy passes via the self-row branch, the FK on `list_id` only requires list B to exist, and the caller has self-added to any list whose UUID they can obtain — bypassing the consent closure that the `create_list` and `accept_invitation` RPCs are supposed to be the only sanctioned membership-write paths for. The symmetric `user_id` vector lets a member graft a non-member onto a list. The freeze closes both. The accepted trade-off on `votes` PK mutability (covered in the migration plan) is deliberately *not* mirrored here — the `votes` shape is a bounded vote-move between lists the caller is already a member of, while the `list_members` shape is privilege escalation, and the asymmetry is the right one.
+
+**Maintenance contract for `tg_set_attribution_items`.** The items trigger's "client-driven content edit" detection compares a tuple of the table's user-mutable columns — `(NEW.list_id, NEW.name, NEW.notes, NEW.deleted_at)` against the same shape of `OLD` — to decide whether `modified_by` should be stamped with the caller. The tuple is part of the security gate that closes the `ON DELETE SET DEFAULT` dangling-FK trap; if a future migration adds a column the user can directly mutate (a payload column like `priority` or `category`, or another soft-delete-flag-shaped column), it must extend this tuple at the same time, or edits to the new column will silently no-op `modified_by` rather than stamping the editor — which the existing test surface will not catch, since the schema-shape test only counts columns. Same rule applies to any future attribution-bearing table that ships with `modified_by`: the tuple is always "every user-mutable column — payload plus the soft-delete flag — excluding attribution columns and the `created_at`/`modified_at` pair." `deleted_at` is technically a timestamp but functionally a user-mutable flag (a soft-delete or restore is a user action that the audit trail should attribute), which is why it belongs in this tuple even though `created_at` and `modified_at` do not.
 
 The exact trigger code lives in the migrations.
 
@@ -488,7 +649,6 @@ The exact trigger code lives in the migrations.
 To translate the schema into the API the web app actually consumes, here are the main endpoints PostgREST exposes from this schema:
 
 - `GET /lists` — lists I'm a member of
-- `POST /lists` — create a list
 - `PATCH /lists?id=eq.<uuid>` — rename or soft-delete a list
 - `GET /list_members?list_id=eq.<uuid>` — who's on a list
 - `PATCH /list_members?list_id=eq.<uuid>&user_id=eq.<my-uid>` — leave a list (soft-remove yourself)
@@ -498,27 +658,30 @@ To translate the schema into the API the web app actually consumes, here are the
 - `PATCH /items?id=eq.<uuid>` — edit, soft-delete, or restore an item (restore = `PATCH` with `deleted_at: null`)
 - `POST /votes` — cast a vote (with `Prefer: resolution=merge-duplicates` to handle re-voting)
 - `DELETE /votes?item_id=eq.<uuid>&user_id=eq.<uuid>` — retract a vote
-- `GET /profiles?id=eq.<uuid>` — fetch a profile (RLS limits visibility to your own and members of shared lists)
-- `PATCH /profiles?id=eq.<my-uid>` — update your own profile (`display_name`, `theme`, `font_size`, `invite_policy`)
+- `GET /profiles?id=eq.<uuid>` — fetch a profile (world-readable to authenticated callers; only `id`, `display_name`, `created_at`)
+- `PATCH /profiles?id=eq.<my-uid>` — update your own profile (`display_name` only, in v1)
+- `GET /user_settings?id=eq.<my-uid>` — fetch your own settings (RLS rejects any other id; the only row a caller ever sees is their own)
+- `PATCH /user_settings?id=eq.<my-uid>` — update your settings (`invite_policy`)
 - `GET /lists_deleted` — the per-user list trash (lists you were a member of that have been soft-deleted)
-- `GET /circle_members` — your circle (RLS limits visibility to rows where you are `user_id`)
-- `DELETE /circle_members?user_id=eq.<my-uid>&member_id=eq.<uuid>` — remove someone from your circle
-- `GET /blocks` — your blocklist (RLS limits visibility to rows where you are `blocker_id`)
-- `POST /blocks` — block a user
-- `DELETE /blocks?blocker_id=eq.<my-uid>&blocked_id=eq.<uuid>` — unblock
-- `GET /invitations?invitee_user_id=eq.<my-uid>` — your inbox (pending invites you've received)
-- `GET /invitations?inviter_id=eq.<my-uid>` — invitations you've sent
+- `GET /relationships?status=eq.circle` — your circle (RLS limits visibility to rows where you are `user_id`)
+- `GET /relationships?status=eq.blocked` — your blocklist (same RLS scope)
+- `POST /relationships` — add a row in your own direction (a one-sided circle add or a block; `user_id` must be your uid, `status` is `'circle'` or `'blocked'`)
+- `PATCH /relationships?user_id=eq.<my-uid>&other_user_id=eq.<uuid>` — flip an existing row's `status` (e.g., circle → blocked)
+- `DELETE /relationships?user_id=eq.<my-uid>&other_user_id=eq.<uuid>` — remove a row (unblock, or remove from circle)
+- `GET /invitations?target_user_id=eq.<my-uid>` — your inbox (pending invites you've received)
+- `GET /invitations?created_by=eq.<my-uid>` — invitations you've sent
 
-Cross-user writes (anything that touches another user's circle, blocks, invitations, or account) go through stored procedures rather than direct table writes, so the policy and block checks can run server-side under `security definer`. Invoke each via PostgREST RPC (`POST /rpc/<name>` with a JSON body):
+Cross-user writes (anything that touches another user's circle, blocks, invitations, or account) go through stored procedures rather than direct table writes, so the policy and block checks can run server-side under `security definer`. List creation also goes through an RPC, not a direct `POST /lists`, so the matching `list_members` row for the creator can be inserted in the same transaction as the list itself — without that, a successful insert into `lists` could leave an orphan list invisible to its creator forever. Invoke each via PostgREST RPC (`POST /rpc/<name>` with a JSON body):
 
-- `/rpc/delete_account` — wipe my account; see `account-deletion.md`.
+- `/rpc/create_list` — create a list and add the caller as the first member, in one transaction. Body: `{name, description?}`. Returns the new `lists` row. The only sanctioned create path; direct `POST /lists` is closed off by the absence of a `lists_insert` policy and the absence of an `insert` grant on `public.lists`.
+- `/rpc/delete_account` — wipe my account; see `account-deletion.md`. Same RPC-only pattern as `create_list`, for the parallel reason that the work is multi-table and needs to run server-side.
 - `/rpc/send_invitation` — invite a user (by id or email) to a list; see `invites.md`.
 - `/rpc/accept_invitation` — accept a pending invite; see `invites.md`.
 - `/rpc/decline_invitation` — decline a pending invite; see `invites.md`.
 - `/rpc/add_circle_by_email` — symmetric circle-add by email (mutual unless blocked); see `invites.md`.
 - `/rpc/add_circle_by_id` — one-sided tap-add to your circle; see `invites.md`.
 
-Adding a member to a list goes through `/rpc/send_invitation` and `/rpc/accept_invitation`, not a direct `POST /list_members` — the policy/block checks need to run server-side. Direct writes to `list_members` are limited to your own self-removal ("leave list", a `PATCH` setting `deleted_at`) and the trigger that adds the creator on `lists` insert.
+Adding a member to a list goes through `/rpc/send_invitation` and `/rpc/accept_invitation`, not a direct `POST /list_members` — the policy/block checks need to run server-side. Direct writes to `list_members` are limited to your own self-removal ("leave list", a `PATCH` setting `deleted_at`) and the `create_list` RPC that inserts the creator's membership row alongside the list.
 
 ## What's deliberately not in here
 

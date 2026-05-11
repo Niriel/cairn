@@ -20,7 +20,7 @@ The numbers in the [test pyramid](https://martinfowler.com/articles/practical-te
 
 ### What lives here
 
-- **RLS policies.** For every policy on every table, a positive test ("Alice sees her own list") and a negative test ("Alice does not see Bob's private list").
+- **RLS policies.** For every policy on every table, a positive test ("Alice sees her own list") and a negative test ("Alice does not see Bob's private list"). When a verb is denied by *both* the absence of a `GRANT` *and* the absence of a permissive policy (e.g., `INSERT` on `public.lists`, where creation goes through an RPC instead), test the two layers as **separate assertions** — one `throws_ok` on SQLSTATE `42501` under the role with no grant, and one assertion under a grant-bearing role exercising the missing policy. Conflating them into a single check hides regressions: `GRANT` without a policy returns silent empty results, a policy without `GRANT` returns 401/`42501`, and only the layered tests catch a future change that drops one layer while leaving the other in place.
 - **Triggers.** Soft-delete cascades, `updated_at` bumps, audit/attribution rows.
 - **Views.** The shape and filtering of every view exposed via PostgREST.
 - **Constraints and check expressions.** Anywhere we encode an invariant in the schema, a test verifies it actually rejects what it claims to reject.
@@ -76,31 +76,40 @@ Each test file loads only the fixtures it needs, inside a `BEGIN ... ROLLBACK` s
 BEGIN;
 SELECT plan(2);
 
--- Fixture: user_a is a member of list_a; user_b is not.
-\i fixtures/users_and_one_shared_list.sql
+-- Fixture: Alice is a member of the shared list (id 11111111-...);
+-- Bob is too; Carol is not.
+\i /db/tests/fixtures/list_shared_alice_bob.sql
 
--- As user_a, list_a is visible.
-SET LOCAL request.jwt.claim.sub = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
+-- As Alice, the shared list is visible.
+SET LOCAL request.jwt.claims = '{"sub":"aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"}';
 SET LOCAL ROLE authenticated;
 SELECT is(
-  (SELECT count(*)::int FROM lists WHERE id = 'list_a'),
+  (SELECT count(*)::int FROM lists
+    WHERE id = '11111111-1111-1111-1111-111111111111'),
   1,
-  'user_a sees list_a (their own membership)'
+  'Alice sees the shared list (her own membership)'
 );
 
--- As user_b, list_a is invisible.
-SET LOCAL request.jwt.claim.sub = 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb';
+-- As Carol (non-member), the shared list is invisible.
+SET LOCAL request.jwt.claims = '{"sub":"cccccccc-cccc-cccc-cccc-cccccccccccc"}';
 SELECT is(
-  (SELECT count(*)::int FROM lists WHERE id = 'list_a'),
+  (SELECT count(*)::int FROM lists
+    WHERE id = '11111111-1111-1111-1111-111111111111'),
   0,
-  'user_b does not see list_a (no membership)'
+  'Carol does not see the shared list (no membership)'
 );
 
-SELECT * FROM finish();
+SELECT finish();
 ROLLBACK;
 ```
 
-Two conventions: every test wraps in `BEGIN ... ROLLBACK`, and every assertion has a human-readable message. The message is what shows up in `pg_prove` output when something fails at 2 a.m.; future-you will thank present-you for spelling out *what* the assertion meant.
+Three conventions to notice:
+
+- **Every test wraps in `BEGIN ... ROLLBACK`.** No test mutates state another test will see; fixtures load fresh inside each transaction.
+- **Every assertion has a human-readable message.** That's what shows up in `pg_prove` output when something fails at 2 a.m.; future-you will thank present-you for spelling out *what* the assertion meant.
+- **Fixture `\i` paths are absolute** — `/db/tests/fixtures/<name>.sql`, not `fixtures/<name>.sql`. `pg_prove` runs inside the postgres container with WORKDIR `/`, not `/db/tests`, so a relative path resolves to `/fixtures/...` and the include fails. The absolute path matches the read-only volume mount in `docker-compose.yml` (`./db:/db`) and is robust regardless of invocation cwd.
+
+The JWT-claim form is also worth noting: `SET LOCAL request.jwt.claims = '{"sub":"<uuid>"}'` — the JSON-object GUC PostgREST v10+ sets per request. The old per-claim form `request.jwt.claim.sub` was removed in PostgREST v10; we run v12, so the JSON form is what `public.uid()` reads from. `SET LOCAL` scopes the GUC to the current transaction, so the surrounding `BEGIN ... ROLLBACK` resets it automatically; subsequent `SET LOCAL` calls within the same transaction overwrite it (e.g., when a test switches from "act as Alice" to "act as Carol" mid-file, as above).
 
 ## Unit and component tests (Vitest)
 
@@ -253,7 +262,7 @@ The choice of CI host is deliberately not prescribed here: any runner that can r
 
 ## Common failure modes
 
-**A pgTAP test passes locally and fails in CI.** Almost always a fixture-ordering issue (one test's data leaking into the next). Confirm every test is wrapped in `BEGIN ... ROLLBACK` and that fixtures use stable UUIDs, not `gen_random_uuid()`.
+**A pgTAP test passes locally and fails in CI.** Almost always a fixture-ordering issue (one test's data leaking into the next). Confirm every test is wrapped in `BEGIN ... ROLLBACK` and that fixtures use stable literal UUIDs, never `gen_random_uuid()`. Cairn's convention by table: users `aaaa…`/`bbbb…`/`cccc…` (Alice/Bob/Carol), lists `1111…`/`2222…` (shared/solo), items `3333…`/`4444…`/… as needed in per-test setup. List fixtures override `lists.id default gen_random_uuid()` by passing `id` explicitly in the INSERT — safe because the fixture runs as the test session's `cairn` superuser.
 
 **A Vitest component test passes locally and fails in CI.** Time-of-day or locale dependency. Pin `Intl` formatters and avoid `new Date()` without a fixed argument.
 
