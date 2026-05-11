@@ -25,6 +25,9 @@ echo "==> resetting cairn_test"
 "${PSQL_ADMIN[@]}" -c "DROP DATABASE IF EXISTS cairn_test;"
 "${PSQL_ADMIN[@]}" -c "CREATE DATABASE cairn_test;"
 
+echo "==> applying test bootstrap (auth stub + roles)"
+"${PSQL_TEST[@]}" -f db/test-bootstrap.sql >/dev/null
+
 echo "==> applying migrations"
 shopt -s nullglob
 for f in db/migrations/*.sql; do
@@ -38,6 +41,24 @@ done
 
 echo "==> loading pgTAP extension"
 "${PSQL_TEST[@]}" -c "CREATE EXTENSION IF NOT EXISTS pgtap;" >/dev/null
+
+echo "==> checking every test file declares a plan"
+# `shopt -s nullglob` is in effect, so capture into an array first — a bare
+# `grep -L 'plan(' db/tests/*.sql` would expand to an argless `grep` and
+# read from stdin forever when there are no matches.
+files=(db/tests/*.sql)
+if [ ${#files[@]} -eq 0 ]; then
+  echo "  no test files under db/tests/ — nothing to run" >&2
+  exit 1
+fi
+# Match `SELECT plan(...)` anchored to a line start, not the bare substring
+# `plan(` (a stray mention in an SQL comment would otherwise satisfy it).
+missing=$(grep -LE '^[[:space:]]*SELECT[[:space:]]+plan[[:space:]]*\(' "${files[@]}" || true)
+if [ -n "$missing" ]; then
+  echo "  test files missing a SELECT plan(N) declaration:" >&2
+  echo "$missing" | sed 's/^/    /' >&2
+  exit 1
+fi
 
 echo "==> running pg_prove"
 docker compose exec -T postgres \

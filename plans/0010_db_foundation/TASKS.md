@@ -24,10 +24,10 @@
 
 ## Phase A — bootstrap + infra check
 
-### [ ] A.1 Add `db/test-bootstrap.sql` and patch `scripts/test-db.sh`
+### [x] A.1 Add `db/test-bootstrap.sql` and patch `scripts/test-db.sh`
 
 **Created:** 2026-05-09T00:00:00Z
-**Completed:**
+**Completed:** 2026-05-11T08:51:42Z
 
 **Why:** The pgTAP test path runs against `cairn_test`, which has
 no GoTrue and therefore no `auth.users`. Every later test file in
