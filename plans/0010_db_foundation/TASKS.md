@@ -338,10 +338,10 @@ per-file summary; for the load-bearing assertion details and
 "why each assertion exists," follow the matching row of the
 PLAN.md inventory.
 
-### [ ] B.1 Add list fixtures + `schema_shape.sql` + `constraints_*.sql`
+### [x] B.1 Add list fixtures + `schema_shape.sql` + `constraints_*.sql`
 
 **Created:** 2026-05-09T00:00:00Z
-**Completed:**
+**Completed:** 2026-05-11T09:30:34Z
 
 **Why:** The list fixtures are needed by every later RLS / view
 / trigger test that operates on a multi-member shape. Schema-
@@ -455,6 +455,51 @@ positive assertions on the post-0004 schema are red because 0004
 hasn't landed yet) and the pg_prove output shows the expected red
 signal across the new files; `./scripts/check.sh` is correspondingly
 red on the pgTAP step but green on every step before it
+
+**Notes:**
+- **Deviation — `SET LOCAL request.jwt.claims = '…'` switched to
+  `SELECT set_config('request.jwt.claims', '…', TRUE);`.** The
+  Decisions section spelled the claim-setting line as the SET-
+  statement form, but sqlfluff's postgres parser refuses to parse
+  `SET LOCAL` with a dotted parameter name (`request.jwt.claims`),
+  failing with a PRS error. The function form is the equivalent
+  per-transaction setter and mirrors what `infra_auth_stub.sql`
+  already uses. Applied in both list fixtures and
+  `constraints_lists.sql`.
+- **Deviation — multi-row VALUES split into single-row INSERTs in
+  `list_shared_alice_bob.sql`.** The Decisions section showed the
+  list_members seed as one `INSERT … VALUES (alice), (bob)` block.
+  sqlfluff (postgres dialect) demands a specific stacked-row indent
+  for multi-row VALUES that doesn't compose well with stable UUID
+  literals; the simplest fix was two single-row INSERTs, mirroring
+  `users_alice_bob_carol.sql`'s shape. Same semantics.
+- **Phase B red shape worth flagging** — `constraints_items.sql`
+  and `constraints_votes.sql` show `Bad plan. You planned N tests
+  but ran 0` because the fixture's plain `INSERT INTO public.lists`
+  aborts the transaction before any assertion fires. That's still a
+  red signal (exit non-zero, test count short) but the diagnostic
+  is "transaction aborted" rather than per-assertion "not ok." Both
+  files will report individual assertion results once 0004 lands.
+- **Phase C heads-up — `modified_at` strict-greater assertion in
+  `constraints_votes.sql` requires `clock_timestamp()` (or
+  `statement_timestamp()`), not `now()`, in `tg_set_modified_at`.**
+  `now()` is transaction-constant, so within a single pgTAP
+  `BEGIN … ROLLBACK` the modified_at written by the initial INSERT
+  trigger equals the modified_at written by the re-vote UPDATE
+  trigger, and `assert post-update > captured original` cannot
+  hold. PLAN.md's per-file row in the inventory says "strictly
+  greater," so the implementer must pick a wall-clock function for
+  the bump trigger. `docs/data-model.md` currently says `now()`
+  in the `tg_set_modified_at` paragraph — that doc line will need
+  to change in lockstep with the C.1 migration, or it'll diverge
+  from the test it must satisfy. Flagging here rather than
+  silently relaxing the assertion to `>=`.
+- **User correction during this task.** A comment in
+  `list_shared_alice_bob.sql` justified the single-row-INSERT split
+  by appealing to "human preference for stacked literals" — the
+  user pointed out they never expressed that preference, and the
+  appeal was fabricated. Comment removed; the file simply mirrors
+  `users_alice_bob_carol.sql`'s shape with no further commentary.
 
 ### [ ] B.2 FK + trigger tests
 
