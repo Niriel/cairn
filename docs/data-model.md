@@ -299,7 +299,7 @@ A few notes:
 - **`score` is a simple sum of vote values.** A single +3 from one excited person outweighs three +1s from mildly interested people. This is deliberate — the seven-step scale exists precisely so that enthusiasm registers, and averaging would erase that. If "two people kinda-like" should ever beat "one person loves," that's a future tweak: change the sort to `(score desc, total_voters desc, created_at asc)` and the items table won't need to know.
 - **The view does not encode the `ORDER BY`.** Sorting is applied by the client query (`?order=score.desc,created_at.asc` in PostgREST). This lets the same view serve other orderings later — by date, by who added it — without duplication.
 - **`positive_voters` and `negative_voters` are counts, not sums.** They tell the UI *how many people* are on each side, regardless of intensity. Combined with `score`, this is enough for any of the displays we might want ("Alice +3, Bob +1, Carol −2" or just a numeric score or a small bar chart).
-- **`security_invoker = true` makes the view inherit the caller's RLS.** A user only sees rows for items in lists they're a member of, automatically — and soft-deleted items are hidden by `items_select`'s `deleted_at is null` clause. The `where i.deleted_at is null` in the view body is therefore defensive redundancy. This is deliberately the *opposite* setting from the trash views below: the live aggregation view leans on policies, while the trash views run as owner and gate themselves with an explicit membership check. The asymmetry is the whole point — the base tables and the live view never expose soft-deleted content; the trash is an explicit, separately-authorized read path.
+- **`security_invoker = true` makes the view inherit the caller's RLS.** A user only sees rows for items in lists they're a member of, automatically — and soft-deleted items are hidden by `items_select`'s `deleted_at is null` clause for everyone except the user who soft-deleted them (the `or deleted_by = public.uid()` disjunct admits the deleter on the base-table path; see `items_select` below). The `where i.deleted_at is null` in the view body is therefore **load-bearing**, not defensive — it's what keeps the deleter's own soft-deletes out of the live-feed view too, even though the base-table policy admits them for the deleter alone. This is deliberately the *opposite* setting from the trash views below: the live aggregation view leans on policies plus this filter, while the trash views run as owner and gate themselves with an explicit membership check. The asymmetry is the whole point — the live view never exposes soft-deleted content to anyone; the trash is an explicit, separately-authorized read path.
 
 ## The `items_deleted` view
 
@@ -416,10 +416,15 @@ This is what `votes_select` (below) calls, and it is genuinely load-bearing: an 
 ### `lists`
 
 ```sql
--- Read: any member can see the list (live rows only — soft-deleted lists are
--- reachable through the lists_deleted view, which has its own membership check)
+-- Read: any member can see live lists; soft-deleted lists are visible
+-- through this view only to the user who deleted them (whose `deleted_by`
+-- equals `public.uid()`). All soft-deleted lists are also reachable
+-- through the lists_deleted view below, which has its own membership check.
 create policy lists_select on public.lists
-  for select using (public.is_list_member(id) and deleted_at is null);
+  for select using (
+    public.is_list_member(id)
+    and (deleted_at is null or deleted_by = public.uid())
+  );
 
 -- Update: any member can rename or soft-delete the list
 create policy lists_update on public.lists
@@ -427,7 +432,7 @@ create policy lists_update on public.lists
   with check (public.is_list_member(id));
 ```
 
-The `and deleted_at is null` clause on `lists_select` is load-bearing: it's what makes soft-deleted rows invisible through the base-table API path (`GET /lists`, and `GET /items_ranked` which inherits the caller's RLS). Don't "simplify" it away — soft-deleted content is reachable only through the `lists_deleted` / `items_deleted` views, which run with `security_invoker = false` and gate access with their own explicit `is_list_member()` filter. Removing the live filter here would silently leak deleted content through the base tables.
+The composite `(deleted_at is null or deleted_by = public.uid())` clause on `lists_select` is load-bearing in two halves. The `deleted_at is null` half is what makes soft-deleted rows invisible through the base-table API path (`GET /lists`, and `GET /items_ranked` which inherits the caller's RLS) for everyone *other* than the soft-deleter; without it, soft-deleted content would silently leak through the base tables. The `or deleted_by = public.uid()` half is what makes PATCH-based soft-delete actually work at all: Postgres applies SELECT policies as WITH CHECK against the *new* row of an UPDATE when the caller has SELECT privilege on the table, so a `lists_select` USING that only admitted live rows would reject every soft-delete UPDATE — the new row (`deleted_at` non-null) wouldn't satisfy the policy. The disjunct lets the deleter's own transition pass while still hiding the row from every other member through the base table. Cascade-driven repointing of `deleted_by` to the tombstone (`on delete set default` from `auth.users`) drops abandoned soft-deletes back to "trash-view only" for everyone, since no live caller's `public.uid()` ever equals the tombstone. Soft-deleted content is reachable for everyone-but-the-deleter only through the `lists_deleted` / `items_deleted` views, which run with `security_invoker = false` and gate access with their own explicit `is_list_member()` filter. Don't "simplify" either half of the disjunct away.
 
 There is no `lists_insert` policy, and no `insert` grant on `public.lists` for `authenticated`. List creation goes through the `create_list` RPC only (see "What the app sees" below). A direct `POST /lists` would otherwise succeed under a permissive insert policy but skip the matching `list_members` row, leaving an orphan list invisible to its creator forever; closing off direct insert at both the policy and grant layers makes the RPC the only create path.
 
@@ -436,9 +441,13 @@ There is no `delete` policy. Hard deletion is not allowed via the API.
 ### `list_members`
 
 ```sql
--- Read: members can see the membership of lists they're in
+-- Read: members can see the membership of lists they're in; each user
+-- can also see their own membership rows (including a row where they
+-- have been soft-removed, so a kicked user knows they were kicked)
 create policy list_members_select on public.list_members
-  for select using (public.is_list_member(list_id));
+  for select using (
+    public.is_list_member(list_id) or user_id = public.uid()
+  );
 
 -- Update: a member can soft-delete (remove) another member, or restore one,
 -- or soft-remove themselves
@@ -446,6 +455,8 @@ create policy list_members_update on public.list_members
   for update using (public.is_list_member(list_id))
   with check (public.is_list_member(list_id) or user_id = public.uid());
 ```
+
+The `or user_id = public.uid()` clause on `list_members_select` is load-bearing for the same reason as on `list_members_update`'s `with check`: Postgres applies SELECT policies as WITH CHECK against the new row of an UPDATE when the caller has SELECT privilege, so a `select using (is_list_member(list_id))` that only admitted live members would reject every self-soft-removal UPDATE — the new row makes the caller a non-member, which fails the policy. The self-row disjunct on the SELECT side lets the transition pass; the same disjunct on the WITH CHECK side lets the row pass the update policy. The pair is the entire mechanism that makes "a user can remove themselves from a list" work under Postgres RLS. The extra read visibility this creates (a kicked user can SELECT their own kicked row) is intentional — it's how the UI surfaces "you were removed from this list."
 
 There is no `list_members_insert` policy, and no `insert` grant on `public.list_members` for `authenticated`. Membership writes happen only through the `create_list` RPC (which inserts the creator's row alongside the list, in-transaction) and the `accept_invitation` RPC (which inserts an invitee's row after they explicitly accept). A permissive insert policy would let any member directly `POST /list_members` to add any other authenticated user without their consent and bypassing the `blocks` / `invite_policy` checks that `accept_invitation` enforces — closing it at the policy and grant layers makes consent structural, parallel to how `lists` makes the `create_list` RPC the only create path. The UPDATE side is closed by `tg_freeze_list_members_pk` (see Triggers below): the `with check`'s self-row branch would otherwise let a member PATCH their own row's `list_id` to any list whose UUID they can obtain, silently undoing the INSERT-side consent closure. Both sides have to be closed for "consent is structural" to hold.
 
@@ -456,10 +467,15 @@ The `or user_id = public.uid()` in the `with check` is load-bearing for self-rem
 ### `items`
 
 ```sql
--- Read: members of the parent list can see items (live rows only — soft-deleted
--- items are reachable through items_deleted, which has its own membership check)
+-- Read: members of the parent list can see live items; soft-deleted items
+-- are visible through this view only to the user who deleted them (whose
+-- `deleted_by` equals `public.uid()`). All soft-deleted items are also
+-- reachable through items_deleted, which has its own membership check.
 create policy items_select on public.items
-  for select using (public.is_list_member(list_id) and deleted_at is null);
+  for select using (
+    public.is_list_member(list_id)
+    and (deleted_at is null or deleted_by = public.uid())
+  );
 
 -- Insert: members can add items, attributed to themselves
 create policy items_insert on public.items
@@ -475,7 +491,7 @@ create policy items_update on public.items
 
 A member can edit any item, not just ones they created. The product is collaborative — Bob can fix the typo in the movie title Alice added.
 
-The `and deleted_at is null` clause on `items_select` is the same load-bearing rule as on `lists_select`: it makes soft-deleted items invisible through the base-table API path (`GET /items` and `GET /items_ranked`, which inherits this RLS via `security_invoker = true`). Soft-deleted items are reachable only through the `items_deleted` view, which runs as the owner (`security_invoker = false`) and gates access with its own explicit `is_list_member()` filter.
+The composite `(deleted_at is null or deleted_by = public.uid())` clause on `items_select` mirrors the same shape (and the same load-bearing reasoning) as on `lists_select`. The `deleted_at is null` half makes soft-deleted items invisible to non-deleter members through the base-table API path (`GET /items` and `GET /items_ranked`, which inherits this RLS via `security_invoker = true`). The `or deleted_by = public.uid()` half is what makes PATCH-based soft-delete actually possible at all under Postgres RLS — without it, the SELECT policy applied as WITH CHECK on the new row of a soft-delete UPDATE would reject the transition. The disjunct admits the deleter's own row through; cascade-driven repointing of `deleted_by` to the tombstone hides abandoned soft-deletes from everyone once the deleter's account is gone. Soft-deleted items remain reachable for everyone-but-the-deleter only through the `items_deleted` view, which runs as the owner (`security_invoker = false`) and gates access with its own explicit `is_list_member()` filter.
 
 ### `votes`
 

@@ -861,6 +861,169 @@ of Phase B's bulk-red state) and the pg_prove output shows the
 expected red signal across the three new view test files;
 `./scripts/check.sh` red on pgTAP, green before it
 
+### [x] B.5 Relax three SELECT policies to admit PATCH soft-delete / self-soft-removal under Postgres's WITH-CHECK rule
+
+**Created:** 2026-05-11T12:33:01Z
+**Completed:** 2026-05-11T12:45:44Z
+
+**Why:** A first /work pass at C.1 surfaced that the doc-prescribed
+`items_select` / `lists_select` / `list_members_select` USING
+clauses make the test-asserted UPDATE shapes (Alice soft-deletes an
+item or list; Bob self-soft-removes from a list) impossible under
+Postgres's standard rule "when the caller has SELECT privilege on
+the target, SELECT policies are added as WITH CHECK against the
+*new* row of an UPDATE." Verified empirically against PG 16.13 (the
+version pinned in `docker-compose.yml`) with a minimal reproducer.
+
+The fix is a small spec revision — a self-actor disjunct on each
+affected SELECT policy — landed in Phase B as its own task so C.1
+can ship the migration against the corrected spec in a single
+narrowly-scoped commit. `list_members_update`'s WITH CHECK already
+encodes the same "self-row is always permitted" insight at
+`docs/data-model.md:454`; B.5 carries that insight to the SELECT
+side and to items/lists.
+
+**Prerequisites:** B.1–B.4 (the pgTAP suite that the spec
+revision's two assertion splits build on).
+
+**Decisions:**
+- New policy shapes:
+  ```
+  items_select  USING (is_list_member(list_id)
+                       AND (deleted_at IS NULL
+                            OR deleted_by = public.uid()))
+  lists_select  USING (is_list_member(id)
+                       AND (deleted_at IS NULL
+                            OR deleted_by = public.uid()))
+  list_members_select  USING (is_list_member(list_id)
+                              OR user_id = public.uid())
+  ```
+- **Privacy semantic** that results: live rows are visible to all
+  list members (unchanged); soft-deleted items/lists are visible
+  through the base table only to the user whose `deleted_by`
+  matches; other members reach them through the trash views;
+  non-members see nothing. For `list_members`, each user can see
+  their own membership rows (including a soft-removed row, so a
+  kicked user knows they were kicked). Cascade-induced repointing
+  of `deleted_by` to the tombstone UUID drops abandoned
+  soft-deletes back to "trash-view only" for everyone (no live
+  `public.uid()` is ever the tombstone).
+- **Why this is safe**: the deleter / self-user is the *actor* who
+  performed the action being revealed; showing it back to them is
+  mild redundancy with the trash view, not a privacy leak. The web
+  app reads the live feed via `items_ranked` (not the base table —
+  `docs/data-model.md:640`), so the UX impact of the deleter
+  seeing their own soft-delete in `GET /items` is zero.
+- **`items_ranked` defensive-redundancy paragraph (`docs/data-model.md:301-303`)
+  becomes inaccurate** under the new policy: the view body's
+  `WHERE i.deleted_at IS NULL` is now load-bearing (without it,
+  `items_ranked` would surface the deleter's own soft-deletes in
+  the live feed). Doc paragraph updated in lockstep.
+- **Tests split, not flipped**: each of `rls_items.sql` and
+  `rls_lists.sql` assertion 3 split into 3a (deleter sees,
+  count=1) + 3b (non-deleter hidden, count=0) so both halves of
+  the new semantic are exercised. `plan(9) → plan(10)` in both
+  files. `rls_list_members.sql` needs no change — test 7 (Bob
+  self-soft-removes) starts passing under the new policy and
+  test 8 (kicked-self-restore footgun) still holds because
+  `list_members_update`'s USING is untouched.
+- **Why not a SECURITY-DEFINER RPC / GUC trick / dropping the
+  filter entirely**: an RPC contradicts `docs/data-model.md:642`'s
+  prescribed PATCH path; a GUC trick adds non-obvious
+  trigger/AFTER-trigger coupling for a benign semantic
+  relaxation; dropping the filter entirely loses the "non-actor
+  base-table reads hide soft-deletes" guarantee for everyone.
+  The disjunct preserves that guarantee for everyone except the
+  actor, which is the minimum useful relaxation.
+
+**Files:**
+- `docs/data-model.md` (modify — three policy blocks +
+  items_ranked paragraph)
+- `plans/0010_db_foundation/REQUIREMENTS.md` (modify — add R26
+  capturing the disjunct rule)
+- `plans/0010_db_foundation/PLAN.md` (modify — add Risk #16 on
+  the Postgres SELECT-policy-as-WITH-CHECK rule)
+- `db/tests/rls_items.sql` (modify — split assertion 3 into
+  3a / 3b, plan 9 → 10)
+- `db/tests/rls_lists.sql` (modify — same shape)
+
+**Reference:** `docs/data-model.md:454` —
+  `list_members_update`'s `OR user_id = public.uid()` rationale,
+  the same shape and reasoning we mirror on the SELECT side.
+  `db/tests/rls_list_members.sql` tests 5–6 (lines 117–153) —
+  canonical `set_config → UPDATE → assert` shape that 3a / 3b
+  mirror.
+
+**Steps:**
+1. Update the three policy blocks in `docs/data-model.md`
+   (lists_select at line 422, list_members_select at 441,
+   items_select at 462). Each block: revise the leading
+   comment to spell out the new privacy semantic; revise the
+   policy SQL to the disjunct shape; revise the load-bearing
+   rationale paragraph below the policy to explain the
+   `deleted_by = public.uid()` clause and why it doesn't get
+   "simplified" away. Also revise the `items_ranked` paragraph
+   (`docs/data-model.md:301-303`): the view body's
+   `WHERE i.deleted_at IS NULL` is now load-bearing, not
+   defensive redundancy.
+2. Add **R26** to `plans/0010_db_foundation/REQUIREMENTS.md`
+   capturing the self-actor disjunct (one paragraph each on
+   the three policies + the Postgres rule that motivates them).
+   Optionally reference from R14.
+3. Add **Risk #16** to `plans/0010_db_foundation/PLAN.md`'s
+   "Risks & gotchas" section. One paragraph: when the caller
+   has SELECT priv, SELECT USING is added as WITH CHECK on the
+   new row of an UPDATE; cite the PG 16.13 reproducer.
+4. RED — In `db/tests/rls_items.sql`: bump `SELECT plan(9)` to
+   `SELECT plan(10)`; replace assertion 3 (line 82–101) with
+   two assertions: 3a under Alice (deleter, count=1) and 3b
+   under Bob (non-deleter, count=0). Update the file-top
+   inventory comment from "9 assertions" to "10 assertions"
+   and revise the assertion-3 description.
+5. RED — Same in `db/tests/rls_lists.sql` (assertion 3,
+   lines 75–94).
+6. RED — Run `./scripts/test-db.sh`. Expect non-zero: the
+   migration on disk (uncommitted, C.1 working state) still
+   has the OLD policies, so 3a's `count=1` assertion fails
+   (and the UPDATE itself still aborts the transaction the
+   way it did at end of /work for C.1). Phase B's bulk-red
+   shape is preserved.
+7. Run `./scripts/check.sh`. Confirm every step before
+   `==> database tests (pgTAP)` prints `ok` (svelte-check,
+   eslint, prettier, sqlfluff, shellcheck, shfmt).
+
+**Verify:** `./scripts/test-db.sh` exits non-zero (expected — the
+migration hasn't been updated to match yet; that lands under C.1)
+· `./scripts/check.sh` green on every non-pgTAP step ·
+`./scripts/smoke.sh` green against the running stack
+
+**Notes:**
+- **`test-db.sh` red shape preserved.** Three files still fail
+  (`rls_items.sql`, `rls_lists.sql`, `rls_list_members.sql`) for
+  the same root cause as end-of-C.1's first pass — the migration
+  on disk still ships the old policy USING clauses. Shape now:
+  the two `rls_items` / `rls_lists` files report `Bad plan. You
+  planned 10 tests but ran 2` (the `plan(9) → plan(10)` bump
+  combined with the same UPDATE-aborts-transaction failure);
+  `rls_list_members.sql` reports test 7 fails with
+  `deleted_at = NULL`. C.1's migration update closes all three.
+- **`check.sh` sqlfluff state is C.1's, not B.5's.** B.5's own
+  modified SQL files (`db/tests/rls_items.sql`,
+  `db/tests/rls_lists.sql`) lint clean under `sqlfluff lint`. The
+  `check.sh` `==> sql lint` step fails on the on-disk
+  `db/migrations/0004_domain_schema.sql` (uncommitted, written
+  in C.1's first pass) — the `CREATE TABLE` blocks use
+  multi-space column alignment that violates the linter's
+  `layout.spacing` rule, and there are a handful of other
+  layout/structure rules to clean up. None of this is a B.5
+  regression; the sqlfluff cleanup is a C.1 step (`sqlfluff fix
+  db/migrations/0004_domain_schema.sql` and a hand-pass over
+  any remaining items).
+- **Smoke not run** — would require `docker compose up -d` and
+  the dev stack; the existing pre-/work-session state of the
+  stack is unchanged and B.5 doesn't touch any service-layer
+  config, so the smoke check is unaffected by this task.
+
 ## Phase C — green
 
 ### [ ] C.1 Write `db/migrations/0004_domain_schema.sql` and update `migrate.sh` + `.env.example`

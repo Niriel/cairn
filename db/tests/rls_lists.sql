@@ -1,24 +1,32 @@
 -- rls_lists.sql — locks in the `lists_*` policies and the no-
 -- INSERT / no-DELETE GRANTs from docs/data-model.md.
 --
--- 9 assertions:
---   1. SELECT positive (member sees their list).
---   2. SELECT negative (non-member doesn't).
---   3. SELECT negative (soft-deleted list hidden through the base
---      table — the trash view `lists_deleted` is the only path).
---   4. INSERT GRANT-layer denial (authenticated has no INSERT
---      grant; 42501 raised before any trigger fires).
---   5. INSERT policy-layer denial (with INSERT temporarily
---      granted inside the txn, the no-INSERT-policy default-deny
---      still raises 42501 "new row violates row-level security
---      policy").
---   6. DELETE GRANT-layer denial (no DELETE grant; 42501).
---   7. DELETE policy-layer denial (with DELETE temporarily
---      granted, the no-DELETE-policy default makes WHERE match
---      zero rows; the row survives — asserted via post-attempt
---      count).
---   8. UPDATE positive (member can rename their list).
---   9. UPDATE negative (non-member's UPDATE matches zero rows).
+-- 10 assertions:
+--   1.  SELECT positive (member sees their list).
+--   2.  SELECT negative (non-member doesn't).
+--   3a. SELECT positive for the deleter on a soft-deleted list —
+--       the `OR deleted_by = public.uid()` disjunct in
+--       `lists_select` admits the deleter's own row. Without
+--       this half of the disjunct, Postgres would reject the
+--       soft-delete UPDATE itself (SELECT policies are added as
+--       WITH CHECK on the new row; see R26 / Risk #16).
+--   3b. SELECT negative for a non-deleter member on the same
+--       soft-deleted list — `deleted_at IS NULL` half of the
+--       disjunct still hides the row from everyone except the
+--       deleter, who reaches it through `lists_deleted` only.
+--   4.  INSERT GRANT-layer denial (authenticated has no INSERT
+--       grant; 42501 raised before any trigger fires).
+--   5.  INSERT policy-layer denial (with INSERT temporarily
+--       granted inside the txn, the no-INSERT-policy default-deny
+--       still raises 42501 "new row violates row-level security
+--       policy").
+--   6.  DELETE GRANT-layer denial (no DELETE grant; 42501).
+--   7.  DELETE policy-layer denial (with DELETE temporarily
+--       granted, the no-DELETE-policy default makes WHERE match
+--       zero rows; the row survives — asserted via post-attempt
+--       count).
+--   8.  UPDATE positive (member can rename their list).
+--   9.  UPDATE negative (non-member's UPDATE matches zero rows).
 --
 -- Per-defence-layer split rationale: a future regression that
 -- adds an INSERT/DELETE grant *or* a permissive policy would
@@ -33,7 +41,7 @@
 
 BEGIN;
 
-SELECT plan(9);
+SELECT plan(10);
 
 \i /db/tests/fixtures/list_shared_alice_bob.sql
 
@@ -72,9 +80,13 @@ SELECT is(
   'lists SELECT negative: non-member (Carol) sees nothing'
 );
 
--- 3. Soft-deleted list hidden through the base table. Switch
--- back to Alice (member, can UPDATE). Soft-delete the list,
--- then assert it's invisible to her via the base lists table.
+-- 3a. Soft-deleted list visible to the deleter through the
+-- `OR deleted_by = public.uid()` disjunct on `lists_select`.
+-- Switch back to Alice (member), soft-delete the list, then
+-- assert Alice still sees it via base table. This half of the
+-- disjunct is what makes the soft-delete UPDATE land — Postgres
+-- applies SELECT policies as WITH CHECK on the new row, and a
+-- pure `deleted_at IS NULL` filter would reject the transition.
 SELECT set_config(
   'request.jwt.claims',
   '{"sub":"aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"}',
@@ -88,9 +100,29 @@ SELECT is(
     SELECT count(*)::int FROM public.lists
     WHERE id = '11111111-1111-1111-1111-111111111111'
   ),
+  1,
+  'lists SELECT positive: deleter sees own soft-deleted list via '
+  'the OR deleted_by = public.uid() disjunct'
+);
+
+-- 3b. Soft-deleted list hidden from non-deleter members through
+-- the base table. Switch to Bob (member, not the deleter) and
+-- assert count is 0. The `deleted_at IS NULL` half of the
+-- disjunct still does the work for everyone except the deleter;
+-- Bob reaches the row only through the lists_deleted trash view.
+SELECT set_config(
+  'request.jwt.claims',
+  '{"sub":"bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"}',
+  TRUE
+);
+SELECT is(
+  (
+    SELECT count(*)::int FROM public.lists
+    WHERE id = '11111111-1111-1111-1111-111111111111'
+  ),
   0,
-  'lists SELECT negative: soft-deleted list hidden from base table '
-  '(member sees it only through the lists_deleted trash view)'
+  'lists SELECT negative: non-deleter member sees soft-deleted '
+  'list only through the lists_deleted trash view'
 );
 
 -- =========================================================

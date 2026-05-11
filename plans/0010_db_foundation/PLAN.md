@@ -798,6 +798,39 @@ specific risk; this section is the *why*, the test rows are the
     on the `CREATE TRIGGER tg_profile_on_signup` binding pointing
     at that checklist so the next image-bump PR sees it on diff.
 
+16. **Postgres applies SELECT policies as WITH CHECK on UPDATE
+    new rows.** When the calling role holds SELECT privilege on
+    a relation, Postgres adds every applicable SELECT policy's
+    USING expression to the WITH CHECK applied against the *new*
+    row of an UPDATE — combined as a single OR-of-permissive,
+    AND-of-restrictive, alongside any UPDATE-policy WITH CHECK.
+    This is what makes a naive `items_select USING
+    (is_list_member(list_id) AND deleted_at IS NULL)` reject
+    every PATCH-based soft-delete UPDATE: the post-update row
+    has `deleted_at` non-null and fails the policy, so the WITH
+    CHECK aggregation fails and the UPDATE errors with `new row
+    violates row-level security policy for table "items"`.
+    Symmetric on `list_members_select`'s `is_list_member(list_id)`
+    USING: a self-soft-removal UPDATE produces a row where the
+    caller is no longer a member, and the SELECT USING rejects
+    it. The closure is the self-actor disjunct (`OR deleted_by =
+    public.uid()` on items/lists; `OR user_id = public.uid()` on
+    list_members) — see R26 in REQUIREMENTS.md for the policy
+    shapes and the resulting privacy semantic. The same insight
+    already lived at `docs/data-model.md:454` for
+    `list_members_update`'s WITH CHECK; this risk note exists so
+    a future reader doesn't try to "simplify" the SELECT-side
+    disjunct away. Verified empirically against PG 16.13 (the
+    version `docker-compose.yml` pins) with a minimal reproducer:
+    `CREATE TABLE t (id int PRIMARY KEY, deleted_at timestamptz);
+    ALTER TABLE t ENABLE ROW LEVEL SECURITY; CREATE POLICY sel ON
+    t FOR SELECT USING (deleted_at IS NULL); CREATE POLICY upd ON
+    t FOR UPDATE USING (true) WITH CHECK (true); GRANT SELECT,
+    UPDATE ON t TO some_role; INSERT INTO t VALUES (1, NULL); SET
+    LOCAL ROLE some_role; UPDATE t SET deleted_at = now() WHERE
+    id = 1;` raises the WITH CHECK error. The disjunct is the
+    fix, not a workaround.
+
 ## Existing patterns to reuse
 
 There's not much in this repo yet (it's pre-production), but:

@@ -212,7 +212,8 @@ policies" section. Highlights:
   (public.is_list_member(list_id) OR user_id = public.uid())` — the
   `OR user_id = …` clause is load-bearing for self-removal (the
   moment a user sets `deleted_at` on their own membership row,
-  `is_list_member()` returns false).
+  `is_list_member()` returns false). The symmetric clause on
+  `list_members_select` is captured in R26.
 - No `lists_insert`, `list_members_insert`, `profiles_insert`, or
   `user_settings_insert` policies — creation is RPC-only / trigger-
   only.
@@ -221,6 +222,9 @@ policies" section. Highlights:
 - `user_settings` ships only `user_settings_select` and
   `user_settings_update`, both gated on `id = public.uid()` —
   owner-only across the board.
+- `items_select`, `lists_select`, and `list_members_select` carry
+  a self-actor disjunct beyond a naive read of the doc — see R26
+  for the shape and rationale.
 
 ## R15. GRANT matrix matches `docs/data-model.md`
 
@@ -450,6 +454,55 @@ read-side helper only.
 applies, same as the other two functions per R15. Tested in
 `schema_shape.sql` (signature) and `grants.sql` (positive for
 authenticated, negative for anon).
+
+## R26. Self-actor disjunct on `items_select`, `lists_select`, `list_members_select`
+
+Postgres applies a relation's SELECT policies as additional WITH
+CHECK clauses against the *new* row of an UPDATE whenever the
+calling role holds SELECT privilege on the relation. A naive
+`select using (is_list_member(list_id) and deleted_at is null)`
+therefore rejects every PATCH-based soft-delete UPDATE — the
+post-update row has `deleted_at` non-null and fails the policy.
+Symmetric story for `list_members_select`: a naive
+`select using (is_list_member(list_id))` rejects every
+self-soft-removal, since the post-update row makes the caller a
+non-member.
+
+The migration ships the three policies with a self-actor disjunct
+that admits the actor's own transition through the new-row check
+while still hiding it from every other authenticated caller's
+base-table reads:
+
+```sql
+items_select  USING (public.is_list_member(list_id)
+                    AND (deleted_at IS NULL
+                         OR deleted_by = public.uid()));
+lists_select  USING (public.is_list_member(id)
+                    AND (deleted_at IS NULL
+                         OR deleted_by = public.uid()));
+list_members_select  USING (public.is_list_member(list_id)
+                            OR user_id = public.uid());
+```
+
+Privacy semantic: live rows remain visible to all list members;
+soft-deleted items/lists are visible through the base-table API
+only to the user who deleted them; non-deleter members reach
+soft-deleted content only through `items_deleted` / `lists_deleted`
+(which run `security_invoker = false` and gate via explicit
+`public.is_list_member()`). For `list_members`, each user can see
+their own membership rows including a soft-removed one (so a
+kicked user can see they were kicked). Cascade-driven repointing
+of `deleted_by` to the tombstone UUID drops abandoned soft-deletes
+back to "trash-view only" for everyone, since no live caller's
+`public.uid()` ever equals the tombstone.
+
+The same insight is what makes `list_members_update`'s
+`WITH CHECK (… OR user_id = public.uid())` clause load-bearing
+(per R14); R26 carries that insight to the SELECT side and to
+items/lists. See PLAN.md Risk #16 for the Postgres rule and the
+PG-16.13 reproducer. Tested in `rls_items.sql` (assertions 3a/3b),
+`rls_lists.sql` (assertions 3a/3b), and `rls_list_members.sql`
+test 7.
 
 ## Non-requirements (explicitly excluded)
 

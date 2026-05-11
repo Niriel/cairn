@@ -1,20 +1,28 @@
 -- rls_items.sql — locks in the `items_*` policies and the
 -- no-DELETE GRANT-layer + policy-layer closures.
 --
--- 9 assertions:
---   1. SELECT positive (member sees an item in their list).
---   2. SELECT negative (non-member sees nothing).
---   3. SELECT negative (soft-deleted item hidden through the
---      base table — the trash view `items_deleted` is the only
---      path).
---   4. INSERT positive (member adds an item to their list).
---   5. INSERT negative (non-member's INSERT raises 42501 — the
---      `items_insert` WITH CHECK fails on `is_list_member`).
---   6. UPDATE positive (member edits any item in their list).
---   7. UPDATE negative (outsider's UPDATE matches 0 rows).
---   8. DELETE GRANT-layer denial (42501).
---   9. DELETE policy-layer denial (with GRANT, no DELETE policy
---      makes WHERE match zero rows; the row survives).
+-- 10 assertions:
+--   1.  SELECT positive (member sees an item in their list).
+--   2.  SELECT negative (non-member sees nothing).
+--   3a. SELECT positive for the deleter on a soft-deleted item —
+--       the `OR deleted_by = public.uid()` disjunct in
+--       `items_select` admits the deleter's own row through. This
+--       is the half of the disjunct that makes PATCH-based
+--       soft-delete possible at all (Postgres applies SELECT
+--       policies as WITH CHECK on the new row of an UPDATE; see
+--       R26 / Risk #16).
+--   3b. SELECT negative for a non-deleter member on the same
+--       soft-deleted item — `deleted_at IS NULL` half of the
+--       disjunct still hides the row from everyone except the
+--       deleter, who reaches it through `items_deleted` only.
+--   4.  INSERT positive (member adds an item to their list).
+--   5.  INSERT negative (non-member's INSERT raises 42501 — the
+--       `items_insert` WITH CHECK fails on `is_list_member`).
+--   6.  UPDATE positive (member edits any item in their list).
+--   7.  UPDATE negative (outsider's UPDATE matches 0 rows).
+--   8.  DELETE GRANT-layer denial (42501).
+--   9.  DELETE policy-layer denial (with GRANT, no DELETE policy
+--       makes WHERE match zero rows; the row survives).
 --
 -- INSERT has a real GRANT for `authenticated`, so the policy
 -- layer is the one that matters and is tested via the non-
@@ -23,7 +31,7 @@
 
 BEGIN;
 
-SELECT plan(9);
+SELECT plan(10);
 
 \i /db/tests/fixtures/list_shared_alice_bob.sql
 
@@ -79,9 +87,13 @@ SELECT is(
   'items SELECT negative: non-member (Carol) sees nothing'
 );
 
--- 3. Soft-deleted item hidden through the base table. Switch to
--- Alice (member), soft-delete item 4444, then SELECT — the
--- `items_select` `deleted_at IS NULL` clause must hide it.
+-- 3a. Soft-deleted item visible to the deleter through the
+-- `OR deleted_by = public.uid()` disjunct on `items_select`.
+-- Switch to Alice (member), soft-delete item 4444, then assert
+-- Alice still sees it via base table. This half of the disjunct
+-- is what makes the soft-delete UPDATE land at all — Postgres
+-- applies SELECT policies as WITH CHECK on the new row, and a
+-- pure `deleted_at IS NULL` filter would reject the transition.
 SELECT set_config(
   'request.jwt.claims',
   '{"sub":"aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"}',
@@ -95,9 +107,29 @@ SELECT is(
     SELECT count(*)::int FROM public.items
     WHERE id = '44444444-4444-4444-4444-444444444444'
   ),
+  1,
+  'items SELECT positive: deleter sees own soft-deleted item via '
+  'the OR deleted_by = public.uid() disjunct'
+);
+
+-- 3b. Soft-deleted item hidden from non-deleter members through
+-- the base table. Switch to Bob (member, but NOT the deleter)
+-- and assert count is 0. The `deleted_at IS NULL` half of the
+-- disjunct does the work for everyone except the deleter; Bob
+-- reaches the row only through the items_deleted trash view.
+SELECT set_config(
+  'request.jwt.claims',
+  '{"sub":"bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"}',
+  TRUE
+);
+SELECT is(
+  (
+    SELECT count(*)::int FROM public.items
+    WHERE id = '44444444-4444-4444-4444-444444444444'
+  ),
   0,
-  'items SELECT negative: soft-deleted item hidden from base table '
-  '(member reaches it only through the items_deleted trash view)'
+  'items SELECT negative: non-deleter member sees soft-deleted '
+  'item only through the items_deleted trash view'
 );
 
 -- ===================================================================
