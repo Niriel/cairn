@@ -242,10 +242,11 @@ The app reads its API and auth URLs from `import.meta.env.VITE_*`:
 # web/.env (gitignored; copy from .env.example)
 VITE_API_BASE=/api
 VITE_AUTH_BASE=/auth
-VITE_DEV_LOGIN_SHORTCUT=true
 ```
 
 `VITE_API_BASE` and `VITE_AUTH_BASE` are paths, not full URLs — same in dev and prod, because Caddy and Vite both serve the API at `/api` and the auth service at `/auth` on the same origin as the app.
+
+`VITE_DEV_LOGIN_SHORTCUT` returns to this file alongside step 3's plan (see `plans/0000_implementation_order.md`), when the magic-link UI + seed-via-GoTrue-signup land together.
 
 ### Building for production locally
 

@@ -221,7 +221,7 @@ function ListsScreen({ theme, expanded = ['l1', 'l3'] }) {
           theme={theme}
           left={<CairnGlyph size={26} color={theme.accent}/>}
           title="Cairn"
-          right={<IconBtn theme={theme} icon="more-vertical" label="menu"/>}
+          right={<IconBtn theme={theme} icon="settings" label="settings"/>}
           sub="Signed in as Alice"
         />
       }
@@ -693,8 +693,8 @@ function DeleteItemScreen({ theme }) {
               <div style={{
                 marginTop: 6, fontSize: 13, color: theme.inkSoft, lineHeight: 1.5,
               }}>
-                Bob and Carol will no longer see this item. You can recover it from
-                the trash for 30 days.
+                Bob and Carol will no longer see this item. You can restore it from
+                this list's trash.
               </div>
             </div>
           </div>
@@ -824,6 +824,7 @@ function ListMenuScreen({ theme }) {
             { icon: 'feather', label: 'Edit description' },
             { icon: 'user-plus', label: 'Invite a friend' },
             { icon: 'users', label: 'Manage members' },
+            { icon: 'trash-2', label: 'View trash' },
             { icon: 'log-out', label: 'Leave this list' },
             { icon: 'trash', label: 'Delete list', tone: theme.ember },
           ].map((row, i, arr) => (
@@ -887,42 +888,31 @@ function MembersScreen({ theme }) {
           </div>
         ))}
       </div>
+      {/* "Add member" opens the three-section invite picker sheet
+          (circle · co-members · by email — see InvitePickerScreen in
+          cairn-invite-screens.jsx and ui.md → "Invite picker"). The
+          email-only inline form this used to be was a legacy shape. */}
       <div style={{ padding: '24px 18px 18px' }}>
-        <div style={{
-          fontSize: 11.5, color: theme.stone, fontWeight: 600,
-          letterSpacing: '0.06em', textTransform: 'uppercase',
-          marginBottom: 10,
-        }}>Invite by email</div>
-        <div style={{
-          padding: '14px', border: `1px dashed ${theme.stoneLt}`, borderRadius: 12,
-          background: theme.paperAlt,
+        <button style={{
+          width: '100%', padding: '12px 14px',
+          border: `1px dashed ${theme.stoneLt}`, borderRadius: 12,
+          background: theme.paperAlt, color: theme.inkSoft,
+          fontSize: 14, fontWeight: 600, cursor: 'pointer',
+          fontFamily: 'inherit',
+          display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8,
         }}>
-          <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-            <Icon name="mail" size={18} color={theme.stone}/>
-            <span style={{ flex: 1, fontSize: 14, color: theme.stone, fontStyle: 'italic' }}>
-              friend@example.net
-            </span>
-            <button style={{
-              padding: '7px 14px', border: 'none', borderRadius: 10,
-              background: theme.ink, color: theme.paper,
-              fontSize: 13, fontWeight: 600, cursor: 'pointer',
-              fontFamily: 'inherit',
-            }}>Send invite</button>
-          </div>
-          <div style={{
-            marginTop: 10, fontSize: 12, color: theme.stone, lineHeight: 1.5,
-          }}>
-            They'll get a magic link. If they don't have a Cairn account yet, they'll
-            create one when they tap it.
-          </div>
-        </div>
+          <Icon name="user-plus" size={16} color="currentColor" strokeWidth={1.75}/>
+          Add member
+        </button>
       </div>
     </ScreenShell>
   );
 }
 
-// 13) Settings — theme + font size, both stored on profile
-function SettingsScreen({ theme, themeChoice = 'system', fontSize = 'm' }) {
+// 13) Settings — canonical, consolidated.
+// Reachable from the Lists screen gear icon (and any "back to Settings" path).
+// Holds profile, people, appearance, privacy & data, recovery, about, account.
+function SettingsScreen({ theme, themeChoice = 'system', fontSize = 'm', invitesPending = 2 }) {
   const sizes = [
     { k: 'xs', label: 'XS', px: 11 },
     { k: 's',  label: 'S',  px: 13 },
@@ -956,7 +946,7 @@ function SettingsScreen({ theme, themeChoice = 'system', fontSize = 'm' }) {
         />
       }
     >
-      {/* Profile chip */}
+      {/* Profile chip — tap opens Edit profile (A1) */}
       <div style={{
         display: 'flex', alignItems: 'center', gap: 12,
         padding: '16px 18px',
@@ -973,8 +963,18 @@ function SettingsScreen({ theme, themeChoice = 'system', fontSize = 'm' }) {
         <Icon name="chevron-right" size={18} color={theme.stoneLt}/>
       </div>
 
+      {/* People — invites + privacy live under Settings, not as top-level destinations */}
+      <SectionLabel theme={theme}>People</SectionLabel>
+      <div style={{ padding: '0 18px' }}>
+        <NavRow theme={theme} icon="inbox" title="Invites"
+          sub={invitesPending > 0 ? `${invitesPending} pending` : 'No pending invites'}
+          count={invitesPending > 0 ? invitesPending : undefined}/>
+        <NavRow theme={theme} icon="shield" title="Privacy"
+          sub="Who can invite you · circle · blocked"/>
+      </div>
+
       {/* Theme */}
-      <SectionLabel>Theme</SectionLabel>
+      <SectionLabel>Appearance</SectionLabel>
       <div style={{ padding: '0 18px' }}>
         <div style={{
           display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8,
@@ -1002,7 +1002,7 @@ function SettingsScreen({ theme, themeChoice = 'system', fontSize = 'm' }) {
 
       {/* Font size */}
       <SectionLabel>Text size</SectionLabel>
-      <div style={{ padding: '0 18px' }}>
+      <div style={{ padding: '0 18px 0' }}>
         <div style={{
           display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between',
           gap: 6, padding: '14px 12px',
@@ -1040,47 +1040,32 @@ function SettingsScreen({ theme, themeChoice = 'system', fontSize = 'm' }) {
         </div>
       </div>
 
-      {/* Trash — entry into per-user list trash */}
-      <SectionLabel>Recovery</SectionLabel>
+      {/* Privacy & data — GDPR data portability entry */}
+      <SectionLabel theme={theme}>Privacy &amp; data</SectionLabel>
       <div style={{ padding: '0 18px' }}>
-        <div style={{
-          display: 'flex', alignItems: 'center', gap: 12,
-          padding: '14px 14px',
-          border: `1px solid ${theme.rule}`, borderRadius: 12,
-        }}>
-          <Icon name="trash-2" size={18} color={theme.stone}/>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: 14, fontWeight: 600, color: theme.ink }}>
-              Deleted lists
-            </div>
-            <div style={{ fontSize: 12, color: theme.stone, marginTop: 2 }}>
-              Restore lists you've deleted
-            </div>
-          </div>
-          <Icon name="chevron-right" size={18} color={theme.stoneLt}/>
-        </div>
+        <NavRow theme={theme} icon="download" title="Download my data"
+          sub="Export everything you've put in Cairn"/>
       </div>
 
-      {/* About / sign out / delete */}
-      <SectionLabel>Account</SectionLabel>
+      {/* Recovery */}
+      <SectionLabel theme={theme}>Recovery</SectionLabel>
+      <div style={{ padding: '0 18px' }}>
+        <NavRow theme={theme} icon="trash-2" title="Deleted lists"
+          sub="Restore lists you've deleted"/>
+      </div>
+
+      {/* About */}
+      <SectionLabel theme={theme}>About</SectionLabel>
+      <div style={{ padding: '0 18px' }}>
+        <NavRow theme={theme} icon="info" title="About Cairn"
+          sub="Version · privacy · terms · open source"/>
+      </div>
+
+      {/* Account */}
+      <SectionLabel theme={theme}>Account</SectionLabel>
       <div style={{ padding: '0 18px 24px' }}>
-        <div style={{
-          padding: '14px 14px',
-          border: `1px solid ${theme.rule}`, borderRadius: 12,
-          fontSize: 14, color: theme.ink, fontWeight: 600,
-          marginBottom: 10,
-        }}>
-          Sign out
-        </div>
-        <div style={{
-          padding: '14px 14px',
-          border: `1px solid ${theme.rule}`, borderRadius: 12,
-          fontSize: 14, color: theme.ember, fontWeight: 600,
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        }}>
-          <span>Delete account</span>
-          <Icon name="chevron-right" size={18} color={theme.ember}/>
-        </div>
+        <NavRow theme={theme} icon="log-out" title="Sign out"/>
+        <NavRow theme={theme} icon="trash" title="Delete account" ember/>
         <div style={{
           fontSize: 11, color: theme.stoneLt, textAlign: 'center',
           marginTop: 18, fontFamily: theme.mono,
@@ -1091,6 +1076,10 @@ function SettingsScreen({ theme, themeChoice = 'system', fontSize = 'm' }) {
     </ScreenShell>
   );
 }
+
+// Legacy alias — older canvas registrations refer to SettingsScreenV2.
+// Kept so we don't break anyone still pointing at it; new wiring should use SettingsScreen.
+const SettingsScreenV2 = SettingsScreen;
 
 // 14) Trash — soft-deleted items for one list
 function TrashScreen({ theme }) {
@@ -1164,7 +1153,7 @@ function ItemsScreenWithUndo({ theme, list = SEED_LISTS[0] }) {
           theme={theme}
           left={<IconBtn theme={theme} icon="arrow-left" label="back"/>}
           title={list.name}
-          sub={`${list.members.length} members · ${list.items.length} stones`}
+          sub={`${list.members.length} members · ${list.items.length} items`}
           right={<IconBtn theme={theme} icon="more-vertical" label="more"/>}
         />
       }
@@ -1247,6 +1236,30 @@ function DeleteAccountScreen({ theme, confirmed = false }) {
           We won't ask why. Read what happens, then decide.
         </div>
 
+        {/* Non-blocking nudge: offer a data copy before the irreversible action. */}
+        <div style={{
+          marginBottom: 20,
+          padding: '14px 16px', borderRadius: 12,
+          background: theme.paperAlt, border: `1px solid ${theme.rule}`,
+          display: 'flex', alignItems: 'flex-start', gap: 12,
+        }}>
+          <Icon name="feather" size={18} color={theme.accent}/>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 13.5, fontWeight: 600, color: theme.ink, marginBottom: 2 }}>
+              Want a copy of your data first?
+            </div>
+            <div style={{ fontSize: 12.5, color: theme.inkSoft || theme.stone, lineHeight: 1.5 }}>
+              A few seconds. Yours to keep, even after deletion.
+            </div>
+          </div>
+          <button style={{
+            padding: '7px 12px', border: `1px solid ${theme.ink}`, borderRadius: 99,
+            background: theme.paper, color: theme.ink,
+            fontSize: 12.5, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
+            flexShrink: 0,
+          }}>Download</button>
+        </div>
+
         <Block title="What's permanently removed">
           Your email, your profile, and every vote you've cast on any list.
           None of it can be recovered.
@@ -1254,8 +1267,8 @@ function DeleteAccountScreen({ theme, confirmed = false }) {
 
         <Block title="What stays on shared lists">
           Items you added on lists you share with other people stay where they
-          are — Bob and Carol need that material to keep using their lists.
-          Your name on those items changes to <em style={{ fontStyle: 'normal', fontWeight: 600 }}>Deleted user</em>.
+          are — the people you share with need that material to keep using
+          those lists. Your name on those items changes to <em style={{ fontStyle: 'normal', fontWeight: 600 }}>Deleted user</em>.
         </Block>
 
         <Block title="What's deleted with you">
@@ -1334,7 +1347,7 @@ function ItemsScreenTombstone({ theme }) {
           theme={theme}
           left={<IconBtn theme={theme} icon="arrow-left" label="back"/>}
           title={list.name}
-          sub={`${list.members.length} members · ${items.length} stones`}
+          sub={`${list.members.length} members · ${items.length} items`}
           right={<IconBtn theme={theme} icon="more-vertical" label="more"/>}
         />
       }
@@ -1398,6 +1411,6 @@ Object.assign(window, {
   LoginRequest, LoginCheck, ListsScreen, EmptyListsScreen, ItemsScreen,
   EmptyListScreen, AddItemScreen, EditItemScreen, DeleteItemScreen,
   AddListScreen, ListMenuScreen, MembersScreen,
-  SettingsScreen, TrashScreen, ItemsScreenWithUndo,
+  SettingsScreen, SettingsScreenV2, TrashScreen, ItemsScreenWithUndo,
   DeleteAccountScreen, ItemsScreenTombstone,
 });

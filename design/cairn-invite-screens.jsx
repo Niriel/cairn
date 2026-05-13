@@ -147,7 +147,7 @@ function ListsScreenWithInbox({ theme }) {
             fontSize: 11, color: theme.stoneLt, marginTop: 6,
             fontFamily: theme.mono,
           }}>
-            {l.members.length} members · {l.items.length} stones
+            {l.members.length} members · {l.items.length} items
           </div>
         </div>
       ))}
@@ -724,8 +724,11 @@ function PickerRows({ theme, rows }) {
   );
 }
 
-// ── 9) Settings screen v2: with Invites + Privacy entries ──
-function SettingsScreenV2({ theme, themeChoice = 'light', fontSize = 'm', invitesPending = 2 }) {
+// ── 9) Settings screen v2 — DEPRECATED.
+// The canonical Settings now lives in cairn-screens.jsx (see SettingsScreen).
+// This stub is kept only so the global export below doesn't dangle; it returns
+// the canonical screen if anyone still calls it.
+function SettingsScreenV2_LEGACY({ theme, themeChoice = 'light', fontSize = 'm', invitesPending = 2 }) {
   return (
     <ScreenShell
       theme={theme}
@@ -913,7 +916,6 @@ Object.assign(window, {
   BlockedScreen,
   ProfileSheet,
   InvitePickerScreen,
-  SettingsScreenV2,
   InboxBanner,
   SectionLabel,
   NavRow,

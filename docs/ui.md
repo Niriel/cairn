@@ -4,6 +4,10 @@ This document captures user-interface decisions that affect more than one screen
 
 Cairn is a Progressive Web App built with SvelteKit. "The app" in this document means the running web app — installed to the home screen on phones, or running in a browser tab on desktop. The conventions below apply identically across both presentations except where called out.
 
+## First launch — choose your name
+
+Brand-new accounts land on a single-field screen (*"What should we call you?"*) before anything else loads. The on-signup trigger seeds `profiles.display_name` with the fixed placeholder `'New user'` (see `data-model.md` → `tg_profile_on_signup` for why the placeholder isn't derived from the email's local part), and the app forces this screen whenever it reads that placeholder back. A short input, a single **Continue** button, no skip — the user can rename later from Settings → Edit profile, but they can't reach the Lists screen carrying the placeholder. The avatar is also `avatar_version = 0` at this point, so the user is rendered as the initials disc of whatever name they pick from here on (see "Avatars" below).
+
 ## Lists screen
 
 The first screen the user sees after logging in: their lists, in order of most recently modified. Each row shows the list name and a one-line preview of its description.
@@ -130,9 +134,31 @@ When the app is running as an installed PWA (`display: standalone` in the manife
 
 This is invisible work — done right, the user never notices. Done wrong, the FAB is half-eaten on some devices, the keyboard hides the input on iOS, and the home indicator overlaps a bottom sheet's destructive button.
 
+## Navigation and back
+
+Every back affordance — the in-app **←** in the top bar, the Android hardware/gesture back, the iOS Safari swipe-back, and the desktop browser back button — must do the same thing. To the user these are one action; the moment they diverge ("the back button broke") is the moment trust in the app drops.
+
+The principle: **the back stack is the source of truth, and every visible thing the user can dismiss puts an entry on it.**
+
+Concretely:
+
+- **Route changes push history.** SvelteKit's router does this by default for `goto()` and `<a href>` — every screen transition (Lists → Items → Item details → Edit, etc.) adds an entry. Browser back and Android system back call `history.back()`, which SvelteKit handles as a route change in reverse. The in-app top-bar **←** also calls `history.back()` (never a hard-coded previous route), so it cannot disagree with system back.
+- **Dismissible overlays push history too.** Bottom sheets (delete-item confirmation, list overflow menu, invite picker, avatar source sheet), modal dialogs, the profile sheet, and the unfolded accordion panel all push a state on open and listen for `popstate` to close. The user expects back to close what they just opened; system back and the sheet's own Cancel are then equivalent. Without this, back skips past the overlay and pops the user out of the screen entirely — the bug usually reported as *"the back button is broken."*
+- **The Lists screen is the back-stack root.** Pressing back from there does nothing inside the running app. On Android-installed-PWA the OS handles it (typically closes the app), which is fine — we don't fight the platform. On iOS-installed-PWA (`display: standalone`) there is no system back gesture at all, so the in-app **←** is the only path; the design's top-bar arrow must always be reachable.
+- **The auth callback URL replaces history rather than pushing.** Hitting back from the first post-login screen must not return the user to `cairn.<domain>/auth/callback?token=…`, which is single-use. Use SvelteKit's `goto(target, { replaceState: true })` from the callback handler.
+- **Transient surfaces don't push history.** The 6-second undo snackbar dismisses on its own timer; it doesn't consume a back press. Pressing back during the snackbar does whatever back means at that point in the route — it doesn't dismiss the snackbar in lieu of navigating.
+- **Accept invite navigation pushes**, so back from the freshly-joined list returns to the inbox / lists screen the user came from, not out of the app.
+- **Back never makes a destructive choice on the user's behalf.** Back from a delete-confirmation sheet dismisses the sheet (same as Cancel, never Delete). Back from Edit item with unsaved changes opens a "Discard changes?" sheet, which is itself a dismissible overlay — completing the recursion. Back from the Delete-account screen leaves the typed-confirmation state intact but does not submit.
+
+Playwright should exercise this. Each user-journey spec (`testing.md`) should include a system-back press at every transition that proves back goes where the user expects — both for full-route transitions and for at least one dismissible overlay (the delete-item sheet is a good canary).
+
 ## Settings
 
-A Settings screen, reachable from an overflow on the lists screen. Two preferences in v1:
+A Settings screen, reachable from the **gear icon** in the top-right of the Lists screen. (The kebab on individual list rows is unchanged — that's still the per-list long-press menu.) The screen is the canonical hub: every other Settings-shaped surface ladders back to it.
+
+A profile chip sits at the top: current avatar (initials disc or photo), display name, chevron. Tapping it opens **Edit profile** — see "Avatars" below. Below the chip, the screen is grouped into named sections.
+
+**Appearance** holds the two device-local preferences:
 
 - **Theme.** Light / dark / system. Default: system. The app re-themes immediately on change; no restart.
 - **Font size.** Five steps: XS, S, M, L, XL. Default: M. Implemented as a single scale factor applied to the root `font-size` (with all type sizes in `rem`) so every text style scales together and the layout stays balanced.
@@ -141,13 +167,30 @@ Larger sizes are not just an accessibility nicety — Cairn is read in cafés, o
 
 Both preferences are **device-local** — stored in `localStorage`, not in the database. Theme and font size are properties of the screen you're reading on (a phone in bright sun versus a laptop indoors at night), not properties of the user, so they shouldn't follow you across devices. Anything that genuinely *should* follow the user — invite policy, future notification preferences — lives on `user_settings` (see `data-model.md`).
 
-Below the preferences, Settings has three navigation rows that open dedicated screens:
+The other sections are navigation rows that open dedicated screens:
 
-- **Invites** — pending invitations to lists, with Accept / Decline. See "Invites & circles" below.
-- **Privacy** — who can invite you, who's in your circle, who you've blocked. See below.
-- **Account** — sign out, delete account.
+- **People → Invites** — pending invitations to lists, with Accept / Decline. See "Invites & circles" below.
+- **People → Privacy** — who can invite you, who's in your circle, who you've blocked. See below.
+- **Privacy & data → Download my data** — produce a per-user export archive. See `data-export.md` and `design/cairn-export-screens.jsx`.
+- **Recovery → Deleted lists** — restore lists you've soft-deleted.
+- **About → About Cairn** — version, privacy policy, terms, open-source attributions, contact, license. See `design/cairn-legal-screens.jsx`.
+- **Account → Sign out**, **Account → Delete account**.
 
-The **Sign out** action lives in the Account row. **Delete account** is in red, below Sign out, and opens a dedicated screen, not a confirmation dialog — see "Account deletion" below and `account-deletion.md` for the full model.
+The **Sign out** action is the first row of the Account section. **Delete account** is in red, below Sign out, and opens a dedicated screen, not a confirmation dialog — see "Account deletion" below and `account-deletion.md` for the full model.
+
+### Avatars
+
+Cairn renders the same `<Avatar>` everywhere a user appears (item attribution, members list, profile sheets, the Settings profile chip). The component branches on `profiles.avatar_version`: `0` (the default) renders the existing coloured initials disc; any positive integer renders an `<img>` with `src="/avatars/{uid}.webp?v={avatar_version}"`. See `avatars.md` for the storage decision, the cache-busting URL pattern, and the upload sidecar.
+
+The user-facing flow lives in `design/cairn-avatar-screens.jsx`:
+
+- **Settings profile chip** (the top row of Settings) opens the **Edit profile** screen (A1).
+- **Edit profile** shows the avatar at hero size with a small **Change** affordance overlaid; below, an editable display name; below that, a muted **Remove picture** row only visible when `avatar_version > 0`.
+- Tapping **Change** opens the **source sheet** (A2): **Take photo**, **Choose from library**, **Cancel**. Uses the platform's native `<input type="file">` with `accept="image/*"` (and `capture="user"` for camera) — no custom permission handling.
+- The **crop step** (A3) shows a square viewport with a circular crop overlay, so the user previews exactly what the final disc will look like. Pinch / zoom / drag. Client-side crop is preview only — the sidecar re-validates and re-resizes server-side.
+- Five **upload states** (A4–A8): uploading (spinner + Cancel), saved (brief check-mark), no-connection error, too-big error, wrong-format error. The crop step preserves the picked image on retry so the user doesn't re-pick.
+
+The "Deleted user" tombstone keeps `avatar_version = 0` forever — the same initials-disc-fallback branch renders the gray-disc-no-initials treatment described under "Account deletion screen" below, exactly as today. Adding the column doesn't change the tombstone path.
 
 ### Account deletion screen
 
@@ -158,6 +201,8 @@ Tapping **Delete account** in Settings opens a full-screen page. It is not a she
 3. **What's deleted with you.** Lists where you were the only remaining member, along with everything on them. Nothing of yours is left behind in someone else's space.
 
 Below those blocks: a single text field labeled *"Type **delete** to confirm"* and a destructive **Delete my account** button in ember, disabled until the user types the magic word. Above the button, in muted text: *"This can't be undone."* No countdown timer, no checkboxes — the typed confirmation is the friction.
+
+A small non-blocking panel sits *above* the destructive button: *"Want a copy of your data first? A few seconds. Yours to keep, even after deletion."* with a **Download** button that opens the Data export hub. Tapping it navigates to the export hub; the Delete account screen's state (typed-confirmation, etc.) is preserved when the user returns. Export and delete are independent — neither blocks the other. See `data-export.md` and screen E5 in `design/cairn-export-screens.jsx`.
 
 After tapping the destructive button: a brief loading state, then a confirmation screen ("Your account has been deleted") with a single button back to the sign-in screen. The session cookie is cleared (the server's `DELETE /auth/session` endpoint sets `Max-Age=0` on the `cairn_session` cookie); the app is fully logged out.
 
@@ -304,7 +349,6 @@ The trash is not a feature we promise users — it's a safety net. The copy in d
 
 A few smaller patterns, pinned down so they stay consistent:
 
-- **Aggregate score in the row.** Not shown in v1. The user's own vote is what's displayed; the group's score determines sort order but isn't surfaced as a number on each row. This keeps rows visually quiet. If we change our mind later, the view already exposes the data.
 - **Empty list.** A list with no items shows a friendly empty illustration and an "Add the first item" call to action. No vote controls are rendered for non-existent items.
 - **Empty lists screen.** A user with no lists yet sees a brief explainer and a "Create your first list" call to action.
 

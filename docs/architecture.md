@@ -39,16 +39,16 @@ Explicit non-goals:
 │    ┌────┼─────────┬───────────┐                             │
 │    ▼    ▼         ▼           ▼                             │
 │  ┌────┐ ┌──────┐ ┌────────┐ ┌────────┐                      │
-│  │web │ │GoTrue│ │PostgREST│ │…       │                     │
-│  └────┘ └──┬───┘ └────┬───┘                                 │
-│           │           │                                     │
-│           └─────┬─────┘                                     │
+│  │web │ │GoTrue│ │PostgREST│ │avatars │                     │
+│  └────┘ └──┬───┘ └────┬───┘ └───┬────┘                      │
+│           │           │         │ (resize + RPC bump)       │
+│           └─────┬─────┘─────────┘                           │
 │                 ▼                                           │
 │  ┌──────────────────┐                                       │
 │  │   PostgreSQL     │  ← schema + row-level security        │
 │  └──────────────────┘                                       │
 │                                                             │
-│  All five services run as containers via Docker Compose.    │
+│  All six services run as containers via Docker Compose.     │
 └─────────────────────────────────────────────────────────────┘
                           │  nightly
                           ▼
@@ -62,6 +62,8 @@ A single domain. Caddy routes by path:
 - `cairn.<domain>/` → the `web` container (the static SvelteKit bundle)
 - `cairn.<domain>/api/*` → PostgREST
 - `cairn.<domain>/auth/*` → GoTrue (with the cookie shim — see below)
+- `cairn.<domain>/avatars/*.webp` (`GET`) → static files on disk at `/srv/cairn/avatars/`, served directly by Caddy with long cache headers
+- `cairn.<domain>/avatars` (`POST`) and `cairn.<domain>/avatars/me` (`DELETE`) → the `avatars` sidecar container (image resize + RPC bump — see `avatars.md` for the full endpoint list)
 
 One origin for everything means no CORS plumbing and a clean cookie story.
 
@@ -110,6 +112,12 @@ Trade-offs we accept:
 - PostgREST is less flexible than a hand-written API for unusual workflows.
 
 For Cairn's CRUD-and-vote model, these trade-offs are favorable. If a feature ever genuinely needs a custom endpoint, we can add a tiny service alongside PostgREST without disturbing the rest.
+
+### Image processing: the avatar sidecar
+
+One feature does need a custom endpoint: profile pictures. The bytes shouldn't live in the database (every `select * from profiles` would transfer them), an S3-style blob store violates the no-hyperscalers stance and adds more moving parts than it saves, and `plpython3u` image decoding inside Postgres is the wrong place to handle untrusted bytes. So Cairn ships a **tiny sidecar HTTP service** that does exactly three things: receive a multipart upload, validate + resize it to 256×256 WebP, write the file to `/srv/cairn/avatars/{uid}.webp` (atomic rename), and call `bump_avatar_version()` on PostgREST. The bytes are served directly by Caddy as static files with long cache headers; the database holds only an `int` cache-buster (`profiles.avatar_version`).
+
+The sidecar is single-purpose, stateless, and small enough to write in any language (Go, Python, or Node — the open question is the team's preference, not the architecture). It runs as a normal container in the same `docker-compose.yml`, with read-write access to the avatar directory; Caddy's container mounts the same directory read-only. The shape is well-trodden (GitLab, Mastodon, every self-hosted forum since 2003). See `docs/avatars.md` for the schema delta, the RPCs, the file lifecycle, and the orphan-sweep cron.
 
 ### Authentication: GoTrue + email magic links
 
@@ -234,6 +242,36 @@ The same `docker-compose.yml` runs on a developer's laptop, with these changes:
 Postgres, PostgREST, and GoTrue are bit-identical to production. The schema, policies, and seed data are managed by migration files committed to the repo, so a fresh checkout reproduces the exact production state.
 
 This is covered in detail in `development.md`.
+
+## Client-side storage and the consent question
+
+Cairn stores a small, fixed inventory of things on the user's device. Each one is **strictly necessary for the service the user explicitly requested**, which is the exemption that excuses us from the cookie-banner requirement under **ePrivacy Directive Art. 5(3)** (Germany: **TDDDG §25**, formerly TTDSG). What's there, why each entry qualifies, and the rule before adding new ones:
+
+| What | Where | Set by | Why it's strictly necessary |
+|---|---|---|---|
+| `cairn_session` cookie | `HttpOnly`, `Secure`, `SameSite=Lax`, `Path=/`, ~30-day Max-Age | Caddy on successful magic-link callback (see "JWT storage" above) | The auth JWT. Without it the user is signed out; the service literally cannot be delivered. EDPB Guidelines 2/2023 treat auth/session cookies as the canonical "strictly necessary" example. |
+| `cairn.theme` (`'system' \| 'light' \| 'dark'`) | `localStorage` | The Appearance section of Settings, when the user changes it | A functional preference the user *themselves* sets. Both EDPB guidelines and German TDDDG treat user-set preferences as exempt. Art. 5(3) covers *any* storage on terminal equipment — `localStorage` falls under it the same way cookies do; the medium doesn't change the legal analysis. |
+| `cairn.font_size` (`'xs' \| 's' \| 'm' \| 'l' \| 'xl'`) | `localStorage` | Same as theme | Same as theme. |
+| App shell + recently-viewed list data | Service worker `Cache` (lands in step 11 / PWA) | First load and stale-while-revalidate on visit | The app is a PWA. The cache is what makes it launch instantly and survive a flaky connection — i.e., what the user requested when they installed it. No personal-data collection; just a copy of bytes the server already sent the same user. |
+
+That's the entire client-side inventory. Specifically: **no analytics cookies, no third-party scripts, no fingerprinting, no advertising IDs, no telemetry, no IndexedDB** beyond what the service worker uses internally. The server-side side of this picture is in `logging.md`.
+
+### The rule before adding anything new
+
+Each new client-side store must qualify under one of two narrow gates:
+
+1. **Strictly necessary for the user-requested service.** The store is required for the app to function for the user who deliberately opened it. Examples that would clearly qualify: a CSRF token, a draft-recovery cache that survives an accidental tab close, a per-list scroll position that survives back-navigation.
+2. **A functional preference the user themselves sets.** A new toggle in Settings (Appearance / Privacy / etc.) that the user explicitly changes. If the user doesn't actively set it, it doesn't qualify — a thing that just appears because they opened the app is not a "preference set by the user."
+
+Anything not covered by one of these — analytics (even self-hosted, even first-party, in most DPA opinions), A/B-test buckets, persistent identifiers for non-functional purposes, third-party embeds that drop their own cookies — requires a real consent UI before the storage happens, with refuse-as-easy-as-accept and granular categories. That is a meaningful engineering surface (deferred storage, consent persistence, a way to revisit the choice from Settings), not a banner-template drop-in. The simpler answer is to keep the inventory above tight.
+
+### Why no banner is the right call
+
+Cookie banners exist to obtain consent for storage that wouldn't otherwise be lawful. We don't have any such storage. A banner that says *"we use one auth cookie, OK?"* is worse than nothing — it trains users to click through consent UI, it adds friction at the moment a first-time user decides whether to trust the app, and it implies (to a reader who knows the law) that we have something to hide.
+
+The legal duty we *do* owe the user is **disclosure**, not consent. The privacy policy (`design/cairn-legal-screens.jsx` → Privacy Policy; built as the canonical screen in step 12) enumerates the four entries above in plain language, and the docs above are the engineering-side source of truth for the same list.
+
+If a future DPA opinion narrows the strictly-necessary exemption such that user-set `localStorage` preferences need consent, the response is a minimal one-screen consent UI gating only the `localStorage` writes — the auth cookie stays exempt under any plausible reading, and the SW cache is exempt as long as it's bytes the server already sent the same authenticated user.
 
 ## Considered and rejected
 

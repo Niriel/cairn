@@ -71,6 +71,10 @@ function CairnWordmark({ size = 22, color, theme }) {
 const ICON_PATHS = {
   'arrow-up':       'M12 19V5 M5 12l7-7 7 7',
   'arrow-down':     'M12 5v14 M19 12l-7 7-7-7',
+  'thumbs-up':      'M7 10v12 M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.76a2 2 0 0 0 1.79-1.11L12 2a3.13 3.13 0 0 1 3 3.88z',
+  'thumbs-down':    'M17 14V2 M9 18.12 10 14H4.17a2 2 0 0 1-1.92-2.56l2.33-8A2 2 0 0 1 6.5 2H20a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-2.76a2 2 0 0 0-1.79 1.11L12 22a3.13 3.13 0 0 1-3-3.88z',
+  'camera':         'M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z M12 17a4 4 0 1 0 0-8 4 4 0 0 0 0 8z',
+  'image':          'M21 19v-14a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2z M9 11a2 2 0 1 0 0-4 2 2 0 0 0 0 4z m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21',
   'chevron-right':  'm9 18 6-6-6-6',
   'chevron-down':   'm6 9 6 6 6-6',
   'chevron-left':   'm15 18-6-6 6-6',
@@ -110,6 +114,11 @@ const ICON_PATHS = {
   'inbox':          'M22 12h-6l-2 3h-4l-2-3H2 M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z',
   'bell':           'M10.268 21a2 2 0 0 0 3.464 0 M3.262 15.326A1 1 0 0 0 4 17h16a1 1 0 0 0 .74-1.673C19.41 13.956 18 12.499 18 8A6 6 0 0 0 6 8c0 4.499-1.411 5.956-2.738 7.326z',
   'lock':           'M5 11h14a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2z M7 11V7a5 5 0 0 1 10 0v4',
+  'settings':       'M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z',
+  'info':           'M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20z M12 16v-4 M12 8h.01',
+  'download':       'M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4 M7 10l5 5 5-5 M12 15V3',
+  'inbox':          'M22 12h-6l-2 3h-4l-2-3H2 M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z',
+  'slash':          'M22 12a10 10 0 1 1-20 0 10 10 0 0 1 20 0z M4.93 4.93l14.14 14.14',
 };
 function Icon({ name, size = 20, color = 'currentColor', strokeWidth = 1.75, style }) {
   const d = ICON_PATHS[name];
@@ -186,7 +195,7 @@ function VoteControl({ value, onChange, style, theme, animate = true }) {
         onMouseEnter={e => { if (!disabled) e.currentTarget.style.background = t.paperAlt; }}
         onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
       >
-        <Icon name={dir > 0 ? 'arrow-up' : 'arrow-down'} size={18} color="currentColor" strokeWidth={2}/>
+        <Icon name={dir > 0 ? 'thumbs-up' : 'thumbs-down'} size={18} color="currentColor" strokeWidth={1.75}/>
       </button>
     );
   };

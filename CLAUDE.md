@@ -19,13 +19,13 @@ specification is in `docs/`, with visual references in `design/`.
 ## Where we are in the build
 
 `plans/0000_implementation_order.md` is the master roadmap: a numbered
-list of the ten plans that take Cairn from walking-skeleton to
+list of the thirteen plans that take Cairn from walking-skeleton to
 production. Each item is a checkbox — `[ ]` means to do, `[x]` means
 done. **Read it at the start of any session** to know which step is
 current and what has shipped. Detailed sub-plans live alongside it
 as three-file directories (`plans/0010_db_foundation/`,
-`plans/0200_<slug>/`, `plans/0300_<slug>/`, etc. — see
-`.claude/commands/write-plan.md` for the numbering and file-format
+`plans/0200_<slug>/`, `plans/0300_<slug>/`, …, `plans/1300_<slug>/` —
+see `.claude/commands/write-plan.md` for the numbering and file-format
 conventions); tick the box in `0000_…` once the matching sub-plan is
 merged.
 
@@ -54,6 +54,14 @@ Svelte rather than porting React verbatim. Design tokens (`CAIRN_LIGHT` /
   (see `docs/ui.md` → "Button order in pairs").
 - The circle model is one-directional and invisible to the other side
   (see `docs/circles.md`).
+- Avatars are filesystem files at `/srv/cairn/avatars/{uid}.webp`, served
+  by Caddy, with a tiny integer `profiles.avatar_version` as cache
+  buster — `0` = no picture, render initials (see `docs/avatars.md`).
+- Server logs are short by design: no request bodies, no query strings,
+  email hashes only, no third-party telemetry (see `docs/logging.md`).
+- Currently-unresolved decisions across docs are indexed in
+  `docs/open-questions.md` — start there before opening a new question
+  to avoid duplication.
 - Guiding principle: the simplest thing that works, with attribution and
   undo built in (see `docs/architecture.md`).
 

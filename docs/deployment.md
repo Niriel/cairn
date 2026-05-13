@@ -139,6 +139,20 @@ services:
     ports: []
     restart: unless-stopped
 
+  avatars:
+    build: ./avatars
+    # the avatar upload sidecar (see avatars.md); validates, resizes to
+    # 256x256 WebP, writes /srv/cairn/avatars/{uid}.webp, calls
+    # bump_avatar_version on PostgREST.
+    ports: []
+    volumes:
+      - /srv/cairn/avatars:/srv/cairn/avatars   # read-write
+    environment:
+      POSTGREST_URL: http://postgrest:3000
+      JWT_SECRET: ${JWT_SECRET}
+    restart: unless-stopped
+    depends_on: [postgrest]
+
   caddy:
     image: caddy:2
     ports:
@@ -146,6 +160,7 @@ services:
       - "443:443"
     volumes:
       - ./caddy/Caddyfile.prod:/etc/caddy/Caddyfile:ro
+      - /srv/cairn/avatars:/srv/cairn/avatars:ro   # static avatar serving
       - caddy_data:/data
       - caddy_config:/config
     environment:
@@ -220,6 +235,26 @@ cairn.{$DOMAIN} {
     handle @delete_session {
         header Set-Cookie "cairn_session=; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=0"
         respond 204
+    }
+
+    # ── Avatars: GET /avatars/*.webp → static files; POST /avatars and
+    #            DELETE /avatars/me → the avatar sidecar (see avatars.md) ──
+    @avatar_static {
+        method GET
+        path /avatars/*.webp
+    }
+    handle @avatar_static {
+        root * /srv/cairn
+        header Cache-Control "public, max-age=31536000, immutable"
+        file_server
+    }
+    @avatar_sidecar path /avatars /avatars/me
+    handle @avatar_sidecar {
+        # Same cookie → bearer translation as /api/*; the sidecar gates
+        # uploads on the user's JWT (see avatars.md).
+        @hasSession header_regexp Cookie cairn_session=([^;]+)
+        request_header Authorization "Bearer {http.regexp.1}"
+        reverse_proxy avatars:8080
     }
 
     # ── Web app: everything else ──

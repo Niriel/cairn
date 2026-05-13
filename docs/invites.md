@@ -224,6 +224,7 @@ create table public.invitations (
   target_user_id uuid          references auth.users(id) on delete cascade,
   target_email   text,
   created_at     timestamptz not null default now(),
+  modified_at    timestamptz not null default now(),
   check (target_user_id is not null or target_email is not null)
 );
 

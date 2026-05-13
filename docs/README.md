@@ -6,7 +6,7 @@ A simple app for small groups to share lists of anything — movies to watch, bo
 
 Alice loves old black-and-white films; Bob is a sci-fi nerd. They keep swapping recommendations and losing track in chat. With Cairn they share a list for Alice, a list for Bob, and a list for the two of them — and stop forgetting.
 
-A list is a named collection of items. An item has a name, optional notes, timestamps, and up/down votes. Lists default to sorting by net upvotes, with ties broken oldest-first. Anyone with access to a list can add, edit, soft-delete, or vote on items.
+A list is a named collection of items. An item has a name, optional notes, timestamps, and per-member votes on a seven-step scale from −3 to +3. Lists default to sorting by score (the sum of all votes), with ties broken oldest-first. Anyone with access to a list can add, edit, soft-delete, or vote on items.
 
 ## What it values
 
@@ -36,13 +36,17 @@ The same code, the same data, every device.
 - **`architecture.md`** — the technical architecture, why each component was chosen, the request flow, and what we considered and rejected.
 - **`data-model.md`** — the database schema, the row-level security policies, and the views that shape the API.
 - **`ui.md`** — user-interface conventions that affect more than one screen or have data-model implications.
+- **`avatars.md`** — profile pictures: filesystem storage, the cache-busting `avatar_version` column, the upload sidecar, and the file lifecycle.
 - **`account-deletion.md`** — how account deletion works: what's removed, what's anonymized, what stays, and the user-facing flow.
+- **`data-export.md`** — the GDPR data-portability export: format (ZIP with JSON + HTML), scope, the `export_my_data` RPC, and the in-screen surfaces.
 - **`invites.md`** — invitations, the three-way invite policy, and blocks. The full data flow for who can reach you and how.
 - **`circles.md`** — what a circle is (and isn't). The single canonical reference for the circle model — read this first if you've never encountered it.
 - **`development.md`** — how to set up and work on Cairn from a developer's laptop.
 - **`testing.md`** — the three test layers (pgTAP, Vitest, Playwright), what each catches, and how to run them.
 - **`quality.md`** — linting, formatting, type checking, and the pre-commit hook that runs them.
 - **`deployment.md`** — how Cairn runs in production on a Hetzner VPS, including TLS, backups, and releases.
+- **`logging.md`** — what each container logs, what's deliberately not logged, retention windows, and the operator's debugging workflow.
+- **`open-questions.md`** — an index of currently-unresolved design decisions across the docs. Each bullet points at the doc section that holds the full context.
 
 The docs are written to be read in roughly that order. `architecture.md` is the load-bearing one — the others build on its choices.
 

@@ -35,6 +35,9 @@
 <script type="text/babel" src="cairn-ui.jsx"></script>
 <script type="text/babel" src="cairn-screens.jsx"></script>
 <script type="text/babel" src="cairn-invite-screens.jsx"></script>
+<script type="text/babel" src="cairn-avatar-screens.jsx"></script>
+<script type="text/babel" src="cairn-export-screens.jsx"></script>
+<script type="text/babel" src="cairn-legal-screens.jsx"></script>
 
 <script type="text/babel">
 const { useState, useEffect, useMemo } = React;
@@ -50,8 +53,11 @@ function App() {
   const dark = tweaks.theme === 'dark';
   const theme = useCairnTheme(dark);
 
-  // Wrap a screen in the right device frame
-  const Frame = ({ children, title }) => {
+  // Wrap a screen in the right device frame. Long pages scroll inside the
+  // frame (the canvas's focus-mode lets you scroll within an artboard);
+  // we don't try to stretch the frame, because that just centers fixed-
+  // height content in a too-tall column and clips the top.
+  const Frame = ({ children }) => {
     if (tweaks.platform === 'android') {
       return (
         <AndroidDevice width={412} height={892} dark={dark}>
@@ -64,7 +70,6 @@ function App() {
     return (
       <IOSDevice width={402} height={874} dark={dark}>
         <div style={{ position: 'relative', width: '100%', height: '100%', paddingTop: 54 }}>
-          {/* offset for status bar already absolutely positioned in iOS frame */}
           <div style={{ position: 'absolute', inset: 0, paddingTop: 54, paddingBottom: 34 }}>
             {children}
           </div>
@@ -136,30 +141,80 @@ function App() {
       render: () => <BlockedScreen theme={theme} empty/> },
     { sec: 'invites', id: 'blocked', label: '26  ·  Blocked — with one person',
       render: () => <BlockedScreen theme={theme}/> },
-    { sec: 'invites', id: 'settings-v2', label: '27  ·  Settings — with Invites & Privacy',
-      render: () => <SettingsScreenV2 theme={theme} themeChoice={dark ? 'dark' : 'light'} invitesPending={2}/> },
-
     // === RECOVERY & SETTINGS ===
     { sec: 'recovery', id: 'trash', label: '15  ·  Trash — soft-deleted items, restore one',
       render: () => <TrashScreen theme={theme}/> },
-    { sec: 'recovery', id: 'settings', label: '16  ·  Settings — theme + text size on profile',
-      render: () => <SettingsScreen theme={theme} themeChoice={dark ? 'dark' : 'light'} fontSize="m"/> },
+    // === SETTINGS — central hub ===
+    { sec: 'settings', id: 'settings', label: 'Settings — the canonical hub (profile · people · appearance · data · about)',
+      render: () => <SettingsScreen theme={theme} themeChoice={dark ? 'dark' : 'light'} fontSize="m" invitesPending={2}/> },
+
     { sec: 'recovery', id: 'delete-account', label: '17  ·  Delete account — full-screen, plain language',
       render: () => <DeleteAccountScreen theme={theme} confirmed={false}/> },
     { sec: 'recovery', id: 'delete-account-confirmed', label: '18  ·  Delete account — confirmation typed',
       render: () => <DeleteAccountScreen theme={theme} confirmed={true}/> },
     { sec: 'recovery', id: 'tombstone', label: '19  ·  Item added by deleted user (tombstone)',
       render: () => <ItemsScreenTombstone theme={theme}/> },
+
+    // === AVATARS — profile pictures ===
+    { sec: 'avatars', id: 'a1-edit-profile', label: 'A1  ·  Edit profile — entry from Settings chip',
+      render: () => <EditProfileScreen theme={theme}/> },
+    { sec: 'avatars', id: 'a2-source-sheet', label: 'A2  ·  Choose a photo — source sheet',
+      render: () => <AvatarSourceSheet theme={theme}/> },
+    { sec: 'avatars', id: 'a3-crop', label: 'A3  ·  Crop to a square',
+      render: () => <AvatarCropScreen theme={theme}/> },
+    { sec: 'avatars', id: 'a4-uploading', label: 'A4  ·  Uploading',
+      render: () => <UploadingState theme={theme} kind="uploading"/> },
+    { sec: 'avatars', id: 'a5-done', label: 'A5  ·  Done — saved',
+      render: () => <UploadingState theme={theme} kind="success"/> },
+    { sec: 'avatars', id: 'a6-error-network', label: 'A6  ·  Upload error — no connection',
+      render: () => <UploadingState theme={theme} kind="network"/> },
+    { sec: 'avatars', id: 'a7-error-toobig', label: 'A7  ·  Upload error — too big',
+      render: () => <UploadingState theme={theme} kind="too-big"/> },
+    { sec: 'avatars', id: 'a8-error-format', label: 'A8  ·  Upload error — wrong format',
+      render: () => <UploadingState theme={theme} kind="wrong-format"/> },
+    { sec: 'avatars', id: 'a9-decision-board', label: 'A9  ·  Storage decision board — fs vs Postgres', bare: true, width: 1300, height: 600,
+      render: () => <StorageDecisionBoard theme={theme}/> },
+
+    // === DATA EXPORT — GDPR portability ===
+    { sec: 'export', id: 'e1-privacy-row', label: 'E1  ·  Privacy row with "Download my data"',
+      render: () => <PrivacyWithExportRow theme={theme}/> },
+    { sec: 'export', id: 'e2-hub', label: 'E2  ·  Export hub — what gets included',
+      render: () => <ExportHubScreen theme={theme}/> },
+    { sec: 'export', id: 'e3-packaging', label: 'E3  ·  Packaging — progress',
+      render: () => <ExportPackagingScreen theme={theme}/> },
+    { sec: 'export', id: 'e4-ready', label: 'E4  ·  Ready — download link',
+      render: () => <ExportReadyScreen theme={theme}/> },
+    // (E5 merged: DeleteAccountScreen in Recovery now has the "Download first?" panel.)
+
+    // === LEGAL & ABOUT ===
+    { sec: 'legal', id: 'l1-about', label: 'L1  ·  About Cairn — hub', tall: true,
+      render: () => <AboutScreen theme={theme}/> },
+    { sec: 'legal', id: 'l2-privacy', label: 'L2  ·  Privacy policy', tall: true,
+      render: () => <PrivacyPolicyScreen theme={theme}/> },
+    { sec: 'legal', id: 'l3-terms', label: 'L3  ·  Terms of service', tall: true,
+      render: () => <TermsScreen theme={theme}/> },
+    { sec: 'legal', id: 'l4-imprint', label: 'L4  ·  Imprint (placeholders flagged)', tall: true,
+      render: () => <ImprintScreen theme={theme}/> },
+    { sec: 'legal', id: 'l5-oss', label: 'L5  ·  Open source attributions', tall: true,
+      render: () => <OpenSourceScreen theme={theme}/> },
+    { sec: 'legal', id: 'l6-contact', label: 'L6  ·  Contact',
+      render: () => <ContactScreen theme={theme}/> },
+    { sec: 'legal', id: 'l7-license', label: 'L7  ·  Cairn license', tall: true,
+      render: () => <LicenseScreen theme={theme}/> },
   ];
 
   const sections = [
     { id: 'system', title: 'Design system' },
     { id: 'onboarding', title: 'Onboarding' },
+    { id: 'settings', title: 'Settings — the central hub', subtitle: 'Every other surface ladders back to here.' },
     { id: 'browse', title: 'Browse — lists' },
     { id: 'items', title: 'Items & voting' },
     { id: 'sharing', title: 'Sharing — members & profiles' },
     { id: 'invites', title: 'Invites, circles & privacy' },
-    { id: 'recovery', title: 'Recovery & settings' },
+    { id: 'recovery', title: 'Recovery — trash & account deletion' },
+    { id: 'avatars', title: 'Avatars — profile pictures' },
+    { id: 'export', title: 'Data export — GDPR portability' },
+    { id: 'legal', title: 'Legal & about' },
   ];
 
   // Artboard width slightly wider than phone for breathing room
@@ -182,15 +237,21 @@ function App() {
         {sections.filter(s => s.id !== 'system').map(s => (
           <DCSection key={s.id} id={s.id} title={s.title}>
             {screens.filter(sc => sc.sec === s.id).map(sc => (
-              <DCArtboard key={sc.id} id={sc.id} label={sc.label} width={artW} height={artH}>
-                <div style={{
-                  width: '100%', height: '100%',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  background: 'transparent',
-                }}>
-                  <Frame>{sc.render()}</Frame>
-                </div>
-              </DCArtboard>
+              sc.bare ? (
+                <DCArtboard key={sc.id} id={sc.id} label={sc.label} width={sc.width || 1300} height={sc.height || 600}>
+                  {sc.render()}
+                </DCArtboard>
+              ) : (
+                <DCArtboard key={sc.id} id={sc.id} label={sc.label} width={artW} height={artH}>
+                  <div style={{
+                    width: '100%', height: '100%',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    background: 'transparent',
+                  }}>
+                    <Frame>{sc.render()}</Frame>
+                  </div>
+                </DCArtboard>
+              )
             ))}
           </DCSection>
         ))}

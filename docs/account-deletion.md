@@ -21,6 +21,7 @@ This is the same pattern GitHub, Slack, Discord, and most collaborative tools us
 | `lists.created_by` / `lists.deleted_by` pointing at the user | Repointed to the tombstone user | Same |
 | `list_members.created_by` / `list_members.deleted_by` pointing at the user | Repointed to the tombstone user | Same |
 | Lists where the user was the *only* remaining member | Hard deleted, with their items | No one is harmed by removing them, and they were effectively private |
+| `/srv/cairn/avatars/{uid}.webp` file on disk | Hard deleted by the avatar sidecar after the auth-row cascade | Personal data; the `profiles` cascade drops the `avatar_version` row, and the web app makes a best-effort `DELETE /avatars/me` to the sidecar. Orphan-swept on a nightly cron if the sidecar call fails. See `avatars.md`. |
 
 A "list with no live members" was already an implied dead state in the schema — this gives it an explicit cleanup point.
 
@@ -63,6 +64,8 @@ The tombstone user has no email, no password, cannot log in, and is not a member
 ## Schema changes
 
 There are no ALTERs needed: the table blocks in `data-model.md` already declare the seven attribution FKs with `on delete set default` and a `default` of the tombstone UUID, baked in from the first migration. The `default` is what `on delete set default` repoints attribution to when the referenced `auth.users` row is deleted, so deleting a user's auth row anonymizes every list, item, and membership they touched in one cascade — no per-row UPDATE pass.
+
+`profiles.avatar_version` (shipped in `0005_avatars.sql` alongside the avatar sidecar — see `avatars.md`) needs no special handling here either. The `profiles` row cascades from `auth.users` and the integer goes with it; the *file* at `/srv/cairn/avatars/{uid}.webp` is the only piece of personal data the cascade doesn't reach, and the web app's post-RPC `DELETE /avatars/me` call to the sidecar handles it (best-effort; the nightly orphan-sweep covers the failure case).
 
 The seven columns:
 
@@ -134,10 +137,11 @@ Authorization: Bearer <user JWT>
 Empty body, empty success response (HTTP 204). The web app should:
 
 1. Call this endpoint.
-2. On 204, call `DELETE /auth/session` to clear the `cairn_session` cookie, then show the "Account deleted" confirmation screen.
-3. On any error, show the error and leave the user logged in.
+2. On 204, call `DELETE /avatars/me` on the avatar sidecar to unlink the user's avatar file. Best-effort: ignore the response. The orphan-sweep cron (see `avatars.md`) reclaims the file if this call fails or never reaches the sidecar.
+3. Call `DELETE /auth/session` to clear the `cairn_session` cookie, then show the "Account deleted" confirmation screen.
+4. On any error from the RPC itself, show the error and leave the user logged in.
 
-The app should *not* try to clean up local caches first — the API call is the source of truth, and any local state is discarded on logout anyway.
+The app should *not* try to clean up local caches first — the API call is the source of truth, and any local state is discarded on logout anyway. The sidecar call is the only side-effect the RPC's atomic transaction can't perform itself, and it's intentionally fire-and-forget.
 
 ## What the user sees
 
@@ -160,6 +164,6 @@ Cairn's onboarding doesn't currently surface this as a feature. It shouldn't nee
 
 ## Future work
 
-- **Export before delete.** Right now the user has no way to take their data with them before deleting. A "Download my data" button on the Delete account screen, producing a JSON dump of every list they were on with their own contributions highlighted, would be a kindness. It's not v1.
+- **Export before delete — done.** See `data-export.md` for the format, the `export_my_data()` RPC, and the in-screen integration: the Delete account screen carries a small non-blocking *"Want a copy first?"* panel above the destructive button, linking to the Data export hub (screen E5 in `design/cairn-export-screens.jsx`). Export and delete are independent flows — neither blocks the other; the panel is a courtesy.
 - **Grace period.** Some products soft-delete the account for 30 days before hard-deleting, so a regretful user can recover. Cairn does not — the trash already exists for items and lists; an account-level undo adds complexity for a rare case. Re-evaluate if we ever see a user request it.
 - **Tombstone hygiene.** Over years, the tombstone user accumulates attribution for content from many deleted users. That's fine — they're indistinguishable to other members anyway, and the tombstone has no privacy impact. No cleanup needed.
