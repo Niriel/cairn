@@ -591,10 +591,10 @@ These land **before** any code. Downstream tasks reference these docs from their
 
 **Verify:** `pnpm --filter web test` · `pnpm --filter web check`.
 
-### [ ] 4.4 Snackbar with 6-second timer, no history push
+### [x] 4.4 Snackbar with 6-second timer, no history push
 
 **Created:** 2026-05-13T08:29:11Z
-**Completed:**
+**Completed:** 2026-05-13T11:43:38Z
 
 **Why:** The undo snackbar appears after destructive actions (delete item, archive list). It's a transient surface — dismissing itself on a 6-second timer — and **does not** push history (`docs/ui.md:149`). Building it now means master-plan step 4's delete-item flow has the surface ready.
 
