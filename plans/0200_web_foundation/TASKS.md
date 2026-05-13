@@ -133,10 +133,13 @@ These land **before** any code. Downstream tasks reference these docs from their
 
 ## Phase 1 — Scaffold and test harness
 
-### [ ] 1.1 Add web package deps, fix viewport meta
+### [x] 1.1 Add web package deps, fix viewport meta
 
 **Created:** 2026-05-13T08:29:11Z
-**Completed:**
+**Completed:** 2026-05-13T09:43:07Z
+
+**Notes:**
+- `pnpm` resolved both packages at recent 5.x: `@fontsource-variable/newsreader@5.2.10` and `@fontsource-variable/jetbrains-mono@5.2.8`. Both ship `wght.css` as the plan assumed — Task 2.1 can pin that subpath as written.
 
 **Why:** Typography needs the two `@fontsource-variable` packages; safe-area handling needs `viewport-fit=cover` on the viewport meta per `docs/ui.md:125`; an inline boot script in `app.html` prevents a flash of incorrect theme for users who picked an explicit `light` / `dark` (the runtime `$effect` in Task 2.3 cannot paint before hydration). `@testing-library/svelte` and `@testing-library/jest-dom` are **already installed** (see `web/package.json:32`, `:23`); this task does not re-add them.
 
