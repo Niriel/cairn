@@ -179,10 +179,14 @@ These land **before** any code. Downstream tasks reference these docs from their
 
 **Verify:** `pnpm --filter web check` · `grep viewport-fit web/src/app.html` · `grep cairn.theme web/src/app.html`.
 
-### [ ] 1.2 Create test render helper with `getByDataTest`
+### [x] 1.2 Create test render helper with `getByDataTest`
 
 **Created:** 2026-05-13T08:29:11Z
-**Completed:**
+**Completed:** 2026-05-13T09:49:35Z
+
+**Notes:**
+- **Deviation from RED step's fixture approach.** The step said "build the test fixture inline using `@testing-library/svelte`'s `mount` of a small string-template component." That isn't feasible: `@testing-library/svelte` doesn't export `mount` (its only render entry point is `render`, which takes a real Svelte 5 component, not a template string), and Svelte 5 doesn't have a runtime compiler for template strings either. To honour "keeps the Files list of this task at two" I refactored: extracted a `bindDataTestQueries(container)` factory (the substantive logic) and tested it directly against a hand-built `<div>` populated via `innerHTML`. The `render(Component, props?)` wrapper is exported per the Decisions and a one-line `Object.assign(result, bindDataTestQueries(result.container))` — it will be exercised by every Phase 3/4 component test.
+- **Typing the wrapper.** Annotating the wrapper's return type as `ReturnType<typeof tlRender> & DataTestQueries` triggered a `svelte-check` error because `tlRender`'s `RenderResult` carries a `Queries`-indexed signature whose value type (`BoundFunction<...>`) is incompatible with `container: HTMLElement` once the indexer constraint propagates. Dropping the explicit return annotation and letting TS infer (`Object.assign(result, queries)`) clears the error while preserving the same callable surface for consumers.
 
 **Why:** Every component test in Phases 3–4 uses this helper as its entry point. Centralising it enforces the `data-test` convention at the API level — there's no easy way to query by CSS class through this helper, so tests stay on convention.
 
