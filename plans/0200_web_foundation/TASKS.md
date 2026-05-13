@@ -388,10 +388,10 @@ These land **before** any code. Downstream tasks reference these docs from their
 
 **Verify:** `pnpm --filter web test` · `pnpm --filter web check`.
 
-### [ ] 3.3 Fab primitive with safe-area positioning
+### [x] 3.3 Fab primitive with safe-area positioning
 
 **Created:** 2026-05-13T08:29:11Z
-**Completed:**
+**Completed:** 2026-05-13T10:17:15Z
 
 **Why:** The floating action button is the New-list affordance on the Lists screen (master-plan step 4) and elsewhere. Its bottom offset must use `--fab-bottom` (defined in `tokens.css`, includes `env(safe-area-inset-bottom)`) so it never sits under the iOS home indicator.
 
