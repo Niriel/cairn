@@ -15,18 +15,43 @@ from `design/cairn-screens.jsx:120`: centered `CairnGlyph`, the wordmark
 "Cairn", italic tagline, an email input field, and a primary
 "Send me a magic link" button. The screen accepts a syntactically
 valid email and disables the submit affordance until one is present.
+The submit affordance is **also disabled while a previous submit is
+in flight** (between the click and the resolution of
+`sendMagicLink(email)`): an itchy user with a slow connection
+otherwise spawns multiple `POST /auth/otp` calls, generating duplicate
+magic-link emails that race GoTrue's per-address rate limit and that
+race each other (the user may click an already-invalidated link from
+an earlier email and land on the callback's error state with no
+obvious cause). The same in-flight gate covers the dev-shortcut
+buttons.
 Submitting calls GoTrue's magic-link endpoint and, on a 2xx response,
 writes the email to the in-memory `pendingLogin` store (R14) and
 navigates to a **bare** `/auth/check` — the email is **never**
 placed in the URL, in `localStorage`, or in `sessionStorage`,
 because URL exposure (browser history, address bar, Referer on
 outbound links, shoulder-surf, browser-sync) widens the privacy
-surface beyond what the user consented to by typing it (see also
-`feedback_email_privacy.md`). A 4xx response renders an inline
+surface beyond what the user consented to by typing it (the
+broader privacy contract — email is never shown anywhere a user
+is rendered — is pinned in `docs/invites.md:64`). A 4xx response renders an inline
 error message under the field without navigating and without
 writing to `pendingLogin`; a network or 5xx error surfaces via the
 snackbar primitive. The screen exists outside the route guard (R7)
 so a signed-out user can reach it.
+
+The POST body carries `{email, create_user: true}`. In Step 3's
+dev configuration (`GOTRUE_DISABLE_SIGNUP="false"`,
+`GOTRUE_MAILER_AUTOCONFIRM="true"`), `create_user: true` causes
+GoTrue to create the auth row on first sight of an unknown email
+and proceed with the magic-link flow as usual. In production
+(once R9's forward-note lands in step 13:
+`GOTRUE_DISABLE_SIGNUP=true`) the flag becomes a no-op — GoTrue
+rejects unknown emails regardless, and the 4xx response surfaces
+through R1's existing inline-error branch. Registration in
+production enters through the invite-redemption flow (owned by
+a later plan, not Step 3), per `docs/invites.md`'s invite-only
+stance. The Step 3 client deliberately doesn't branch on
+"registered vs not" — the flag is correct for both dev and prod;
+the production gating is server-side.
 
 ## R2. "Check your inbox" screen
 
@@ -69,6 +94,27 @@ app's JavaScript never reads the JWT from the response body — the
 Vite proxy's existing shim (R10) plants the cookie before the JSON
 reaches the page. The `user` payload is a separate top-level field
 in the same response, which is what `setSignedIn` consumes.
+
+A signed-in user revisiting `/auth/callback` (clicking an old
+magic-link from email while already authenticated in the same
+browser) is **redirected to `/` without re-verifying**. The route
+short-circuits at the top of its mount: it **`await`s
+`bootSession()`** (or, equivalently, awaits the resolution of the
+boot already in flight) and then, if
+`session.current.status === 'signed-in'`, calls `goto('/', {
+replaceState: true })` and skips the `/auth/verify` POST entirely.
+The await is load-bearing: `+layout.svelte`'s `onMount`
+(R7 / Task 4.1) fires `bootSession()` asynchronously, and the
+callback page's own `onMount` typically runs while
+`session.current.status` is still `unknown`. Reading the status
+without first awaiting boot would miss the signed-in case, fall
+through to the `/auth/verify` POST with a stale token, GoTrue
+4xx the request, and the user — who is already authenticated —
+would land on the error state with a "Back to sign in" button,
+a confusing UX. The route guard (R7) deliberately *doesn't*
+redirect signed-in users away from `/auth/callback` (so first-
+visit verification can complete), which is why this short-circuit
+lives in the route itself, not in the guard.
 
 ## R4. Session store with three states
 
@@ -147,6 +193,20 @@ No JWT or refresh token is ever held in JavaScript state — the
 HttpOnly cookie is the only source of truth. The `user` field
 carried by `signed-in` is the public-id-and-email pair returned by
 GoTrue; the JWT itself never enters JavaScript memory.
+
+**Trade-off acknowledged: a 5xx or network error on the boot fetch
+collapses to `signed-out`**, not to a retry surface. The
+consequence is that a transient blip at first paint can bounce an
+authenticated user (cookie still valid) to `/auth/login`, where
+their only path back is to re-request a magic link. The
+alternative — distinguishing transient (5xx / network) from
+authoritative (401) and rendering a "couldn't reach the server,
+retry?" surface — is the right long-term shape, but the state
+machine and its UX surface are deferred. A future refinement
+should branch the non-401 case into an error-with-retry rather
+than a silent collapse. Step 3 ships the simpler default so the
+boot can't get wedged in `unknown` and so the route guard's
+block-render gate has a determinate signal to act on.
 
 The store lives at `web/src/lib/shared/state/session.svelte.ts`. It
 sits in `shared/`, not `auth/`, because the route guard
@@ -229,13 +289,22 @@ module.
   signed in" coherent across all entrypoints.
 
 The block-render gate is wider than just `unknown`: it covers
-`unknown` **and** `signed-out`-on-a-private-path. Without that
-widening, `$effect` schedules the redirect *after* the next paint,
-so the user momentarily sees the private route's children (an
-empty skeleton at this stage, real content in Step 4) before the
-redirect fires. Symmetric gating — block-render in every state
-where children must not mount — eliminates the flash without
-needing the `$effect` to "win" against render scheduling.
+three cases — `unknown`, `signed-out`-on-a-private-path, **and**
+`signed-in`-on-a-`SIGNED_IN_REDIRECT_PATHS`-path. Without the
+widening to all three, `$effect` schedules the redirect *after*
+the next paint, so the user momentarily sees content that
+shouldn't be mounted: a private route's children (an empty
+skeleton at this stage, real content in Step 4) when signed-out
+on private, or the `LoginRequest` / `LoginCheck` screen when
+signed-in on a stale `/auth/login` or `/auth/check` bookmark or
+when a same-tab sign-in flips the session while still mounted on
+those routes. Symmetric gating — block-render in every state
+where children must not mount — eliminates the flash in every
+direction without needing the `$effect` to "win" against render
+scheduling. (`/auth/callback` is in `PUBLIC_AUTH_PATHS` but *not*
+in `SIGNED_IN_REDIRECT_PATHS`, so the third case does not block
+signed-in callback first-visits — the callback page is allowed
+to render and own its own `goto('/')` per R3.)
 
 The guard runs in `+layout.svelte` (not `+layout.ts`) because the
 SvelteKit static adapter does not execute server-side loads at
@@ -249,13 +318,36 @@ already present in `web/.env.example`), the `LoginRequest` screen
 renders three small secondary buttons under the email field labelled
 *Alice*, *Bob*, *Carol*. Each calls GoTrue's
 `POST /token?grant_type=password` with the corresponding seeded email
-and the well-known dev password (R9). The Vite proxy's existing JSON
+and the dev password read from
+`import.meta.env.VITE_DEV_LOGIN_PASSWORD` (default value populated in
+`web/.env.example`; R9 sets the seed side to the same string). The
+password is **not** a default parameter of the auth-client helper —
+the caller passes it explicitly — so a production bundle (where
+`isDevLoginShortcutEnabled()` is `false` and the call site is dead
+code) doesn't ship a hard-coded credential literal even if Rollup
+chooses not to tree-shake the function.
+
+**Production builds must run with `VITE_DEV_LOGIN_PASSWORD` unset.**
+Vite statically replaces `import.meta.env.VITE_*` at build time, *before*
+Rollup's tree-shaker runs; the safety argument above also requires the
+prod build env to not have the variable set, otherwise the literal
+string is inlined into the JS source even when the call site is dead
+code. The step-13 prod-rollout audit (`docs/development.md` forward-
+note next to the existing GoTrue hardening paragraph) carries this as
+a load-bearing item alongside `GOTRUE_DISABLE_SIGNUP=true` and
+`GOTRUE_MAILER_AUTOCONFIRM=false`. The Vite proxy's existing JSON
 sniffer (R10) plants the cookie identically to the magic-link path;
 the screen then calls `session.setSignedIn(user)` (R4) with the user
-payload parsed from the response and redirects to `/`. The
-`setSignedIn` call is the same load-bearing transition R3 requires —
-without it, the route guard sees `signed-out` after the redirect and
-bounces the user back to `/auth/login`.
+payload parsed from the response. The handler does **not** call
+`goto` itself — the route guard's signed-in-on-public-path redirect
+(R7) sees `/auth/login` in `SIGNED_IN_REDIRECT_PATHS` and navigates
+to `/` with `replaceState: true`. The `setSignedIn` call is the
+load-bearing transition that lets the layout redirect fire: without
+it, the route guard sees `signed-out` and the user stays on the
+login screen. (The callback page in R3 owns its own `goto('/')`
+because `/auth/callback` is deliberately *excluded* from
+`SIGNED_IN_REDIRECT_PATHS`; the dev shortcut is on `/auth/login`,
+which is included, so the guard carries the redirect.)
 
 The shortcut is dev-only by a belt-and-braces gate: in a production
 build `import.meta.env.DEV` is `false` regardless of which env
@@ -264,6 +356,15 @@ of the bundle. The env-var check is the runtime opt-in for
 developers who want to disable the shortcut locally without losing
 the dev build mode. The shortcut does not require Mailpit
 interaction.
+
+A dev-shortcut rejection (`devPasswordSignIn` returns non-2xx — empty
+`VITE_DEV_LOGIN_PASSWORD`, GoTrue down, network failure) surfaces
+through the same Snackbar `LoginRequest` renders for the magic-link
+5xx branch — one error surface per screen, one `data-test`. Without
+this, a stale `web/.env` that omits `VITE_DEV_LOGIN_PASSWORD` makes
+the dev buttons appear to do nothing (rejected promise, no UI
+change), which is a discoverability trap for whichever contributor
+hits it first.
 
 ## R9. Dev seed signs up Alice/Bob/Carol and renames their profiles
 
@@ -328,7 +429,7 @@ be used against a prod instance; this forward-note is restated in
   proxy match while keeping the contract narrow.
 - The existing JSON-sniffing response handler that extracts
   `access_token` from a 200 response body and emits the
-  `cairn_session` cookie (`web/vite.config.ts:40-67`) stays, but is
+  `cairn_session` cookie (`web/vite.config.ts:39-67`) stays, but is
   **narrowed to a closed set of login endpoints** — `/auth/verify`
   and `/auth/token`. Today the shim fires on **any** 2xx `/auth/*`
   response that happens to carry an `access_token` field, which
@@ -367,10 +468,11 @@ service:
   (`/auth/v1/verify`) 404s through the proxy.
 - `GOTRUE_JWT_EXP: "604800"` (7 days) — increases the JWT lifetime
   so the cookie's `Max-Age`, which tracks `expires_in`, lasts a
-  meaningful session. `docs/architecture.md:252` ("~30-day Max-Age")
-  is aspirational and reachable only with refresh-token rotation
-  (out of scope, see Non-requirements). The same doc line gets a
-  one-line edit to reflect the interim "~7-day" value.
+  meaningful session. `docs/architecture.md:252` already records
+  the interim "~7-day Max-Age (raised to ~30-day when refresh-token
+  rotation lands)" phrasing (landed via Phase 0 doc reconciliation,
+  see R13); reaching the full 30-day commitment requires refresh-
+  token rotation, which is out of scope (see Non-requirements).
 
 ## R12. Test coverage
 
@@ -381,15 +483,45 @@ new component and module. Concretely:
   writes `pendingLogin.email` and then navigates to a bare
   `/auth/check` (assert call order: store write happens before
   `goto`; assert the goto target is `/auth/check` with no query
-  string); a 4xx response renders the inline error and does **not**
-  write to `pendingLogin`; dev shortcut buttons appear when the env
-  var is `'true'` and call the password grant; dev shortcut buttons
-  absent when the env var is absent; dev shortcut click passes the
-  resolved user to `session.setSignedIn` before navigating to `/`.
+  string); **submit is disabled while a previous submit is in flight**
+  (override the auth-client mock to return a manually-controlled
+  promise; click submit; attempt a second click before resolving;
+  assert `sendMagicLink` was called exactly once and the button has
+  `disabled`; resolve the promise and assert the button re-enables);
+  a 4xx response renders the inline error and does **not** write to
+  `pendingLogin`; **5xx renders the shared Snackbar with the pinned
+  message `"Couldn't reach the server. Try again."`**; **the
+  rendered DOM contains no `<header>` element** (structural no-
+  TopBar regression guard); dev shortcut buttons appear when the env
+  var is `'true'` and each of the three `data-test` ids
+  (`dev-login-alice`, `…-bob`, `…-carol`) is present individually;
+  dev shortcut buttons absent when the env var is absent; **dev
+  shortcut click passes the explicit dev password as the second
+  argument** (`expect(devPasswordSignIn).toHaveBeenCalledWith(email,
+  'cairn-dev')` — pins that the literal isn't a default in the
+  helper); dev shortcut click passes the resolved user to
+  `session.setSignedIn` and does **not** call `goto` (the layout's
+  signed-in-on-public-path redirect carries the navigation — see
+  R7); **dev shortcut click is also disabled while in flight** (same
+  shape as the magic-link submit's in-flight test, but on
+  `dev-login-alice`); **dev shortcut rejection renders the same
+  Snackbar surface** as the magic-link 5xx branch (override
+  `devPasswordSignIn` to reject; assert
+  `getByDataTest('login-snackbar')` with the pinned message; assert
+  `setSignedIn` was not called).
 - `LoginCheck.test.ts` — renders the email passed via the
   component's `email: string` prop; "Send again" re-issues the
-  magic-link request with that email. The route ↔ store wiring is
-  exercised separately (see `auth/check/+page.test.ts` below).
+  magic-link request with that email; **"Send again" is disabled
+  while the previous request is in flight** (manually-controlled
+  promise; click; second click; assert call-count-once and the
+  button has `disabled`; resolve; assert the button re-enables);
+  **the "Sent again." inline confirmation renders after a
+  successful resend and auto-clears after 3 seconds** (wrap in
+  `vi.useFakeTimers()`; advance the clock); **the rendered DOM
+  contains no `<header>` element** (structural no-TopBar regression
+  guard, paired with the same check on `LoginRequest`). The route ↔
+  store wiring is exercised separately (see
+  `auth/check/+page.test.ts` below).
 - `auth/check/+page.test.ts` — when `pendingLogin.email` is set,
   renders `LoginCheck` with that value as the `email` prop; when
   `pendingLogin.email` is `null`, calls `goto('/auth/login', {
@@ -543,3 +675,28 @@ copy.
 - **CSRF token on `POST /auth/otp`** — the request carries no
   cookie (user is signed-out) so there's nothing to forge.
   `SameSite=Lax` plus same-origin makes a token redundant.
+- **Vitest coverage of `vite.config.ts` proxy wiring** — the
+  segment-anchoring contract that gates the cookie-plant narrow, the
+  bearer-attach narrow, and the public-path bypass is pinned at the
+  predicate layer (`auth-paths.test.ts`, Task 1.4 Step 1). The proxy
+  wiring that *consumes* the predicate inside `proxyReq` / `proxyRes`
+  handlers is verified by the smoke `curl` invocations in Task 1.4
+  Steps 8–10 and end-to-end by the Playwright auth spec (Task 5.2).
+  A unit-layer test of `vite.config.ts` would need to import the
+  config and exercise a fake `proxy` event emitter, which has no
+  precedent in the codebase and would chase Vite's internal API more
+  than the contract; the predicate-plus-smoke split is the
+  intentional trade-off.
+- **Return-to-original-destination after route-guard redirect** —
+  R7's guard unconditionally redirects signed-out hits on private
+  paths to `/auth/login`, discarding the original pathname. In Step 3
+  the only private path is the placeholder `/`, so the redirect is
+  harmless. Once Step 4 lands deep-linkable list URLs
+  (`/lists/<uuid>`), a JWT expiry mid-session (or a fresh browser
+  tab opened on a bookmarked list URL) will silently land the user
+  at `/` after re-auth, not back where they aimed. The minimum
+  fix later is a `?next=<pathname>` query on the guard's
+  `goto('/auth/login', …)` plus a callback-side read that overrides
+  the post-verify `goto('/')` target. Pinning this here so Step 4's
+  owner sees the gap during their plan-write, rather than discovering
+  it as a bug report after Step 4 ships.

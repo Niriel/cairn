@@ -147,7 +147,7 @@ comes from GoTrue returning 422 "already registered" on rerun and
 `UPDATE` being naturally idempotent. (R9)
 
 **Use unique per-test emails (`alice+${testId}@example.test`) for
-Playwright.** With `fullyParallel: true` (`web/playwright.config.ts:7`)
+Playwright.** With `fullyParallel: true` (`web/playwright.config.ts:15`)
 and three browser projects, mailbox messages race. GoTrue treats
 `alice+x@…` and `alice+y@…` as distinct users (no plus-tag merging),
 so unique emails give each test its own GoTrue identity AND its own
@@ -190,7 +190,10 @@ they're consumed only by the auth screens and the session-store boot.
 ### New files
 
 - **`web/src/lib/auth/components/LoginRequest.svelte`** — the
-  magic-link request screen (R1). Plus `.test.ts`, `__mocks__/`.
+  magic-link request screen (R1). Plus `.test.ts`. No `__mocks__/`
+  entry: per `.claude/skills/writing-tests.md` the colocated mock
+  earns its keep only when ≥2 tests mock the source, and no test in
+  this plan does.
 - **`web/src/lib/auth/components/LoginCheck.svelte`** — the "check
   your inbox" screen (R2). Plus `.test.ts`, `__mocks__/`.
 - **`web/src/lib/auth/model/auth-client.ts`** — `sendMagicLink`,
@@ -230,8 +233,10 @@ they're consumed only by the auth screens and the session-store boot.
   on exact path (R5, R10).
 - **`web/src/routes/+layout.svelte`** — call `bootSession()` from
   `onMount`, gate render on `session.status !== 'unknown'`, run
-  the route-guard `$effect` (R7). Plus `.test.ts` for the guard
-  logic.
+  the route-guard `$effect` (R7). Imports `PUBLIC_AUTH_PATHS` and
+  `SIGNED_IN_REDIRECT_PATHS` from `auth-paths.ts` (single source
+  of truth — no inline path lists). Plus `.test.ts` for the
+  guard logic.
 - **`web/src/routes/+page.svelte`** — temporary Sign Out button so
   the Playwright spec can click it. Moves to Settings in Step 4.
 - **`web/src/lib/test/handlers.ts`** — populate the empty
@@ -243,6 +248,10 @@ they're consumed only by the auth screens and the session-store boot.
 - **`scripts/seed.sh`** — wait-for-GoTrue + `/signup` loop (R9).
 - **`db/seed/dev_seed.sql`** — three idempotent `UPDATE`s of
   `display_name` keyed on email (R9).
+- **`web/.env.example`** — append `VITE_DEV_LOGIN_PASSWORD=cairn-dev`
+  so the dev shortcut reads the password from an env var rather than
+  a hard-coded default in `auth-client.ts` (R8). Keeps the literal out
+  of any production bundle.
 - *Doc reconciliation (R13) has already landed — see
   `docs/development.md` for the dev shortcut, seed-flow, and
   dev-cookie-`Secure` divergence note, and `docs/architecture.md`
@@ -364,11 +373,11 @@ smoke command passes after the env / proxy changes."
 - **`design/cairn-screens.jsx`** — `LoginRequest` (lines 120-174)
   and `LoginCheck` (lines 177-212).
 
-## Open questions
+## Resolved questions
 
-- **Optional best-effort `POST /logout` from the DELETE handler.**
-  With refresh-token rotation deferred, server-side session
-  invalidation has no real teeth in Step 3 (a JWT remains valid
-  until its 7-day expiry regardless). Default: skip — the DELETE
-  middleware only clears the cookie. Adding the GoTrue notify call
-  later is one line.
+- **Optional best-effort `POST /logout` from the DELETE handler —
+  skipped.** With refresh-token rotation deferred, server-side
+  session invalidation has no real teeth in Step 3 (a JWT remains
+  valid until its 7-day expiry regardless). The DELETE middleware
+  only clears the cookie; adding the GoTrue notify call later is one
+  line. Decision pinned in Task 1.5's Decisions.
