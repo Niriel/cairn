@@ -453,10 +453,10 @@ These land **before** any code. Downstream tasks reference these docs from their
 
 **Verify:** `pnpm --filter web test` · `pnpm --filter web check`.
 
-### [ ] 3.5 Sheet primitive (back-stack integrated)
+### [x] 3.5 Sheet primitive (back-stack integrated)
 
 **Created:** 2026-05-13T08:29:11Z
-**Completed:**
+**Completed:** 2026-05-13T10:29:48Z
 
 **Why:** The generic bottom-sheet is the basis for delete-item confirmation, list overflow menu, invite picker, avatar source sheet, and discard-changes prompt. None of those land in this plan, but Sheet must be available — with back-stack integration baked in — when step 4 (MVP) starts consuming it.
 
