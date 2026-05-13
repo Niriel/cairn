@@ -92,6 +92,8 @@
     "onboarding",
     "magiclink",
     "onaction",
+    "oncollapse",
+    "onexpand",
     "DSN",
     "RLS",
     "PWA",

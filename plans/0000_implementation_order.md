@@ -43,7 +43,7 @@ where their dependencies make sense — see Sequencing rationale below.
    (per `docs/account-deletion.md`) so we never ALTER them later.
    pgTAP coverage for every policy, positive *and* negative.
 
-2. [ ] **Web foundation: design tokens, theming, layout primitives.** Lift
+2. [x] **Web foundation: design tokens, theming, layout primitives.** Lift
    `CAIRN_LIGHT` / `CAIRN_DARK` from `design/cairn-ui.jsx`. Decide
    styling approach (plain CSS variables — Tailwind is not in the
    stack). Theme provider, font-size scale, safe-area helpers, and the

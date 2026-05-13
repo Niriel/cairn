@@ -621,10 +621,10 @@ These land **before** any code. Downstream tasks reference these docs from their
 
 **Verify:** `pnpm --filter web test` · `pnpm --filter web check`.
 
-### [ ] 4.5 Accordion with back-stack canary assertion
+### [x] 4.5 Accordion with back-stack canary assertion
 
 **Created:** 2026-05-13T08:29:11Z
-**Completed:**
+**Completed:** 2026-05-13T11:51:07Z
 
 **Why:** Master-plan step 2's exit criteria explicitly require "Vitest component tests, including a back-stack assertion on at least one overlay primitive" (`plans/0000_implementation_order.md:57-58`). Accordion is that canary: it's the simplest overlay (expand/collapse on the same screen) and exercises the full back-stack flow.
 
@@ -658,6 +658,8 @@ These land **before** any code. Downstream tasks reference these docs from their
 
 **Verify:** `pnpm --filter web test` · `pnpm --filter web check` · `./scripts/check.sh` (full project gate — this is the last task, so the whole foundation should be green).
 
-**Notes** *(filled when complete):*
-- Confirm `./scripts/check.sh` green and the master-plan checkbox is ready to tick in `plans/0000_implementation_order.md:46`.
-- Delete the plan-mode scratch file at `~/.claude/plans/we-now-want-to-keen-robin.md`.
+**Notes:**
+- **Test-file split.** Cases (a)–(d) need the *real* `back-stack.svelte` module (popstate end-to-end, real `pushState`/`back` calls), while case (e) needs `vi.mock('$lib/shared/state/back-stack.svelte')` to assert zero calls on the mock. `vi.mock` is hoisted file-scope, so case (e) lives in a separate `Accordion.no-push.test.ts`. `Accordion.test.ts` holds (a)–(d) with per-test `vi.spyOn(history, 'back')` and an `afterEach` of `vi.restoreAllMocks()` + `history.replaceState(null, '')` for the cross-test isolation the task block called out.
+- **cspell side-work.** `onexpand` and `oncollapse` (and `onaction` from Task 4.4) are Svelte 5 lowercase-callback prop names — cspell flagged them; added all three to `cspell.json`. The user noted they wish the Svelte 5 convention were camelCase but accepted it.
+- `./scripts/check.sh` green — full foundation passes. Master-plan checkbox in `plans/0000_implementation_order.md:46` is ready for the user to tick.
+- Deleted plan-mode scratch file at `~/.claude/plans/we-now-want-to-keen-robin.md` per the task reminder.
