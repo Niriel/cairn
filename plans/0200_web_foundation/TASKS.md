@@ -563,10 +563,10 @@ These land **before** any code. Downstream tasks reference these docs from their
 
 **Verify:** `pnpm --filter web test` · `pnpm --filter web check`.
 
-### [ ] 4.3 ButtonPair with enforced left/right semantics
+### [x] 4.3 ButtonPair with enforced left/right semantics
 
 **Created:** 2026-05-13T08:29:11Z
-**Completed:**
+**Completed:** 2026-05-13T11:41:30Z
 
 **Why:** Cairn's convention is consistent everywhere: left button is backward/destructive, right is forward/committal (`CLAUDE.md` Conventions; `docs/ui.md` "Button order in pairs"). A primitive that enforces this — taking `left` and `right` slots by name, in that order — makes the convention impossible to get wrong by accident.
 
