@@ -55,6 +55,17 @@ factory across files is drift in slow motion. Inline
 `vi.mock(path, factory)` is fine for one-offs where the mock is
 specific to a single test's setup.
 
+`vi.mock(path)` is hoisted to the top of its file and applies to the
+module's whole import graph for that file — you cannot toggle it
+between tests. If some cases need the real implementation and others
+need the mock, **split into two test files**. Example:
+`Accordion.test.ts` exercises cases that need the real
+`back-stack.svelte` module (the popstate canary); the
+`pushesHistory={false}` case that mocks the module to assert zero
+calls lives in `Accordion.no-push.test.ts`. A single file mixing
+both intents silently reads one implementation and corrupts the
+other case's expectations.
+
 Mock files use the Svelte 5 runes idiom — `let { children, ...rest } =
 $props()` and `{@render children?.()}` — never `<slot />`. The compat
 layer accepts `<slot />`, but no real Cairn component uses it; a mock
@@ -78,6 +89,36 @@ The narrow exception is **harness-lifecycle** cleanups in
 state* — they're tearing the harness back down to a known floor so
 the next test starts clean. That's the only legitimate use of a
 `beforeEach`-style hook at file or suite scope.
+
+## Testing reactive runes state
+
+Svelte coalesces same-value assignments to `$state` — re-assigning
+a property to the value it already holds is a no-op, and the
+`$effect` chain does **not** fire. A `beforeEach` that resets state
+between tests often hits this: one test sets
+`preferences.theme = 'dark'`, the effect writes `'dark'` to
+localStorage, `beforeEach` then assigns
+`preferences.theme = 'system'` and clears localStorage — but if the
+test happened to *start* with `theme === 'system'`, the reset's
+effect never ran, the clear deletes nothing the effect wrote, and
+the next test's assertion fails mysteriously.
+
+The fix is to flush the reset's effect *before* clearing downstream
+state. Make `beforeEach` `async`, assign the reset value,
+`await tick()`, then clear:
+
+```ts
+beforeEach(async () => {
+  preferences.theme = 'system';
+  preferences.fontSize = 'm';
+  await tick();
+  localStorage.clear();
+  document.documentElement.removeAttribute('data-theme');
+});
+```
+
+The `await tick()` is load-bearing — without it the reset's effect
+can land *after* your clear and leak into the next test.
 
 ## HTTP at the network layer (MSW)
 
