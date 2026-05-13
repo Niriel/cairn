@@ -5,7 +5,11 @@
 	starts, so resist the urge to wire up auth or routing here.
 -->
 
-<h1>Cairn</h1>
+<script lang="ts">
+	import CairnWordmark from '$lib/shared/components/CairnWordmark.svelte';
+</script>
+
+<h1><CairnWordmark size={36} /></h1>
 
 <p>
 	Pre-alpha. The web UI lands in step 2 of

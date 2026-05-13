@@ -486,10 +486,10 @@ These land **before** any code. Downstream tasks reference these docs from their
 
 ## Phase 4 — Shared primitives
 
-### [ ] 4.1 CairnGlyph and CairnWordmark
+### [x] 4.1 CairnGlyph and CairnWordmark
 
 **Created:** 2026-05-13T08:29:11Z
-**Completed:**
+**Completed:** 2026-05-13T10:34:47Z
 
 **Why:** TopBar's title slot uses the wordmark on the Lists root; the glyph alone may appear on the auth landing page (step 3) and on the splash. Porting both now keeps step 2 self-contained.
 
