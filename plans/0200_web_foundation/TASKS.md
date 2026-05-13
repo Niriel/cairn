@@ -14,10 +14,10 @@
 
 These land **before** any code. Downstream tasks reference these docs from their `Reference:` lines; landing them first means the convention is canonical, not retrofitted.
 
-### [ ] 0.1 Create `docs/frontend-layout.md` and update CLAUDE.md
+### [x] 0.1 Create `docs/frontend-layout.md` and update CLAUDE.md
 
 **Created:** 2026-05-13T08:29:11Z
-**Completed:**
+**Completed:** 2026-05-13T09:35:56Z
 
 **Why:** Every later domain (auth, list, avatar, settings, …) needs one canonical doc for the per-domain layout, three-tier split, filename rules, and mock placement. Without it, parallel sessions diverge.
 
@@ -45,10 +45,10 @@ These land **before** any code. Downstream tasks reference these docs from their
 
 **Verify:** `git diff --stat` shows two files modified · `grep -nE 'frontend-layout' CLAUDE.md` finds the new entry.
 
-### [ ] 0.2 Create the `writing-tests` skill and cross-reference from `docs/testing.md`
+### [x] 0.2 Create the `writing-tests` skill and cross-reference from `docs/testing.md`
 
 **Created:** 2026-05-13T08:29:11Z
-**Completed:**
+**Completed:** 2026-05-13T09:37:56Z
 
 **Why:** Cherry-picked testing rules (data-test attributes, no shared `beforeEach`, hybrid `__mocks__/`, MSW at network) need to fire whenever a session writes tests. A skill triggers contextually; a doc is read once. Defers to `docs/testing.md` for the layer split rather than duplicating it.
 
@@ -76,10 +76,14 @@ These land **before** any code. Downstream tasks reference these docs from their
 
 **Verify:** `ls .claude/skills/writing-tests.md` succeeds · `grep -nE 'writing-tests|frontend-layout' docs/testing.md` finds the cross-reference.
 
-### [ ] 0.3 Log deferred decisions in `docs/open-questions.md`
+### [x] 0.3 Log deferred decisions in `docs/open-questions.md`
 
 **Created:** 2026-05-13T08:29:11Z
-**Completed:**
+**Completed:** 2026-05-13T09:39:17Z
+
+**Notes:**
+- Decisions called for four entries but didn't specify section placement. Added two new sections — **Frontend runtime** (CSP) and **Testing** (three test-architecture defers) — placed alphabetically among the existing domain-grouped sections (Avatars, Data export, Frontend runtime, Legal, Testing) per the existing convention.
+- Each entry matches the existing bullet format (bold title with period, body, trailing pointer) but uses the **Default: … Trigger: …** shape from the task block rather than a "See doc §" pointer-only pattern, because these decisions don't yet have a "home" Open-questions section in any underlying doc.
 
 **Why:** Three architecture calls in this plan defer rather than decide. Logging them makes them findable when the trigger arrives and prevents re-litigation.
 
@@ -101,10 +105,13 @@ These land **before** any code. Downstream tasks reference these docs from their
 
 **Verify:** `grep -nE '(mock aggregator|coverage gate|happy-dom|inline boot script|CSP)' docs/open-questions.md` finds all four.
 
-### [ ] 0.4 Add styling-stance paragraph to `docs/architecture.md`
+### [x] 0.4 Add styling-stance paragraph to `docs/architecture.md`
 
 **Created:** 2026-05-13T08:29:11Z
-**Completed:**
+**Completed:** 2026-05-13T09:40:27Z
+
+**Notes:**
+- The wording sketch in Decisions referenced `docs/data-model.md` as an aside for the token table, but `data-model.md` makes no mention of design tokens — they live exclusively in `design/cairn-ui.jsx:3-33`. Dropped the stray reference from the appended paragraph; kept the `design/cairn-ui.jsx:3-33` pointer.
 
 **Why:** `PLAN.md` cites `docs/architecture.md` for the "plain CSS variables, no Tailwind" stance, but the doc doesn't currently say it (a `grep -i tailwind docs/` returns nothing). Today the stance is implicit (Tailwind is simply not installed); pinning it down before the first component lands makes the convention canonical and prevents a future contributor from reaching for a utility framework "just for this one thing."
 

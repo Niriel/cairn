@@ -31,6 +31,19 @@ the matching entry in the underlying doc.
   before the export RPC body is frozen. See `data-export.md` § "Open
   question — vote scope".
 
+## Frontend runtime
+
+- **CSP and the inline boot script in `app.html`.** Default: an
+  inline `<script>` in `app.html` runs the FOUC-preventing theme +
+  font-size reads from `localStorage` (introduced by
+  `plans/0200_web_foundation` Task 1.1). No Content-Security-Policy
+  is enforced by Caddy today — `architecture.md` and `deployment.md`
+  make no mention of one. Trigger: when a deployment-time CSP becomes
+  a requirement, migrate the boot script to either a Caddy-issued CSP
+  nonce or a hashed inline script — or move the reads into a tiny
+  separate JS file referenced before `%sveltekit.head%`. See
+  `plans/0200_web_foundation/TASKS.md` § Task 1.1.
+
 ## Legal
 
 - **Imprint contents.** Every legally-required field on the Imprint
@@ -41,6 +54,24 @@ the matching entry in the underlying doc.
   filled imprint should get a glance from a German-speaking lawyer
   given the Hetzner-DE hosting. Launch-blocker for step 13. See
   `design/cairn-legal-screens.jsx` → L4 and `plans/0000_implementation_order.md` § step 12.
+
+## Testing
+
+- **Three-layer mock aggregator.** Default: no `tests/mocks/lists/`-
+  style shared mock library; the co-located `__mocks__/` convention
+  from `docs/frontend-layout.md` and `.claude/skills/writing-tests.md`
+  is the only mock layer. Trigger: the same `vi.mock(...)`
+  declarations repeating in five-plus test files. See
+  `.claude/skills/writing-tests.md` § Deferred.
+- **Hard coverage gate.** Default: coverage is review-enforced per
+  `docs/quality.md`; no numeric threshold in CI. Trigger: a
+  regression at the same component or function twice within a
+  release cycle. See `.claude/skills/writing-tests.md` § Deferred.
+- **happy-dom vs `@vitest/browser`.** Default: stay on happy-dom
+  (the engine currently configured in `web/vitest.config.ts`).
+  Trigger: a back-stack, focus, or layout test that can't be made
+  deterministic under jsdom-style DOM. See
+  `plans/0200_web_foundation/PLAN.md`.
 
 ## How to use this file
 

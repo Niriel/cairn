@@ -1,0 +1,133 @@
+---
+name: writing-tests
+description: Conventions for Vitest component and unit tests in Cairn — data-test DOM queries, hybrid __mocks__ convention, Svelte 5 runes idiom in mocks, no shared beforeEach, MSW at the network layer.
+paths: web/**/*.test.ts
+---
+
+# Writing tests
+
+Conventions for the Vitest layer of Cairn's test pyramid — component
+and unit tests under `web/src/`. Read this before writing the first
+`*.test.ts` in a session; the rules below are project-specific and
+don't fall out of `vitest`'s defaults.
+
+Canonical references: `docs/testing.md` (three-layer pyramid: pgTAP /
+Vitest / Playwright), `docs/frontend-layout.md` (tree shape, filename
+rules, mock placement), `web/src/lib/test/render.ts` (the helper
+every component test imports).
+
+## When to use this skill
+
+- Writing or modifying a `*.test.ts` file under `web/src/`.
+- Adding or editing a `__mocks__/` entry next to a component or
+  runes module.
+- Investigating a flaky or accidentally-passing Vitest red.
+
+This skill covers the Vitest layer only. Playwright lives under
+`web/e2e/` and has different ergonomics; pgTAP is `docs/testing.md`
+and `.claude/skills/writing-sql.md`.
+
+## DOM queries — `data-test` only
+
+Every queryable element in a component carries a `data-test="…"`
+attribute. Tests reach for elements through the helper at
+`web/src/lib/test/render.ts`:
+
+- `getByDataTest(name)` — returns the element, throws if zero or
+  multiple matches.
+- `queryByDataTest(name)` — returns the element or `null`.
+- `getAllByDataTest(name)` — returns the array.
+
+No `getByText`, no `getByRole`, no `querySelector('.btn-primary')`.
+CSS classes and text content change every time the design moves;
+`data-test` is the deliberate test surface and only the
+`render.ts` helpers know how to consume it, which keeps the
+convention enforced at the API level.
+
+## Mocks (hybrid `__mocks__/`)
+
+Vitest's automock convention is the default: a bare
+`vi.mock('$lib/path/Foo.svelte')` (no factory argument) loads
+`__mocks__/Foo.svelte` from the directory next to the source. A
+co-located `__mocks__/<exact-source-filename>` is **required** for
+any source mocked from more than one test — duplicating an inline
+factory across files is drift in slow motion. Inline
+`vi.mock(path, factory)` is fine for one-offs where the mock is
+specific to a single test's setup.
+
+Mock files use the Svelte 5 runes idiom — `let { children, ...rest } =
+$props()` and `{@render children?.()}` — never `<slot />`. The compat
+layer accepts `<slot />`, but no real Cairn component uses it; a mock
+that uses `<slot />` quietly diverges from the API it stands in for
+and you'll spend an afternoon working out why a parent renders
+nothing in tests.
+
+## No shared `beforeEach` for mock state
+
+Each test sets up the mocks it needs, inside the test:
+`vi.spyOn(module, 'fn').mockReturnValue(...)` per-test. Shared
+`beforeEach`-at-file-scope or describe-scope mock setup is forbidden
+— hidden setup is the most reliable source of "passes alone, fails
+in the suite" Heisenbugs. A test that reads as if it tests one thing
+but secretly relies on a `beforeEach` four screens up is a debugging
+trap.
+
+The narrow exception is **harness-lifecycle** cleanups in
+`vitest.setup.ts`: RTL's `cleanup()` after each test and MSW's
+`server.resetHandlers()` between tests. Those aren't shared *mock
+state* — they're tearing the harness back down to a known floor so
+the next test starts clean. That's the only legitimate use of a
+`beforeEach`-style hook at file or suite scope.
+
+## HTTP at the network layer (MSW)
+
+Component tests use MSW to intercept `fetch` and return canned
+PostgREST responses. Handlers live in `web/src/lib/test/handlers.ts`
+and are wired up by `vitest.setup.ts`. Per-test, override individual
+handlers with `server.use(...)` for the scenario under test.
+
+We deliberately mock at the network boundary rather than at a "fake
+API client" abstraction. The API client can be refactored without
+touching every test, and the mock responses are real PostgREST-
+shaped JSON so off-by-one shape bugs surface in the unit layer
+instead of waiting for Playwright.
+
+## What tests assert
+
+Props in, events / rendered output / state changes out. Not
+internals.
+
+- "Click the primary action button → `onsubmit` is called with the
+  current input value."
+- "When `loading={true}` is passed, the spinner has
+  `data-test='spinner'`."
+- "When the user types in the search box, the listed items reactive
+  state filters by prefix."
+
+Not: "The component imports `someHelper`." Not: "The internal
+`count` variable equals 3." Not: "The Button has class `primary`."
+(Exception: a class that doubles as the styling hook the scoped
+`<style>` block targets — like the `primary` / `ghost` / `destructive`
+variant class on `Button` — is part of the API surface, so asserting
+it is fine. Avoid asserting on classes that exist only as visual
+sugar.)
+
+A test that grips an internal name breaks on every refactor and
+verifies nothing the user cares about.
+
+## Deferred
+
+Two test-architecture decisions are deferred until the trigger
+arrives — both indexed in `docs/open-questions.md`:
+
+- **Three-layer mock aggregator** (`tests/mocks/lists/`-style
+  shared mock libraries). Default: no aggregator; co-located
+  `__mocks__/` is enough. Trigger: the same `vi.mock(...)`
+  declarations repeating in five-plus test files.
+- **Hard coverage gate** (a numeric threshold enforced in CI).
+  Default: review-enforced per `docs/quality.md`. Trigger: a
+  regression at the same component or function twice within a
+  release cycle.
+
+Don't introduce either silently; if the trigger fires, open the
+open-question entry and decide explicitly.

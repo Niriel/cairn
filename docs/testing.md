@@ -164,6 +164,10 @@ pnpm test:coverage      # with v8 coverage; opens HTML report in coverage/
 
 Vitest's watch mode re-runs only the affected tests in a fraction of a second. Leave it running in a split terminal while you work.
 
+### Where tests live and how they're written
+
+The tree shape — which folder a component, runes module, helper, mock, or test belongs in, and what each file is named — is the subject of `docs/frontend-layout.md`. The per-test conventions — `data-test` queries via `web/src/lib/test/render.ts`, the hybrid `__mocks__/` convention, the Svelte 5 runes idiom in mock files, the no-shared-`beforeEach` rule, MSW at the network layer — are the subject of `.claude/skills/writing-tests.md`, which fires whenever a session is editing a `*.test.ts` file. This doc is the *what* and *why* of the Vitest layer; the layout doc is the *where*, and the skill is the *how*.
+
 ## End-to-end tests (Playwright)
 
 Playwright drives a real browser against the *fully running* stack — `pnpm dev` (or the production preview build) plus the dockerized backend with seeded data. It catches the bugs that neither pgTAP nor Vitest can: cookie shim regressions, service-worker caching mishaps, real-network race conditions, the gap between what the API returns and what the UI renders.
