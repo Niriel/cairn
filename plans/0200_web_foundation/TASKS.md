@@ -516,10 +516,10 @@ These land **before** any code. Downstream tasks reference these docs from their
 
 **Verify:** `pnpm --filter web test` · `pnpm --filter web check`.
 
-### [ ] 4.2 TopBar with always-`history.back()` back arrow
+### [x] 4.2 TopBar with always-`history.back()` back arrow
 
 **Created:** 2026-05-13T08:29:11Z
-**Completed:**
+**Completed:** 2026-05-13T11:39:42Z
 
 **Why:** Every screen except the Lists root has a TopBar with a back arrow. The arrow must always call `history.back()` (never a hard-coded route) so it never disagrees with the system back gesture per `docs/ui.md:145`.
 
