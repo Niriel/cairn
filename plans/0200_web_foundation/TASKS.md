@@ -215,10 +215,14 @@ These land **before** any code. Downstream tasks reference these docs from their
 
 ## Phase 2 — Tokens, theme, typography, preferences
 
-### [ ] 2.1 Lift design tokens; reset and typography; wire into layout
+### [x] 2.1 Lift design tokens; reset and typography; wire into layout
 
 **Created:** 2026-05-13T08:29:11Z
-**Completed:**
+**Completed:** 2026-05-13T09:53:35Z
+
+**Notes:**
+- Prettier rewrote `tokens.css` on `prettier --write`: collapsed the multi-line `--shadow` into a single line and normalised `0.10` → `0.1` in two dark-mode `sage` values. The CSS-parse value is unchanged; the JS source-of-truth in `design/cairn-ui.jsx:27` still reads `0.10`, but the design canvas isn't load-bearing for runtime parsing — it's the visual reference. Worth noting in case a future grep correlates the two.
+- Manual smoke (step 7) confirmed by user: "I can confirm that the website adjusts to the system's theme." `prefers-color-scheme: dark` rule is wired correctly via the `:not([data-theme=…])` guard.
 
 **Why:** All component styles consume `var(--paper)`, `var(--ink)`, etc. The token table and typography plumbing must be wired into the root layout before any primitive is built — otherwise primitives ship with hard-coded colours that have to be retrofitted later.
 
