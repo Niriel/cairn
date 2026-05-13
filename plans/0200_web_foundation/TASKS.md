@@ -358,10 +358,10 @@ These land **before** any code. Downstream tasks reference these docs from their
 
 **Verify:** `pnpm --filter web test` · `pnpm --filter web check`.
 
-### [ ] 3.2 Button primitive with variants
+### [x] 3.2 Button primitive with variants
 
 **Created:** 2026-05-13T08:29:11Z
-**Completed:**
+**Completed:** 2026-05-13T10:14:39Z
 
 **Why:** Every interactive surface uses `Button`. Three variants — `primary`, `ghost`, `destructive` — cover the foundation needs; the destructive variant uses `--ember` and is reserved for genuinely destructive actions per `docs/ui.md:111`.
 
