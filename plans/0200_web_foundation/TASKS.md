@@ -324,10 +324,14 @@ These land **before** any code. Downstream tasks reference these docs from their
 
 ## Phase 3 — Basic primitives & back-stack
 
-### [ ] 3.1 Icon primitive + icon-paths.ts
+### [x] 3.1 Icon primitive + icon-paths.ts
 
 **Created:** 2026-05-13T08:29:11Z
-**Completed:**
+**Completed:** 2026-05-13T10:10:39Z
+
+**Notes:**
+- **Side work — vitest.config.ts:** First component-render test in the repo. `@testing-library/svelte` failed with `lifecycle_function_unavailable: mount(...) is not available on the server` because Vite was picking Svelte's server build under Node conditions. Added `resolve: { conditions: ['browser'] }` to `web/vitest.config.ts` (with a short comment). Pure-unit tests under `src/lib/shared/state/` and `src/lib/shared/model/` continue to pass; this only affects how `svelte` itself resolves during test runs.
+- Dedupes applied as the task specified: dropped the second `'inbox'` entry (identical to the first) and dropped the `:111` `'slash'` entry, keeping the lucide canonical `:121` `'slash'` (`M22 12a10 10 0 1 1-20 0 …`).
 
 **Why:** Downstream primitives need icons: `Button` (optional leading icon), `TopBar` (back arrow), `Snackbar` (close X). Building `Icon` first means consumers import one component with a `name` prop. No runtime icon library is added — paths are inlined from `design/cairn-ui.jsx:71+`.
 
