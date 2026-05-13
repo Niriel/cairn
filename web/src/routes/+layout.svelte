@@ -4,6 +4,7 @@
 	import '$lib/shared/styles/tokens.css';
 	import '$lib/shared/styles/reset.css';
 	import '$lib/shared/styles/typography.css';
+	import '$lib/shared/state/preferences.svelte';
 
 	let { children }: { children: Snippet } = $props();
 </script>

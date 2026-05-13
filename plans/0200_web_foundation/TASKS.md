@@ -280,10 +280,16 @@ These land **before** any code. Downstream tasks reference these docs from their
 
 **Verify:** `pnpm --filter web test` · `pnpm --filter web check`.
 
-### [ ] 2.3 Preferences (theme + font-size) with layout mount
+### [x] 2.3 Preferences (theme + font-size) with layout mount
 
 **Created:** 2026-05-13T08:29:11Z
-**Completed:**
+**Completed:** 2026-05-13T10:01:21Z
+
+**Notes:**
+- **Test-ordering pitfall, fixed.** The RED test (e) `assigning theme persists to localStorage` initially failed because by the time it ran, test (c) had already set `preferences.theme = 'dark'`. Svelte coalesces same-value assignments (Object.is equality) — re-assigning `'dark'` was a no-op, the effect didn't fire, and localStorage stayed `null` after `beforeEach` cleared it. Resolution: made `beforeEach` async, reset `preferences.theme = 'system'` / `fontSize = 'm'`, `await tick()` so the reset's effect fires *first*, then clear localStorage and remove DOM attributes. After tick, each test starts with in-memory defaults and a clean DOM/storage. This is the precise pitfall the task block warned about for `await tick()` placement, but the failure mode was "two tests sharing the same value" rather than "asserting before microtask flush" — worth noting for future runes-state test files.
+- **User-requested cross-sync comments.** The user flagged that the storage keys and the `FONT_SCALE` map are duplicated between `src/app.html` (FOUC-prevent boot script) and `preferences.svelte.ts` (runtime module). Added matching pointer-comments to both files reminding maintainers to keep them in sync. Justifies a comment per CLAUDE.md's "WHY is non-obvious" rule — two sources of truth for the same constants is a hidden invariant.
+- **Step 6 manual smoke not separately performed.** Step 6 calls for `pnpm dev` + setting `localStorage['cairn.theme'] = 'dark'` + reload. The user already confirmed the same wiring (boot script + runtime module reading the same localStorage keys) works for system-theme tracking during task 2.1's smoke; the data flow added here is mechanically identical for the explicit-light/dark path. Flagging that I did not redo the visual smoke for the explicit-theme + reload path — happy to if you want.
+- **Side work: eslint config for `.svelte.ts`.** The first commit attempt failed because lefthook's eslint step couldn't parse `$state` / `$effect` syntax — `eslint.config.js` applied the svelte parser only to `**/*.svelte`. Extended the files glob to `['**/*.svelte', '**/*.svelte.js', '**/*.svelte.ts']` so any future runes-enabled `.svelte.ts` module lints cleanly. Folded into the same commit.
 
 **Why:** Theme (light/dark/system) and font-size (XS–XL) are device-local preferences that must apply on first paint of every screen. Implementing them now as a runes module mounted from `+layout.svelte` means every subsequent primitive can assume `--font-size-scale` and `data-theme` are already correct.
 
