@@ -418,10 +418,10 @@ These land **before** any code. Downstream tasks reference these docs from their
 
 **Verify:** `pnpm --filter web test` · `pnpm --filter web check`.
 
-### [ ] 3.4 Back-stack utility `pushHistoryGuard`
+### [x] 3.4 Back-stack utility `pushHistoryGuard`
 
 **Created:** 2026-05-13T08:29:11Z
-**Completed:**
+**Completed:** 2026-05-13T10:21:23Z
 
 **Why:** Every dismissible overlay (Sheet, Accordion in this plan; later: profile sheet, invite picker, etc.) pushes a history entry on open and listens for `popstate` to close. Centralising this in one tiny utility means each overlay primitive is two lines of integration rather than five lines of boilerplate, and the back-stack semantics in `docs/ui.md:137-153` stay enforced by construction.
 
