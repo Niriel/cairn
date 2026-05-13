@@ -2,8 +2,22 @@
 <html lang="en">
 	<head>
 		<meta charset="utf-8" />
-		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 		<meta name="text-scale" content="scale" />
+		<!-- FOUC-prevent boot script: applies theme + font-size before first paint.
+		     Keep storage keys ('cairn.theme', 'cairn.font_size') and the SCALE map
+		     in sync with lib/shared/state/preferences.svelte.ts — both files are
+		     sources of truth for the same constants. -->
+		<script>
+			try {
+				const t = localStorage.getItem('cairn.theme');
+				if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t;
+				const f = localStorage.getItem('cairn.font_size');
+				const SCALE = { xs: 0.85, s: 0.92, m: 1.0, l: 1.1, xl: 1.22 };
+				if (f && SCALE[f])
+					document.documentElement.style.setProperty('--font-size-scale', String(SCALE[f]));
+			} catch {}
+		</script>
 		%sveltekit.head%
 	</head>
 	<body data-sveltekit-preload-data="hover">

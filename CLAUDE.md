@@ -12,9 +12,10 @@ specification is in `docs/`, with visual references in `design/`.
 1. `docs/README.md` — overview and reading order
 2. `docs/architecture.md` — runtime topology (SvelteKit PWA + self-hosted Postgres/PostgREST/GoTrue on Hetzner)
 3. `docs/data-model.md` — schema, RLS, triggers, views
-4. `docs/testing.md` — three test layers (pgTAP, Vitest, Playwright); pgTAP is load-bearing because RLS is the security boundary
-5. `docs/quality.md` — lint/format/type-check toolchain (ESLint, Prettier, svelte-check, SQLFluff, ShellCheck, shfmt, lefthook)
-6. The doc most relevant to whatever you're being asked to build
+4. `docs/frontend-layout.md` — `web/src/lib/` tier split (`basic/`, `shared/`, per-domain), filename rules, mock placement
+5. `docs/testing.md` — three test layers (pgTAP, Vitest, Playwright); pgTAP is load-bearing because RLS is the security boundary
+6. `docs/quality.md` — lint/format/type-check toolchain (ESLint, Prettier, svelte-check, SQLFluff, ShellCheck, shfmt, lefthook)
+7. The doc most relevant to whatever you're being asked to build
 
 ## Where we are in the build
 

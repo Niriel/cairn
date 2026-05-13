@@ -297,6 +297,8 @@ A short record of paths we deliberately did not take, and why. Useful for future
 
 **Kubernetes / Nomad / any orchestrator.** Over-engineering for a single VPS hosting a single app. Docker Compose is exactly the right size of tool.
 
+**Tailwind / utility-class CSS frameworks.** The 13-token CSS-variable table (`design/cairn-ui.jsx:3-33`) is small enough not to need one, and plain scoped `<style>` blocks consuming `var(--…)` keep the production bundle minimal — no purge-step config to maintain, no Tailwind runtime to ship. Rejected as more machinery than the styling surface warrants; if the design system ever outgrows hand-written CSS, revisit then.
+
 ## Open questions and future work
 
 These are not v1 problems but are worth flagging:

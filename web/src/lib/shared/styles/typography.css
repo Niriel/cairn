@@ -1,0 +1,7 @@
+@import '@fontsource-variable/newsreader/wght.css';
+@import '@fontsource-variable/jetbrains-mono/wght.css';
+
+:root {
+	--font-size-scale: 1;
+	font-size: calc(16px * var(--font-size-scale));
+}

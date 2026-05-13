@@ -246,8 +246,20 @@ For each concern, top to bottom:
    - **dismiss** — skip without changing the plan. Future runs
      of `/concerns` will likely surface this again. Useful when
      fixing a different concern would make this one moot.
-   - **chat** — discuss in conversation, then return to this
-     same four-option prompt for the same concern.
+   - **chat** — discuss in conversation. **Yield the turn back to
+     the user.** Do not monologue and then immediately re-issue the
+     four-option prompt; that defeats the point of choosing "chat."
+     If you have something to say, keep it short — one or two
+     paragraphs, ideally ending with an open question rather than a
+     forced choice — and then stop, letting the user reply freely.
+     The conversation continues until one of three things happens:
+     (a) the user makes a decision (then carry it out and move on),
+     (b) the user asks for your recommendation or for the options
+     again (only then re-issue `AskUserQuestion`), or (c) there's a
+     natural lull where you can offer a concrete recommendation
+     framed as a single question with the new options that emerged
+     from the chat. Never auto-re-issue the original four-option
+     prompt at the end of every assistant turn.
 3. Carry out the action, then tick the concern's checkbox from
    `[ ]` to `[x]` in `CONCERNS.md`. Don't delete it, don't
    renumber the remaining entries — the numbering stays stable
