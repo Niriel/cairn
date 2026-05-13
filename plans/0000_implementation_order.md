@@ -154,7 +154,17 @@ where their dependencies make sense — see Sequencing rationale below.
     the first Hetzner deploy following `docs/deployment.md`. The
     imprint screen's placeholders must be replaced with the real
     company / contact details before the deploy goes public.
-    Production smoke check.
+    Production smoke check. **Auth hardening from Step 3:** the
+    production GoTrue service MUST set
+    `GOTRUE_MAILER_AUTOCONFIRM=false` and
+    `GOTRUE_DISABLE_SIGNUP=true` so the committed dev password
+    (`cairn-dev`, used by Step 3's seed flow and dev login
+    shortcut) cannot be used against prod and so `POST
+    /auth/signup` cannot create unsolicited accounts. Cairn is
+    invite-only per `docs/invites.md`, so signup-disabled is the
+    correct default; this line exists as a checklist item so the
+    step-13 owner can't miss it. See also the same forward-note
+    in `docs/development.md` under "Seed data".
 
 ## Sequencing rationale
 
