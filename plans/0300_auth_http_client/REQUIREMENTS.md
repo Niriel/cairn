@@ -455,27 +455,15 @@ All Vitest tests use the `data-test` query helper from
 
 The supporting helper lives at `web/e2e/helpers/mailpit.ts`.
 
-## R13. Documentation reconciliation
+## R13. ~~Documentation reconciliation~~ — landed
 
-The following doc edits ship in **Phase 0** of this plan, before any
-code lands, so downstream tasks reference the right surface:
-
-- `docs/development.md:225-227` — replace the "intentionally empty"
-  seed paragraph with the new flow (signups via GoTrue, `dev_seed.sql`
-  UPDATEs `display_name`). Restore the `VITE_DEV_LOGIN_SHORTCUT`
-  paragraph (line 249) and the dev-token shortcut explanation
-  (lines 295-297). Document the committed dev password `cairn-dev`.
-- `docs/development.md` — add a one-line note that the dev cookie
-  has no `Secure` attribute (HTTP localhost) while production's
-  Caddy-set cookie does.
-- `docs/architecture.md:226-231` — verify the request-flow narrative
-  matches: callback at `/auth/callback`, JSON response shim, cookie
-  set. If `/auth/magiclink` is preferred over `/otp` for readability,
-  state that the dev shim and prod Caddy both accept that path and
-  GoTrue treats them as aliases.
-- `docs/architecture.md:252` — change "~30-day Max-Age" to
-  "~7-day Max-Age (raised to ~30-day when refresh-token rotation
-  lands)" or similar, so the doc and code agree.
+The doc reconciliation that this section earlier specified
+(edits to `docs/development.md` and `docs/architecture.md` —
+seed flow, dev-shortcut paragraph, JWT 7-day Max-Age,
+`/auth/otp` rename, request-flow tightening) has already landed.
+Downstream requirements reference the post-edit docs directly.
+The slot is kept (rather than renumbering R14) so any external
+references to the requirement number stay stable.
 
 ## R14. In-memory `pendingLogin` store carries the email between R1 and R2
 

@@ -147,6 +147,8 @@ GoTrue itself returns the JWT in a JSON body, not as a cookie. We close that gap
 
 The web app never touches the JWT. It performs the magic-link round trip, after which it is implicitly authenticated for every fetch via the cookie. Logout is a single `DELETE /auth/session` that clears the cookie.
 
+Both halves of this shim must be **narrowed**, not blanket. On the way *in*, Caddy attaches `Authorization: Bearer <jwt>` only to the authenticated GoTrue endpoints (today: `/auth/user`). The anonymous-callable endpoints (`/auth/otp`, `/auth/verify`, `/auth/token`) must **not** receive a bearer — they accept anonymous callers, and forwarding a signed-in user's JWT to a magic-link request hands a private credential to an endpoint that didn't need it. On the way *out*, the JSON-sniffing cookie-plant must fire only on the deliberate-login endpoints (`/auth/verify`, `/auth/token`); a 2xx response from `/auth/signup` (or a future endpoint that also returns `access_token`, like refresh-token rotation or OAuth callbacks) must **not** plant a session cookie unless explicitly added to the allowed set. The dev-side Vite proxy already enforces both narrowings via the shared `web/src/lib/shared/model/auth-paths.ts` helper; the Caddy production analogue must match, and adding a new GoTrue endpoint to either narrow is a deliberate edit, not an implicit consequence of a 2xx response shape.
+
 Caddy is the right home for this shim because the proxy is already where the trust boundary sits, and the rule is short enough to live in the Caddyfile alongside the routing. We do not introduce a separate Node service to handle auth. See `deployment.md` for the concrete configuration.
 
 ### Reverse proxy: Caddy
@@ -223,11 +225,11 @@ A typical "show me my lists" request, from a logged-in user with the session coo
 A login request:
 
 1. User enters email in the web app.
-2. App sends `POST https://cairn.<domain>/auth/magiclink` with the email.
+2. App sends `POST https://cairn.<domain>/auth/otp` with the email. (`/auth/magiclink` is a GoTrue alias for the same handler and may be dropped in a future image; we use the canonical `/otp` form throughout.)
 3. GoTrue generates a token and emails it via the configured SMTP provider.
-4. User taps the link, which opens `https://cairn.<domain>/auth/callback?token=...` in their browser.
-5. Caddy proxies to GoTrue, which verifies the token and returns a JWT in JSON.
-6. Caddy's response handler extracts the JWT, sets it as the `cairn_session` HttpOnly cookie, and serves a short HTML page that redirects into the app.
+4. User taps the link, which opens `https://cairn.<domain>/auth/callback?token=...&type=magiclink` in their browser. `/auth/callback` is a SvelteKit route in the static bundle — Caddy serves it from disk, not from GoTrue.
+5. The callback route's client-side code POSTs `/auth/verify` (with the URL's `token` and `type=magiclink` in the body) through Caddy to GoTrue, which verifies the token and returns a JWT in JSON.
+6. Caddy's response handler on `/auth/*` extracts the JWT from the JSON body and sets it as the `cairn_session` HttpOnly cookie on the way back. The callback page sees a 2xx with the user payload and calls SvelteKit's `goto('/', { replaceState: true })` to land the user in the app, signed in.
 7. Every subsequent request is authenticated via the cookie. The web app's JavaScript never sees the token.
 
 ## Local development parity
@@ -249,7 +251,7 @@ Cairn stores a small, fixed inventory of things on the user's device. Each one i
 
 | What | Where | Set by | Why it's strictly necessary |
 |---|---|---|---|
-| `cairn_session` cookie | `HttpOnly`, `Secure`, `SameSite=Lax`, `Path=/`, ~30-day Max-Age | Caddy on successful magic-link callback (see "JWT storage" above) | The auth JWT. Without it the user is signed out; the service literally cannot be delivered. EDPB Guidelines 2/2023 treat auth/session cookies as the canonical "strictly necessary" example. |
+| `cairn_session` cookie | `HttpOnly`, `Secure` (production only — dev uses HTTP localhost, see `development.md`), `SameSite=Lax`, `Path=/`, ~7-day Max-Age (raised to ~30-day when refresh-token rotation lands) | Caddy in production / the Vite dev proxy locally on successful magic-link callback (see "JWT storage" above) | The auth JWT. Without it the user is signed out; the service literally cannot be delivered. EDPB Guidelines 2/2023 treat auth/session cookies as the canonical "strictly necessary" example. |
 | `cairn.theme` (`'system' \| 'light' \| 'dark'`) | `localStorage` | The Appearance section of Settings, when the user changes it | A functional preference the user *themselves* sets. Both EDPB guidelines and German TDDDG treat user-set preferences as exempt. Art. 5(3) covers *any* storage on terminal equipment — `localStorage` falls under it the same way cookies do; the medium doesn't change the legal analysis. |
 | `cairn.font_size` (`'xs' \| 's' \| 'm' \| 'l' \| 'xl'`) | `localStorage` | Same as theme | Same as theme. |
 | App shell + recently-viewed list data | Service worker `Cache` (lands in step 11 / PWA) | First load and stale-while-revalidate on visit | The app is a PWA. The cache is what makes it launch instantly and survive a flaky connection — i.e., what the user requested when they installed it. No personal-data collection; just a copy of bytes the server already sent the same user. |

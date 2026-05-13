@@ -243,12 +243,10 @@ they're consumed only by the auth screens and the session-store boot.
 - **`scripts/seed.sh`** — wait-for-GoTrue + `/signup` loop (R9).
 - **`db/seed/dev_seed.sql`** — three idempotent `UPDATE`s of
   `display_name` keyed on email (R9).
-- **`docs/development.md`** — restore the dev shortcut paragraph,
-  the dev-token explanation, and the seed-flow narrative; note the
-  `cairn-dev` password and the missing-`Secure` divergence (R13).
-- **`docs/architecture.md`** — JWT-exp line edit at `:252`; verify
-  the request-flow narrative at `:226-231` matches the implemented
-  paths (R13).
+- *Doc reconciliation (R13) has already landed — see
+  `docs/development.md` for the dev shortcut, seed-flow, and
+  dev-cookie-`Secure` divergence note, and `docs/architecture.md`
+  for the 7-day Max-Age and the tightened login request flow.*
 
 ### Data flow (magic-link happy path)
 
@@ -292,11 +290,12 @@ goto('/', { replaceState: true })
 
 ## Phase structure
 
-1. **Phase 0 — Reconcile docs.** Edits to `docs/development.md` and
-   `docs/architecture.md` land first so downstream tasks reference
-   the post-edit narrative. R13.
+The doc reconciliation that earlier drafts called out as Phase 0
+(R13 — edits to `docs/development.md` and `docs/architecture.md`)
+has already landed; downstream tasks reference the post-edit
+narrative. Phases are numbered from 1.
 
-2. **Phase 1 — Backend wiring (GoTrue + seed + Vite proxy).**
+1. **Phase 1 — Backend wiring (GoTrue + seed + Vite proxy).**
    Update `docker-compose.yml` (mailer URL path, JWT exp), restart
    GoTrue with the new envs, extend `scripts/seed.sh` to drive
    GoTrue signups, rewrite `db/seed/dev_seed.sql` to UPDATE
@@ -308,7 +307,7 @@ goto('/', { replaceState: true })
    are the ad-hoc smoke checks; GREEN is the config + script
    changes. R9, R10, R11.
 
-3. **Phase 2 — Session store + PostgREST wrapper.** Land
+2. **Phase 2 — Session store + PostgREST wrapper.** Land
    `session.svelte.ts` and `postgrest.ts` together; they're
    coupled (the wrapper calls `session.onUnauthorized` on 401). RED
    tests first per file. The default MSW handlers in
@@ -316,7 +315,7 @@ goto('/', { replaceState: true })
    boot fetch makes every other component test need them. R4, R5,
    R6.
 
-4. **Phase 3 — Auth screens and routes.** Build the three auth
+3. **Phase 3 — Auth screens and routes.** Build the three auth
    components and three routes. The auth client lands at the head
    of the phase, then the in-memory `pendingLogin` state module
    (Task 3.2), the dev-shortcut predicate (3.2b), and the
@@ -327,12 +326,12 @@ goto('/', { replaceState: true })
    theme tokens — and follow `data-test`/render-helper testing
    conventions. R1, R2, R3, R8.
 
-5. **Phase 4 — Layout integration: route guard + Sign Out.**
+4. **Phase 4 — Layout integration: route guard + Sign Out.**
    Modify `+layout.svelte` to boot the session, block-render, and
    redirect. Add the temporary Sign Out button to `+page.svelte`.
    The Vitest `+layout.test.ts` for the guard ships here. R7.
 
-6. **Phase 5 — End-to-end coverage.** Land
+5. **Phase 5 — End-to-end coverage.** Land
    `web/e2e/auth.spec.ts` and `web/e2e/helpers/mailpit.ts`. This
    is the only place where the full backend stack is exercised; a
    green E2E proves the docker-compose env edits in Phase 1

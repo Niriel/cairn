@@ -141,12 +141,27 @@ fact, so a thin one is still worth raising.
 
 ### Write `CONCERNS.md`
 
-Write to `plans/<branch>/CONCERNS.md`. Order by gravity — any
-**security or privacy concerns first** (these top everything
-else, even an architecture-level rethink), then concerns that
-could otherwise make us rethink the plan, then small
-clarifications and typos at the bottom. Aim for ~5–15 entries;
-if you produce more, you're nitpicking — collapse related ones.
+Write to `plans/<branch>/CONCERNS.md`. **Group concerns into
+sections by area** with `##` headings, and order both the
+sections and the concerns within each section by gravity.
+`## Security/privacy` (when non-empty) is always first; the
+remaining sections follow in gravity order, with small
+clarifications and typos at the bottom. Pick section names that
+fit what you actually found — examples: `## Security/privacy`,
+`## Contradictions`, `## Foreseeable bugs`, `## Missing tests`,
+`## Doc divergence`, `## UX`, `## Code smell`,
+`## Clarifications`. Don't create a section for an area where
+you have nothing to raise. Aim for ~5–15 entries total across
+all sections; if you produce more, you're nitpicking — collapse
+related ones.
+
+Concerns are numbered **continuously across sections** — the
+numbering does **not** restart at each `##`. There is only one
+concern `1.` in the whole file; the section after Security/privacy
+picks up wherever the previous section left off (e.g. `4.`, `5.`,
+…). This way the user can refer to "concern #7" unambiguously
+throughout the resolution session regardless of which section it
+lives in.
 
 Format — each concern starts with an unchecked checkbox `[ ]` so
 the file doubles as a progress tracker during resolution:
@@ -156,12 +171,18 @@ the file doubles as a progress tracker during resolution:
 
 Generated <YYYY-MM-DD>.
 
+## Security/privacy
+
 1. [ ] **<short title>** — one sentence stating the concern,
    referencing requirement numbers (R3), task numbers (1.2),
    and `file:line` where applicable.
    - Proposed: one sentence stating the fix.
 
 2. [ ] ...
+
+## <Other area>
+
+3. [ ] ...
 
 ## Verified correct
 
@@ -184,12 +205,10 @@ below — don't make the user re-invoke the command.
 
 Read `CONCERNS.md`. Before asking how to proceed, **summarise the
 concerns in chat** — one short line per concern, in the same
-order as the file (gravity-first), so the user can see the whole
-punch list at a glance without opening the file. Group them
-lightly if it helps readability ("top three could change the
-plan; 4–6 are real bugs in the spec; the rest are
-clarifications") but don't re-rank — the file's order is the
-order. Then use `AskUserQuestion` to ask:
+order as the file (gravity-first), under the same `##` section
+headings the file uses, so the user can see the whole punch list
+at a glance without opening the file. Don't re-rank — the file's
+order is the order. Then use `AskUserQuestion` to ask:
 
 > Walk through one by one, or quick-fix all?
 

@@ -12,156 +12,6 @@
 - **`design/cairn-screens.jsx`** — `LoginRequest` (lines 120-174) and `LoginCheck` (lines 177-212).
 - **`web/src/lib/test/render.ts`** — the `getByDataTest` / `queryByDataTest` / `getAllByDataTest` helpers every component test imports.
 
-## Phase 0 — Reconcile docs
-
-These land first so every later task references the post-edit narrative. Each edit is small and self-contained.
-
-### [ ] 0.1 Reconcile `docs/development.md` to the new seed + dev-shortcut flow
-
-**Created:** 2026-05-13T12:11:12Z
-**Completed:**
-
-**Why:** The doc currently says "the dev seed is intentionally empty until step 3" (line 225) and "the dev login shortcut returns in step 3" (line 249). This plan IS step 3 — those forward-references resolve now. Without the edit, downstream tasks reference a stale doc.
-
-**Prerequisites:** None.
-
-**Decisions:**
-- (Line numbers below are how the file reads *today*; once the first
-  edit lands, subsequent line numbers shift. Each edit is anchored
-  by a quoted phrase from the paragraph, not by line number alone.)
-- Replace the paragraph in the "Seed data" section that begins
-  *"The dev database starts empty. `db/seed/dev_seed.sql` is
-  intentionally a no-op"* (around line 225) with the new flow:
-  `./scripts/seed.sh` first waits for GoTrue, then POSTs `/signup`
-  for Alice/Bob/Carol with the dev password `cairn-dev`, then runs
-  `db/seed/dev_seed.sql` which `UPDATE`s the three display names.
-  Idempotent on rerun.
-- Restore the `VITE_DEV_LOGIN_SHORTCUT` paragraph in "The web app"
-  section — replace the line that begins *"`VITE_DEV_LOGIN_SHORTCUT`
-  returns to this file alongside step 3's plan"* (around line 249)
-  with a paragraph stating that the env var enables three buttons
-  on the login screen that call GoTrue's password grant directly.
-  The committed dev password is `cairn-dev`.
-- Replace the "Hit the API directly" paragraph in "Common tasks"
-  that begins *"PostgREST is plain HTTP+JSON. You need a JWT…"*
-  (around line 295) with a working example: `curl -X POST
-  http://localhost:9999/token?grant_type=password -H 'Content-Type:
-  application/json' -d '{"email":"alice@example.test","password":
-  "cairn-dev"}'` returns a JWT you can pass as
-  `Authorization: Bearer …`.
-- Add a one-sentence note inside "The magic-link flow in
-  development" (the section beginning *"Cairn uses email magic
-  links for real authentication."*) — the dev cookie has no
-  `Secure` attribute because localhost is HTTP; production's Caddy-
-  set cookie does. This divergence is intentional.
-- In the same "Seed data" section, after the new
-  signup-then-UPDATE narrative paragraph, add a short
-  **forward-note** for step 13's production-rollout owner: when
-  the production GoTrue compose file lands, it MUST set
-  `GOTRUE_MAILER_AUTOCONFIRM=false` and
-  `GOTRUE_DISABLE_SIGNUP=true` so the committed dev password
-  `cairn-dev` cannot be used against a prod instance, and so
-  that `POST /auth/signup` (which is open in dev — both directly
-  to GoTrue and through the Vite proxy) cannot be used to create
-  unsolicited accounts in production. The dev exposure is
-  contained to localhost — the production gap is closed
-  structurally by `GOTRUE_DISABLE_SIGNUP=true`, not by any code
-  in the web app. (Cairn is invite-only per `docs/invites.md`,
-  so signup-disabled in prod is already the right default.)
-- Add a one-paragraph dev-surface note in the same section
-  explaining how the cookie-plant shim is scoped: the Vite proxy
-  only plants `cairn_session` on responses from
-  `COOKIE_PLANT_PATHS` (currently `/auth/verify` and
-  `/auth/token`, defined in `web/src/lib/shared/model/auth-paths.ts`).
-  `POST /auth/signup` through the proxy returns the GoTrue body
-  including `access_token` but **does not** plant the cookie —
-  a deliberate narrowing landed in Task 1.4 to keep the dev
-  cookie-plant contract tight. A contributor adding a new
-  GoTrue login endpoint must extend `COOKIE_PLANT_PATHS`
-  explicitly.
-- Do NOT edit the cookie inventory table in `docs/architecture.md`
-  in this task — that one's Task 0.2.
-
-**Files:**
-- `docs/development.md` (modify)
-
-**Steps:**
-1. Edit the three paragraphs above in `docs/development.md`. Each edit is a contained replacement; no renumbering, no section restructuring.
-2. Read the edited file end-to-end to confirm flow.
-3. `git diff docs/development.md` — sanity check.
-
-**Verify:** `git diff --stat docs/development.md` (one file) · `grep -nE 'cairn-dev' docs/development.md` (finds the password) · `grep -nE 'VITE_DEV_LOGIN_SHORTCUT' docs/development.md` (paragraph restored).
-
-### [ ] 0.2 Reconcile `docs/architecture.md` to the 7-day JWT and verified flow
-
-**Created:** 2026-05-13T12:11:12Z
-**Completed:**
-
-**Why:** Line 252 aspirationally documents "~30-day Max-Age" for `cairn_session`, but Step 3 deliberately defers refresh-token rotation and sets `GOTRUE_JWT_EXP` to 7 days. The cookie's Max-Age tracks `expires_in`, so the implemented value is 7 days, not 30. The doc must match the code or downstream readers will be confused.
-
-**Prerequisites:** None.
-
-**Decisions:**
-- In the "Client-side storage and the consent question" table,
-  find the row whose first cell begins with `cairn_session` cookie
-  and edit two cells:
-  - In the **flags** cell, change `~30-day Max-Age` to
-    `~7-day Max-Age (raised to ~30-day when refresh-token rotation
-    lands)`; soften the bare `Secure` flag to `Secure` (production
-    only — dev uses HTTP localhost, see `docs/development.md`)
-    so a reader of the cookie inventory isn't surprised to find
-    the dev cookie without `Secure`.
-  - In the **"Set by"** cell, change `Caddy on successful
-    magic-link callback` to `Caddy in production / the Vite dev
-    proxy locally on successful magic-link callback` so the dev
-    counterpart is documented in the same place as the prod one.
-  Keep the rest of the row (the "what it stores" cell, the EDPB
-  citation) intact.
-- **Pin the magic-link endpoint to `/auth/otp`** across the docs.
-  GoTrue 2.158.1 routes both `/magiclink` and `/otp` to the same
-  handler today, but `/otp` is the canonical v2 endpoint name —
-  `/magiclink` is an alias that may be dropped in a future image
-  bump. The plan's MSW handlers (Task 2.1), auth-client implementation
-  (Task 3.1), and Vite-proxy smoke commands (Task 1.4) all reference
-  `/auth/otp`; the docs need to match. Concretely:
-  - `docs/architecture.md:226` — replace `POST https://cairn.<domain>/auth/magiclink`
-    with `POST https://cairn.<domain>/auth/otp` (preserve the rest
-    of the bullet). Add a short parenthetical the first time the
-    name appears that `/auth/magiclink` is a current GoTrue alias
-    for the same handler.
-  - `docs/development.md:277` (or wherever the "App POSTs to
-    `/auth/magiclink`" line lives in the post-Task-0.1 file) —
-    replace `/auth/magiclink` with `/auth/otp`.
-- In the "Request flow" section, verify the rest of the "A login
-  request" numbered list matches what we'll implement: magic-link
-  URL `http://localhost:5173/auth/callback?token=...&type=magiclink`,
-  the Vite proxy's shim plants the cookie from the JSON
-  `access_token`. No edit needed if the prose already covers this;
-  otherwise tighten the sentence about the callback URL.
-- Do NOT add a "refresh-token rotation will land in a later step"
-  paragraph anywhere — the cookie-table edit carries the message.
-- Background context (no extra edit required): the cookie's
-  `Max-Age` is set by the Vite shim from `expires_in` in the
-  GoTrue JSON body (`web/vite.config.ts:57`), and GoTrue derives
-  `expires_in` from `GOTRUE_JWT_EXP`. So Task 1.1's bump of
-  `GOTRUE_JWT_EXP` to `"604800"` is what makes the cookie's
-  `Max-Age` 7 days, which is what this row now documents. A future
-  contributor adjusting either side of that chain should
-  understand the link before editing.
-
-**Files:**
-- `docs/architecture.md` (modify)
-- `docs/development.md` (modify — single-line endpoint rename, separate from Task 0.1's other edits to the same file)
-
-**Steps:**
-1. Edit `docs/architecture.md:252` as above (cookie table row).
-2. Edit `docs/architecture.md:226` to rename `/auth/magiclink` → `/auth/otp` per Decisions.
-3. Edit the matching line in `docs/development.md` (search for `/auth/magiclink`).
-4. Re-read `docs/architecture.md:212-232` and confirm the request-flow narrative matches what Phase 1–4 will implement. Tighten only if necessary.
-5. `git diff docs/architecture.md docs/development.md` — sanity check.
-
-**Verify:** `grep -nE '7-day Max-Age' docs/architecture.md` (finds the new line) · `grep -nE '30-day Max-Age' docs/architecture.md` (returns nothing, or only the parenthetical about future work) · `grep -nE '/auth/magiclink' docs/architecture.md docs/development.md` (returns nothing, or only the one-line "alias" parenthetical).
-
 ## Phase 1 — Backend wiring (GoTrue + seed + Vite proxy)
 
 Phase 1 lands the infrastructure that the rest of the plan plugs into: GoTrue env edits, seed flow, Vite proxy split, logout middleware. After this phase, an ad-hoc `curl` against `/auth/otp` and `/auth/verify` through the dev server works end-to-end (cookie planted), and `./scripts/seed.sh` is idempotent. No UI yet.
@@ -171,9 +21,9 @@ Phase 1 lands the infrastructure that the rest of the plan plugs into: GoTrue en
 **Created:** 2026-05-13T12:11:12Z
 **Completed:**
 
-**Why:** GoTrue's default mailer URL path is `/auth/v1/verify`, which 404s through our proxy. The magic-link email's `<a href>` must point at the SvelteKit `/auth/callback` route this plan introduces. Separately, the default 1-hour JWT expiry is too short for the cookie Max-Age to be useful; bumping to 7 days (`604800` seconds) keeps dev sessions alive across a day's work and is what `docs/architecture.md:252` (post-Phase 0) commits to.
+**Why:** GoTrue's default mailer URL path is `/auth/v1/verify`, which 404s through our proxy. The magic-link email's `<a href>` must point at the SvelteKit `/auth/callback` route this plan introduces. Separately, the default 1-hour JWT expiry is too short for the cookie Max-Age to be useful; bumping to 7 days (`604800` seconds) keeps dev sessions alive across a day's work and is what `docs/architecture.md`'s cookie inventory commits to.
 
-**Prerequisites:** Phase 0 edits merged.
+**Prerequisites:** None.
 
 **Decisions:**
 - Add `GOTRUE_MAILER_URLPATHS_MAGICLINK: /auth/callback` to the `gotrue` service environment in `docker-compose.yml` (around line 36-60).
@@ -207,7 +57,7 @@ Phase 1 lands the infrastructure that the rest of the plan plugs into: GoTrue en
 - `GOTRUE_MAILER_AUTOCONFIRM: "true"` is already set (`docker-compose.yml:51` area). So `/signup` does NOT send a confirmation email, keeping Mailpit clean.
 - The seed runs the SQL UPDATE step (Task 1.3) immediately after the signup loop, in the same `seed.sh` invocation. That step is a separate task only because the SQL changes live in `dev_seed.sql`.
 
-**Reference:** `docs/development.md` (post-Phase 0) for the dev-shortcut narrative the seed must satisfy.
+**Reference:** `docs/development.md` for the dev-shortcut narrative the seed must satisfy.
 
 **Files:**
 - `scripts/seed.sh` (modify)
@@ -538,7 +388,7 @@ Phase 3 builds the three auth components and the three SvelteKit routes that mou
 - All four use `fetch` with `credentials: 'same-origin'`, `Content-Type: application/json`, and the proxy-prefixed paths. URLs are constructed by prefixing `import.meta.env.VITE_AUTH_BASE` (default `/auth`) to the GoTrue endpoint (`/otp`, `/verify`, `/token`, `/session`). **Tests must pin `VITE_AUTH_BASE` explicitly** via `vi.stubEnv('VITE_AUTH_BASE', '/auth')` in a top-level `beforeAll` (paired with `vi.unstubAllEnvs()` in `afterAll`) — same rationale as Task 2.3's `VITE_API_BASE` pinning, so a contributor `.env` drift can't silently shift the asserted URLs.
 - Errors: throw `Error` with the GoTrue error message on non-2xx. The screens' MSW tests assert the specific shapes; the runtime caller catches and routes (inline error vs snackbar).
 - `verifyToken` and `devPasswordSignIn` **must guard the 2xx body** before resolving: if the parsed JSON is missing `user.id` or `user.email` (or is not an object), throw the same `Error` shape used for non-2xx. Without the guard, a malformed-but-200 response from a future GoTrue version would produce a resolved promise with `user: undefined`, and the callback (Task 3.4) would call `setSignedIn(undefined)` — an impossible variant under R4. The guard is one runtime narrow per function; it makes the TS-pinned return type honest.
-- The endpoint URL for the magic-link request is `/auth/otp` — pinned in Phase 0 (Task 0.2). Both `verifyToken` and `devPasswordSignIn` import `AuthUser` from the session store (`$lib/shared/state/session.svelte`) so the user type is owned in exactly one place and consumers don't have to re-declare the shape.
+- The endpoint URL for the magic-link request is `/auth/otp` — pinned in `docs/architecture.md` (request-flow section) and `docs/development.md` (magic-link flow). `/auth/magiclink` is a GoTrue alias for the same handler and may be dropped in a future image; the docs and this client use the canonical `/otp` form. Both `verifyToken` and `devPasswordSignIn` import `AuthUser` from the session store (`$lib/shared/state/session.svelte`) so the user type is owned in exactly one place and consumers don't have to re-declare the shape.
 - A colocated **`__mocks__/auth-client.ts`** ships in this task because both `LoginRequest.test.ts` (Task 3.2, dev-shortcut path) and `auth/callback/+page.test.ts` (Task 3.4, verifyToken path) mock it. Per `.claude/skills/writing-tests.md`, sources mocked from more than one test get a colocated mock to avoid factory-drift between files. The mock exposes the four functions as `vi.fn()` with sensible default resolutions: `sendMagicLink` resolves; `verifyToken` resolves with `{ user: { id: '11111111-…', email: 'dev@example.test' } }` (matching the canonical seed user in `handlers.ts` from Task 2.1); `devPasswordSignIn` resolves with the same shape; `logout` resolves. Tests `vi.mock('$lib/auth/model/auth-client')` (bare; no factory) and override per-test via `vi.mocked(...).mockResolvedValueOnce(...)` or `.mockRejectedValueOnce(...)`.
 
 **Reference:** `docs/architecture.md` "Request flow" section for the login-request narrative.
