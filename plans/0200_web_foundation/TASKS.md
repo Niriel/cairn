@@ -256,10 +256,10 @@ These land **before** any code. Downstream tasks reference these docs from their
 
 **Verify:** `pnpm --filter web check` · `pnpm --filter web test` · manual smoke per step 7.
 
-### [ ] 2.2 Safe-area named constants
+### [x] 2.2 Safe-area named constants
 
 **Created:** 2026-05-13T08:29:11Z
-**Completed:**
+**Completed:** 2026-05-13T09:56:11Z
 
 **Why:** Components shouldn't hand-write `env(safe-area-inset-top)` strings. Named constants make the safe-area pattern grep-able and one-line.
 
