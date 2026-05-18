@@ -109,10 +109,14 @@ Phase 1 lands the infrastructure that the rest of the plan plugs into: GoTrue en
 
 **Verify:** `docker compose exec postgres psql -U cairn -d cairn -c "SELECT email, display_name FROM auth.users JOIN public.profiles ON auth.users.id = public.profiles.id WHERE email LIKE '%@example.test' ORDER BY email"` returns the three users with their proper names.
 
-### [ ] 1.4 Land segment-anchored auth-path predicates and split the Vite `/auth` proxy
+### [x] 1.4 Land segment-anchored auth-path predicates and split the Vite `/auth` proxy
 
 **Created:** 2026-05-13T12:11:12Z
-**Completed:**
+**Completed:** 2026-05-18T08:27:55Z
+
+**Notes:**
+- Pre-existing shfmt failure on `scripts/seed.sh` (case-indent under `-ci`) surfaces when running `./scripts/check.sh` — committed in 1.2 (`c75910c`). Out of scope for this task; flagging for the user to address (trivially fixable with `shfmt -w -i 2 -ci -bn scripts/seed.sh`).
+- Empirical reality differs slightly from the Decisions text: today's `supabase/gotrue:v2.158.1` *does* emit its own `sb-access-token`/`sb-refresh-token` cookies on `/auth/signup` and `/auth/token` (the Decision called this "latent"). With `appendHeader('set-cookie', ...)` these upstream cookies are now forwarded to the browser instead of being clobbered by `setHeader`. Functionally inert in dev because GoTrue marks them `Secure` and browsers reject `Secure` cookies over `http://localhost`; and `HttpOnly` keeps them out of JS. Not a regression — the previous `setHeader` silently dropped them — but worth knowing for prod (Caddy is the prod cookie-translator anyway, so this path doesn't run there).
 
 **Why:** The magic-link email's `<a href>` points at `http://localhost:5173/auth/callback?token=...` (Task 1.1). Today's `/auth` proxy in `web/vite.config.ts` forwards every `/auth/*` request to GoTrue, so the browser hitting `/auth/callback` would 404. The fix is to let SvelteKit serve the page routes (`/auth/login`, `/auth/check`, `/auth/callback`) and forward only the GoTrue API paths. Three subtly-different path predicates have to coexist inside `vite.config.ts` — public-page bypass, bearer-attach narrowing, and (Task 1.5) DELETE-session matching — and the segment-anchoring story is exactly the kind of thing a drive-by edit can weaken to a bare `startsWith` without anyone noticing. Pulling the predicate into a pure-TS helper with colocated tests pins the semantics in CI, not in a curl smoke (and lets Task 1.5 reuse the same predicate).
 
