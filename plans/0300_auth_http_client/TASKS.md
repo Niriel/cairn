@@ -41,10 +41,10 @@ Phase 1 lands the infrastructure that the rest of the plan plugs into: GoTrue en
 
 **Verify:** `docker inspect $(docker compose ps -q gotrue) --format '{{range .Config.Env}}{{println .}}{{end}}'` shows `GOTRUE_JWT_EXP=604800` and `GOTRUE_MAILER_URLPATHS_MAGICLINK=/auth/callback` in the output.
 
-### [ ] 1.2 Drive seed signups against GoTrue from `scripts/seed.sh`
+### [x] 1.2 Drive seed signups against GoTrue from `scripts/seed.sh`
 
 **Created:** 2026-05-13T12:11:12Z
-**Completed:**
+**Completed:** 2026-05-18T08:09:20Z
 
 **Why:** The dev login shortcut and Step 4 dogfooding both need Alice/Bob/Carol to exist as real `auth.users` rows. We deliberately can't insert into `auth.users` directly (`db/seed/dev_seed.sql:9-13` documents why). Driving signups through GoTrue's HTTP endpoint lets it satisfy its own NOT NULL columns, and `tg_profile_on_signup` synchronously creates the matching `profiles` + `user_settings` rows.
 
