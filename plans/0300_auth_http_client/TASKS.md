@@ -352,10 +352,10 @@ Phase 2 lands the two cross-cutting modules in `shared/` that the rest of the ap
 
 **Verify:** `cd web && pnpm test session.test --run` (green) · `cd web && pnpm check` (no TS errors).
 
-### [ ] 2.3 Land the PostgREST wrapper (`shared/http/postgrest.ts`) with tests
+### [x] 2.3 Land the PostgREST wrapper (`shared/http/postgrest.ts`) with tests
 
 **Created:** 2026-05-13T12:11:12Z
-**Completed:**
+**Completed:** 2026-05-18T11:00:46Z
 
 **Why:** Step 4 needs a typed `fetch`-shaped helper to talk to PostgREST. Cairn's "simplest thing that works" stance and the small surface area (no need for `@supabase/postgrest-js`) mean a ~40-line wrapper handles it. The wrapper also bridges the 401 case into the session store so an expired session reflects in the UI within a tick.
 
