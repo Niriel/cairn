@@ -524,10 +524,10 @@ stable; do not renumber" — so when extending a phase mid-plan, letter
 suffixes are the cheap way to honour that rule. Future phases should
 keep to plain `N.M`. -->
 
-### [ ] 3.2b Land the `dev-shortcut` predicate module with tests and mock
+### [x] 3.2b Land the `dev-shortcut` predicate module with tests and mock
 
 **Created:** 2026-05-13T12:11:12Z
-**Completed:**
+**Completed:** 2026-05-18T11:19:18Z
 
 **Why:** R8's dev login shortcut is gated by a single belt-and-braces predicate (`import.meta.env.DEV && import.meta.env.VITE_DEV_LOGIN_SHORTCUT === 'true'`). Pulling the gate into its own module gives `LoginRequest.test.ts` (Task 3.2c) a mockable surface so the dev-buttons-visible / dev-buttons-absent cases can toggle without poking `import.meta.env` directly.
 
