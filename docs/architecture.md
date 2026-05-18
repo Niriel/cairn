@@ -229,7 +229,7 @@ A login request:
 3. GoTrue generates a token and emails it via the configured SMTP provider.
 4. User taps the link, which opens `https://cairn.<domain>/auth/callback?token=...&type=magiclink` in their browser. `/auth/callback` is a SvelteKit route in the static bundle — Caddy serves it from disk, not from GoTrue.
 5. The callback route's client-side code POSTs `/auth/verify` (with the URL's `token` and `type=magiclink` in the body) through Caddy to GoTrue, which verifies the token and returns a JWT in JSON.
-6. Caddy's response handler on `/auth/*` extracts the JWT from the JSON body and sets it as the `cairn_session` HttpOnly cookie on the way back. The callback page sees a 2xx with the user payload and calls SvelteKit's `goto('/', { replaceState: true })` to land the user in the app, signed in.
+6. Caddy's response handler on `/auth/*` extracts the JWT from the JSON body, sets it as the `cairn_session` HttpOnly cookie, and **strips `access_token` and `refresh_token` from the body** before forwarding it to the browser (matching the "now-token-stripped body" contract pinned in the "JWT storage" section above). The callback page sees a 2xx with the `user` payload — no token fields — and calls SvelteKit's `goto('/', { replaceState: true })` to land the user in the app, signed in.
 7. Every subsequent request is authenticated via the cookie. The web app's JavaScript never sees the token.
 
 ## Local development parity

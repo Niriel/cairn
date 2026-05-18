@@ -90,10 +90,14 @@ boot has resolved to `signed-out` needs an explicit entrypoint —
 see R4.)
 
 The route is structurally allowed by R7's public-path list. The web
-app's JavaScript never reads the JWT from the response body — the
-Vite proxy's existing shim (R10) plants the cookie before the JSON
-reaches the page. The `user` payload is a separate top-level field
-in the same response, which is what `setSignedIn` consumes.
+app's JavaScript never sees the JWT — the Vite proxy's existing shim
+(R10) plants the cookie **and strips `access_token` /
+`refresh_token` from the JSON body** before forwarding the response
+to the page, honouring the "now-token-stripped body" contract pinned
+at `docs/architecture.md:145` and the "JavaScript never sees the
+token" claim at `:233`. The `user` payload is a separate top-level
+field that the proxy leaves intact, which is what `setSignedIn`
+consumes.
 
 A signed-in user revisiting `/auth/callback` (clicking an old
 magic-link from email while already authenticated in the same
@@ -447,6 +451,29 @@ be used against a prod instance; this forward-note is restated in
   future GoTrue endpoint that also returns `access_token` (refresh
   token rotation, OAuth callbacks) must be added explicitly to
   `COOKIE_PLANT_PATHS` and reasoned about — not absorbed silently.
+- **The same JSON-sniffing response handler strips `access_token`
+  and `refresh_token` from the body before forwarding it to the
+  page**, unconditionally on every `/auth/*` 200 JSON response that
+  carries either field (no path narrowing — the strip is wider than
+  the cookie-plant gate, but still inherits the JSON-content-type
+  ∧ status-200 outer guard the existing shim already enforces;
+  there is nothing to strip on non-JSON or non-200 responses). The
+  `200`-only gate matches the implementation in Task 1.4 — a future
+  GoTrue (or fork) that returns 201/202 with `access_token` would
+  not be stripped under the current guard, and widening the gate
+  to 2xx is a deliberate edit, not an implicit consequence of the
+  prose above. The JS layer has no legitimate use for
+  either token in Step 3: the cookie is the source of truth, and
+  refresh-token rotation is explicitly deferred (Non-requirements).
+  The strip is what makes `docs/architecture.md:145`'s "forwarding
+  the (now-token-stripped) body" and `:233`'s "the web app's
+  JavaScript never sees the token" literally true rather than
+  aspirational — without it, every successful login round-trip
+  parks the JWT and the refresh token in JS memory for the lifetime
+  of the `await response.json()` parse. The handler must also drop
+  the upstream `content-length` header when rewriting the body so
+  Node recomputes it from the modified buffer — otherwise a
+  Content-Length-respecting client truncates the JSON.
 - A small `configureServer` middleware short-circuits
   `DELETE /auth/session`: emits the cookie-clearing
   `Set-Cookie` header and returns 204. It MAY also fire a
@@ -675,6 +702,22 @@ copy.
 - **CSRF token on `POST /auth/otp`** — the request carries no
   cookie (user is signed-out) so there's nothing to forge.
   `SameSite=Lax` plus same-origin makes a token redundant.
+- **Account-existence oracle hardening on `/auth/otp`** — in
+  production (once Step 13 lands `GOTRUE_DISABLE_SIGNUP=true`),
+  `POST /auth/otp` returns 4xx for unknown emails and 200 for
+  known ones, and R1's inline-error branch surfaces the 4xx
+  directly in the UI — an enumeration oracle that contradicts
+  `docs/invites.md`'s "email is never social information"
+  stance. The dev configuration (`GOTRUE_DISABLE_SIGNUP="false"`)
+  doesn't expose this in Step 3, so the live mitigation is
+  deferred. The fix lands in Step 13's auth-screen hardening:
+  collapse known/unknown OTP responses into a single
+  "check your inbox" UX (always navigate to `/auth/check`
+  regardless of the response status, or mask 4xx into the same
+  client-side flow as 2xx). Carried as a load-bearing forward-
+  note in `docs/development.md:233` alongside the
+  `GOTRUE_DISABLE_SIGNUP=true` / `GOTRUE_MAILER_AUTOCONFIRM=false`
+  hardening list.
 - **Vitest coverage of `vite.config.ts` proxy wiring** — the
   segment-anchoring contract that gates the cookie-plant narrow, the
   bearer-attach narrow, and the public-path bypass is pinned at the

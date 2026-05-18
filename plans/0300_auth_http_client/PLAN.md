@@ -362,9 +362,9 @@ smoke command passes after the env / proxy changes."
   (`:41-43`); mock placement; filename conventions.
 - **`docs/data-model.md`** — `tg_profile_on_signup` body
   (`:620`); why `display_name` starts as `'New user'`.
-- **`docs/development.md`** — magic-link dev flow (`:270-282`);
-  the dev shortcut paragraph that returns in this plan
-  (`:225-227`, `:249`).
+- **`docs/development.md`** — magic-link dev flow (`:278-292`);
+  the seed flow + step-13 forward-note (`:225-235`); the dev
+  shortcut paragraph that returns in this plan (`:257-258`).
 - **`docs/testing.md`** — three-layer pyramid; the auth journey
   appears in the Playwright suite (`:179`).
 - **`.claude/skills/writing-tests.md`** — `data-test` queries via
