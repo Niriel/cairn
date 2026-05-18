@@ -16,10 +16,10 @@
 
 Phase 1 lands the infrastructure that the rest of the plan plugs into: GoTrue env edits, seed flow, Vite proxy split, logout middleware. After this phase, an ad-hoc `curl` against `/auth/otp` and `/auth/verify` through the dev server works end-to-end (cookie planted), and `./scripts/seed.sh` is idempotent. No UI yet.
 
-### [ ] 1.1 Add `GOTRUE_MAILER_URLPATHS_MAGICLINK` and bump `GOTRUE_JWT_EXP` in `docker-compose.yml`
+### [x] 1.1 Add `GOTRUE_MAILER_URLPATHS_MAGICLINK` and bump `GOTRUE_JWT_EXP` in `docker-compose.yml`
 
 **Created:** 2026-05-13T12:11:12Z
-**Completed:**
+**Completed:** 2026-05-18T07:56:19Z
 
 **Why:** GoTrue's default mailer URL path is `/auth/v1/verify`, which 404s through our proxy. The magic-link email's `<a href>` must point at the SvelteKit `/auth/callback` route this plan introduces. Separately, the default 1-hour JWT expiry is too short for the cookie Max-Age to be useful; bumping to 7 days (`604800` seconds) keeps dev sessions alive across a day's work and is what `docs/architecture.md`'s cookie inventory commits to.
 
