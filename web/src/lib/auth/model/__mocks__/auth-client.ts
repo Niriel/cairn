@@ -30,3 +30,5 @@ export const devPasswordSignIn = vi.fn(
 );
 
 export const logout = vi.fn((): Promise<void> => Promise.resolve());
+
+export { HttpError } from '../auth-client';

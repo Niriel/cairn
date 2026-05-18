@@ -51,7 +51,10 @@ describe('sendMagicLink', () => {
 		server.use(
 			http.post('*/auth/otp', () => HttpResponse.json({ msg: 'rate limited' }, { status: 429 }))
 		);
-		await expect(mod.sendMagicLink('alice@example.test')).rejects.toBeInstanceOf(Error);
+		const rejection = expect(mod.sendMagicLink('alice@example.test')).rejects;
+		await rejection.toBeInstanceOf(Error);
+		await rejection.toBeInstanceOf(mod.HttpError);
+		await rejection.toMatchObject({ name: 'HttpError', status: 429 });
 	});
 });
 
@@ -87,9 +90,10 @@ describe('verifyToken', () => {
 		server.use(
 			http.post('*/auth/verify', () => HttpResponse.json({ msg: 'token expired' }, { status: 401 }))
 		);
-		await expect(mod.verifyToken({ token: 'tok-abc', type: 'magiclink' })).rejects.toBeInstanceOf(
-			Error
-		);
+		const rejection = expect(mod.verifyToken({ token: 'tok-abc', type: 'magiclink' })).rejects;
+		await rejection.toBeInstanceOf(Error);
+		await rejection.toBeInstanceOf(mod.HttpError);
+		await rejection.toMatchObject({ name: 'HttpError', status: 401 });
 	});
 });
 
@@ -129,9 +133,10 @@ describe('devPasswordSignIn', () => {
 		server.use(
 			http.post('*/auth/token', () => HttpResponse.json({ msg: 'invalid grant' }, { status: 400 }))
 		);
-		await expect(mod.devPasswordSignIn('alice@example.test', 'cairn-dev')).rejects.toBeInstanceOf(
-			Error
-		);
+		const rejection = expect(mod.devPasswordSignIn('alice@example.test', 'cairn-dev')).rejects;
+		await rejection.toBeInstanceOf(Error);
+		await rejection.toBeInstanceOf(mod.HttpError);
+		await rejection.toMatchObject({ name: 'HttpError', status: 400 });
 	});
 });
 
@@ -153,6 +158,9 @@ describe('logout', () => {
 
 	test('throws on non-2xx', async () => {
 		server.use(http.delete('*/auth/session', () => new HttpResponse(null, { status: 500 })));
-		await expect(mod.logout()).rejects.toBeInstanceOf(Error);
+		const rejection = expect(mod.logout()).rejects;
+		await rejection.toBeInstanceOf(Error);
+		await rejection.toBeInstanceOf(mod.HttpError);
+		await rejection.toMatchObject({ name: 'HttpError', status: 500 });
 	});
 });

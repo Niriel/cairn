@@ -2,6 +2,15 @@ import type { AuthUser } from '$lib/shared/state/session.svelte';
 
 const AUTH_BASE = import.meta.env.VITE_AUTH_BASE ?? '/auth';
 
+export class HttpError extends Error {
+	status: number;
+	constructor(status: number, message: string) {
+		super(message);
+		this.name = 'HttpError';
+		this.status = status;
+	}
+}
+
 async function postJson<T>(path: string, body: unknown): Promise<T> {
 	const res = await fetch(`${AUTH_BASE}${path}`, {
 		method: 'POST',
@@ -11,7 +20,7 @@ async function postJson<T>(path: string, body: unknown): Promise<T> {
 	});
 	if (!res.ok) {
 		const message = await readErrorMessage(res);
-		throw new Error(message);
+		throw new HttpError(res.status, message);
 	}
 	const contentType = res.headers.get('content-type') ?? '';
 	if (!contentType.includes('application/json')) {
@@ -80,6 +89,6 @@ export async function logout(): Promise<void> {
 	});
 	if (!res.ok) {
 		const message = await readErrorMessage(res);
-		throw new Error(message);
+		throw new HttpError(res.status, message);
 	}
 }

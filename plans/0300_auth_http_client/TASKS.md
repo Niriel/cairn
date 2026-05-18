@@ -467,10 +467,14 @@ Phase 3 builds the three auth components and the three SvelteKit routes that mou
 
 **Verify:** `cd web && pnpm test auth-client.test --run` (green) · `cd web && pnpm check` (green).
 
-### [ ] 3.1b Extend `auth-client.ts` with a typed `HttpError`
+### [x] 3.1b Extend `auth-client.ts` with a typed `HttpError`
 
 **Created:** 2026-05-18T11:45:19Z
-**Completed:**
+**Completed:** 2026-05-18T11:53:22Z
+
+**Notes:**
+- The task block's example used `rejects.toMatchObject({ name, status })` for the assertion. The implementation uses three assertions per test — `toBeInstanceOf(Error)`, `toBeInstanceOf(mod.HttpError)`, and `toMatchObject({ name: 'HttpError', status })` — to keep the parent-class invariant pinned (as the Files line requested) alongside the new `HttpError`/status assertions.
+- `HttpError` is referenced as `mod.HttpError` rather than a top-level import. Reason: `beforeEach` runs `vi.resetModules()` and re-imports the module, so a top-level `import { HttpError }` would resolve to a *different* class identity than the one thrown by the freshly-imported `mod.sendMagicLink` — `instanceof` would silently fail. Using `mod.HttpError` keeps the constructor and the error from the same module instance. (Confirmed by running RED first: the four tests failed with `instanceof needs a constructor but undefined was given` — the right red signal.)
 
 **Why:** Task 3.1 landed `auth-client.ts` throwing plain `new Error(message)` on non-2xx — deferring the inline-vs-snackbar split to "the runtime caller catches and routes" (Task 3.1 Decisions). The runtime caller (`LoginRequest`, Task 3.2c) needs to split 4xx (inline error under the field) from 5xx and real-network failures (Snackbar), and a single `Error` class with no status carries no signal for that split. Extending `auth-client.ts` to throw a typed `HttpError extends Error { status: number }` mirrors the typed-error pattern the PostgREST wrapper already ships (`AuthError` / `ApiError` in `shared/http/postgrest.ts:5-27`). Lands ahead of Task 3.2c because 3.2c's classifier and tests depend on the class existing. (R15)
 
