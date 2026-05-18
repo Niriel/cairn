@@ -668,6 +668,75 @@ direction allows this. The "Send again" affordance in R2 reads
 the email from the same store; there is no second authoritative
 copy.
 
+## R15. Auth client throws typed `HttpError` carrying the HTTP status
+
+The auth client (`web/src/lib/auth/model/auth-client.ts`, owned by
+R5 + Task 3.1) throws a typed `HttpError extends Error` on any
+non-2xx response. The class is exported alongside the four
+function APIs:
+
+```ts
+export class HttpError extends Error {
+  status: number;
+  constructor(status: number, message: string) {
+    super(message);
+    this.name = 'HttpError';
+    this.status = status;
+  }
+}
+```
+
+`message` carries the GoTrue error message (R5's existing message
+contract — `payload.msg ?? payload.error_description ?? res.statusText`),
+unchanged. `status` is the raw integer HTTP status from the
+response. Real `fetch` failures (no response received — typically
+`TypeError`) propagate **unchanged**: they are *not* `HttpError`,
+which lets callers distinguish "GoTrue replied with a status" from
+"the network ate the request entirely." The malformed-200 guard
+(Task 3.1 Decisions) still throws a plain `Error` — there is no
+HTTP status to attach when the response was 200.
+
+R1's `LoginRequest` screen depends on this split. Its classifier
+is:
+
+- `err instanceof HttpError && err.status >= 400 && err.status < 500`
+  → render the inline error under the field
+  (`data-test="login-error"`), do **not** navigate, do **not** call
+  `setPendingLogin`.
+- Anything else — `HttpError` with `status >= 500`, or any
+  exception that isn't an `HttpError` at all (network failure,
+  malformed-200 guard, etc.) — → flip the Snackbar
+  (`data-test="login-snackbar"`) with the pinned generic message
+  `Couldn't reach the server. Try again.`, do **not** call
+  `setPendingLogin`.
+
+The R8 dev-shortcut handler reuses the same Snackbar surface for
+`devPasswordSignIn` rejections (R1 final paragraph), and applies
+the same classification rule: 4xx inline (in practice the dev
+shortcut has nowhere to render an inline error, so 4xx and 5xx
+both fall through to the Snackbar — the classification rule is
+the same, only the rendering differs by surface).
+
+The PostgREST wrapper (R6) carries its own typed errors
+(`AuthError`, `ApiError`) at
+`web/src/lib/shared/http/postgrest.ts:5-27`; R15 brings the same
+discipline to the auth client. The class stays in
+`auth/model/auth-client.ts` rather than `shared/http/` because it
+is specific to the GoTrue surface — PostgREST's typed errors carry
+PostgREST-shaped fields (`code`, `details`, `hint`) and aren't a
+fit here.
+
+Test coverage extension: `auth-client.test.ts`'s existing "throws
+on non-2xx" cases for all four functions (`sendMagicLink`,
+`verifyToken`, `devPasswordSignIn`, `logout`) tighten to assert
+the thrown value is `instanceof HttpError` with the correct
+`status` field, in addition to the existing `instanceof Error`
+check. `LoginRequest.test.ts` mocks `sendMagicLink` to reject with
+`new HttpError(400, …)` for the inline-error case, `new
+HttpError(503, …)` for the Snackbar case, and a plain `new Error(…)`
+(or `TypeError`) for the network-failure case — pinning all three
+branches of the classifier.
+
 ## Non-requirements (explicitly excluded)
 
 - **Name-prompt screen ("What should we call you?")** — `docs/ui.md:7-9`

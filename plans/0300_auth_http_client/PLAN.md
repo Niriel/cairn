@@ -101,6 +101,25 @@ costs ~40 lines plus a test file. The wrapper does only what's
 specific to Cairn: cookie-bearing fetch, 401 → session reset, typed
 PostgREST error parsing. (R6)
 
+**Typed `HttpError` on the auth client too, matching the PostgREST
+wrapper.** Task 3.1 originally landed `auth-client.ts` throwing
+plain `new Error(message)` on non-2xx, deferring the
+inline-vs-snackbar split to "the runtime caller catches and routes."
+The runtime caller — `LoginRequest` (R1, Task 3.2c) — has no signal
+to route on when every rejection is the same `Error` class. The fix
+is symmetric with R6's `AuthError` / `ApiError`: export a small
+`HttpError extends Error { status: number }` from
+`auth/model/auth-client.ts` and throw it from every non-2xx branch.
+The screen then classifies on `err instanceof HttpError && status
+in [400,500)` → inline error vs everything else → Snackbar; real
+`fetch` network failures stay `TypeError` and fall through the
+"else" branch naturally, which gives 5xx and network the same UX
+without conflating them at the source. The class lives in
+`auth/model/` not `shared/http/` because it carries GoTrue-shaped
+semantics; PostgREST's typed errors carry PostgREST-shaped fields
+(`code`, `details`, `hint`) and aren't a fit. Lands as Task 3.1b
+ahead of Task 3.2c, which depends on it. (R15)
+
 **Explicit `setSignedIn(user)` entrypoint, distinct from `bootSession`.**
 Boot's success branch is guarded to only write from `unknown` so a
 user-initiated `signOut()` wins over an in-flight boot. That guard
@@ -197,8 +216,10 @@ they're consumed only by the auth screens and the session-store boot.
 - **`web/src/lib/auth/components/LoginCheck.svelte`** — the "check
   your inbox" screen (R2). Plus `.test.ts`, `__mocks__/`.
 - **`web/src/lib/auth/model/auth-client.ts`** — `sendMagicLink`,
-  `verifyToken`, `devPasswordSignIn`, `logout`. Plain `fetch` calls
-  against the proxy-prefixed `/auth/*` URLs. Plus `.test.ts`.
+  `verifyToken`, `devPasswordSignIn`, `logout`, plus the
+  `HttpError` class thrown from every non-2xx branch (R15, Task
+  3.1b). Plain `fetch` calls against the proxy-prefixed `/auth/*`
+  URLs. Plus `.test.ts`.
 - **`web/src/lib/auth/state/pending-login.svelte.ts`** — module-
   scoped runes state holding the in-flight email between
   `LoginRequest` (writes via `setPendingLogin`) and
@@ -326,14 +347,16 @@ narrative. Phases are numbered from 1.
 
 3. **Phase 3 — Auth screens and routes.** Build the three auth
    components and three routes. The auth client lands at the head
-   of the phase, then the in-memory `pendingLogin` state module
-   (Task 3.2), the dev-shortcut predicate (3.2b), and the
-   `LoginRequest` screen (3.2c) — split into three sub-tasks so
-   each one is a single commit. RED tests for each component
+   of the phase (Task 3.1), then the `HttpError` extension to the
+   auth client (Task 3.1b — a follow-on to 3.1, prerequisite for
+   the LoginRequest 4xx/5xx classifier), the in-memory
+   `pendingLogin` state module (Task 3.2), the dev-shortcut
+   predicate (3.2b), and the `LoginRequest` screen (3.2c) — split
+   so each one is a single commit. RED tests for each component
    first; then the screens and the route files. The screens are
    "real" Svelte 5 — they consume `Button`, `CairnGlyph`, the
    theme tokens — and follow `data-test`/render-helper testing
-   conventions. R1, R2, R3, R8.
+   conventions. R1, R2, R3, R8, R15.
 
 4. **Phase 4 — Layout integration: route guard + Sign Out.**
    Modify `+layout.svelte` to boot the session, block-render, and
