@@ -37,6 +37,24 @@ The `tsconfig.json` extends the SvelteKit-generated config and turns on `strict:
 
 We do not soften strictness with `noImplicitAny: false` or `strictNullChecks: false`. If a third-party type is hostile, we narrow it once at the import boundary and keep the rest of the codebase strict.
 
+#### Navigating to a not-yet-created SvelteKit route
+
+SvelteKit (≥ 2.26) generates a string-literal union of registered routes for `$app/types`'s `RouteId` / `Pathname` and uses it to type `resolve(...)` from `$app/paths`. The ESLint rule `svelte/no-navigation-without-resolve` then enforces `goto(resolve('/foo'))` over a bare `goto('/foo')`.
+
+When the plan-ordering puts the navigation call ahead of the destination route's `+page.svelte` (e.g. `LoginRequest` was landed before the `/auth/check` route file existed in `web/src/routes/`), `resolve('/auth/check')` fails type-check — only `/` is in the generated route union — and `goto('/auth/check')` directly fails lint.
+
+The pattern: **use the literal string with a per-line ESLint disable that names the follow-up task**.
+
+```svelte
+// /auth/check route is created in task 3.5 — until then
+// `resolve()` types reject the path. Swap back to
+// `goto(resolve('/auth/check'))` once that task lands.
+// eslint-disable-next-line svelte/no-navigation-without-resolve
+await goto('/auth/check');
+```
+
+When the destination route lands, grep for the disable comment, remove it, and switch to `resolve(...)`. The justification comment is the load-bearing part — a bare disable rots; a disable with a task pointer self-cleans the next time anyone touches that route.
+
 ### Linting with ESLint
 
 ESLint catches the things the type checker can't: unused variables, prefer-const, accidental `console.log`, Svelte-specific rules (each `{#each}` needs a key, no orphan `<script>` tags, accessible labels). The config is the modern flat-config form (`eslint.config.js`), composed of three layers:

@@ -136,6 +136,25 @@ fact, so a thin one is still worth raising.
   you to know what good looks like in the relevant ecosystem
   (SvelteKit, Postgres, PostgREST, GoTrue, pgTAP, ESLint, etc.)
   and call it out.
+- **Toolchain coupling across tasks** — places where the order
+  of tasks fights the type checker or linter, even when the
+  runtime behaviour is fine. The canonical Cairn case: a task
+  navigates with `goto('/foo')` while the `/foo/+page.svelte`
+  is created by a later task. SvelteKit's generated route-id
+  union doesn't include `/foo` until the route exists, so
+  `resolve('/foo')` fails type-check, and `svelte/no-navigation-
+  without-resolve` blocks the bare string. Similar shapes:
+  importing a type/symbol from a module created later in the
+  plan, RLS tests written against a column added in a later
+  migration, a Playwright spec asserting a route mounted by a
+  later task. The cost is real — the executor either bends a
+  lint rule mid-task or stops to renumber. Flag any cross-task
+  reference where the producer task is downstream of the
+  consumer task. See `docs/quality.md` "Navigating to a
+  not-yet-created SvelteKit route" for the documented workaround
+  when reordering isn't worth it; in any case, the plan should
+  pre-decide which side absorbs the cost rather than leaving
+  the executor to discover it.
 - **Anything else** — scope creep, unrealistic estimates, missed
   rollback paths, performance traps, etc.
 

@@ -213,3 +213,18 @@ canonical body and the rationale for living in `public`.
   (e.g., the doc currently says X but the implementation lands Y),
   add the doc edit to the **Files** list and the **Steps**
   explicitly — don't let it slip in as an unannounced side change.
+- **Watch for cross-task toolchain coupling.** When a task
+  navigates with `goto('/foo')`, imports a symbol, or otherwise
+  references something a *later* task creates, the type checker
+  or linter will balk even when the runtime works fine. SvelteKit's
+  `resolve()` rejects unknown route IDs; `svelte-check` rejects
+  unknown env-var reads; `svelte/no-navigation-without-resolve`
+  rejects the bare-string workaround. Three ways out, in order of
+  preference: (a) **reorder** so the producer task lands first;
+  (b) **fold a stub** of the producer into the consumer task's
+  Files list (`docs/quality.md` "Navigating to a not-yet-created
+  SvelteKit route" documents the SvelteKit-route shape); (c)
+  **pre-pick the per-line escape** and name it in the task's
+  Decisions so the executor doesn't have to invent it. Decide at
+  plan-write time, not mid-task. See `docs/quality.md` for the
+  documented escape pattern and the swap-back trigger.
