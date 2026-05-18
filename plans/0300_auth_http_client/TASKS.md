@@ -207,10 +207,10 @@ Phase 1 lands the infrastructure that the rest of the plan plugs into: GoTrue en
 
 **Verify:** `cd web && pnpm test auth-paths.test --run` (all green) · `curl -i http://localhost:5173/auth/callback` (SvelteKit response, not GoTrue) · `curl -X POST http://localhost:5173/auth/otp -H 'Content-Type: application/json' -d '{"email":"alice@example.test","create_user":true}' -i` (200, Mailpit message visible at `http://localhost:8025`) · with a real JWT cookie, `curl -i --cookie 'cairn_session=<jwt>' http://localhost:5173/auth/user` returns 200 with the user payload (this is the bearer-attach acceptance test — if it 401s, `cairnOriginalUrl` isn't being captured before the rewrite) · `curl -X POST http://localhost:5173/auth/token?grant_type=password -H 'Content-Type: application/json' -d '{"email":"alice@example.test","password":"cairn-dev"}' -i` returns 200 **with** `Set-Cookie: cairn_session=…` (cookie-plant acceptance test on the rewritten path) · `curl -X POST http://localhost:5173/auth/signup -H 'Content-Type: application/json' -d '{"email":"smoketest@example.test","password":"cairn-dev"}' -i` returns 200 **with no** `Set-Cookie: cairn_session=` header (cookie-plant narrow excludes signup) · `curl -s -X POST http://localhost:5173/auth/token?grant_type=password -H 'Content-Type: application/json' -d '{"email":"alice@example.test","password":"cairn-dev"}' | jq 'has("access_token"), has("refresh_token")'` prints `false`, `false` (token-strip acceptance test).
 
-### [ ] 1.5 Add the `DELETE /auth/session` middleware to Vite's dev server
+### [x] 1.5 Add the `DELETE /auth/session` middleware to Vite's dev server
 
 **Created:** 2026-05-13T12:11:12Z
-**Completed:**
+**Completed:** 2026-05-18T08:33:35Z
 
 **Why:** `docs/architecture.md:148` commits to `DELETE /auth/session` as the sign-out endpoint. It's not a GoTrue endpoint — it's Cairn's own — so it doesn't belong in the proxy response handler. In production Caddy implements it; in dev the Vite server is the analogue. The route needs to exist before Phase 2 ships the session store's `signOut()`.
 

@@ -5,6 +5,7 @@ import type { IncomingMessage, ServerResponse } from 'node:http';
 import {
 	BEARER_AUTH_PATHS,
 	COOKIE_PLANT_PATHS,
+	LOGOUT_PATHS,
 	PUBLIC_AUTH_PATHS,
 	isSegmentMatch
 } from './src/lib/shared/model/auth-paths';
@@ -49,6 +50,26 @@ export default defineConfig({
 						req.cairnOriginalUrl = req.url;
 					}
 					next();
+				});
+				// Mounted at root (no path arg) so `req.url` stays the full
+				// request path — `server.middlewares.use('/auth/session', …)`
+				// would strip the mount and leave `req.url === '/'`, silently
+				// failing the segment match. See Task 1.5 Decisions.
+				server.middlewares.use((req, res, next) => {
+					if (!isSegmentMatch(req.url, LOGOUT_PATHS)) {
+						next();
+						return;
+					}
+					if (req.method !== 'DELETE') {
+						next();
+						return;
+					}
+					res.setHeader(
+						'Set-Cookie',
+						`${COOKIE_NAME}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0`
+					);
+					res.statusCode = 204;
+					res.end();
 				});
 			}
 		},
