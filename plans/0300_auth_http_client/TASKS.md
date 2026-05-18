@@ -72,10 +72,13 @@ Phase 1 lands the infrastructure that the rest of the plan plugs into: GoTrue en
 
 **Verify:** `./scripts/seed.sh` (exits 0) · re-run `./scripts/seed.sh` (still exits 0, prints "exists" lines) · `docker compose exec postgres psql -U cairn -d cairn -c "SELECT count(*) FROM auth.users WHERE email LIKE '%@example.test'"` (returns 3).
 
-### [ ] 1.3 Rewrite `db/seed/dev_seed.sql` to UPDATE `display_name` for the three seed users
+### [x] 1.3 Rewrite `db/seed/dev_seed.sql` to UPDATE `display_name` for the three seed users
 
 **Created:** 2026-05-13T12:11:12Z
-**Completed:**
+**Completed:** 2026-05-18T08:16:14Z
+
+**Notes:**
+- The exact `UPDATE … WHERE id = (SELECT id FROM auth.users WHERE email = '…')` snippet in the task's step 2 trips sqlfluff's `LT14 keyword_newline` rule (inner `WHERE` shares a line with the subquery's `SELECT … FROM`). Auto-fixed by `sqlfluff fix` — the subquery is now wrapped onto its own lines. Semantically identical.
 
 **Why:** `tg_profile_on_signup` seeds every signup with `display_name = 'New user'`. The dev shortcut and Step 4 dogfooding need the three seed users to render as Alice/Bob/Carol. We can't override the trigger output at signup time (its body is fixed and intentional — see `docs/data-model.md:620` for why), so the seed updates the three rows after the fact.
 
