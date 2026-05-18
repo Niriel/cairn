@@ -266,10 +266,22 @@ Phase 2 lands the two cross-cutting modules in `shared/` that the rest of the ap
 
 **Verify:** `cd web && pnpm test --run` (green) · `cd web && pnpm lint` (green).
 
-### [ ] 2.2 Land the session store (`shared/state/session.svelte.ts`) with tests
+### [x] 2.2 Land the session store (`shared/state/session.svelte.ts`) with tests
 
 **Created:** 2026-05-13T12:11:12Z
-**Completed:**
+**Completed:** 2026-05-18T10:32:57Z
+
+**Notes:**
+- Side work: added `web/src/vite-env.d.ts` declaring `ImportMetaEnv`
+  with `VITE_API_BASE`, `VITE_AUTH_BASE`, `VITE_DEV_LOGIN_SHORTCUT`.
+  Without it, `import.meta.env.VITE_AUTH_BASE` is `any` and trips
+  `@typescript-eslint/no-unsafe-assignment`. Tasks 2.3 and 3.1 will
+  read the same env var and benefit from the typed declaration.
+- Mock's `bootSession` / `signOut` use explicit
+  `(): Promise<void> => { …; return Promise.resolve(); }` rather than
+  `async () => {}` to satisfy `@typescript-eslint/require-await` while
+  keeping the Promise-returning signature drop-in compatible with the
+  real module.
 
 **Why:** The route guard, the PostgREST wrapper, and every later sign-out / sign-in surface read `session.status` reactively. The store sits in `shared/state/` (not `auth/`) because `shared/` cannot import from per-domain folders per `docs/frontend-layout.md:41-43`.
 

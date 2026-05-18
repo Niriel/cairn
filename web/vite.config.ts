@@ -64,10 +64,7 @@ export default defineConfig({
 						next();
 						return;
 					}
-					res.setHeader(
-						'Set-Cookie',
-						`${COOKIE_NAME}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0`
-					);
+					res.setHeader('Set-Cookie', `${COOKIE_NAME}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0`);
 					res.statusCode = 204;
 					res.end();
 				});
