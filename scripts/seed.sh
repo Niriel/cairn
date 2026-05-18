@@ -46,16 +46,16 @@ signup_one() {
     -H 'Content-Type: application/json' \
     -d "$body")
   case "$code" in
-  200 | 201)
-    echo "seed: created ${email}"
-    ;;
-  422)
-    echo "seed: exists  ${email}"
-    ;;
-  *)
-    echo "seed: signup for ${email} failed with HTTP ${code}" >&2
-    exit 1
-    ;;
+    200 | 201)
+      echo "seed: created ${email}"
+      ;;
+    422)
+      echo "seed: exists  ${email}"
+      ;;
+    *)
+      echo "seed: signup for ${email} failed with HTTP ${code}" >&2
+      exit 1
+      ;;
   esac
 }
 
