@@ -609,10 +609,17 @@ keep to plain `N.M`. -->
 
 **Verify:** `cd web && pnpm test dev-shortcut.test --run` (green) · `cd web && pnpm check` (green).
 
-### [ ] 3.2c Land `LoginRequest.svelte` with tests and mock
+### [x] 3.2c Land `LoginRequest.svelte` with tests and mock
 
 **Created:** 2026-05-13T12:11:12Z
-**Completed:**
+**Completed:** 2026-05-18T12:15:39Z
+
+**Notes:**
+- **Toolchain ordering bite, plan-level.** The task spec implies `goto('/auth/check')` but the `/auth/check` route file isn't created until task 3.5. SvelteKit (≥ 2.26) generates a string-literal union of registered route IDs and uses it to type `resolve()`; only `/` is in the union today, so `resolve('/auth/check')` fails `svelte-check`. The bare-string workaround `goto('/auth/check')` fails ESLint's `svelte/no-navigation-without-resolve`. After discussing with the user, we took the per-line escape route (CLAUDE.md sanctions justified per-line disables) rather than reordering tasks or pre-creating route stubs. The comment block at `LoginRequest.svelte:50-54` names task 3.5 as the swap-back trigger.
+- **Doc + skill updates (side work, in response to the above).** Documented the SvelteKit chicken-and-egg pattern and the escape comment in `docs/quality.md` under "Type checking with svelte-check" → new sub-section "Navigating to a not-yet-created SvelteKit route". Added a category "Toolchain coupling across tasks" to `.claude/commands/concerns.md`'s "What to look for" list and matching Cairn-specific notes to `.claude/skills/writing-plan.md` and `.claude/skills/writing-tasks.md` so the planner catches this class of issue at plan-write time instead of the executor catching it mid-task. **User direction**: surface toolchain/quality coupling early in planning, not just in concerns audits.
+- **`web/src/vite-env.d.ts` modified (not in the Files list).** `import.meta.env.VITE_DEV_LOGIN_PASSWORD` is `any` unless declared in `ImportMetaEnv`, which trips `@typescript-eslint/no-unsafe-argument` on the `devPasswordSignIn(devEmail, …)` call. Added the field alongside the existing three. Cheap side work; not worth a separate task.
+- **In-flight test (b) flake fix.** The post-resolution assertion (`submit.disabled === false`) needed `vi.waitFor` rather than two `await tick()` calls. The chain after `resolveSend()` is `setPendingLogin → await goto → sending = false`, and the number of microtask flushes required isn't stable across Svelte reactivity ticks. `vi.waitFor` is the documented way to bridge that gap without guessing the tick count.
+- **`$app/paths` mock not needed in tests.** Since the component uses `goto('/auth/check')` directly (per the escape pattern above), no `resolve()` call means no `$app/paths` mock — the test stays smaller.
 
 **Why:** The first user-facing auth surface (R1). Reads the visual target from `design/cairn-screens.jsx:120-174`.
 
