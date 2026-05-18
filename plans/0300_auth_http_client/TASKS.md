@@ -467,10 +467,10 @@ Phase 3 builds the three auth components and the three SvelteKit routes that mou
 
 **Verify:** `cd web && pnpm test auth-client.test --run` (green) · `cd web && pnpm check` (green).
 
-### [ ] 3.2 Land the `pending-login` state module with tests and mock
+### [x] 3.2 Land the `pending-login` state module with tests and mock
 
 **Created:** 2026-05-13T12:11:12Z
-**Completed:**
+**Completed:** 2026-05-18T11:13:12Z
 
 **Why:** R14's in-memory `pendingLogin` store carries the email between `LoginRequest` (Task 3.2c) and the `/auth/check` route (Task 3.5). Lands ahead of LoginRequest because the screen's submit handler imports `setPendingLogin`. Auto-clears on `signed-in` transition so a same-tab direct-visit to `/auth/check` after sign-in falls back to `/auth/login` (the email's purpose has been served). The store is a single property + two helpers — small enough to own its own task, but its `$effect.root` against the real `session` module is subtle enough to warrant a focused test file.
 
