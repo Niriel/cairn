@@ -236,10 +236,10 @@ Phase 1 lands the infrastructure that the rest of the plan plugs into: GoTrue en
 
 Phase 2 lands the two cross-cutting modules in `shared/` that the rest of the app depends on: the session store and the thin PostgREST wrapper. They're paired because the wrapper calls into the store on 401.
 
-### [ ] 2.1 Populate `web/src/lib/test/handlers.ts` with default MSW handlers
+### [x] 2.1 Populate `web/src/lib/test/handlers.ts` with default MSW handlers
 
 **Created:** 2026-05-13T12:11:12Z
-**Completed:**
+**Completed:** 2026-05-18T08:36:50Z
 
 **Why:** `vitest.setup.ts:6` sets `onUnhandledRequest: 'error'`. The session store's boot will call `GET /auth/user` from every component test once Task 2.2 lands, so without default handlers, every unrelated test breaks. Default-handler-first prevents the cascade.
 
