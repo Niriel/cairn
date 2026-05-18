@@ -407,10 +407,10 @@ Phase 2 lands the two cross-cutting modules in `shared/` that the rest of the ap
 
 Phase 3 builds the three auth components and the three SvelteKit routes that mount them. The auth client (Task 3.1) lands first because every component imports from it. Tests-first per component; the routes are thin shells around their components.
 
-### [ ] 3.1 Land the auth client (`auth/model/auth-client.ts`) with tests
+### [x] 3.1 Land the auth client (`auth/model/auth-client.ts`) with tests
 
 **Created:** 2026-05-13T12:11:12Z
-**Completed:**
+**Completed:** 2026-05-18T11:05:12Z
 
 **Why:** A single module collects the four GoTrue calls the auth screens make: `sendMagicLink`, `verifyToken`, `devPasswordSignIn`, `logout`. Centralizing keeps fetch shape consistent and gives the screens one mock surface. Lands at the head of Phase 3 because every subsequent task in the phase imports from it.
 
