@@ -18,34 +18,31 @@ You do not need a local Postgres install, a local PostgREST install, an Android 
 
 ```
 cairn/
-├── README.md
-├── architecture.md
-├── data-model.md
-├── development.md          ← you are here
-├── deployment.md
 ├── docker-compose.yml      ← the dev stack
 ├── .env.example            ← template for local secrets
-├── caddy/
-│   └── Caddyfile.prod      ← used in deployment, not locally
+├── .editorconfig           ← editor defaults (indent, EOL)
+├── .sqlfluff               ← SQL lint config
+├── cspell.json             ← spell-check dictionary
+├── lefthook.yml            ← pre-commit hook runner
+├── docs/                   ← living specification (start at docs/README.md)
+├── design/                 ← visual references and design tokens (JSX, not shipped)
+├── plans/                  ← per-step implementation plans
+│   ├── 0000_implementation_order.md   ← master roadmap; tick boxes as steps land
+│   └── NNNN_<slug>/                   ← each step is PLAN.md + REQUIREMENTS.md + TASKS.md
+├── scripts/                ← dev / CI shell entrypoints (migrate.sh, check.sh, …)
 ├── db/
-│   ├── migrations/         ← versioned SQL migrations
-│   │   ├── 0001_init.sql
-│   │   ├── 0002_auth_schema.sql
-│   │   ├── 0003_postgres_role.sql
-│   │   └── ...
-│   └── seed/
-│       └── dev_seed.sql    ← fake users and lists for dev
+│   ├── Dockerfile          ← Postgres image with pgTAP preinstalled
+│   ├── migrations/         ← versioned SQL, applied in numeric order
+│   ├── seed/dev_seed.sql   ← no-op until step 3 — see "Seed data" below
+│   ├── test-bootstrap.sql  ← bootstraps a fresh test DB before pgTAP runs
+│   └── tests/              ← pgTAP suites (RLS, triggers, views, constraints)
 └── web/                    ← the SvelteKit project
-    ├── package.json
-    ├── svelte.config.js
-    ├── vite.config.ts
-    ├── src/
-    │   ├── routes/
-    │   ├── lib/
-    │   └── service-worker.ts
-    └── static/
-        ├── manifest.webmanifest
-        └── icons/
+    ├── .env.example        ← template for VITE_* (copy to .env, which is gitignored)
+    ├── e2e/                ← Playwright suites
+    └── src/lib/            ← see docs/frontend-layout.md for the tier split
+        ├── basic/          ← presentational primitives (Button, Icon, Sheet, …)
+        ├── shared/         ← cross-feature components, state, styles
+        └── test/           ← Vitest helpers and MSW handlers
 ```
 
 The `docker-compose.yml` at the root defines the backend (Postgres, PostgREST, GoTrue, Mailpit). The web app is *not* in compose during development — you run it directly via `pnpm dev` for fast HMR. The deployment compose file (`docker-compose.prod.yml`) layers on the production-only services including a `web` container; see `deployment.md`.
