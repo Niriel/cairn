@@ -678,10 +678,10 @@ keep to plain `N.M`. -->
 
 **Verify:** `cd web && pnpm test LoginRequest.test --run` (green) · `cd web && pnpm check` (green).
 
-### [ ] 3.3 Land `LoginCheck.svelte` with tests and mock
+### [x] 3.3 Land `LoginCheck.svelte` with tests and mock
 
 **Created:** 2026-05-13T12:11:12Z
-**Completed:**
+**Completed:** 2026-05-20T10:59:21Z
 
 **Why:** The "we sent you a link" screen (R2). Visual target at `design/cairn-screens.jsx:177-212`.
 
