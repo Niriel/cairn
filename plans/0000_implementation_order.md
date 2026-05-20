@@ -8,6 +8,11 @@ Each numbered step below has a checkbox:
 - `[x]` — done. Tick the box once the matching detailed plan has been
   executed and merged.
 
+Mid-range refinements (the 99-slot entries like `0301`) appear as
+sub-bullets under the master-plan step they refine, and tick the
+same `[ ]` / `[x]` convention. They don't get their own numbered
+list position — the parent step's hundreds slot is their home.
+
 ## Context
 
 Setup is done (Docker stack, Vitest/Playwright/pgTAP harnesses,
@@ -62,6 +67,21 @@ where their dependencies make sense — see Sequencing rationale below.
    authenticated views, and a thin PostgREST wrapper that attaches the
    bearer token. Vitest unit tests + a Playwright magic-link happy
    path (using Mailpit).
+   - [ ] **0301: gate the dev-login shortcut so it doesn't ship to
+     prod.** Svelte's runtime `{#if}` in `LoginRequest.svelte` does
+     not prune the dead branch in the prod bundle — `pnpm build` +
+     grep confirms the three seed emails, the "Sign in as ..."
+     template, and the `/token?grant_type=password` helper all land
+     in `web/build/_app/immutable/`. Extract a `DevShortcuts.svelte`
+     and load it via a literal `if (import.meta.env.DEV)` dynamic
+     import so the module and its transitive imports drop from the
+     prod graph entirely; verify by re-grepping the post-build
+     bundle for `alice@example.test`. Must land before step 13's
+     deploy. Background and the three deploy-time watch items live at
+     `docs/deployment.md` → "Auth surface: pre-deploy checklist";
+     the general convention this implements is at
+     `docs/development.md` → "Gating dev-only UI so it doesn't ship
+     to prod".
 
 4. [ ] **MVP product surface (single-user happy path).** Lists overview,
    create list, items list with one-at-a-time accordion, add/edit
