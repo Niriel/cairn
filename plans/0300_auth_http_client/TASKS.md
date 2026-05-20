@@ -914,10 +914,14 @@ Phase 4 wires the session store into `+layout.svelte`, adds the route guard, and
 
 **Verify:** `cd web && pnpm test layout --run` (green) · `cd web && pnpm check` (green) · `cd web && pnpm dev` and visit `/` in a fresh browser tab: redirected to `/auth/login` (manual).
 
-### [ ] 4.2 Add a temporary Sign Out button to `+page.svelte`
+### [x] 4.2 Add a temporary Sign Out button to `+page.svelte`
 
 **Created:** 2026-05-13T12:11:12Z
-**Completed:**
+**Completed:** 2026-05-20T12:24:52Z
+
+**Notes:**
+- Manual `pnpm dev` smoke (dev-shortcut sign-in → click Sign Out → land on `/auth/login`) was **not** run in this environment; the automated coverage in `routes/page.test.ts` and the rest of `pnpm test --run` is green, but the browser-tab smoke from the Verify line remains for the user.
+- Wired the click handler as `onclick={() => void signOut()}` — sign-out is fire-and-forget here because the layout's route guard handles the redirect reactively once `session.current` flips to `signed-out`, so there's no post-await work for the page to do. Pattern stays consistent with the void-prefix convention captured during Task 4.1.
 
 **Why:** The Playwright E2E needs a UI affordance to click for sign-out. The "real" Sign Out lives in Settings (Step 4 builds Settings); for now, a small temporary button on the placeholder `/` page is the minimum.
 
