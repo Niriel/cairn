@@ -58,11 +58,16 @@
 	async function onDevLogin(devEmail: string) {
 		if (sending) return;
 		sending = true;
+		inlineError = null;
 		try {
 			const { user } = await devPasswordSignIn(devEmail, import.meta.env.VITE_DEV_LOGIN_PASSWORD);
 			setSignedIn(user);
-		} catch {
-			errorSnack = true;
+		} catch (err) {
+			if (isHttpError400(err)) {
+				inlineError = err.message || 'Sign-in failed. Check the dev password and try again.';
+			} else {
+				errorSnack = true;
+			}
 		} finally {
 			sending = false;
 		}

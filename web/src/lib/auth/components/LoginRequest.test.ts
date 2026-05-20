@@ -230,11 +230,11 @@ describe('LoginRequest', () => {
 		expect(carol.disabled).toBe(false);
 	});
 
-	test('(k) dev-shortcut rejection opens the same Snackbar, does not call setSignedIn', async () => {
+	test('(k) dev-shortcut non-HttpError rejection (network failure) opens Snackbar, no setSignedIn', async () => {
 		vi.useFakeTimers();
 		try {
 			vi.mocked(isDevLoginShortcutEnabled).mockReturnValue(true);
-			vi.mocked(devPasswordSignIn).mockRejectedValueOnce(new Error('boom'));
+			vi.mocked(devPasswordSignIn).mockRejectedValueOnce(new TypeError('Failed to fetch'));
 
 			const { getByDataTest, queryByDataTest } = render(LoginRequest);
 			await fireEvent.click(getByDataTest('dev-login-alice'));
@@ -244,13 +244,49 @@ describe('LoginRequest', () => {
 			expect(getByDataTest('login-snackbar').textContent).toContain(
 				"Couldn't reach the server. Try again."
 			);
+			expect(queryByDataTest('login-error')).toBeNull();
 			expect(vi.mocked(setSignedIn)).not.toHaveBeenCalled();
 		} finally {
 			vi.useRealTimers();
 		}
 	});
 
-	test('(l) no <header> chrome rendered', () => {
+	test('(l) dev-shortcut 4xx HttpError renders inline error, no Snackbar, no setSignedIn', async () => {
+		vi.mocked(isDevLoginShortcutEnabled).mockReturnValue(true);
+		vi.mocked(devPasswordSignIn).mockRejectedValueOnce(
+			new HttpError(400, 'Invalid login credentials')
+		);
+
+		const { getByDataTest, queryByDataTest } = render(LoginRequest);
+		await fireEvent.click(getByDataTest('dev-login-alice'));
+		await tick();
+		await tick();
+
+		expect(queryByDataTest('login-error')).not.toBeNull();
+		expect(getByDataTest('login-error').textContent).toContain('Invalid login credentials');
+		expect(queryByDataTest('login-snackbar')).toBeNull();
+		expect(vi.mocked(setSignedIn)).not.toHaveBeenCalled();
+	});
+
+	test('(m) dev-shortcut 5xx HttpError opens Snackbar (not inline), no setSignedIn', async () => {
+		vi.useFakeTimers();
+		try {
+			vi.mocked(isDevLoginShortcutEnabled).mockReturnValue(true);
+			vi.mocked(devPasswordSignIn).mockRejectedValueOnce(new HttpError(503, 'service unavailable'));
+
+			const { getByDataTest, queryByDataTest } = render(LoginRequest);
+			await fireEvent.click(getByDataTest('dev-login-alice'));
+			await vi.waitFor(() => {
+				expect(queryByDataTest('login-snackbar')).not.toBeNull();
+			});
+			expect(queryByDataTest('login-error')).toBeNull();
+			expect(vi.mocked(setSignedIn)).not.toHaveBeenCalled();
+		} finally {
+			vi.useRealTimers();
+		}
+	});
+
+	test('(n) no <header> chrome rendered', () => {
 		const { container } = render(LoginRequest);
 		expect(container.querySelector('header')).toBeNull();
 	});
