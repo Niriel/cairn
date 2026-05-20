@@ -810,10 +810,16 @@ keep to plain `N.M`. -->
 
 Phase 4 wires the session store into `+layout.svelte`, adds the route guard, and drops a temporary Sign Out button on the placeholder `/` page so the E2E spec has something to click.
 
-### [ ] 4.1 Boot the session and gate render on `+layout.svelte`
+### [x] 4.1 Boot the session and gate render on `+layout.svelte`
 
 **Created:** 2026-05-13T12:11:12Z
-**Completed:**
+**Completed:** 2026-05-20T12:10:31Z
+
+**Notes:**
+- Manual `pnpm dev` browser verify was **not** run in this environment (no dev stack available here). Automated coverage — 15 colocated test cases in `web/src/routes/layout.test.ts` plus a clean `pnpm check` and `pnpm lint` — exercises every branch of `blocked` and the `$effect` redirect (signed-out/private redirects, signed-in/login & check redirect, sibling-prefix `/auth/loginx` reject, signed-in/callback no-redirect, and the `$app/state` mock reactivity guard). The browser-tab smoke remains for the user to run.
+- First pass missed `void` on the three fire-and-forget promise calls (`bootSession()` in `onMount`, both `goto(...)`s in the `$effect`); the user caught it because the Verify line listed `pnpm test` + `pnpm check` but not `pnpm lint`, and svelte-check doesn't enforce `no-floating-promises`. Fixed by prefixing each with `void` — matches the pattern already in `routes/auth/check/+page.svelte:12`. Lesson recorded in memory.
+- **Out-of-scope addition (user-requested):** wrapped the `{#if showBootScreen}` / `{:else}` block in a `<div class="app-shell">` with `max-width: 26rem; margin-inline: auto;` so wide-screen renders don't stretch form fields. 26rem ≈ 416px at the default font size — deliberately above both the iOS 402px and Android 412px design-canvas frames to give the form a hair of breathing room without device chrome to consume it. The shell widens with `--font-size-scale` automatically because `1rem = 16px × --font-size-scale` via `typography.css`. Per-screen horizontal padding (e.g. `LoginRequest`'s 28px) keeps living on the screen — no double-padding. No new design token, no new test (CSS-only, JSDOM doesn't enforce layout). If a future route needs full-bleed, it'll have to override or we'll factor out a `--content-max` variable.
+- Renamed the paint-race `$derived` from `blocked` → `showBootScreen` (user feedback) and added an in-file comment block at `+layout.svelte:24-37` walking through each of the three branches and noting why `/auth/callback` is intentionally absent from the signed-in case.
 
 **Why:** The route guard depends on a resolved session state. Block-render on `unknown` prevents the authed-content-flash described in PLAN.md's Decisions. Once Phase 4 ships, an unauthenticated visit to `/` redirects to `/auth/login`.
 
