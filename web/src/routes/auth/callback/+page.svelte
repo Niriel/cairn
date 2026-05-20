@@ -47,12 +47,7 @@
 {:else}
 	<div class="screen">
 		<p>Sign-in didn't complete. The link may have expired.</p>
-		<!-- /auth/login is created in Task 3.5 — until then `resolve()` types
-			 reject the path. Swap to `resolve('/auth/login')` once that
-			 task lands. See docs/quality.md "Navigating to a not-yet-created
-			 SvelteKit route". -->
-		<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -->
-		<a href="/auth/login" data-test="callback-error-back">Back to sign in</a>
+		<a href={resolve('/auth/login')} data-test="callback-error-back">Back to sign in</a>
 	</div>
 {/if}
 

@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
+	import { resolve } from '$app/paths';
 
 	import Button from '$lib/basic/components/Button.svelte';
 	import { devPasswordSignIn, HttpError, sendMagicLink } from '$lib/auth/model/auth-client';
@@ -42,12 +43,7 @@
 		try {
 			await sendMagicLink(email);
 			setPendingLogin(email);
-			// /auth/check route is created in task 3.5 — until then
-			// `resolve()` types reject the path. Swap back to
-			// `goto(resolve('/auth/check'))` once that task lands.
-			// See docs/quality.md "Navigating to a not-yet-created SvelteKit route".
-			// eslint-disable-next-line svelte/no-navigation-without-resolve
-			await goto('/auth/check');
+			await goto(resolve('/auth/check'));
 		} catch (err) {
 			if (isHttpError400(err)) {
 				inlineError = err.message || 'Please check the email and try again.';

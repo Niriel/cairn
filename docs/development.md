@@ -265,6 +265,51 @@ pnpm preview
 
 `pnpm build` runs the static adapter and produces a `web/build/` directory containing the deployable bundle (HTML, JS, CSS, the manifest, the service worker). `pnpm preview` serves it on `localhost:4173` so you can verify the production build before pushing.
 
+### Gating dev-only UI so it doesn't ship to prod
+
+Svelte compiles `{#if condition} … {/if}` to runtime logic — even when `condition` is statically `false` after Vite's `import.meta.env.DEV` replacement, the minifier cannot prove the branch is dead across the component boundary. The template strings, the closures, and any modules imported only for that branch all survive into the prod bundle.
+
+This matters whenever you add UI that should be **physically absent** in prod, not just hidden. The dev login shortcut in `web/src/lib/auth/components/LoginRequest.svelte` is the existing instance; see `deployment.md` → "Auth surface: pre-deploy checklist" for the deploy-time mitigations on that specific case.
+
+**Don't do this:**
+
+```svelte
+<script lang="ts">
+  import { devOnlyHelper } from './dev-only-helper';
+  const isDev = import.meta.env.DEV;
+</script>
+
+{#if isDev}
+  <!-- This DOM, the import above, and any string literals all ship to prod. -->
+  <DevPanel />
+{/if}
+```
+
+**Do this instead:**
+
+```svelte
+<script lang="ts">
+  import type { Component } from 'svelte';
+
+  let DevPanel: Component | null = $state(null);
+  if (import.meta.env.DEV) {
+    // Literal-conditional dynamic import: Vite folds the `if` to `false` in
+    // prod, the `import()` becomes dead code, and the whole module
+    // (`./DevPanel.svelte` plus everything it transitively imports) drops
+    // from the prod graph.
+    void import('./DevPanel.svelte').then((m) => (DevPanel = m.default));
+  }
+</script>
+
+{#if DevPanel}
+  <DevPanel />
+{/if}
+```
+
+The dynamic-import pattern moves the gate from runtime to build time. Verify with `pnpm build` followed by grep against `web/build/_app/immutable/` — any string that should be dev-only should not appear.
+
+Note also that `import.meta.env.VITE_*` references are **inlined at build time as string literals**. A dev-only env var (e.g. `VITE_DEV_LOGIN_PASSWORD`) that is set in the shell when `pnpm build` runs will bake its value into the JS bundle, dead-code-eliminated or not. Keep dev env vars in `.env.local` or `.env.development` (which Vite only loads in dev mode), never in `.env` or `.env.production`.
+
 ### The service worker in development
 
 The service worker is **disabled by default in `pnpm dev`** because constant cache invalidation during development is more annoying than the offline behaviour is useful. To test it, run `pnpm preview` after `pnpm build`, which serves the production bundle including the worker.
@@ -404,3 +449,4 @@ This is the single most useful debugging trick for this stack. Learn it.
 - **Don't bypass migrations by editing the schema directly in the running container.** Anything not captured in a migration file is invisible to your collaborators and to production. If you find yourself reaching for `ALTER TABLE` in `psql`, stop, write a migration, and run it.
 - **Don't disable RLS to make a query work.** The query is wrong, or the policy is wrong. Disabling RLS while you debug is fine; shipping that disablement is a security incident.
 - **Don't put the JWT into `localStorage` from the web app.** The whole point of the cookie shim is that JavaScript never holds the token. If you need the token for an experiment, get it from `document.cookie` *only* in dev (where it's deliberately not HttpOnly) — and remove the experiment before commit.
+- **Don't gate dev-only UI behind a runtime `{#if}` over an env-derived boolean.** Svelte emits `{#if}` as runtime logic, so the template and its closures still ship to prod even when the branch is unreachable. Use a literal `if (import.meta.env.DEV)` dynamic import instead, so the dead module drops from the prod graph entirely. See "Gating dev-only UI so it doesn't ship to prod" above.

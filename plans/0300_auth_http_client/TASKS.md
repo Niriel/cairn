@@ -767,10 +767,10 @@ keep to plain `N.M`. -->
 - **`pnpm check` was missing from the task Verify line** (only `pnpm test` was listed). Added a `pnpm check` run after the rename and it's green; flagging because future route-test tasks should include both — `svelte-kit sync` only runs under `pnpm check`, and the route-file conventions are exactly the kind of thing it catches.
 - **`$app/state` type narrowing.** Once `svelte-kit sync` succeeded (post-rename), it generated a typed `page.url` whose `.pathname` is a string-literal union of recognized routes. The test's `page.url = new URL(...)` assignment then failed type-check against that intersection type. Resolved with a one-line widening cast at the assignment site (`(page as { url: URL }).url = ...`) plus a justifying comment. Tasks 3.5 and 4.1 will hit the same; the cast pattern keeps the shared `app-state-mock.svelte.ts` module itself unconstrained.
 
-### [ ] 3.5 Land the login route (`/auth/login`) and the check route (`/auth/check`)
+### [x] 3.5 Land the login route (`/auth/login`) and the check route (`/auth/check`)
 
 **Created:** 2026-05-13T12:11:12Z
-**Completed:**
+**Completed:** 2026-05-20T11:39:30Z
 
 **Why:** The thin SvelteKit routes that mount the screens. The split (component vs route) is the convention: routes are the URL-binding shell, components are the reusable UI. `/auth/check` additionally owns the **store-to-prop translation** for the `pendingLogin` email (R14) and the **fallback redirect** when the store is empty — that's enough logic to deserve a dedicated test file.
 
@@ -801,7 +801,12 @@ keep to plain `N.M`. -->
 
 **Verify:** `cd web && pnpm test auth/check --run` (green) · `cd web && pnpm dev` (then manually verify the two routes render and the `/auth/check` URL stays bare after submitting) · `cd web && pnpm check` (green).
 
-## Phase 4 — Layout integration: route guard + Sign Out
+**Notes:**
+- Decisions described mocking `LoginCheck` "inline" via a `vi.mock(..., () => ({ default: <stub> }))` factory while explicitly ruling out a colocated `__mocks__/LoginCheck.svelte`. Svelte components must be compiled, so the stub lives as a tiny `web/src/routes/auth/check/LoginCheckStub.svelte` next to the test (a route-folder sibling, not a `__mocks__/` entry — SvelteKit ignores any non-`+`-prefixed `.svelte` in route directories). The factory does `async () => ({ default: (await import('./LoginCheckStub.svelte')).default })`. Mirrors the `$app/state` mock pattern in `callback/page.test.ts`.
+- Used a `$effect` for the redirect rather than top-of-script imperative code so the early-return / store-empty case stays reactive (otherwise it only checks at mount). Required a `void` on the `goto(...)` to satisfy `@typescript-eslint/no-floating-promises` — same shape as the existing eslint surface around `$app/navigation`.
+- Side work: dropped the temporary `// eslint-disable-next-line svelte/no-navigation-without-resolve` + TODO comments in `LoginRequest.svelte` (line 50-ish) and `routes/auth/callback/+page.svelte`, swapping the bare `/auth/check` / `/auth/login` strings for `resolve('/auth/check')` / `resolve('/auth/login')` now that both routes exist. Those comments explicitly named Task 3.5 as the cleanup trigger.
+- Plan-file edit: pre-emptively patched Task 4.1's Decisions code snippet (the inline `+layout.svelte` block) so both `goto(...)` calls wrap their paths in `resolve(...)`, and added the `import { resolve } from '$app/paths';` line. Without this, 4.1's GREEN step would have tripped `svelte/no-navigation-without-resolve` mid-implementation. Added a one-line Decisions bullet explaining the rationale and why the test assertions stay unchanged.
+- Pre-deploy security note: surfaced the dev-shortcut-in-prod-bundle observation in `docs/deployment.md` (new "Auth surface: pre-deploy checklist" section, immediately before "What's not here yet"). Empirically confirmed via `pnpm build` + grep on `web/build/_app/immutable/`: the three seed emails, the "Sign in as …" template, and the `/token?grant_type=password` URL all ship in prod. The runtime guard hides the UI but does not prune the code. Three watch items recorded: (1) GoTrue password-grant reachability for real accounts; (2) `VITE_DEV_LOGIN_PASSWORD` unset at prod `pnpm build`; (3) `DEV_USERS` containing only `.example.test` dummies. Structural fix (dynamic-import gate on `import.meta.env.DEV`) is documented as a pre-public-alpha follow-up; not opened as its own plan/task yet.
 
 Phase 4 wires the session store into `+layout.svelte`, adds the route guard, and drops a temporary Sign Out button on the placeholder `/` page so the E2E spec has something to click.
 
@@ -823,6 +828,7 @@ Phase 4 wires the session store into `+layout.svelte`, adds the route guard, and
   <script lang="ts">
     import { onMount } from 'svelte';
     import { goto } from '$app/navigation';
+    import { resolve } from '$app/paths';
     import { page } from '$app/state';
     import { session, bootSession } from '$lib/shared/state/session.svelte';
     import {
@@ -845,12 +851,12 @@ Phase 4 wires the session store into `+layout.svelte`, adds the route guard, and
     $effect(() => {
       if (session.current.status === 'signed-out') {
         if (isSegmentMatch(page.url.pathname, PUBLIC_AUTH_PATHS)) return;
-        goto('/auth/login', { replaceState: true });
+        goto(resolve('/auth/login'), { replaceState: true });
         return;
       }
       if (session.current.status === 'signed-in') {
         if (isSegmentMatch(page.url.pathname, SIGNED_IN_REDIRECT_PATHS)) {
-          goto('/', { replaceState: true });
+          goto(resolve('/'), { replaceState: true });
         }
       }
     });
@@ -866,6 +872,7 @@ Phase 4 wires the session store into `+layout.svelte`, adds the route guard, and
   ```
   The boot screen is **inline markup**, not a separate `BootScreen.svelte` component — at ~3 lines it doesn't earn its own file, and inlining keeps the layout self-contained. The `data-test="boot-screen"` attribute is what the colocated test queries to assert the block-render gate is active. The wrapper `<div>` carries the centering style; the existing `CairnWordmark` component is imported from `$lib/shared/components/CairnWordmark.svelte`.
 - The boxed-state access path is `session.current.status` (not `session.status`) per Task 2.2's narrowing-preserving design. Same for `isSegmentMatch(page.url.pathname, PUBLIC_AUTH_PATHS)` — `page.url.pathname` is already query-stripped, so the helper composes cleanly.
+- **`goto(...)` wraps each path in `resolve(...)` from `$app/paths`** to satisfy `svelte/no-navigation-without-resolve`. Both `/auth/login` and `/` exist in the generated `Pathname` union by the time this task lands (Task 3.5 created the former; `/` has always existed), so the type check passes without any per-line escape. Test assertions remain `expect(goto).toHaveBeenCalledWith('/auth/login', { replaceState: true })` — `resolve()` is identity for absolute paths in the test environment (no base configured), so the mocked `goto` sees the same string either way. Pattern matches `LoginRequest.svelte` and `routes/auth/callback/+page.svelte` post-3.5 cleanup, and `routes/auth/check/+page.svelte` from 3.5 itself.
 - The colocated test `layout.test.ts` (no `+` prefix — see `docs/frontend-layout.md` → "Filename conventions") asserts the guard cases listed in R12. The test owns its own mocks for both SvelteKit modules:
   - `vi.mock('$app/navigation', () => ({ goto: vi.fn() }))` — gives each test a `goto` spy it can assert on via `expect(goto).toHaveBeenCalledWith('/auth/login', { replaceState: true })`.
   - `vi.mock('$app/state', ...)` — `$app/state` has no source file in `web/src/` to colocate a `__mocks__/` next to (it's a SvelteKit virtual module), so reuse the `.svelte.ts` mock file at `web/src/lib/test/app-state-mock.svelte.ts` landed in Task 3.4 (body: `let _url = $state(new URL('http://localhost/')); export const page = { get url() { return _url; }, set url(v: URL) { _url = v; } }`), then inline `vi.mock('$app/state', async () => await import('$lib/test/app-state-mock.svelte'))`. The runes-backed `_url` makes `page.url` reactive — mid-test assignments (`page.url = new URL('http://localhost/some-path')`) re-fire the layout's `$derived` and `$effect`, which is load-bearing for the new "signed-in on public path → redirect to `/`" case and any future case that needs to observe behaviour across a path change without remounting. Each test (or `beforeEach` for harness-lifecycle resets) sets `page.url` to a fresh URL before rendering; the `$state` proxy guarantees the layout sees the assignment. The `page.url = …` assignment needs a one-line widening cast against the strict generated `Pathname` union — `(page as { url: URL }).url = …` — per Task 3.4's Notes.
