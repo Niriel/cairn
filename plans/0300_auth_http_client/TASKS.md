@@ -715,10 +715,10 @@ keep to plain `N.M`. -->
 
 **Verify:** `cd web && pnpm test LoginCheck.test --run` (green) · `cd web && pnpm check` (green).
 
-### [ ] 3.4 Land the callback page (`web/src/routes/auth/callback/+page.svelte`) with tests
+### [x] 3.4 Land the callback page (`web/src/routes/auth/callback/+page.svelte`) with tests
 
 **Created:** 2026-05-13T12:11:12Z
-**Completed:**
+**Completed:** 2026-05-20T11:22:10Z
 
 **Why:** The user lands here from the magic-link email; the page completes the exchange and redirects (R3). The route is the third public path the route guard (Task 4.1) allows.
 
@@ -761,6 +761,11 @@ keep to plain `N.M`. -->
 5. GREEN — `pnpm test auth/callback`. Green.
 
 **Verify:** `cd web && pnpm test auth/callback --run` (green).
+
+**Notes:**
+- **Test filename: dropped the `+` prefix.** Task Files specified `+page.test.ts`, but SvelteKit's manifest scanner (`create_manifest_data/index.js:233`) rejects any `+`-prefixed file that isn't a recognized route file kind (`+page.svelte` / `+page.ts` / `+page.server.ts` / `+layout.*` / `+error.svelte` / `+server.ts`). Vitest is happy either way (it globs `src/**/*.test.ts` directly), but `svelte-kit sync` (and therefore `pnpm check`) errors out. Renamed to `page.test.ts` — the walker skips any file that doesn't start with `+`, so the test stays colocated next to `+page.svelte` and SvelteKit ignores it. User confirmed the rename. **Applies to Tasks 3.5 and 4.1 too**: their colocated `+page.test.ts` / `+layout.test.ts` files should also drop the `+`.
+- **`pnpm check` was missing from the task Verify line** (only `pnpm test` was listed). Added a `pnpm check` run after the rename and it's green; flagging because future route-test tasks should include both — `svelte-kit sync` only runs under `pnpm check`, and the route-file conventions are exactly the kind of thing it catches.
+- **`$app/state` type narrowing.** Once `svelte-kit sync` succeeded (post-rename), it generated a typed `page.url` whose `.pathname` is a string-literal union of recognized routes. The test's `page.url = new URL(...)` assignment then failed type-check against that intersection type. Resolved with a one-line widening cast at the assignment site (`(page as { url: URL }).url = ...`) plus a justifying comment. Tasks 3.5 and 4.1 will hit the same; the cast pattern keeps the shared `app-state-mock.svelte.ts` module itself unconstrained.
 
 ### [ ] 3.5 Land the login route (`/auth/login`) and the check route (`/auth/check`)
 
