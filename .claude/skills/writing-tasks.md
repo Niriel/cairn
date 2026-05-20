@@ -228,3 +228,14 @@ canonical body and the rationale for living in `public`.
   Decisions so the executor doesn't have to invent it. Decide at
   plan-write time, not mid-task. See `docs/quality.md` for the
   documented escape pattern and the swap-back trigger.
+- **Route-level test filenames drop the `+`.** When a task's Files
+  list names a colocated test next to a SvelteKit route file
+  (`+page.svelte`, `+layout.svelte`, `+error.svelte`), the test
+  must be named *without* the `+` prefix — `page.test.ts`,
+  `layout.test.ts`, `error.test.ts`. A `+page.test.ts` fails
+  `svelte-kit sync` (SvelteKit's manifest scanner only allows the
+  recognized `+`-prefixed route kinds), and `pnpm check` therefore
+  errors out even though `pnpm test` is happy. Tasks that include
+  `pnpm check` in their Verify line catch this in plan-review;
+  route-shaped tasks that omit it ship the trap forward. Full rule
+  in `docs/frontend-layout.md` → "Filename conventions".

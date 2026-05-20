@@ -126,6 +126,18 @@ is not a domain — it is the toolkit the test files use.
   `Button.svelte` → `Button.test.ts`. `preferences.svelte.ts` →
   `preferences.test.ts` (the test file is plain TS even when the
   source is `.svelte.ts`).
+- **Tests next to a SvelteKit route file** — drop the `+` prefix.
+  `+page.svelte` → `page.test.ts`. `+layout.svelte` → `layout.test.ts`.
+  SvelteKit's manifest scanner rejects any `+`-prefixed file under
+  `src/routes/` whose name isn't a recognized route kind (`+page.svelte`
+  / `+page.ts` / `+page.server.ts` / `+layout.*` / `+error.svelte` /
+  `+server.ts`); a colocated `+page.test.ts` fails `svelte-kit sync`
+  (and therefore `pnpm check`). The walker short-circuits on any file
+  that doesn't start with `+`, so `page.test.ts` next to `+page.svelte`
+  is invisible to the route manifest while Vitest still picks it up
+  via its `src/**/*.test.ts` glob. The collision risk — a `page.svelte`
+  *and* a `+page.svelte` in the same folder — is real but vanishingly
+  rare; one route component per folder is the convention.
 - **Mocks** — under `__mocks__/` next to the source, with the exact
   source filename: `__mocks__/Button.svelte`,
   `__mocks__/preferences.svelte.ts`.

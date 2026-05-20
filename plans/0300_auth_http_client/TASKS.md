@@ -782,15 +782,15 @@ keep to plain `N.M`. -->
   - `email !== null` → renders `<LoginCheck {email} />` (passes the value as the prop).
   - `email === null` → calls `goto('/auth/login', { replaceState: true })` from `$app/navigation` and renders nothing (an `{#if}` over the email keeps the DOM empty while the redirect is in flight). `replaceState: true` so a back-press from `/auth/login` doesn't bounce the user back to the empty `/auth/check`.
 - The route file does **not** read `page.url.searchParams` — R14's privacy contract forbids the email in the URL. A direct visit to `/auth/check?email=alice@example.test` is treated the same as a direct visit to bare `/auth/check`: the store is empty, the route redirects. The query param is silently dropped, not read. The Playwright spec (Task 5.2) asserts the URL stays bare on the happy path.
-- Co-located test at `web/src/routes/auth/check/+page.test.ts` mocks `$lib/auth/state/pending-login.svelte` (the `__mocks__/pending-login.svelte.ts` mock from Task 3.2) so the test can drive `pendingLogin.email`, mocks `$app/navigation` to capture `goto` calls, and mocks `$app/state` via the shared `$state`-backed helper `web/src/lib/test/app-state-mock.svelte.ts` (landed in Task 3.4) so the third case can assign `page.url = new URL('http://localhost/auth/check?email=alice@example.test')` and assert the route ignores the query string. `LoginCheck` is mocked **inline** via `vi.mock('$lib/auth/components/LoginCheck.svelte', () => ({ default: <small stub component that renders the received `email` prop under a `data-test` attribute the assertion can query> }))` — there is no colocated `__mocks__/LoginCheck.svelte` (single consumer, per `.claude/skills/writing-tests.md`'s ≥2-consumer rule, mirroring the LoginRequest decision).
+- Co-located test at `web/src/routes/auth/check/page.test.ts` (no `+` prefix — see `docs/frontend-layout.md` → "Filename conventions") mocks `$lib/auth/state/pending-login.svelte` (the `__mocks__/pending-login.svelte.ts` mock from Task 3.2) so the test can drive `pendingLogin.email`, mocks `$app/navigation` to capture `goto` calls, and mocks `$app/state` via the shared `$state`-backed helper `web/src/lib/test/app-state-mock.svelte.ts` (landed in Task 3.4) so the third case can assign `page.url = new URL('http://localhost/auth/check?email=alice@example.test')` and assert the route ignores the query string. The `page.url = …` assignment needs a one-line widening cast against the strict generated `Pathname` union (see Task 3.4's Notes for the pattern: `(page as { url: URL }).url = …`). `LoginCheck` is mocked **inline** via `vi.mock('$lib/auth/components/LoginCheck.svelte', () => ({ default: <small stub component that renders the received `email` prop under a `data-test` attribute the assertion can query> }))` — there is no colocated `__mocks__/LoginCheck.svelte` (single consumer, per `.claude/skills/writing-tests.md`'s ≥2-consumer rule, mirroring the LoginRequest decision).
 
 **Files:**
 - `web/src/routes/auth/login/+page.svelte` (create)
 - `web/src/routes/auth/check/+page.svelte` (create)
-- `web/src/routes/auth/check/+page.test.ts` (create)
+- `web/src/routes/auth/check/page.test.ts` (create)
 
 **Steps:**
-1. RED — Create `auth/check/+page.test.ts` with three cases:
+1. RED — Create `auth/check/page.test.ts` with three cases:
    - `pendingLogin.email = 'alice@example.test'` before render → renders `LoginCheck` with `email="alice@example.test"` as the prop (assert by mocking `LoginCheck` and inspecting the props the mock received, or by querying for the mock's `data-test` if it forwards the email).
    - `pendingLogin.email = null` before render → calls `goto('/auth/login', { replaceState: true })` on mount and does **not** render `LoginCheck` (assert via `queryByDataTest` returning null for any `LoginCheck` data-test).
    - Visiting `/auth/check?email=alice@example.test` directly: the route does **not** read the query string. Simulate by setting the mock `$app/state` `page.url` to `new URL('http://localhost/auth/check?email=alice@example.test')` and leaving `pendingLogin.email = null`. Assert: redirect fires, no email is read from the URL. (This is the regression guard against a future "convenience" patch that re-introduces URL reading.)
@@ -866,9 +866,9 @@ Phase 4 wires the session store into `+layout.svelte`, adds the route guard, and
   ```
   The boot screen is **inline markup**, not a separate `BootScreen.svelte` component — at ~3 lines it doesn't earn its own file, and inlining keeps the layout self-contained. The `data-test="boot-screen"` attribute is what the colocated test queries to assert the block-render gate is active. The wrapper `<div>` carries the centering style; the existing `CairnWordmark` component is imported from `$lib/shared/components/CairnWordmark.svelte`.
 - The boxed-state access path is `session.current.status` (not `session.status`) per Task 2.2's narrowing-preserving design. Same for `isSegmentMatch(page.url.pathname, PUBLIC_AUTH_PATHS)` — `page.url.pathname` is already query-stripped, so the helper composes cleanly.
-- The colocated test `+layout.test.ts` asserts the guard cases listed in R12. The test owns its own mocks for both SvelteKit modules:
+- The colocated test `layout.test.ts` (no `+` prefix — see `docs/frontend-layout.md` → "Filename conventions") asserts the guard cases listed in R12. The test owns its own mocks for both SvelteKit modules:
   - `vi.mock('$app/navigation', () => ({ goto: vi.fn() }))` — gives each test a `goto` spy it can assert on via `expect(goto).toHaveBeenCalledWith('/auth/login', { replaceState: true })`.
-  - `vi.mock('$app/state', ...)` — `$app/state` has no source file in `web/src/` to colocate a `__mocks__/` next to (it's a SvelteKit virtual module), so reuse the `.svelte.ts` mock file at `web/src/lib/test/app-state-mock.svelte.ts` landed in Task 3.4 (body: `let _url = $state(new URL('http://localhost/')); export const page = { get url() { return _url; }, set url(v: URL) { _url = v; } }`), then inline `vi.mock('$app/state', async () => await import('$lib/test/app-state-mock.svelte'))`. The runes-backed `_url` makes `page.url` reactive — mid-test assignments (`page.url = new URL('http://localhost/some-path')`) re-fire the layout's `$derived` and `$effect`, which is load-bearing for the new "signed-in on public path → redirect to `/`" case and any future case that needs to observe behaviour across a path change without remounting. Each test (or `beforeEach` for harness-lifecycle resets) sets `page.url` to a fresh URL before rendering; the `$state` proxy guarantees the layout sees the assignment.
+  - `vi.mock('$app/state', ...)` — `$app/state` has no source file in `web/src/` to colocate a `__mocks__/` next to (it's a SvelteKit virtual module), so reuse the `.svelte.ts` mock file at `web/src/lib/test/app-state-mock.svelte.ts` landed in Task 3.4 (body: `let _url = $state(new URL('http://localhost/')); export const page = { get url() { return _url; }, set url(v: URL) { _url = v; } }`), then inline `vi.mock('$app/state', async () => await import('$lib/test/app-state-mock.svelte'))`. The runes-backed `_url` makes `page.url` reactive — mid-test assignments (`page.url = new URL('http://localhost/some-path')`) re-fire the layout's `$derived` and `$effect`, which is load-bearing for the new "signed-in on public path → redirect to `/`" case and any future case that needs to observe behaviour across a path change without remounting. Each test (or `beforeEach` for harness-lifecycle resets) sets `page.url` to a fresh URL before rendering; the `$state` proxy guarantees the layout sees the assignment. The `page.url = …` assignment needs a one-line widening cast against the strict generated `Pathname` union — `(page as { url: URL }).url = …` — per Task 3.4's Notes.
   - `vi.mock('$lib/shared/state/session.svelte')` — picks up the runes-idiom mock from `__mocks__/session.svelte.ts` (Task 2.2). Each test sets `session.current = { status: 'unknown' | 'signed-in' | 'signed-out', user? }` before rendering.
   - `auth-paths.ts` is **not** mocked — the test uses the real predicate so a regression that weakens it (e.g. a future drive-by edit changing `isSegmentMatch` to a `startsWith`) fails both the auth-paths tests AND this layout's `/auth/loginx` case.
   - All three mocks are `vi.mock()` at file scope so they hoist; the *values* they expose are mutated per-test, not the mocks themselves (per `.claude/skills/writing-tests.md` — no shared `beforeEach` for mock state, but a `beforeEach` for harness-lifecycle resets like `vi.mocked(goto).mockClear()` is fine).
@@ -878,11 +878,11 @@ Phase 4 wires the session store into `+layout.svelte`, adds the route guard, and
 
 **Files:**
 - `web/src/routes/+layout.svelte` (modify)
-- `web/src/routes/+layout.test.ts` (create — uses `createRawSnippet` from `svelte` to pass a stub `children` snippet directly to `render(Layout, ...)`, per the project convention spelled out in Decisions)
+- `web/src/routes/layout.test.ts` (create — note: no `+` prefix on the test filename, per `docs/frontend-layout.md` → "Filename conventions"; uses `createRawSnippet` from `svelte` to pass a stub `children` snippet directly to `render(Layout, ...)`, per the project convention spelled out in Decisions)
 - `web/src/lib/test/app-state-mock.svelte.ts` (reuse — `$state`-backed `$app/state` mock landed in Task 3.4)
 
 **Steps:**
-1. RED — Create `+layout.test.ts` with the cases below (one assertion family per case):
+1. RED — Create `layout.test.ts` with the cases below (one assertion family per case):
    - **`bootSession()` is called on mount** — render the layout with `session.current = { status: 'unknown' }`, then `await tick()` so `onMount` fires and the call lands before the assertion (consistent with the other reactive cases in this step; without the await the assertion races the mount). Assert `expect(vi.mocked(bootSession)).toHaveBeenCalledTimes(1)`. The session mock's default `bootSession = vi.fn(async () => {})` is a no-op spy (Task 2.2), so this case isolates the "did the layout actually call it" wire check from any state-transition behaviour. Without this case, a refactor that drops the `onMount(() => { bootSession(); })` would leave the layout stuck on the boot screen in production while every other guard-behaviour test below stays green (because those tests pre-set `session.current` directly via the mock).
    - Boot screen renders when `session.current.status === 'unknown'` — assert `queryByDataTest('boot-screen')` is non-null and `queryByDataTest('layout-children')` (a `data-test` injected by a stub child snippet for these tests) is `null`.
    - Children render when `signed-in`.
@@ -895,11 +895,11 @@ Phase 4 wires the session store into `+layout.svelte`, adds the route guard, and
    - Children render when `signed-in` on a **private** path (no boot screen, no redirect).
    - **`$app/state` mock reactivity guard** — render the layout once with `page.url = new URL('http://localhost/auth/login')` and `session.current = { status: 'signed-out' }` (a public path → no redirect expected); `await tick()`; assert `goto` was not called. Then reassign `page.url = new URL('http://localhost/private')` (a private path), `await tick()`, and assert `goto('/auth/login', { replaceState: true })` fired. This pins that the `$state`-backed `_url` in `app-state-mock.svelte.ts` actually drives the layout's `$derived` and `$effect` re-evaluation — without this case, a future regression where the mock degrades to a plain non-reactive object would silently pass every other case in the suite (each test renders with a fixed URL).
    Use the three mocks described in Decisions. The real `isSegmentMatch` from `auth-paths.ts` is imported (not mocked) so the segment-anchoring contract is enforced end-to-end.
-2. RED — `pnpm test +layout.test`. All red.
+2. RED — `pnpm test layout.test`. All red.
 3. GREEN — Modify `+layout.svelte` per Decisions. **Keep the existing favicon import, the three token CSS imports (`tokens.css`, `reset.css`, `typography.css`), and the `import '$lib/shared/state/preferences.svelte';` side-effect import** — the snippet in Decisions only shows the new auth-related additions, not a full replacement of the script block. The `preferences.svelte` side-effect installs the theme + font-size `$effect.root` (`web/src/lib/shared/state/preferences.svelte.ts:32-42`); dropping it silently breaks the theme system with no test failure because the colocated layout test mocks `$lib/shared/state/session.svelte` and never asserts the preferences module ran.
-4. GREEN — `pnpm test +layout.test`. All green.
+4. GREEN — `pnpm test layout.test`. All green.
 
-**Verify:** `cd web && pnpm test +layout --run` (green) · `cd web && pnpm dev` and visit `/` in a fresh browser tab: redirected to `/auth/login` (manual).
+**Verify:** `cd web && pnpm test layout --run` (green) · `cd web && pnpm check` (green) · `cd web && pnpm dev` and visit `/` in a fresh browser tab: redirected to `/auth/login` (manual).
 
 ### [ ] 4.2 Add a temporary Sign Out button to `+page.svelte`
 
@@ -918,16 +918,16 @@ Phase 4 wires the session store into `+layout.svelte`, adds the route guard, and
 
 **Files:**
 - `web/src/routes/+page.svelte` (modify)
-- `web/src/routes/+page.test.ts` (create)
+- `web/src/routes/page.test.ts` (create — note: no `+` prefix on the test filename, per `docs/frontend-layout.md` → "Filename conventions")
 
 **Steps:**
-1. RED — Create `+page.test.ts` mocking `$lib/shared/state/session.svelte` (the colocated `__mocks__` from Task 2.2). Two cases: (a) `queryByDataTest('signout')` returns a non-null `<button>`, (b) clicking the button calls `vi.mocked(signOut)` exactly once. The data-test contract is the load-bearing piece for Task 5.2's Playwright spec, which selects on the same `data-test="signout"` — Step 4 will move the button to Settings but is required to inherit the same `data-test` so the spec keeps working.
-2. RED — `pnpm test +page.test`. All red.
+1. RED — Create `page.test.ts` mocking `$lib/shared/state/session.svelte` (the colocated `__mocks__` from Task 2.2). Two cases: (a) `queryByDataTest('signout')` returns a non-null `<button>`, (b) clicking the button calls `vi.mocked(signOut)` exactly once. The data-test contract is the load-bearing piece for Task 5.2's Playwright spec, which selects on the same `data-test="signout"` — Step 4 will move the button to Settings but is required to inherit the same `data-test` so the spec keeps working.
+2. RED — `pnpm test routes/page.test`. All red.
 3. GREEN — Replace the two stale `<p>` paragraphs with the single "Signed in. Lists land in step 4." line. Add the Sign Out button and the onclick handler below the wordmark. Use the `Button` primitive from `$lib/basic/` with `variant="ghost"` and `data-test="signout"`.
-4. GREEN — `pnpm test +page.test`. All green.
+4. GREEN — `pnpm test routes/page.test`. All green.
 5. GREEN — Manual: sign in via the dev shortcut, click Sign Out, confirm redirect to `/auth/login` and that the cookie is gone (Application → Cookies in devtools — HttpOnly means `document.cookie` would never list it anyway).
 
-**Verify:** `cd web && pnpm test +page --run` (green) · `cd web && pnpm dev`, manual sign-in via dev shortcut, click Sign out → redirected to `/auth/login` · `cd web && pnpm check` (green).
+**Verify:** `cd web && pnpm test routes/page --run` (green) · `cd web && pnpm dev`, manual sign-in via dev shortcut, click Sign out → redirected to `/auth/login` · `cd web && pnpm check` (green).
 
 ## Phase 5 — End-to-end coverage
 
