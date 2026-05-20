@@ -950,10 +950,10 @@ Phase 4 wires the session store into `+layout.svelte`, adds the route guard, and
 
 Phase 5 ships the single Playwright spec for the magic-link happy path. This is the only place the full backend stack (GoTrue, Mailpit, the proxy, the SvelteKit dev server) is exercised together.
 
-### [ ] 5.1 Land the Mailpit helper at `web/e2e/helpers/mailpit.ts`
+### [x] 5.1 Land the Mailpit helper at `web/e2e/helpers/mailpit.ts`
 
 **Created:** 2026-05-13T12:11:12Z
-**Completed:**
+**Completed:** 2026-05-20T12:44:54Z
 
 **Why:** The auth spec needs a way to read magic-link emails out of Mailpit. Mailpit's two-step API (list, then fetch body) plus the URL extraction belongs in a shared helper, not inlined in the spec.
 
@@ -976,6 +976,12 @@ Phase 5 ships the single Playwright spec for the magic-link happy path. This is 
 1. GREEN — Implement the helper. No tests for it directly — its correctness is exercised by Task 5.2's E2E spec.
 
 **Verify:** Task 5.2's E2E run is the verification.
+
+**Notes:**
+- **Side work — `web/e2e/tsconfig.json` added.** The `e2e/` directory was previously empty (only `.gitkeep`), so ESLint's `projectService: true` had no tsconfig that included it. The first `.ts` under `e2e/` tripped `Parsing error: ... was not found by the project service`. Added a two-line `web/e2e/tsconfig.json` that extends `../tsconfig.json` and includes `**/*.ts`, so e2e files get full type-aware linting via the existing `pnpm lint`. Alternative was to add `e2e/**/*.ts` to the `disableTypeChecked` override in `eslint.config.js` (the pattern used for `playwright.config.ts`), but that would lose type-aware rules on real test code; the separate tsconfig is the more idiomatic Playwright + TypeScript pattern. Heads-up for 5.2's spec author: `pnpm lint` will type-check the new spec.
+- **Magic-link HTML body confirmed.** Probed the real GoTrue → Mailpit pipeline before writing the regex. GoTrue's default template emits exactly one `<a href="...">Log In</a>`, with `&` encoded as `&amp;` in the href. The helper matches the first `<a href>` and does the single-entity decode the plan described.
+- **Pre-existing Mailpit messages remain.** Found two `derp@yolo.lol` magic-link messages in Mailpit from the user's earlier manual testing — left them in place (deleting third-party data wasn't authorized and the plan's buildup note expects accumulation).
+- **Probe cleanup.** Deleted the `mailpit-probe@example.test` Mailpit message and `auth.users` row I created while probing the body format, so the dev DB is unchanged by this task.
 
 ### [ ] 5.2 Land the auth happy-path spec at `web/e2e/auth.spec.ts`
 
