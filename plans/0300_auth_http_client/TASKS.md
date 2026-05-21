@@ -1172,10 +1172,12 @@ Phase 6 lands the magic-link login flow end-to-end. `supabase/gotrue:v2.158.1`'s
 
 **Verify:** `cd web && pnpm test --run` green · `cd web && pnpm check` green · the Step 6 manual probe shows path-preserved `redirect_to` · `grep -rnE '\bauth/otp\b|create_user' web/src/` returns no results.
 
-### [ ] 6.3 Rewrite the callback page for hash-fragment flow; remove `verifyToken`
+### [x] 6.3 Rewrite the callback page for hash-fragment flow; remove `verifyToken`
 
 **Created:** 2026-05-21T08:28:05Z
-**Completed:**
+**Completed:** 2026-05-21T10:23:17Z
+
+**Notes:** Also updated `src/lib/auth/model/__mocks__/auth-client.ts` (not listed in Files) — replaced the `verifyToken` spy with an `exchangeRefreshToken` spy and refreshed the header comment from Task 3.4 → Task 6.3 and `/auth/verify` → `/auth/token`. Required for the grep-clean verification line; no consumer test references `verifyToken` by name, so the swap was mechanical.
 
 **Why:** The callback page currently reads `?token=…&type=magiclink` from the URL query (Task 3.4's design, predicated on the empirically-false assumption that the email's `<a href>` would land directly on the SvelteKit route). The new flow lands the page at `/auth/callback#access_token=…&refresh_token=…&type=magiclink`, and the page must (a) strip the hash immediately to minimize JS-token exposure, (b) exchange the refresh token through the Vite proxy for an HttpOnly cookie, and (c) navigate. `verifyToken` (currently in `auth-client.ts:64-71`) has no caller after the rewrite and is removed.
 

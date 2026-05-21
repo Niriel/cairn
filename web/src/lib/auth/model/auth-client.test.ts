@@ -64,13 +64,16 @@ describe('sendMagicLink', () => {
 	});
 });
 
-describe('verifyToken', () => {
-	test('POSTs `${VITE_AUTH_BASE}/verify` and returns { user } parsed from the 200 body', async () => {
+describe('exchangeRefreshToken', () => {
+	test('POSTs `${VITE_AUTH_BASE}/token?grant_type=refresh_token` with {refresh_token} and returns { user }', async () => {
 		let seenPath: string | null = null;
+		let seenSearch: string | null = null;
 		let seenBody: unknown = null;
 		server.use(
-			http.post('*/auth/verify', async ({ request }) => {
-				seenPath = new URL(request.url).pathname;
+			http.post('*/auth/token', async ({ request }) => {
+				const url = new URL(request.url);
+				seenPath = url.pathname;
+				seenSearch = url.search;
 				seenBody = await request.json();
 				return HttpResponse.json({
 					token_type: 'bearer',
@@ -79,24 +82,23 @@ describe('verifyToken', () => {
 				});
 			})
 		);
-		const result = await mod.verifyToken({ token: 'tok-abc', type: 'magiclink' });
-		expect(seenPath).toBe('/auth/verify');
-		expect(seenBody).toEqual({ token: 'tok-abc', type: 'magiclink' });
+		const result = await mod.exchangeRefreshToken('rt-abc');
+		expect(seenPath).toBe('/auth/token');
+		expect(seenSearch).toBe('?grant_type=refresh_token');
+		expect(seenBody).toEqual({ refresh_token: 'rt-abc' });
 		expect(result).toEqual({ user: SEED_USER });
 	});
 
 	test('throws when the 200 body is missing user.id/user.email', async () => {
-		server.use(http.post('*/auth/verify', () => HttpResponse.json({ access_token: 'x' })));
-		await expect(mod.verifyToken({ token: 'tok-abc', type: 'magiclink' })).rejects.toBeInstanceOf(
-			Error
-		);
+		server.use(http.post('*/auth/token', () => HttpResponse.json({ access_token: 'x' })));
+		await expect(mod.exchangeRefreshToken('rt-abc')).rejects.toBeInstanceOf(Error);
 	});
 
 	test('throws on non-2xx', async () => {
 		server.use(
-			http.post('*/auth/verify', () => HttpResponse.json({ msg: 'token expired' }, { status: 401 }))
+			http.post('*/auth/token', () => HttpResponse.json({ msg: 'token expired' }, { status: 401 }))
 		);
-		const rejection = expect(mod.verifyToken({ token: 'tok-abc', type: 'magiclink' })).rejects;
+		const rejection = expect(mod.exchangeRefreshToken('rt-abc')).rejects;
 		await rejection.toBeInstanceOf(Error);
 		await rejection.toBeInstanceOf(mod.HttpError);
 		await rejection.toMatchObject({ name: 'HttpError', status: 401 });

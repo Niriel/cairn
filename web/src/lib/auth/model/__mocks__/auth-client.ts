@@ -4,9 +4,9 @@
 // lifting the factory out of the test file keeps the per-case
 // `vi.mocked(...).mockResolvedValueOnce(...)` calls readable.
 //
-// The callback test (Task 3.4) deliberately does NOT use this mock —
-// it runs the real `verifyToken` against MSW handler overrides on
-// `/auth/verify`, matching `postgrest.test.ts`'s MSW-driven shape.
+// The callback test (Task 6.3) deliberately does NOT use this mock —
+// it runs the real `exchangeRefreshToken` against MSW handler overrides
+// on `/auth/token`, matching `postgrest.test.ts`'s MSW-driven shape.
 
 import { vi } from 'vitest';
 
@@ -19,9 +19,8 @@ const SEED_USER: AuthUser = {
 
 export const sendMagicLink = vi.fn((_email: string): Promise<void> => Promise.resolve());
 
-export const verifyToken = vi.fn(
-	(_args: { token: string; type: 'magiclink' }): Promise<{ user: AuthUser }> =>
-		Promise.resolve({ user: SEED_USER })
+export const exchangeRefreshToken = vi.fn(
+	(_refreshToken: string): Promise<{ user: AuthUser }> => Promise.resolve({ user: SEED_USER })
 );
 
 export const devPasswordSignIn = vi.fn(

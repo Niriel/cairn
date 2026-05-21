@@ -3,7 +3,6 @@ import { tick } from 'svelte';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, test, vi } from 'vitest';
 
 import { goto } from '$app/navigation';
-import { page } from '$app/state';
 import { server } from '$lib/test/server';
 import { render } from '$lib/test/render';
 import { bootSession, session, setSignedIn } from '$lib/shared/state/session.svelte';
@@ -24,6 +23,8 @@ afterAll(() => {
 
 beforeEach(() => {
 	session.current = { status: 'signed-out' };
+	// Reset URL between tests; the page reads window.location.hash.
+	history.replaceState({}, '', '/auth/callback');
 });
 
 afterEach(() => {
@@ -32,23 +33,40 @@ afterEach(() => {
 
 const SEED_USER = { id: '11111111-1111-1111-1111-111111111111', email: 'dev@example.test' };
 
-function setCallbackUrl(query: string) {
-	// SvelteKit's generated types narrow page.url.pathname to a union of
-	// known routes; the test writes a plain URL via a widening cast.
-	(page as { url: URL }).url = new URL(`http://localhost/auth/callback${query}`);
+function setCallbackHash(hash: string) {
+	history.replaceState({}, '', `/auth/callback${hash}`);
 }
 
 describe('/auth/callback', () => {
-	test('(a) renders the loading state on mount', () => {
-		setCallbackUrl('?token=abc&type=magiclink');
-		const { getByDataTest } = render(Page);
-		expect(getByDataTest('callback-loading')).not.toBeNull();
+	test('(a) strips the hash from the URL before any HTTP fires', async () => {
+		let hashAtRequest: string | null = null;
+		server.use(
+			http.post('*/auth/token', () => {
+				hashAtRequest = window.location.hash;
+				return HttpResponse.json({
+					token_type: 'bearer',
+					expires_in: 604800,
+					user: SEED_USER
+				});
+			})
+		);
+		setCallbackHash('#access_token=at&refresh_token=rt-123&type=magiclink');
+		render(Page);
+		await vi.waitFor(() => {
+			expect(hashAtRequest).not.toBeNull();
+		});
+		expect(hashAtRequest).toBe('');
+		// And the URL itself no longer has the hash.
+		expect(window.location.hash).toBe('');
 	});
 
-	test('(b) POSTs /auth/verify with {token, type: "magiclink"}', async () => {
+	test('(b) POSTs /auth/token?grant_type=refresh_token with {refresh_token} from the hash', async () => {
 		let seenBody: unknown = null;
+		let seenSearch: string | null = null;
 		server.use(
-			http.post('*/auth/verify', async ({ request }) => {
+			http.post('*/auth/token', async ({ request }) => {
+				const url = new URL(request.url);
+				seenSearch = url.search;
 				seenBody = await request.json();
 				return HttpResponse.json({
 					token_type: 'bearer',
@@ -57,16 +75,17 @@ describe('/auth/callback', () => {
 				});
 			})
 		);
-		setCallbackUrl('?token=tok-123&type=magiclink');
+		setCallbackHash('#access_token=at&refresh_token=rt-123&type=magiclink');
 		render(Page);
 		await vi.waitFor(() => {
-			expect(seenBody).toEqual({ token: 'tok-123', type: 'magiclink' });
+			expect(seenBody).toEqual({ refresh_token: 'rt-123' });
 		});
+		expect(seenSearch).toBe('?grant_type=refresh_token');
 	});
 
 	test('(c) on 200, calls setSignedIn(user) THEN goto("/", {replaceState: true})', async () => {
 		server.use(
-			http.post('*/auth/verify', () =>
+			http.post('*/auth/token', () =>
 				HttpResponse.json({
 					token_type: 'bearer',
 					expires_in: 604800,
@@ -74,7 +93,7 @@ describe('/auth/callback', () => {
 				})
 			)
 		);
-		setCallbackUrl('?token=tok-123&type=magiclink');
+		setCallbackHash('#access_token=at&refresh_token=rt-123&type=magiclink');
 		render(Page);
 		await vi.waitFor(() => {
 			expect(vi.mocked(goto)).toHaveBeenCalledWith('/', { replaceState: true });
@@ -87,8 +106,8 @@ describe('/auth/callback', () => {
 	});
 
 	test('(d) on 401, renders error state with "Back to sign in" affordance; no setSignedIn, no goto', async () => {
-		server.use(http.post('*/auth/verify', () => new HttpResponse(null, { status: 401 })));
-		setCallbackUrl('?token=stale&type=magiclink');
+		server.use(http.post('*/auth/token', () => new HttpResponse(null, { status: 401 })));
+		setCallbackHash('#access_token=at&refresh_token=stale&type=magiclink');
 		const { queryByDataTest } = render(Page);
 		await vi.waitFor(() => {
 			expect(queryByDataTest('callback-error-back')).not.toBeNull();
@@ -98,8 +117,8 @@ describe('/auth/callback', () => {
 	});
 
 	test('(e) on 503, renders error state; no setSignedIn, no goto', async () => {
-		server.use(http.post('*/auth/verify', () => new HttpResponse(null, { status: 503 })));
-		setCallbackUrl('?token=tok&type=magiclink');
+		server.use(http.post('*/auth/token', () => new HttpResponse(null, { status: 503 })));
+		setCallbackHash('#access_token=at&refresh_token=rt&type=magiclink');
 		const { queryByDataTest } = render(Page);
 		await vi.waitFor(() => {
 			expect(queryByDataTest('callback-error-back')).not.toBeNull();
@@ -109,8 +128,8 @@ describe('/auth/callback', () => {
 	});
 
 	test('(f) on network failure, renders error state; no setSignedIn, no goto', async () => {
-		server.use(http.post('*/auth/verify', () => HttpResponse.error()));
-		setCallbackUrl('?token=tok&type=magiclink');
+		server.use(http.post('*/auth/token', () => HttpResponse.error()));
+		setCallbackHash('#access_token=at&refresh_token=rt&type=magiclink');
 		const { queryByDataTest } = render(Page);
 		await vi.waitFor(() => {
 			expect(queryByDataTest('callback-error-back')).not.toBeNull();
@@ -119,55 +138,67 @@ describe('/auth/callback', () => {
 		expect(vi.mocked(goto)).not.toHaveBeenCalled();
 	});
 
-	test('(g) missing token: renders error state, does not call /auth/verify', async () => {
-		const verifyHandler = vi.fn(() => HttpResponse.json({ user: SEED_USER }));
-		server.use(http.post('*/auth/verify', verifyHandler));
-		setCallbackUrl('?type=magiclink');
+	test('(g) missing hash: renders error state, does not call /auth/token', async () => {
+		const tokenHandler = vi.fn(() => HttpResponse.json({ user: SEED_USER }));
+		server.use(http.post('*/auth/token', tokenHandler));
+		// No setCallbackHash — beforeEach clears the URL to /auth/callback.
 		const { queryByDataTest } = render(Page);
 		await vi.waitFor(() => {
 			expect(queryByDataTest('callback-error-back')).not.toBeNull();
 		});
-		expect(verifyHandler).not.toHaveBeenCalled();
+		expect(tokenHandler).not.toHaveBeenCalled();
 		expect(vi.mocked(goto)).not.toHaveBeenCalled();
 	});
 
-	test('(h) non-magiclink type (e.g. recovery): renders error state, does not call /auth/verify', async () => {
-		const verifyHandler = vi.fn(() => HttpResponse.json({ user: SEED_USER }));
-		server.use(http.post('*/auth/verify', verifyHandler));
-		setCallbackUrl('?token=tok&type=recovery');
+	test('(h) error param in hash: renders error state, does not call /auth/token', async () => {
+		const tokenHandler = vi.fn(() => HttpResponse.json({ user: SEED_USER }));
+		server.use(http.post('*/auth/token', tokenHandler));
+		setCallbackHash('#error=access_denied&error_description=otp_expired');
 		const { queryByDataTest } = render(Page);
 		await vi.waitFor(() => {
 			expect(queryByDataTest('callback-error-back')).not.toBeNull();
 		});
-		expect(verifyHandler).not.toHaveBeenCalled();
+		expect(tokenHandler).not.toHaveBeenCalled();
 		expect(vi.mocked(goto)).not.toHaveBeenCalled();
 	});
 
-	test('(i) signed-in short-circuit at mount: goto("/") without calling /auth/verify', async () => {
+	test('(i) non-magiclink type (e.g. recovery): renders error state, does not call /auth/token', async () => {
+		const tokenHandler = vi.fn(() => HttpResponse.json({ user: SEED_USER }));
+		server.use(http.post('*/auth/token', tokenHandler));
+		setCallbackHash('#access_token=at&refresh_token=rt&type=recovery');
+		const { queryByDataTest } = render(Page);
+		await vi.waitFor(() => {
+			expect(queryByDataTest('callback-error-back')).not.toBeNull();
+		});
+		expect(tokenHandler).not.toHaveBeenCalled();
+		expect(vi.mocked(goto)).not.toHaveBeenCalled();
+	});
+
+	test('(j) signed-in short-circuit at mount: goto("/") without calling /auth/token', async () => {
 		session.current = { status: 'signed-in', user: SEED_USER };
-		const verifyHandler = vi.fn(() => HttpResponse.json({ user: SEED_USER }));
-		server.use(http.post('*/auth/verify', verifyHandler));
-		setCallbackUrl('?token=stale&type=magiclink');
+		const tokenHandler = vi.fn(() => HttpResponse.json({ user: SEED_USER }));
+		server.use(http.post('*/auth/token', tokenHandler));
+		setCallbackHash('#access_token=at&refresh_token=stale&type=magiclink');
 		render(Page);
 		await vi.waitFor(() => {
 			expect(vi.mocked(goto)).toHaveBeenCalledWith('/', { replaceState: true });
 		});
-		expect(verifyHandler).not.toHaveBeenCalled();
+		expect(tokenHandler).not.toHaveBeenCalled();
 	});
 
-	test('(j) boot-race short-circuit: bootSession resolves to signed-in mid-mount → goto, no /auth/verify', async () => {
+	test('(k) boot-race short-circuit: bootSession resolves to signed-in mid-mount → goto, no /auth/token', async () => {
 		session.current = { status: 'unknown' };
 		vi.mocked(bootSession).mockImplementationOnce(async () => {
 			await tick();
 			session.current = { status: 'signed-in', user: SEED_USER };
 		});
-		const verifyHandler = vi.fn(() => HttpResponse.json({ user: SEED_USER }));
-		server.use(http.post('*/auth/verify', verifyHandler));
-		setCallbackUrl('?token=stale&type=magiclink');
+		const tokenHandler = vi.fn(() => HttpResponse.json({ user: SEED_USER }));
+		server.use(http.post('*/auth/token', tokenHandler));
+		setCallbackHash('#access_token=at&refresh_token=stale&type=magiclink');
 		render(Page);
 		await vi.waitFor(() => {
 			expect(vi.mocked(goto)).toHaveBeenCalledWith('/', { replaceState: true });
 		});
-		expect(verifyHandler).not.toHaveBeenCalled();
+		expect(tokenHandler).not.toHaveBeenCalled();
 	});
 });

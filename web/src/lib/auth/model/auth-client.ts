@@ -67,11 +67,10 @@ export async function sendMagicLink(email: string): Promise<void> {
 	await postJson<unknown>(`/magiclink?redirect_to=${redirectTo}`, { email });
 }
 
-export async function verifyToken(args: {
-	token: string;
-	type: 'magiclink';
-}): Promise<{ user: AuthUser }> {
-	const payload = await postJson<{ user?: unknown }>('/verify', args);
+export async function exchangeRefreshToken(refreshToken: string): Promise<{ user: AuthUser }> {
+	const payload = await postJson<{ user?: unknown }>('/token?grant_type=refresh_token', {
+		refresh_token: refreshToken
+	});
 	assertAuthUser(payload?.user);
 	return { user: payload.user };
 }
