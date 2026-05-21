@@ -129,7 +129,7 @@ The legal/ethical reasoning, briefly:
 - **Honesty to Alice.** A user-hostile pattern is to silently swallow Alice's invite while showing her *"sent!"* The action genuinely failed; we say so.
 - **Anti-enumeration.** If errors distinguished *"Bob doesn't exist"* from *"Bob blocked you"* from *"Bob accepts everyone,"* an attacker could probe the user database.
 
-The combination — *"Couldn't send invite"* with no detail — satisfies all three. This matches how Signal and most privacy-conscious products handle delivery failures.
+The combination — *"Couldn't send invite"* with no detail — satisfies all three. This matches how Signal and most privacy-conscious products handle delivery failures. The same anti-enumeration argument applies to the sign-in flow's response to a magic-link request — `admin.md` → "What the web app shows when a banned user tries to sign in" is the parallel application of this pattern to GoTrue's magic-link issuance, with the same shape (one screen, multiple backend outcomes, indistinguishable to the user).
 
 The single carve-out is **inviting yourself**, which surfaces a clear error: there's no privacy at stake.
 
