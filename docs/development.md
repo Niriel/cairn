@@ -45,7 +45,7 @@ cairn/
         └── test/           ← Vitest helpers and MSW handlers
 ```
 
-The `docker-compose.yml` at the root defines the backend (Postgres, PostgREST, GoTrue, Mailpit). The web app is *not* in compose during development — you run it directly via `pnpm dev` for fast HMR. The deployment compose file (`docker-compose.prod.yml`) layers on the production-only services including a `web` container; see `deployment.md`.
+The `docker-compose.yml` at the root defines the backend (Postgres, PostgREST, GoTrue, Mailpit). The web app is _not_ in compose during development — you run it directly via `pnpm dev` for fast HMR. The deployment compose file (`docker-compose.prod.yml`) layers on the production-only services including a `web` container; see `deployment.md`.
 
 ## First-time setup
 
@@ -131,7 +131,7 @@ services:
       GOTRUE_SMTP_PORT: 1025
       GOTRUE_SITE_URL: http://localhost:5173
       GOTRUE_DISABLE_SIGNUP: "false"
-      GOTRUE_MAILER_AUTOCONFIRM: "true"   # dev only — skip email verification
+      GOTRUE_MAILER_AUTOCONFIRM: "true" # dev only — skip email verification
     ports:
       - "9999:9999"
     depends_on: [postgres, mailpit]
@@ -139,8 +139,8 @@ services:
   mailpit:
     image: axllent/mailpit
     ports:
-      - "8025:8025"   # web UI
-      - "1025:1025"   # SMTP
+      - "8025:8025" # web UI
+      - "1025:1025" # SMTP
 ```
 
 A few things worth knowing about this:
@@ -157,33 +157,33 @@ In production, Caddy translates between the JavaScript-side `cairn_session` cook
 ```ts
 // web/vite.config.ts (sketch)
 export default defineConfig({
-  server: {
-    proxy: {
-      '/api': {
-        target: 'http://localhost:3000',
-        rewrite: (p) => p.replace(/^\/api/, ''),
-        configure: (proxy) => {
-          proxy.on('proxyReq', (proxyReq, req) => {
-            const cookie = req.headers.cookie ?? '';
-            const m = cookie.match(/cairn_session=([^;]+)/);
-            if (m) proxyReq.setHeader('Authorization', `Bearer ${m[1]}`);
-          });
-        },
-      },
-      '/auth': {
-        target: 'http://localhost:9999',
-        rewrite: (p) => p.replace(/^\/auth/, ''),
-        configure: (proxy) => {
-          proxy.on('proxyRes', (proxyRes, _req, res) => {
-            // Same response-side JWT → Set-Cookie translation as Caddy does.
-            // (Sketch only — the real version reads the JSON body, extracts
-            // access_token, and sets the cookie before letting the response
-            // through.)
-          });
-        },
-      },
-    },
-  },
+	server: {
+		proxy: {
+			"/api": {
+				target: "http://localhost:3000",
+				rewrite: (p) => p.replace(/^\/api/, ""),
+				configure: (proxy) => {
+					proxy.on("proxyReq", (proxyReq, req) => {
+						const cookie = req.headers.cookie ?? "";
+						const m = cookie.match(/cairn_session=([^;]+)/);
+						if (m) proxyReq.setHeader("Authorization", `Bearer ${m[1]}`);
+					});
+				},
+			},
+			"/auth": {
+				target: "http://localhost:9999",
+				rewrite: (p) => p.replace(/^\/auth/, ""),
+				configure: (proxy) => {
+					proxy.on("proxyRes", (proxyRes, _req, res) => {
+						// Same response-side JWT → Set-Cookie translation as Caddy does.
+						// (Sketch only — the real version reads the JSON body, extracts
+						// access_token, and sets the cookie before letting the response
+						// through.)
+					});
+				},
+			},
+		},
+	},
 });
 ```
 
@@ -204,7 +204,7 @@ Adding a new migration is "create the next-numbered file, write the SQL, run the
 
 One non-obvious thing the migrations do: **pre-create the `auth` schema and hand ownership to the `gotrue` role** before GoTrue first connects. GoTrue's DSN sets `search_path=auth` and its first action is `CREATE TABLE schema_migrations`, which fails with "no schema has been selected to create in" if the schema doesn't already exist. Don't "simplify" this back out — the standard "let GoTrue create its own schema" advice doesn't apply when `search_path` is set in the DSN.
 
-A second non-obvious thing: **`migrate.sh` waits for GoTrue to create `auth.users` before applying any migration numbered `0004` or later**, because those migrations reference `auth.users` (FKs, triggers) and would fail against a database where GoTrue hasn't yet completed its own startup migrations. The wait is bounded by the `MIGRATE_AUTH_USERS_TIMEOUT` env var (default 60 s, override only for slow CI or a cold VPS). If `migrate.sh` hangs at `==> waiting for gotrue to create auth.users` for longer than that, bump the var or check `docker compose logs gotrue` — most often it's a misconfigured GoTrue connection string. The wait is *not* applied to `0001`–`0003`, which create the `gotrue` role itself; an unconditional wait would deadlock on a fresh `docker compose up -d`.
+A second non-obvious thing: **`migrate.sh` waits for GoTrue to create `auth.users` before applying any migration numbered `0004` or later**, because those migrations reference `auth.users` (FKs, triggers) and would fail against a database where GoTrue hasn't yet completed its own startup migrations. The wait is bounded by the `MIGRATE_AUTH_USERS_TIMEOUT` env var (default 60 s, override only for slow CI or a cold VPS). If `migrate.sh` hangs at `==> waiting for gotrue to create auth.users` for longer than that, bump the var or check `docker compose logs gotrue` — most often it's a misconfigured GoTrue connection string. The wait is _not_ applied to `0001`–`0003`, which create the `gotrue` role itself; an unconditional wait would deadlock on a fresh `docker compose up -d`.
 
 To start over with a clean database:
 
@@ -219,9 +219,17 @@ This is fast — the whole rebuild takes a few seconds. Don't be precious about 
 
 ## Seed data
 
-The dev database starts empty. `db/seed/dev_seed.sql` is intentionally a no-op until step 3 of `plans/0000_implementation_order.md` lands GoTrue and the magic-link wiring; until then, create your own account by entering an email in the app and clicking the link Mailpit catches (see "The magic-link flow in development" below).
+`./scripts/seed.sh` first waits for GoTrue to be reachable, then POSTs `/signup` to GoTrue for Alice/Bob/Carol (emails `alice@example.test`, `bob@example.test`, `carol@example.test`; password `cairn-dev` for all three). `tg_profile_on_signup` synchronously creates the matching `profiles` and `user_settings` rows inside each signup transaction. The script then runs `db/seed/dev_seed.sql`, which `UPDATE`s the three profiles' `display_name` from the trigger's `'New user'` placeholder to `Alice`, `Bob`, `Carol`. The whole flow is idempotent: GoTrue's 422 "User already registered" is treated as success on rerun, and the SQL `UPDATE`s are naturally idempotent.
 
-The dev login shortcut — a button that logs you in as Alice/Bob/Carol without going through the magic-link flow — and its `VITE_DEV_LOGIN_SHORTCUT=true` flag return alongside step 3's plan. They've been pulled out for now because seeding `auth.users` directly is unreliable across GoTrue versions; the right shape is for the seed to drive GoTrue's signup endpoint instead.
+We deliberately don't `INSERT` directly into `auth.users` — GoTrue's schema has version-dependent NOT NULL columns that a bare insert can't satisfy reliably, and any row we hand-craft would be one GoTrue refuses to authenticate against. The signup-then-UPDATE shape lets each side do what it's good at.
+
+**Forward-note for step 13 (production rollout).** The dev password `cairn-dev` is committed in `db/seed/dev_seed.sql` and `scripts/seed.sh`, and `POST /auth/signup` is open in dev (`GOTRUE_DISABLE_SIGNUP="false"`, `GOTRUE_MAILER_AUTOCONFIRM="true"`). Both are intentional and contained to localhost. When the production GoTrue compose file lands in step 13, it MUST set `GOTRUE_MAILER_AUTOCONFIRM=false` and `GOTRUE_DISABLE_SIGNUP=true` so the committed dev password cannot be used against a prod instance and so `POST /auth/signup` (which the Vite proxy exposes locally as part of the same `/auth/*` surface) cannot be used to create unsolicited accounts in production. The dev exposure is contained because no production rollout path runs `./scripts/seed.sh`; the production gap is closed structurally by `GOTRUE_DISABLE_SIGNUP=true`, not by any code in the web app. Cairn is invite-only per `docs/invites.md`, so signup-disabled in prod is already the right default.
+
+Step 13 must _also_ run the production web build with `VITE_DEV_LOGIN_PASSWORD` unset (no entry in the prod `.env`, no CI export). Vite statically replaces `import.meta.env.VITE_*` at build time before Rollup tree-shakes the dev-shortcut call site, so a stray prod-env entry would inline the `cairn-dev` literal into the JS source even when `isDevLoginShortcutEnabled()` constant-folds to `false`. The dev-shortcut is dev-only by belt-and-braces (`import.meta.env.DEV === false` in prod also tree-shakes the branch), but the env-var-unset rule is the load-bearing guarantee that no plaintext credential ships.
+
+Separately, with `GOTRUE_DISABLE_SIGNUP=true` the `POST /auth/magiclink` endpoint returns 4xx for unknown emails and 200 for known ones. The status split is an account-existence oracle: anyone with a list of candidate emails can confirm registered accounts, which contradicts Cairn's email-privacy stance (`docs/invites.md` — email is never social information). Step 3's `LoginRequest` screen surfaces the 4xx as an inline error, so the oracle is directly visible in the UI. Step 13's auth-screen hardening MUST collapse known/unknown responses into a single generic "check your inbox" UX (e.g., always render the `/auth/check` page regardless of the magic-link response code, or mask GoTrue's 4xx into the same client-side flow as a 2xx). The dev configuration's `GOTRUE_DISABLE_SIGNUP="false"` doesn't expose this in step 3 — the mitigation lives in step 13.
+
+**Dev cookie-plant narrowing.** The Vite proxy's JSON-sniffing response shim plants the `cairn_session` cookie only on responses from endpoints in `COOKIE_PLANT_PATHS` (currently `/auth/verify` and `/auth/token`, defined in `web/src/lib/shared/model/auth-paths.ts`). `POST /auth/signup` through the proxy returns the GoTrue body including `access_token` but **does not** plant the cookie — a deliberate narrowing so the dev cookie-plant contract is pinned to deliberate-login endpoints. A contributor adding a new GoTrue endpoint that returns `access_token` (refresh-token rotation, OAuth callbacks) must extend `COOKIE_PLANT_PATHS` explicitly.
 
 ## The web app
 
@@ -243,7 +251,7 @@ VITE_AUTH_BASE=/auth
 
 `VITE_API_BASE` and `VITE_AUTH_BASE` are paths, not full URLs — same in dev and prod, because Caddy and Vite both serve the API at `/api` and the auth service at `/auth` on the same origin as the app.
 
-`VITE_DEV_LOGIN_SHORTCUT` returns to this file alongside step 3's plan (see `plans/0000_implementation_order.md`), when the magic-link UI + seed-via-GoTrue-signup land together.
+`VITE_DEV_LOGIN_SHORTCUT=true` (the default in `web/.env.example`) enables three secondary buttons — _Alice_, _Bob_, _Carol_ — under the email field on `/auth/login`. Each calls GoTrue's `POST /token?grant_type=password` with the corresponding seeded email and the dev password `cairn-dev`, the same cookie-plant shim that handles the magic-link callback sets the `cairn_session` cookie, and you land on `/` signed in. The shortcut is dev-only by belt-and-braces: in a production build `import.meta.env.DEV` is `false` regardless of which env vars are set, and Vite tree-shakes the dead branch out of the bundle. To disable locally without losing the dev build mode, unset the env var.
 
 ### Building for production locally
 
@@ -254,6 +262,51 @@ pnpm preview
 
 `pnpm build` runs the static adapter and produces a `web/build/` directory containing the deployable bundle (HTML, JS, CSS, the manifest, the service worker). `pnpm preview` serves it on `localhost:4173` so you can verify the production build before pushing.
 
+### Gating dev-only UI so it doesn't ship to prod
+
+Svelte compiles `{#if condition} … {/if}` to runtime logic — even when `condition` is statically `false` after Vite's `import.meta.env.DEV` replacement, the minifier cannot prove the branch is dead across the component boundary. The template strings, the closures, and any modules imported only for that branch all survive into the prod bundle.
+
+This matters whenever you add UI that should be **physically absent** in prod, not just hidden. The dev login shortcut in `web/src/lib/auth/components/LoginRequest.svelte` is the existing instance; see `deployment.md` → "Auth surface: pre-deploy checklist" for the deploy-time mitigations on that specific case.
+
+**Don't do this:**
+
+```svelte
+<script lang="ts">
+  import { devOnlyHelper } from './dev-only-helper';
+  const isDev = import.meta.env.DEV;
+</script>
+
+{#if isDev}
+  <!-- This DOM, the import above, and any string literals all ship to prod. -->
+  <DevPanel />
+{/if}
+```
+
+**Do this instead:**
+
+```svelte
+<script lang="ts">
+  import type { Component } from 'svelte';
+
+  let DevPanel: Component | null = $state(null);
+  if (import.meta.env.DEV) {
+    // Literal-conditional dynamic import: Vite folds the `if` to `false` in
+    // prod, the `import()` becomes dead code, and the whole module
+    // (`./DevPanel.svelte` plus everything it transitively imports) drops
+    // from the prod graph.
+    void import('./DevPanel.svelte').then((m) => (DevPanel = m.default));
+  }
+</script>
+
+{#if DevPanel}
+  <DevPanel />
+{/if}
+```
+
+The dynamic-import pattern moves the gate from runtime to build time. Verify with `pnpm build` followed by grep against `web/build/_app/immutable/` — any string that should be dev-only should not appear.
+
+Note also that `import.meta.env.VITE_*` references are **inlined at build time as string literals**. A dev-only env var (e.g. `VITE_DEV_LOGIN_PASSWORD`) that is set in the shell when `pnpm build` runs will bake its value into the JS bundle, dead-code-eliminated or not. Keep dev env vars in `.env.local` or `.env.development` (which Vite only loads in dev mode), never in `.env` or `.env.production`.
+
 ### The service worker in development
 
 The service worker is **disabled by default in `pnpm dev`** because constant cache invalidation during development is more annoying than the offline behaviour is useful. To test it, run `pnpm preview` after `pnpm build`, which serves the production bundle including the worker.
@@ -261,8 +314,8 @@ The service worker is **disabled by default in `pnpm dev`** because constant cac
 When you do test offline behaviour:
 
 - Open the page once (the worker installs).
-- Close the browser dev tools, open the *Application* tab in dev tools, and check the *Offline* checkbox.
-- Reload — the app shell loads from the cache; cached `/api` GETs serve recent data; uncached routes show the *"No connection"* state.
+- Close the browser dev tools, open the _Application_ tab in dev tools, and check the _Offline_ checkbox.
+- Reload — the app shell loads from the cache; cached `/api` GETs serve recent data; uncached routes show the _"No connection"_ state.
 
 ## The magic-link flow in development
 
@@ -271,10 +324,12 @@ Cairn uses email magic links for real authentication. Locally, no actual email i
 To test the flow:
 
 1. In the app, enter an email (any email; it doesn't have to be real).
-2. The app POSTs to `/auth/magiclink`.
-3. GoTrue sends an email via SMTP to Mailpit.
+2. The app POSTs to `/auth/magiclink` with `{email, redirect_to: ${origin}/auth/callback}`.
+3. GoTrue sends an email via SMTP to Mailpit. The email's link points at GoTrue's own `/verify` endpoint (port 9999 in dev), which validates the token and then 302-redirects to `localhost:5173/auth/callback#access_token=…&refresh_token=…&type=magiclink`.
 4. Open `http://localhost:8025` — Mailpit's web UI shows the email.
-5. Click the link. It opens `localhost:5173/auth/callback?token=...` in your browser. Vite's proxy completes the exchange with GoTrue, sets the `cairn_session` cookie, and redirects you into the app, logged in.
+5. Click the link. The browser follows the `/verify` → 302 → callback chain. The callback page captures the hash, `replaceState`s it away, and POSTs `/auth/token?grant_type=refresh_token` through the Vite proxy. The cookie-plant shim sets the `cairn_session` cookie, and the page navigates to `/`, logged in. (Tokens are JS-readable in `window.location.hash` for the few hundred milliseconds the callback page is mounted — the trade-off is documented in `docs/architecture.md` under "JWT storage → Security trade-off".)
+
+The dev cookie is set without the `Secure` attribute because localhost is HTTP; production's Caddy-set cookie has `Secure`. This divergence is intentional.
 
 For routine dev where you don't care about exercising the flow, use the dev login shortcut to log in as Alice/Bob/Carol directly.
 
@@ -290,7 +345,21 @@ docker compose exec postgres psql -U cairn -d cairn
 
 — or connect with a GUI client (TablePlus, DBeaver, Postico) to `localhost:5432` with the credentials in `.env`.
 
-**Hit the API directly.** PostgREST is plain HTTP+JSON. You need a JWT for anything beyond the OpenAPI doc; the dev-token shortcut for fetching one returns alongside step 3's GoTrue + magic-link wiring (see `plans/0000_implementation_order.md`). Until then, reach the database via the manual `psql` path above, and the unauthenticated PostgREST surface via its OpenAPI root at `http://localhost:3000/`.
+**Hit the API directly.** PostgREST is plain HTTP+JSON. You need a JWT for anything beyond the OpenAPI doc — grab one from GoTrue's password grant using a seed user:
+
+```bash
+curl -X POST 'http://localhost:9999/token?grant_type=password' \
+  -H 'Content-Type: application/json' \
+  -d '{"email":"alice@example.test","password":"cairn-dev"}'
+```
+
+The `access_token` in the response body is the JWT. Pass it as `Authorization: Bearer <jwt>` to PostgREST:
+
+```bash
+curl -H "Authorization: Bearer <jwt>" http://localhost:3000/lists
+```
+
+The unauthenticated PostgREST surface is at the OpenAPI root, `http://localhost:3000/`.
 
 **Watch the logs.**
 
@@ -370,10 +439,11 @@ reset role;
 
 This is the single most useful debugging trick for this stack. Learn it.
 
-## What you should *not* do during development
+## What you should _not_ do during development
 
 - **Don't connect the dev app to the production API.** The `.env` files keep these separate; don't override them casually. Production data is real users' data.
 - **Don't commit `.env`.** It's gitignored. The `.env.example` is the committed template.
 - **Don't bypass migrations by editing the schema directly in the running container.** Anything not captured in a migration file is invisible to your collaborators and to production. If you find yourself reaching for `ALTER TABLE` in `psql`, stop, write a migration, and run it.
 - **Don't disable RLS to make a query work.** The query is wrong, or the policy is wrong. Disabling RLS while you debug is fine; shipping that disablement is a security incident.
-- **Don't put the JWT into `localStorage` from the web app.** The whole point of the cookie shim is that JavaScript never holds the token. If you need the token for an experiment, get it from `document.cookie` *only* in dev (where it's deliberately not HttpOnly) — and remove the experiment before commit.
+- **Don't put the JWT into `localStorage` from the web app.** The whole point of the cookie shim is that JavaScript never holds the token. If you need the token for an experiment, get it from `document.cookie` _only_ in dev (where it's deliberately not HttpOnly) — and remove the experiment before commit.
+- **Don't gate dev-only UI behind a runtime `{#if}` over an env-derived boolean.** Svelte emits `{#if}` as runtime logic, so the template and its closures still ship to prod even when the branch is unreachable. Use a literal `if (import.meta.env.DEV)` dynamic import instead, so the dead module drops from the prod graph entirely. See "Gating dev-only UI so it doesn't ship to prod" above.

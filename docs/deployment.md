@@ -426,6 +426,20 @@ For Postgres major version upgrades (e.g. 16 → 17), there's an extra dance: du
 - **`JWT_SECRET`** is the most painful one — rotating it logs every user out, because their existing JWTs become invalid. Communicate before doing this.
 - **Database role passwords** can be rotated with `ALTER ROLE ... WITH PASSWORD '...'` in psql, then update `.env.prod` and restart the affected services.
 
+## Auth surface: pre-deploy checklist
+
+The login screen at `web/src/lib/auth/components/LoginRequest.svelte` ships a dev login shortcut — three "Sign in as alice/bob/carol" buttons that call `devPasswordSignIn(email, password)` against GoTrue's `/auth/token?grant_type=password`. The UI is gated by `isDevLoginShortcutEnabled()`, which evaluates to `false` in prod builds (`import.meta.env.DEV` is constant-folded), so the buttons do not render. **However, the underlying code still ships in the prod client JS bundle.** The three seed emails, the "Sign in as …" template fragment, and the `devPasswordSignIn` helper all land in `web/build/_app/immutable/` after `pnpm build`. The reason is that Svelte emits `{#if}` as runtime logic — the minifier cannot prove the branch is dead across the component boundary, so the template and its closures survive tree-shaking. Empirically confirmed; grep the prod bundle for `alice@example.test` to see it.
+
+This is not exploitable today, but three things must be confirmed before opening Cairn to public traffic:
+
+1. **GoTrue password grant must be unreachable for real accounts in prod.** The `/auth/token?grant_type=password` endpoint is server-side; whether the client bundle ships a helper for it is decorative — an attacker can hit it with `curl` either way. Verify in the GoTrue config that no real prod user can be password-signed-in. If a real admin account can, the bundle issue is the lesser problem and we have a separate vulnerability.
+
+2. **`VITE_DEV_LOGIN_PASSWORD` must be unset when `pnpm build` runs for prod.** Vite inlines every `import.meta.env.VITE_*` reference at build time as a string literal — with no warning if a dev-only var leaks into the build environment. A `.env.local` accidentally sourced, a CI step that exports the dev env, or a misconfigured shell will bake the literal dev password into the JS bundle shipped to every client. Grep `web/build/_app/immutable/` for the current dev password value before each prod release.
+
+3. **`DEV_USERS` in `LoginRequest.svelte` (lines ~14–18) must contain only `.example.test` dummies.** If anyone has added a real email (a real admin, an internal tester, a real customer) to that constant, it ships to every prod client as a plaintext string. `.example.test` is a reserved TLD and these specific addresses don't exist as real mailboxes.
+
+**The structural fix** is to split the dev shortcut into its own component (`DevShortcuts.svelte`) and gate the import behind a literal `if (import.meta.env.DEV)` dynamic import. Vite folds the condition to `false` in prod, the dynamic `import()` becomes dead code, and the whole module — emails, password helper, env-var read — drops from the prod graph entirely. Worth doing before public alpha; until then, the three checks above are the watch. See `development.md` → "Gating dev-only UI so it doesn't ship to prod" for the general pattern that this fix instantiates.
+
 ## What's not here yet
 
 Honest about the gaps:

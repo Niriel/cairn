@@ -2,6 +2,24 @@ import { sveltekit } from '@sveltejs/kit/vite';
 import { defineConfig } from 'vite';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 
+import {
+	BEARER_AUTH_PATHS,
+	COOKIE_PLANT_PATHS,
+	LOGOUT_PATHS,
+	PUBLIC_AUTH_PATHS,
+	isSegmentMatch
+} from './src/lib/shared/model/auth-paths';
+
+// Module augmentation: every read site for the stamped original URL
+// goes through `req.cairnOriginalUrl` with full type safety, so a typo
+// can't silently fall through to the rewritten `req.url`. See
+// auth-paths.ts and Task 1.4 Decisions.
+declare module 'node:http' {
+	interface IncomingMessage {
+		cairnOriginalUrl?: string;
+	}
+}
+
 // Dev-only cookie shim. In production Caddy translates between the
 // HttpOnly `cairn_session` cookie and the `Authorization: Bearer …`
 // header that PostgREST expects; locally Vite's dev proxy plays the
@@ -16,7 +34,44 @@ function readBearerFromCookie(req: IncomingMessage): string | null {
 }
 
 export default defineConfig({
-	plugins: [sveltekit()],
+	plugins: [
+		{
+			// Stamps the original `/auth/...` URL onto the request before
+			// Vite's internal proxy rewrites it. The `proxyReq` and `proxyRes`
+			// handlers below need the original path to match against the
+			// path lists in auth-paths.ts (which are all `/auth/...`-shaped).
+			name: 'cairn-auth-shim',
+			enforce: 'pre',
+			configureServer(server) {
+				// no return from configureServer → installs before Vite's internal
+				// proxy; see auth-paths.ts and Task 1.4 Decisions.
+				server.middlewares.use((req, _res, next) => {
+					if (req.url?.startsWith('/auth/') || req.url === '/auth') {
+						req.cairnOriginalUrl = req.url;
+					}
+					next();
+				});
+				// Mounted at root (no path arg) so `req.url` stays the full
+				// request path — `server.middlewares.use('/auth/session', …)`
+				// would strip the mount and leave `req.url === '/'`, silently
+				// failing the segment match. See Task 1.5 Decisions.
+				server.middlewares.use((req, res, next) => {
+					if (!isSegmentMatch(req.url, LOGOUT_PATHS)) {
+						next();
+						return;
+					}
+					if (req.method !== 'DELETE') {
+						next();
+						return;
+					}
+					res.setHeader('Set-Cookie', `${COOKIE_NAME}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0`);
+					res.statusCode = 204;
+					res.end();
+				});
+			}
+		},
+		sveltekit()
+	],
 	server: {
 		proxy: {
 			'/api': {
@@ -36,26 +91,65 @@ export default defineConfig({
 				target: 'http://localhost:9999',
 				changeOrigin: false,
 				rewrite: (p) => p.replace(/^\/auth/, ''),
+				// `bypass` runs before `rewrite`, so `req.url` is still the
+				// original `/auth/...` here. Returning a string short-circuits
+				// the proxy entirely and lets SvelteKit's router serve the
+				// page (e.g. `/auth/callback?token=…`); see auth-paths.ts.
+				bypass: (req) => (isSegmentMatch(req.url, PUBLIC_AUTH_PATHS) ? req.url : undefined),
 				selfHandleResponse: true,
 				configure: (proxy) => {
-					proxy.on('proxyRes', (proxyRes, _req, res: ServerResponse) => {
+					proxy.on('proxyReq', (proxyReq, req) => {
+						// Narrowed to BEARER_AUTH_PATHS — see auth-paths.ts.
+						// `cairnOriginalUrl` is consulted because Vite's `rewrite`
+						// mutates `req.url` before this handler fires.
+						if (!isSegmentMatch(req.cairnOriginalUrl ?? req.url, BEARER_AUTH_PATHS)) {
+							return;
+						}
+						const token = readBearerFromCookie(req);
+						if (token && !proxyReq.getHeader('authorization')) {
+							proxyReq.setHeader('Authorization', `Bearer ${token}`);
+						}
+					});
+					proxy.on('proxyRes', (proxyRes, req: IncomingMessage, res: ServerResponse) => {
 						const chunks: Buffer[] = [];
 						proxyRes.on('data', (c: Buffer) => chunks.push(c));
 						proxyRes.on('end', () => {
-							const body = Buffer.concat(chunks);
+							let body = Buffer.concat(chunks);
 							for (const [k, v] of Object.entries(proxyRes.headers)) {
-								if (v !== undefined) res.setHeader(k, v as string | string[]);
+								if (v === undefined) continue;
+								// Skip content-length so Node recomputes it from the
+								// (possibly rewritten) body in `res.end(body)`.
+								if (k.toLowerCase() === 'content-length') continue;
+								res.setHeader(k, v as string | string[]);
 							}
 							res.statusCode = proxyRes.statusCode ?? 502;
 							const ct = String(proxyRes.headers['content-type'] ?? '');
 							if (ct.includes('application/json') && proxyRes.statusCode === 200) {
 								try {
 									const json = JSON.parse(body.toString('utf8'));
-									if (typeof json?.access_token === 'string') {
+									// Cookie-plant is narrowed to deliberate-login
+									// endpoints (auth-paths.ts COOKIE_PLANT_PATHS).
+									// `cairnOriginalUrl` is the original `/auth/...`
+									// since `rewrite` mutated `req.url` before we got here.
+									if (
+										typeof json?.access_token === 'string' &&
+										isSegmentMatch(req.cairnOriginalUrl ?? req.url, COOKIE_PLANT_PATHS)
+									) {
 										const cookie =
 											`${COOKIE_NAME}=${encodeURIComponent(json.access_token)}; ` +
-											`Path=/; HttpOnly; SameSite=Lax; Max-Age=${json.expires_in ?? 3600}`;
-										res.setHeader('set-cookie', cookie);
+											// fallback tracks GOTRUE_JWT_EXP — keep in sync if the env var changes
+											`Path=/; HttpOnly; SameSite=Lax; Max-Age=${json.expires_in ?? 604800}`;
+										// append — preserves any upstream Set-Cookie the header-copy loop already forwarded
+										res.appendHeader('set-cookie', cookie);
+									}
+									// strip tokens unconditionally — JS has no use for them; cookie is the source of truth (docs/architecture.md:145, :233)
+									if (
+										typeof json?.access_token === 'string' ||
+										typeof json?.refresh_token === 'string'
+									) {
+										delete json.access_token;
+										delete json.refresh_token;
+										body = Buffer.from(JSON.stringify(json));
 									}
 								} catch {
 									// non-JSON or parse error — pass through unchanged.

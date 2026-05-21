@@ -181,3 +181,20 @@ requirement carries the load alone.
   `PLAN.md`'s Architecture section should call out which layer each
   test type lives in: `db/tests/` for pgTAP, `web/src/**/*.test.ts`
   for Vitest, `web/e2e/` for Playwright. See `docs/testing.md`.
+- **Toolchain coupling drives phase order, not just runtime
+  dependency.** A task that *navigates to*, *imports from*, or
+  *type-references* a destination created by a later task will
+  fight the type checker / linter even when runtime behaviour is
+  fine. SvelteKit's `resolve()` only accepts route IDs that exist
+  in `web/src/routes/`; `svelte-check`'s strict typing rejects
+  symbols a downstream task will create; ESLint's typed rules
+  reject `import.meta.env.VITE_*` reads when the var isn't yet
+  declared in `web/src/vite-env.d.ts`. Before locking in phase
+  order, scan the Architecture section's *consumer → producer*
+  edges (which file *uses* what, not just which file *imports*
+  what) and either reorder so producers land first, fold a
+  producer stub into the earlier phase, or pre-decide where the
+  per-line escape lands. The cost compounds: each chicken-and-egg
+  the plan misses is a mid-task stop for the executor. See
+  `docs/quality.md` "Navigating to a not-yet-created SvelteKit
+  route" for the documented escape pattern.

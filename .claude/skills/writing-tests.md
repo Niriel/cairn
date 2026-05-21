@@ -27,6 +27,17 @@ This skill covers the Vitest layer only. Playwright lives under
 `web/e2e/` and has different ergonomics; pgTAP is `docs/testing.md`
 and `.claude/skills/writing-sql.md`.
 
+## Tests next to SvelteKit route files drop the `+`
+
+Colocated tests for `+page.svelte` / `+layout.svelte` / `+error.svelte`
+are named **without** the `+` prefix: `page.test.ts`, `layout.test.ts`,
+`error.test.ts`. SvelteKit's manifest scanner rejects any `+`-prefixed
+file in `src/routes/` whose name isn't a recognized route kind, so
+`+page.test.ts` fails `svelte-kit sync` (and therefore `pnpm check`).
+Vitest globs `src/**/*.test.ts` regardless of the prefix, so the test
+stays colocated next to the route file without `+`. Full rule in
+`docs/frontend-layout.md` → "Filename conventions".
+
 ## DOM queries — `data-test` only
 
 Every queryable element in a component carries a `data-test="…"`

@@ -213,3 +213,29 @@ canonical body and the rationale for living in `public`.
   (e.g., the doc currently says X but the implementation lands Y),
   add the doc edit to the **Files** list and the **Steps**
   explicitly — don't let it slip in as an unannounced side change.
+- **Watch for cross-task toolchain coupling.** When a task
+  navigates with `goto('/foo')`, imports a symbol, or otherwise
+  references something a *later* task creates, the type checker
+  or linter will balk even when the runtime works fine. SvelteKit's
+  `resolve()` rejects unknown route IDs; `svelte-check` rejects
+  unknown env-var reads; `svelte/no-navigation-without-resolve`
+  rejects the bare-string workaround. Three ways out, in order of
+  preference: (a) **reorder** so the producer task lands first;
+  (b) **fold a stub** of the producer into the consumer task's
+  Files list (`docs/quality.md` "Navigating to a not-yet-created
+  SvelteKit route" documents the SvelteKit-route shape); (c)
+  **pre-pick the per-line escape** and name it in the task's
+  Decisions so the executor doesn't have to invent it. Decide at
+  plan-write time, not mid-task. See `docs/quality.md` for the
+  documented escape pattern and the swap-back trigger.
+- **Route-level test filenames drop the `+`.** When a task's Files
+  list names a colocated test next to a SvelteKit route file
+  (`+page.svelte`, `+layout.svelte`, `+error.svelte`), the test
+  must be named *without* the `+` prefix — `page.test.ts`,
+  `layout.test.ts`, `error.test.ts`. A `+page.test.ts` fails
+  `svelte-kit sync` (SvelteKit's manifest scanner only allows the
+  recognized `+`-prefixed route kinds), and `pnpm check` therefore
+  errors out even though `pnpm test` is happy. Tasks that include
+  `pnpm check` in their Verify line catch this in plan-review;
+  route-shaped tasks that omit it ship the trap forward. Full rule
+  in `docs/frontend-layout.md` → "Filename conventions".
