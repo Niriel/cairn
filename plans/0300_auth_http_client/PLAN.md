@@ -68,7 +68,7 @@ under `/auth/*` is GoTrue. (R10)
 
 **Preserve the pre-rewrite URL for `proxyReq` / `proxyRes`
 narrowing.** Vite's `rewrite: (p) => p.replace(/^\/auth/, '')`
-mutates `req.url` *before* `proxy.web(req, res)` runs, so by the
+mutates `req.url` _before_ `proxy.web(req, res)` runs, so by the
 time the `proxyReq` and `proxyRes` event handlers fire, `req.url`
 has been stripped to `/user`, `/verify`, `/token?…`. The new
 narrowing predicates (`isSegmentMatch(req.url,
@@ -82,7 +82,7 @@ before Vite's proxy middleware runs, and the proxyReq/proxyRes
 handlers consult `cairnOriginalUrl ?? req.url`. The same plugin
 hosts the Task 1.5 `DELETE /auth/session` short-circuit, so one
 plugin owns all dev-only auth shims. The `bypass` callback is
-unaffected — Vite invokes `bypass` *before* `rewrite`. (R10)
+unaffected — Vite invokes `bypass` _before_ `rewrite`. (R10)
 
 **`DELETE /auth/session` as a `configureServer` middleware, not in the
 proxy `configure`.** The cookie-clearing logout endpoint is Cairn's
@@ -129,7 +129,7 @@ since the cookie wasn't set at first paint) and the layout is still
 mounted, so re-invoking `bootSession()` from the callback would
 no-op against the guard. Adding a third store entrypoint — a synchronous
 `setSignedIn(user)` that transitions any non-signed-out state to
-`signed-in` — is the cleanest way to keep boot's race-safe guard *and*
+`signed-in` — is the cleanest way to keep boot's race-safe guard _and_
 let same-tab sign-ins land. The callback and the dev shortcut both
 call it before `goto('/')`. (R3, R4, R8)
 
@@ -192,7 +192,7 @@ This keeps the email in the same process the user just typed it
 into, without introducing `sessionStorage` (extension-readable,
 inspector-visible) or `history.state` (one more SvelteKit-API
 detail to mock in tests). A stale bookmarked `/auth/check` shows
-no email and redirects to `/auth/login` — a privacy *feature*,
+no email and redirects to `/auth/login` — a privacy _feature_,
 not a regression. (R1, R2, R14)
 
 **Components in `auth/`, store and HTTP wrapper in `shared/`.**
@@ -249,7 +249,7 @@ they're consumed only by the auth screens and the session-store boot.
   add a **narrowed** cookie → `Authorization: Bearer` `proxyReq`
   handler that fires only on `/auth/user` (so the session-store
   boot's `GET /auth/user` carries the JWT but anonymous endpoints
-  like `/auth/otp` don't get a stray bearer attached), and add the
+  like `/auth/magiclink` don't get a stray bearer attached), and add the
   `configureServer` middleware for `DELETE /auth/session` matched
   on exact path (R5, R10).
 - **`web/src/routes/+layout.svelte`** — call `bootSession()` from
@@ -273,18 +273,18 @@ they're consumed only by the auth screens and the session-store boot.
   so the dev shortcut reads the password from an env var rather than
   a hard-coded default in `auth-client.ts` (R8). Keeps the literal out
   of any production bundle.
-- *Doc reconciliation (R13) has already landed — see
+- _Doc reconciliation (R13) has already landed — see
   `docs/development.md` for the dev shortcut, seed-flow, and
   dev-cookie-`Secure` divergence note, and `docs/architecture.md`
-  for the 7-day Max-Age and the tightened login request flow.*
+  for the 7-day Max-Age and the tightened login request flow._
 
 ### Data flow (magic-link happy path)
 
 ```
 LoginRequest                 Vite proxy                 GoTrue
 ─────────────                ──────────                 ──────
-  POST /auth/otp ────────►   forward ─────────────►    /otp
-   {email, create_user}                                  ║
+  POST /auth/magiclink ──►   forward ─────────────►    /magiclink
+   {email, redirect_to}                                  ║
                                                          ║ generates token
                                                          ║ POSTs to Mailpit SMTP
                                                          ▼
@@ -330,9 +330,9 @@ narrative. Phases are numbered from 1.
    GoTrue with the new envs, extend `scripts/seed.sh` to drive
    GoTrue signups, rewrite `db/seed/dev_seed.sql` to UPDATE
    `display_name`, and reshape `web/vite.config.ts` (bypass +
-   logout middleware). After this phase the user *cannot* log in
+   logout middleware). After this phase the user _cannot_ log in
    from the UI yet, but `./scripts/seed.sh` is green, and an
-   ad-hoc `curl` against `/auth/otp` and `/auth/verify` through
+   ad-hoc `curl` against `/auth/magiclink` and `/auth/verify` through
    the dev server proves the proxy + shim still works. RED steps
    are the ad-hoc smoke checks; GREEN is the config + script
    changes. R9, R10, R11.
@@ -404,3 +404,84 @@ smoke command passes after the env / proxy changes."
   valid until its 7-day expiry regardless). The DELETE middleware
   only clears the cookie; adding the GoTrue notify call later is one
   line. Decision pinned in Task 1.5's Decisions.
+
+## Phase 6 — Standard hash-fragment magic-link flow
+
+Phase 6 lands the magic-link login flow end-to-end. GoTrue
+(`supabase/gotrue:v2.158.1`) emits magic-link emails whose `<a href>`
+routes through its own `/verify` endpoint regardless of
+`MAILER_URLPATHS_MAGICLINK`; on success `/verify` 302s to
+`${redirect_to}#access_token=…&refresh_token=…&type=magiclink` with
+the tokens in the URL hash. Cairn adopts this **standard Supabase
+hash-fragment flow** — the same path `@supabase/supabase-js` and
+every public Supabase tutorial assume — rather than chasing a
+custom-template variant that hand-rolls the email link to point
+straight at `${SITE_URL}/auth/callback?token=…`.
+
+The decision and its trade-off are explicit: `docs/architecture.md`'s
+"the web app's JavaScript never sees the token" contract relaxes
+to a brief in-callback exposure window. The access and refresh
+tokens are JS-readable in `window.location.hash` for the few hundred
+milliseconds the callback page is mounted before
+`history.replaceState` strips them and the page exchanges the
+refresh token for an HttpOnly cookie through the Vite proxy. The
+residual XSS-during-callback risk is documented as an acknowledged
+trade-off rather than mitigated by bespoke templating. The
+alternative — a custom HTML email template via
+`GOTRUE_MAILER_TEMPLATES_MAGICLINK` with the `<a href>` hand-rolled
+to point at `${SITE_URL}/auth/callback?token=…` so the page can
+verify server-side without ever touching the token in JS — buys the
+elimination of a few hundred milliseconds of JS-visible token
+exposure at the cost of template plumbing that breaks on every
+GoTrue mailer-template variable rename, which exceeds the security
+delta's value for Cairn's data-sensitivity tier (a collaborative
+ranked-lists app, not payments or healthcare).
+
+The new flow end-to-end:
+
+```
+[POST /auth/magiclink {email, redirect_to: ${origin}/auth/callback}]
+   → via Vite proxy → GoTrue
+   → 200; email queued
+
+[Mailpit email]
+   <a href="http://localhost:9999/verify?token=…&type=magiclink
+            &redirect_to=http://localhost:5173/auth/callback">
+
+[user click]
+   browser → GoTrue /verify (port 9999 directly; no Vite proxy)
+   → GoTrue validates token; 302 with
+     Location: http://localhost:5173/auth/callback
+               #access_token=…&refresh_token=…&type=magiclink
+
+[/auth/callback mount]
+   1. capture hash; history.replaceState to strip it
+   2. await bootSession(); if signed-in → goto('/')
+   3. parse hash for {access_token, refresh_token, type, error}
+   4. POST /auth/token?grant_type=refresh_token {refresh_token}
+      → via Vite proxy
+      → cookie-plant shim sets Set-Cookie: cairn_session=…
+        strips access_token + refresh_token from body
+   5. setSignedIn(user); goto('/', { replaceState: true })
+```
+
+Every piece of Phase 1–4 plumbing — the Vite cookie-plant shim's
+`COOKIE_PLANT_PATHS` narrow, the bearer-attach narrow, the route
+guard, the session store, the `pendingLogin` flow — stays as-is.
+`COOKIE_PLANT_PATHS` already contains both `/auth/verify` and
+`/auth/token`, so the active cookie-plant path (`/auth/token` for
+the refresh-token exchange) fits the existing narrow without
+widening. The `/auth/callback` PUBLIC bypass on the route guard
+still applies. Phase 6's work is concentrated on (a) docs/
+requirements/plan narrative alignment (Task 6.1), (b) the
+`sendMagicLink` endpoint + body and the `GOTRUE_URI_ALLOW_LIST`
+widen needed for the explicit `redirect_to` to survive (Task 6.2),
+(c) the callback page implementation plus the new
+`exchangeRefreshToken` helper (Task 6.3), (d) the Playwright
+happy-path spec for the redirect chain, which supersedes Task 5.2
+(Task 6.4), and (e) a final gauntlet plus a grep cleanup that
+drops the now-misleading `GOTRUE_MAILER_URLPATHS_MAGICLINK` from
+`docker-compose.yml` (Task 6.5). **R16** captures the endpoint
+choice; **R1**, **R3**, **R10**, **R11** carry the corresponding
+client-side and infra detail; `architecture.md`'s Considered-and-
+rejected section records the custom-mailer-template alternative.

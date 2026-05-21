@@ -124,7 +124,13 @@
     "DBeaver",
     "Postico",
     "tabletop",
-    "Brave"
+    "Brave",
+    // Canonical (mis)spelling of the HTTP `Referer` header — baked into
+    // RFC 7231; we cite it when documenting GoTrue's redirect_to fallback.
+    "Referer",
+    // Coined in plans/0300_auth_http_client to describe the orphan
+    // 6-digit OTP code that `/auth/otp` emits but Cairn has no UI for.
+    "unwirable"
   ],
   "flagWords": [],
   "allowCompoundWords": true
