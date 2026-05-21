@@ -1,21 +1,28 @@
 <script lang="ts">
+	import type { Component } from 'svelte';
+
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 
 	import Button from '$lib/basic/components/Button.svelte';
-	import { devPasswordSignIn, HttpError, sendMagicLink } from '$lib/auth/model/auth-client';
+	import { HttpError, sendMagicLink } from '$lib/auth/model/auth-client';
 	import { isDevLoginShortcutEnabled } from '$lib/auth/model/dev-shortcut';
 	import { setPendingLogin } from '$lib/auth/state/pending-login.svelte';
 	import CairnGlyph from '$lib/shared/components/CairnGlyph.svelte';
 	import Snackbar from '$lib/shared/components/Snackbar.svelte';
-	import { setSignedIn } from '$lib/shared/state/session.svelte';
 
 	const SNACKBAR_MESSAGE = "Couldn't reach the server. Try again.";
-	const DEV_USERS = [
-		{ name: 'alice', email: 'alice@example.test' },
-		{ name: 'bob', email: 'bob@example.test' },
-		{ name: 'carol', email: 'carol@example.test' }
-	] as const;
+
+	let DevShortcuts: Component<{
+		sending: boolean;
+		setSending: (v: boolean) => void;
+		onInlineError: (m: string) => void;
+		onServerError: () => void;
+	}> | null = $state(null);
+
+	if (import.meta.env.DEV) {
+		void import('./DevShortcuts.svelte').then((m) => (DevShortcuts = m.default));
+	}
 
 	const devShortcutEnabled = isDevLoginShortcutEnabled();
 
@@ -47,24 +54,6 @@
 		} catch (err) {
 			if (isHttpError400(err)) {
 				inlineError = err.message || 'Please check the email and try again.';
-			} else {
-				errorSnack = true;
-			}
-		} finally {
-			sending = false;
-		}
-	}
-
-	async function onDevLogin(devEmail: string) {
-		if (sending) return;
-		sending = true;
-		inlineError = null;
-		try {
-			const { user } = await devPasswordSignIn(devEmail, import.meta.env.VITE_DEV_LOGIN_PASSWORD);
-			setSignedIn(user);
-		} catch (err) {
-			if (isHttpError400(err)) {
-				inlineError = err.message || 'Sign-in failed. Check the dev password and try again.';
 			} else {
 				errorSnack = true;
 			}
@@ -115,19 +104,13 @@
 			Your data lives on a small server in Germany.
 		</div>
 
-		{#if devShortcutEnabled}
-			<div class="dev-shortcuts">
-				{#each DEV_USERS as user (user.name)}
-					<Button
-						variant="ghost"
-						disabled={sending}
-						data-test={`dev-login-${user.name}`}
-						onclick={() => onDevLogin(user.email)}
-					>
-						Sign in as {user.name}
-					</Button>
-				{/each}
-			</div>
+		{#if DevShortcuts && devShortcutEnabled}
+			<DevShortcuts
+				{sending}
+				setSending={(v) => (sending = v)}
+				onInlineError={(m) => (inlineError = m)}
+				onServerError={() => (errorSnack = true)}
+			/>
 		{/if}
 	</form>
 </div>
@@ -220,12 +203,5 @@
 		color: var(--stone);
 		text-align: center;
 		line-height: 1.5;
-	}
-
-	.dev-shortcuts {
-		margin-top: 24px;
-		display: flex;
-		flex-direction: column;
-		gap: 8px;
 	}
 </style>
