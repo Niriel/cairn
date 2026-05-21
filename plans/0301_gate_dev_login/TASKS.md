@@ -400,10 +400,26 @@ trips svelte-check.
 
 ## Phase 3 — verify the prod bundle and close out
 
-### [ ] 3.1 Bundle grep + full check, tick the master plan
+### [x] 3.1 Bundle grep + full check, tick the master plan
 
 **Created:** 2026-05-21T12:04:34Z
-**Completed:**
+**Completed:** 2026-05-21T12:47:14Z
+
+**Notes:**
+- All four forbidden strings (`alice@example.test`, `Sign in as`,
+  `grant_type=password`, `cairn-dev`) absent from
+  `web/build/_app/immutable/` after `pnpm build`. R1 acceptance met.
+- `./scripts/check.sh` (without `--e2e`) is fully green: prettier,
+  eslint, svelte-check, sqlfluff, shellcheck, shfmt, pgTAP, Vitest.
+- `./scripts/check.sh --e2e` fails on the existing
+  `e2e/auth.spec.ts:28` assertion — the callback page does not strip
+  the hash fragment and navigate to `/`. Verified by checking out
+  `main`'s files: the same failure reproduces, so it is *pre-existing
+  breakage* in the magic-link callback flow added by commit `8ba30d0`
+  / `f6c06c2`, not a regression introduced by this plan. Flagging for
+  the user — likely a fix for a future task or its own follow-up
+  plan. The webkit row of the same suite separately fails with a
+  Playwright system-deps error, unrelated.
 
 **Why:** R1 is the load-bearing requirement and the only one not
 covered by unit tests. The acceptance evidence is a `pnpm build`

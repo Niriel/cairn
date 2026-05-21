@@ -67,7 +67,7 @@ where their dependencies make sense — see Sequencing rationale below.
    authenticated views, and a thin PostgREST wrapper that attaches the
    bearer token. Vitest unit tests + a Playwright magic-link happy
    path (using Mailpit).
-   - [ ] **0301: gate the dev-login shortcut so it doesn't ship to
+   - [x] **0301: gate the dev-login shortcut so it doesn't ship to
      prod.** Svelte's runtime `{#if}` in `LoginRequest.svelte` does
      not prune the dead branch in the prod bundle — `pnpm build` +
      grep confirms the three seed emails, the "Sign in as ..."
