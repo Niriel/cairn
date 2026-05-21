@@ -81,10 +81,12 @@ function App() {
   // Each artboard's content matches the device's content area exactly
   const screens = [
     // === ONBOARDING ===
-    { sec: 'onboarding', id: 'login-request', label: '01  ·  Sign in (request link)',
+    { sec: 'onboarding', id: 'login-request', label: '01  ·  Request a magic link',
       render: () => <LoginRequest theme={theme}/> },
     { sec: 'onboarding', id: 'login-check', label: '02  ·  Check your inbox',
       render: () => <LoginCheck theme={theme}/> },
+    { sec: 'onboarding', id: 'magic-link-refused', label: '02b ·  One screen, five outcomes — the anti-enumeration contract', bare: true, width: 1380, height: 1040,
+      render: () => <MagicLinkRefusedBoard theme={theme} Frame={Frame}/> },
     { sec: 'onboarding', id: 'empty-lists', label: '03  ·  Empty lists state',
       render: () => <EmptyListsScreen theme={theme}/> },
 

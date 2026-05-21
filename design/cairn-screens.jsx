@@ -164,7 +164,7 @@ function LoginRequest({ theme }) {
             marginTop: 18, fontSize: 12, color: theme.stone,
             textAlign: 'center', lineHeight: 1.5,
           }}>
-            No password. We'll email you a link that signs you in.<br/>
+            No password. We'll email you a link to continue.<br/>
             Your data lives on a small server in Germany.
           </div>
         </div>
@@ -173,7 +173,13 @@ function LoginRequest({ theme }) {
   );
 }
 
-// 2) LOGIN — check your inbox
+// 2) LOGIN — check your inbox. The single canonical post-submit screen,
+// shown after "Send me a magic link" regardless of what GoTrue actually did:
+// link sent, account banned, account unconfirmed, send rate-limited, or
+// email doesn't resolve to any account. The indistinguishability is
+// structural — same screen, same copy, every time. See admin.md → "What
+// the web app shows when a banned user tries to sign in." "Continue" rather
+// than "sign in" so the copy reads naturally for first-time users too.
 function LoginCheck({ theme }) {
   return (
     <ScreenShell theme={theme}>
@@ -199,7 +205,7 @@ function LoginCheck({ theme }) {
           lineHeight: 1.5, maxWidth: 280,
         }}>
           We sent a link to <b style={{ color: theme.ink }}>alice@example.net</b>.
-          Tap it on this device to sign in.
+          Tap it on this device to continue.
         </div>
         <div style={{
           marginTop: 28, fontSize: 13, color: theme.stone,
@@ -208,6 +214,169 @@ function LoginCheck({ theme }) {
         </div>
       </div>
     </ScreenShell>
+  );
+}
+
+// 2c) Onboarding decision board — documents the anti-enumeration contract:
+// the optimistic phone screen above is what the user sees in every one of the
+// five GoTrue outcomes. Shape mirrors StorageDecisionBoard.
+function MagicLinkRefusedBoard({ theme, Frame }) {
+  const Mono = ({ children }) => (
+    <code style={{
+      fontFamily: '"JetBrains Mono", ui-monospace, monospace',
+      fontSize: 12, background: theme.paperAlt,
+      padding: '1px 6px', borderRadius: 4, border: `1px solid ${theme.rule}`,
+      color: theme.ink,
+    }}>{children}</code>
+  );
+  const SectionTitle = ({ children }) => (
+    <div style={{
+      fontSize: 11, fontWeight: 700, letterSpacing: '0.08em',
+      textTransform: 'uppercase', color: theme.stone, marginBottom: 10,
+    }}>{children}</div>
+  );
+  const Case = ({ icon, color, primary, secondary }) => (
+    <div style={{
+      display: 'flex', alignItems: 'flex-start', gap: 12,
+      padding: '10px 0', borderTop: `1px solid ${theme.rule}`,
+    }}>
+      <div style={{
+        width: 22, height: 22, borderRadius: 99, flexShrink: 0,
+        background: color + '22', color,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        marginTop: 1,
+      }}>
+        <Icon name={icon} size={13} color="currentColor" strokeWidth={2.25}/>
+      </div>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontSize: 13, color: theme.ink, fontWeight: 500, lineHeight: 1.35 }}>
+          {primary}
+        </div>
+        <div style={{ fontSize: 12, color: theme.inkSoft, marginTop: 2, lineHeight: 1.45 }}>
+          {secondary}
+        </div>
+      </div>
+    </div>
+  );
+  const Antipattern = ({ text, why }) => (
+    <div style={{
+      padding: '10px 12px',
+      borderRadius: 10,
+      background: theme.paper,
+      border: `1px solid ${theme.rule}`,
+      borderLeft: `3px solid ${theme.ember}`,
+      marginBottom: 8,
+    }}>
+      <div style={{
+        fontFamily: '"Newsreader", Georgia, serif', fontStyle: 'italic',
+        fontSize: 13.5, color: theme.ink, lineHeight: 1.35,
+      }}>“{text}”</div>
+      <div style={{ fontSize: 11.5, color: theme.stone, marginTop: 4, lineHeight: 1.4 }}>
+        {why}
+      </div>
+    </div>
+  );
+
+  return (
+    <div style={{
+      width: '100%', height: '100%', overflow: 'hidden',
+      background: theme.paperAlt, borderRadius: 16,
+      padding: '26px 30px',
+      fontFamily: '"Geist", system-ui, sans-serif',
+      color: theme.ink,
+      border: `1px solid ${theme.rule}`,
+      display: 'flex', flexDirection: 'column', gap: 18,
+    }}>
+      {/* Title row */}
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 14, flexWrap: 'wrap' }}>
+        <div style={{
+          fontFamily: '"Newsreader", Georgia, serif',
+          fontSize: 28, fontWeight: 500, letterSpacing: '-0.02em', lineHeight: 1.1,
+        }}>One screen, five outcomes — anti-enumeration by structure</div>
+        <div style={{
+          fontSize: 13, color: theme.stone, fontStyle: 'italic',
+          fontFamily: '"Newsreader", Georgia, serif',
+        }}>
+          The screen is identical in every case. That's the entire mechanism.
+        </div>
+      </div>
+
+      {/* Body: phone + rationale columns */}
+      <div style={{ display: 'flex', gap: 24, flex: 1, minHeight: 0, alignItems: 'stretch' }}>
+        {/* Phone on the left */}
+        <div style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          flexShrink: 0,
+        }}>
+          <Frame><LoginCheck theme={theme}/></Frame>
+        </div>
+
+        {/* Two-column rationale on the right */}
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 16, minWidth: 0 }}>
+
+          {/* What lands here */}
+          <div style={{
+            background: theme.paper, borderRadius: 14, padding: '18px 20px',
+            border: `1px solid ${theme.rule}`,
+          }}>
+            <SectionTitle>What lands on this screen</SectionTitle>
+            <Case icon="check" color={theme.sage}
+              primary="Email exists. Link sent."
+              secondary="The normal case. The user clicks the link in their inbox."/>
+            <Case icon="slash" color={theme.ember}
+              primary="Email exists. Account is banned."
+              secondary={<>GoTrue refuses to issue a link for any account whose <Mono>banned_until</Mono> is in the future. See admin.md → <i>ban_user</i>.</>}/>
+            <Case icon="mail" color={theme.stone}
+              primary="Email exists. Account is unconfirmed."
+              secondary={<>Signup happened but the confirmation link wasn't clicked. <Mono>GOTRUE_MAILER_AUTOCONFIRM=false</Mono> in production.</>}/>
+            <Case icon="rotate-ccw" color={theme.stone}
+              primary="Email exists. Send is rate-limited."
+              secondary="GoTrue throttles repeated link requests for the same address."/>
+            <Case icon="slash" color={theme.stone}
+              primary="Email doesn't resolve to any account."
+              secondary="Typo, never signed up, or already deleted. Nothing is sent. Nothing is said."/>
+          </div>
+
+          {/* What we never show */}
+          <div style={{
+            background: theme.paper, borderRadius: 14, padding: '18px 20px',
+            border: `1px solid ${theme.rule}`,
+          }}>
+            <SectionTitle>What we deliberately never show</SectionTitle>
+            <Antipattern
+              text="This account has been suspended. Contact support."
+              why="Confirms the account exists and reveals the moderation decision to anyone who can guess the email."/>
+            <Antipattern
+              text="No Cairn account for that address."
+              why="Lets an attacker probe the user database one email at a time."/>
+            <Antipattern
+              text="Try again — we couldn't send last time."
+              why="Distinguishes the success path from the failure paths, breaking the indistinguishability above."/>
+          </div>
+
+          {/* The rule */}
+          <div style={{
+            padding: '12px 16px', borderRadius: 12,
+            background: theme.ink, color: theme.paper,
+            fontSize: 12.5, lineHeight: 1.55, fontStyle: 'italic',
+            fontFamily: '"Newsreader", Georgia, serif',
+          }}>
+            The web app treats every non-2xx response from{' '}
+            <code style={{
+              fontFamily: '"JetBrains Mono", monospace', fontStyle: 'normal',
+              fontSize: 11.5, background: 'rgba(255,255,255,0.12)',
+              padding: '1px 6px', borderRadius: 4,
+            }}>POST /auth/magiclink</code>{' '}
+            as a success in the UI. Same screen, same copy, same “Send again” affordance.
+            The signal lives in GoTrue's logs and in <code style={{
+              fontFamily: '"JetBrains Mono", monospace', fontStyle: 'normal',
+              fontSize: 11.5, background: 'rgba(255,255,255,0.12)',
+              padding: '1px 6px', borderRadius: 4,
+            }}>admin.actions</code>, not on the screen.
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -1408,7 +1577,8 @@ function ItemsScreenTombstone({ theme }) {
 // Make accessible globally
 Object.assign(window, {
   ScreenShell, TopBar, IconBtn, FAB, Avatar, ItemRow, ItemPanel,
-  LoginRequest, LoginCheck, ListsScreen, EmptyListsScreen, ItemsScreen,
+  LoginRequest, LoginCheck, MagicLinkRefusedBoard,
+  ListsScreen, EmptyListsScreen, ItemsScreen,
   EmptyListScreen, AddItemScreen, EditItemScreen, DeleteItemScreen,
   AddListScreen, ListMenuScreen, MembersScreen,
   SettingsScreen, SettingsScreenV2, TrashScreen, ItemsScreenWithUndo,
