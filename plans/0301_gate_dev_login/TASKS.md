@@ -215,10 +215,22 @@ error wording identical so the test ports are mechanical.
 
 ## Phase 2 — rewire `LoginRequest.svelte`
 
-### [ ] 2.1 Trim and re-shape `LoginRequest.test.ts` (PREP)
+### [x] 2.1 Trim and re-shape `LoginRequest.test.ts` (PREP)
 
 **Created:** 2026-05-21T12:04:34Z
-**Completed:**
+**Completed:** 2026-05-21T12:33:54Z
+
+**Notes:**
+- Task predicted `(b)` and `(j)` would fail in PREP because the parent
+  still inlines the dev buttons synchronously. They don't — when the
+  buttons are already in the DOM, `vi.waitFor` resolves on the first
+  poll, so the tests pass. This is harmless: the shape is correct,
+  and Task 2.2 will turn the `waitFor` calls load-bearing.
+- `(j)` still needs to mock `devPasswordSignIn` to keep the click in
+  flight. The task said to drop the static import; I used a dynamic
+  `await import('$lib/auth/model/auth-client')` inside the test to
+  reach the auto-mocked function without re-introducing the
+  top-level import.
 
 **Why:** The parent's test suite currently covers dev-shortcut
 behaviour directly. Now that the child component owns that behaviour
