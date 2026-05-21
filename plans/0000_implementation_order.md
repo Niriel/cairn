@@ -62,7 +62,7 @@ where their dependencies make sense — see Sequencing rationale below.
    Vitest component tests, including a back-stack assertion on at
    least one overlay primitive.
 
-3. [ ] **Auth + HTTP client.** GoTrue magic-link request and "check your
+3. [x] **Auth + HTTP client.** GoTrue magic-link request and "check your
    inbox" screens, session store with refresh, route guard for
    authenticated views, and a thin PostgREST wrapper that attaches the
    bearer token. Vitest unit tests + a Playwright magic-link happy
