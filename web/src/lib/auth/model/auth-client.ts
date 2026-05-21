@@ -58,7 +58,13 @@ function assertAuthUser(value: unknown): asserts value is AuthUser {
 }
 
 export async function sendMagicLink(email: string): Promise<void> {
-	await postJson<unknown>('/otp', { email, create_user: true });
+	// GoTrue v2.158.1's MagicLinkParams struct has no RedirectTo field, so
+	// `redirect_to` in the JSON body is silently dropped by encoding/json.
+	// The accepted carriers are the query string, a `redirect_to` header,
+	// or a form-encoded body — query string is the cleanest. See Task 6.2
+	// Notes for the empirical trace.
+	const redirectTo = encodeURIComponent(`${window.location.origin}/auth/callback`);
+	await postJson<unknown>(`/magiclink?redirect_to=${redirectTo}`, { email });
 }
 
 export async function verifyToken(args: {

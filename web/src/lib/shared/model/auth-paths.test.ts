@@ -34,8 +34,8 @@ describe('isSegmentMatch against PUBLIC_AUTH_PATHS', () => {
 		expect(isSegmentMatch('/auth/loginx', PUBLIC_AUTH_PATHS)).toBe(false);
 	});
 
-	test('unrelated /auth/otp is not in PUBLIC_AUTH_PATHS', () => {
-		expect(isSegmentMatch('/auth/otp', PUBLIC_AUTH_PATHS)).toBe(false);
+	test('unrelated /auth/unknown is not in PUBLIC_AUTH_PATHS', () => {
+		expect(isSegmentMatch('/auth/unknown', PUBLIC_AUTH_PATHS)).toBe(false);
 	});
 });
 
@@ -66,8 +66,8 @@ describe('isSegmentMatch against BEARER_AUTH_PATHS', () => {
 		expect(isSegmentMatch('/auth/userx', BEARER_AUTH_PATHS)).toBe(false);
 	});
 
-	test('/auth/otp is not in BEARER_AUTH_PATHS', () => {
-		expect(isSegmentMatch('/auth/otp', BEARER_AUTH_PATHS)).toBe(false);
+	test('/auth/unknown is not in BEARER_AUTH_PATHS', () => {
+		expect(isSegmentMatch('/auth/unknown', BEARER_AUTH_PATHS)).toBe(false);
 	});
 });
 

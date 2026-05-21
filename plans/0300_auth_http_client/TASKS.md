@@ -1046,10 +1046,14 @@ Phase 4 wires the session store into `+layout.svelte`, adds the route guard, and
 
 Phase 6 lands the magic-link login flow end-to-end. `supabase/gotrue:v2.158.1`'s `/magiclink` endpoint does **not** honour `GOTRUE_MAILER_URLPATHS_MAGICLINK`: the email's `<a href>` routes through GoTrue's own `/verify` endpoint on port 9999 regardless of which send endpoint (`/otp` or `/magiclink`) is called and regardless of whether `redirect_to` is in the request body. Rather than chase the link-template shape via custom mailer templates (`MAILER_TEMPLATES_*`), Phase 6 adopts the **standard Supabase hash-fragment flow** that `@supabase/supabase-js` and every public Supabase tutorial assume. The cost is real: `docs/architecture.md:233`'s "the web app's JavaScript never sees the token" contract relaxes to a brief in-callback exposure window; the residual XSS-during-callback risk is documented as an acknowledged trade-off rather than mitigated by bespoke templating. The full flow is: email link → GoTrue `/verify` (302 with tokens in URL hash) → SvelteKit `/auth/callback` → `history.replaceState` strips the hash → JS exchanges the refresh token through the Vite proxy → the cookie-plant shim plants the HttpOnly `cairn_session`. Phase 6 sits physically above Phase 5 in this file so `/work` picks up its tasks before falling through to Phase 5's superseded `5.2` spec slot.
 
-### [ ] 6.1 Align docs, requirements, and PLAN narrative with the hash-fragment flow
+### [x] 6.1 Align docs, requirements, and PLAN narrative with the hash-fragment flow
 
 **Created:** 2026-05-21T08:28:05Z
-**Completed:**
+**Completed:** 2026-05-21T09:46:51Z
+
+**Notes:**
+
+- The actual doc/requirement/PLAN edits enumerated in this task's Decisions were already applied in commit `8a0afd2` ("chore(plan): append Phase 6 hash-fragment magic-link flow") as part of authoring the Phase 6 task block itself. This `/work` invocation only re-ran the Verify gates: `grep -rnE '/auth/otp\b' docs/ plans/0300_auth_http_client/PLAN.md plans/0300_auth_http_client/REQUIREMENTS.md` returns only the five deliberate alias-explanation hits (`docs/architecture.md:240`, `REQUIREMENTS.md:69` in R1, `:699` in historical commentary, `:820` and `:846` in R16's rationale — all are the "explain why we picked magiclink over otp" hits the task's Step 5 explicitly allowed as judgement calls). `pnpm exec prettier --check` on the four edited files (`docs/architecture.md`, `docs/development.md`, `plans/0300_auth_http_client/REQUIREMENTS.md`, `plans/0300_auth_http_client/PLAN.md`) returns "All matched files use Prettier code style!". The Phase 6 PLAN.md section at lines 408–480 explicitly names the JS-token contract relaxation and links to the architecture.md Security-trade-off subsection. The wider `pnpm exec prettier --check ../docs ../plans/0300_auth_http_client` reports 15 unrelated files with pre-existing style issues (`account-deletion.md`, `avatars.md`, `circles.md`, `data-export.md`, `data-model.md`, `deployment.md`, `frontend-layout.md`, `invites.md`, `logging.md`, `open-questions.md`, `quality.md`, `README.md`, `testing.md`, `ui.md`, `vps-rollout.md`) — none are touched by Phase 6.1 or any task in this plan; flagging for the user as a separate cleanup opportunity outside this branch's scope.
 
 **Why:** Documentation alignment leads Phase 6. Before any code lands, the docs (`docs/architecture.md`, `docs/development.md`), the requirements (`REQUIREMENTS.md` R1/R3/R10/R11/R16), and the plan narrative (`PLAN.md` Phase 6) must describe the standard hash-fragment flow Cairn is adopting — otherwise downstream tasks read a stale spec and Tasks 6.2–6.5 land code that contradicts the system-of-record. The JS-token contract relaxation is an explicit user-accepted trade-off; this task captures that acceptance in writing.
 
@@ -1095,10 +1099,19 @@ Phase 6 lands the magic-link login flow end-to-end. `supabase/gotrue:v2.158.1`'s
 
 **Verify:** `grep -rnE '/auth/otp\b' docs/ plans/0300_auth_http_client/PLAN.md plans/0300_auth_http_client/REQUIREMENTS.md` returns no results in active prose · `pnpm exec prettier --check` green on the edited files · the new Phase 6 PLAN.md section explicitly names the JS-token contract relaxation and links to the architecture.md Security-trade-off subsection.
 
-### [ ] 6.2 Widen `GOTRUE_URI_ALLOW_LIST`; update `sendMagicLink` endpoint and body
+### [x] 6.2 Widen `GOTRUE_URI_ALLOW_LIST`; update `sendMagicLink` endpoint and body
 
 **Created:** 2026-05-21T08:28:05Z
-**Completed:**
+**Completed:** 2026-05-21T10:11:52Z
+
+**Notes:**
+
+- **Decisions were wrong about how `redirect_to` reaches GoTrue.** In `supabase/gotrue:v2.158.1`, `MagicLinkParams` (`internal/api/magic_link.go`) has no `RedirectTo` field, so Go's `encoding/json` silently drops the JSON body's `redirect_to`. The accepted carriers per `internal/utilities/request.go::getRedirectTo` are (1) the `redirect_to` HTTP header, (2) `r.Form.Get("redirect_to")` which covers the URL query string and `application/x-www-form-urlencoded` bodies. We switched `sendMagicLink` to put `redirect_to` in the **query string** (cleanest of the three; no header plumbing, no content-type change). Empirical re-probe confirms the email's `<a href>` now carries `redirect_to=http://localhost:5173/auth/callback` unchanged.
+- **`GOTRUE_URI_ALLOW_LIST` widen was unnecessary** — `IsRedirectURLValid` short-circuits to `true` when `url.Hostname(SITE_URL) == url.Hostname(redirect_to)`, so a same-host `redirect_to` never consults the allow list. Reverted `docker-compose.yml` to `GOTRUE_URI_ALLOW_LIST: http://localhost:5173`. Prod (different host) will need the allow-list entry; that lands with the prod-deploy plan, not here.
+- **Diagnostic trail:** initial widens to `http://localhost:5173,http://localhost:5173/auth/callback` and to `…/**` both left the email link emitting `redirect_to=http://localhost:5173` (bare origin). GoTrue logs showed no rejection, and the magiclink POST returned 200. Source dive into the v2.158.1 tag found the missing struct field — the allow-list was innocent the whole time.
+- **R1 / R16 / R11 wording now diverges from the code:** the requirements describe the JSON-body `{email, redirect_to}` shape and the allow-list widen as the load-bearing pieces of this task. The code shape is now `POST /magiclink?redirect_to=…` with body `{email}`, and the allow-list change is reverted. Flagging for a follow-up edit to PLAN.md/REQUIREMENTS.md (or to be picked up in Task 6.5's cleanup).
+- **Test shape update:** `auth-client.test.ts` now asserts the path is `/auth/magiclink`, the query string carries `redirect_to`, and the JSON body equals `{email}` exactly (was `toMatchObject`, now `toEqual` to pin the absence of the dropped field).
+- The `comma form` vs `**` glob debugging in this task's prior probe history is preserved in PR conversation rather than re-litigated in this Notes block.
 
 **Why:** Two coupled changes needed to make the explicit `redirect_to=${origin}/auth/callback` survive end-to-end. (a) `GOTRUE_URI_ALLOW_LIST` currently is `http://localhost:5173` (no path) — GoTrue silently strips the request body's `redirect_to` path on the way out, so the email's link uses `redirect_to=http://localhost:5173` (bare origin) and the post-`/verify` 302 lands on `/`, not `/auth/callback`. Widening the allow-list to include the callback URL fixes this. (b) `sendMagicLink` still POSTs to `/auth/otp` with `{email, create_user: true}` (Task 3.1's body shape); it must POST to `/auth/magiclink` with `{email, redirect_to}` per the docs-aligned R1 / R16.
 
@@ -1309,7 +1322,7 @@ Phase 6 lands the magic-link login flow end-to-end. `supabase/gotrue:v2.158.1`'s
 **Created:** 2026-05-21T08:28:05Z
 **Completed:**
 
-**Why:** Phase 6 touched docs, requirements, plan, infra (docker-compose), and four chunks of web code. A final pass with the full toolchain catches incidental breakage (a stale import, a lint drift, a missed reference), and a final grep for now-dead identifiers (`verifyToken`, stale `/auth/otp` mentions) confirms the cleanup landed. Also: removes the now-misleading `GOTRUE_MAILER_URLPATHS_MAGICLINK` from `docker-compose.yml` since v2.158.1 ignores it on `/magiclink` — keeping it in the file would invite a future contributor to assume it's load-bearing.
+**Why:** Phase 6 touched docs, requirements, plan, infra (docker-compose), and four chunks of web code. A final pass with the full toolchain catches incidental breakage (a stale import, a lint drift, a missed reference), and a final grep for now-dead identifiers (`verifyToken`, stale `/auth/otp` mentions) confirms the cleanup landed. Also: removes the now-misleading `GOTRUE_MAILER_URLPATHS_MAGICLINK` from `docker-compose.yml` since v2.158.1 ignores it on `/magiclink` — keeping it in the file would invite a future contributor to assume it's load-bearing. **Task 6.2's Notes flagged a deviation from the originally-planned `{email, redirect_to}` JSON body shape and the `GOTRUE_URI_ALLOW_LIST` widen: `MagicLinkParams` in v2.158.1 has no `RedirectTo` field, so the body field is silently dropped, and same-host `redirect_to` short-circuits the allow-list check. The 6.2 Notes block already records the diagnostic trail; the in-line edits to PLAN.md, REQUIREMENTS.md, and docs/architecture.md were applied as part of that task. 6.5's grep step catches any straggling references this round of edits missed.**
 
 **Prerequisites:** Tasks 6.1, 6.2, 6.3, 6.4.
 
@@ -1322,8 +1335,11 @@ Phase 6 lands the magic-link login flow end-to-end. `supabase/gotrue:v2.158.1`'s
   - `grep -rnE '\bverifyToken\b' web/src/` → no results.
   - `grep -rnE '/auth/otp\b' web/src/ docs/ plans/0300_auth_http_client/` → no results in active prose.
   - `grep -rnE 'GOTRUE_MAILER_URLPATHS_MAGICLINK' .` → only present in the planning artifact / git log; not in `docker-compose.yml`.
+  - `grep -rnE 'create_user' web/src/ docs/ plans/0300_auth_http_client/` → no results in active prose (the `/magiclink` endpoint never accepted this flag; any surviving reference is a stale `/otp` carry-over).
+  - **Body-shape regression guard.** `grep -rnE '\{email,\s*redirect_to\}' plans/0300_auth_http_client/ docs/` → no results. The query-string carrier is the load-bearing contract; a body-shape `{email, redirect_to}` mention surviving anywhere in active prose is a regression risk because a future contributor would copy it back into `auth-client.ts` and break the flow silently (the field is dropped by `encoding/json` without any error).
+  - **Allow-list regression guard.** `grep -rnE 'http://localhost:5173/auth/callback' docker-compose.yml` → no results (the dev `GOTRUE_URI_ALLOW_LIST` stays bare-origin per R11). If the file contains the callback URL as an allow-list entry, the 6.2 revert didn't land or a later edit reintroduced it.
 
-**Reference:** `CLAUDE.md` "Tests and quality (non-negotiable)" for the verify gauntlet.
+**Reference:** `CLAUDE.md` "Tests and quality (non-negotiable)" for the verify gauntlet. Task 6.2's Notes for the empirical trace behind the body-shape and allow-list regression guards.
 
 **Files:**
 
@@ -1334,10 +1350,10 @@ Phase 6 lands the magic-link login flow end-to-end. `supabase/gotrue:v2.158.1`'s
 1. Edit `docker-compose.yml` to drop the `GOTRUE_MAILER_URLPATHS_MAGICLINK` line.
 2. Restart GoTrue: `docker compose up -d gotrue`.
 3. Run `./scripts/check.sh` and require all green.
-4. Run the three greps in Decisions; all must return zero results in active code/docs.
+4. Run the five greps in Decisions; all must return zero results in active code/docs (the two new guards — body-shape and allow-list — are net-new from the 6.2 deviation).
 5. Manual smoke per Decisions (5-minute browser-driven flow).
 
-**Verify:** `./scripts/check.sh` green · all three greps clean · manual smoke completes (signed-in → cookie present, sign out → cookie cleared, route guard re-engages).
+**Verify:** `./scripts/check.sh` green · all five greps clean · manual smoke completes (signed-in → cookie present, sign out → cookie cleared, route guard re-engages).
 
 ## Phase 5 — End-to-end coverage
 

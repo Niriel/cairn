@@ -237,7 +237,7 @@ A typical "show me my lists" request, from a logged-in user with the session coo
 A login request:
 
 1. User enters email in the web app.
-2. App sends `POST https://cairn.<domain>/auth/magiclink` with `{email, redirect_to: ${origin}/auth/callback}`. (`/auth/otp` is a GoTrue alias for the same handler; we standardise on `/auth/magiclink` because that is the name the public Supabase SDK and tutorials use.)
+2. App sends `POST https://cairn.<domain>/auth/magiclink?redirect_to=${encodeURIComponent(origin + '/auth/callback')}` with body `{email}`. `redirect_to` rides in the query string because in `supabase/gotrue:v2.158.1` the JSON body's `redirect_to` field is silently dropped by Go's `encoding/json` (the `MagicLinkParams` struct has no `RedirectTo` field; GoTrue reads `redirect_to` only from the header, query string, or form-encoded body). (`/auth/otp` is a GoTrue alias for the same handler; we standardise on `/auth/magiclink` because that is the name the public Supabase SDK and tutorials use.)
 3. GoTrue generates a one-time token and emails a link of the shape `https://cairn.<domain>/auth/verify?token=…&type=magiclink&redirect_to=…/auth/callback`.
 4. User taps the link, which opens GoTrue's `/auth/verify` endpoint (in production, fronted by Caddy; in dev, directly on `localhost:9999`). GoTrue validates the token.
 5. GoTrue issues a 302 to `https://cairn.<domain>/auth/callback#access_token=…&refresh_token=…&type=magiclink` — the tokens travel in the URL hash fragment, which the browser does not include in the redirect request to the new URL.

@@ -29,27 +29,33 @@ afterEach(() => {
 const SEED_USER = { id: '11111111-1111-1111-1111-111111111111', email: 'dev@example.test' };
 
 describe('sendMagicLink', () => {
-	test('POSTs `${VITE_AUTH_BASE}/otp` with {email, create_user: true}', async () => {
+	test('POSTs `${VITE_AUTH_BASE}/magiclink?redirect_to=…` with {email}', async () => {
 		let seenPath: string | null = null;
+		let seenRedirectTo: string | null = null;
 		let seenContentType: string | null = null;
 		let seenBody: unknown = null;
 		server.use(
-			http.post('*/auth/otp', async ({ request }) => {
-				seenPath = new URL(request.url).pathname;
+			http.post('*/auth/magiclink', async ({ request }) => {
+				const url = new URL(request.url);
+				seenPath = url.pathname;
+				seenRedirectTo = url.searchParams.get('redirect_to');
 				seenContentType = request.headers.get('content-type');
 				seenBody = await request.json();
 				return HttpResponse.json({});
 			})
 		);
 		await mod.sendMagicLink('alice@example.test');
-		expect(seenPath).toBe('/auth/otp');
+		expect(seenPath).toBe('/auth/magiclink');
 		expect(seenContentType).toMatch(/application\/json/);
-		expect(seenBody).toEqual({ email: 'alice@example.test', create_user: true });
+		expect(seenBody).toEqual({ email: 'alice@example.test' });
+		expect(seenRedirectTo).toMatch(/\/auth\/callback$/);
 	});
 
 	test('throws on non-2xx', async () => {
 		server.use(
-			http.post('*/auth/otp', () => HttpResponse.json({ msg: 'rate limited' }, { status: 429 }))
+			http.post('*/auth/magiclink', () =>
+				HttpResponse.json({ msg: 'rate limited' }, { status: 429 })
+			)
 		);
 		const rejection = expect(mod.sendMagicLink('alice@example.test')).rejects;
 		await rejection.toBeInstanceOf(Error);

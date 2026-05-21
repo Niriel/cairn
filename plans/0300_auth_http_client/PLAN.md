@@ -284,7 +284,8 @@ they're consumed only by the auth screens and the session-store boot.
 LoginRequest                 Vite proxy                 GoTrue
 ─────────────                ──────────                 ──────
   POST /auth/magiclink ──►   forward ─────────────►    /magiclink
-   {email, redirect_to}                                  ║
+   ?redirect_to=…                                        ║
+   {email}                                               ║
                                                          ║ generates token
                                                          ║ POSTs to Mailpit SMTP
                                                          ▼
@@ -440,9 +441,14 @@ ranked-lists app, not payments or healthcare).
 The new flow end-to-end:
 
 ```
-[POST /auth/magiclink {email, redirect_to: ${origin}/auth/callback}]
+[POST /auth/magiclink?redirect_to=${origin}/auth/callback]
+   body: {email}
    → via Vite proxy → GoTrue
    → 200; email queued
+   (redirect_to MUST be a URL-encoded query param: GoTrue
+    v2.158.1's MagicLinkParams struct has no RedirectTo field,
+    so encoding/json silently drops a body-shaped redirect_to.
+    See R16.)
 
 [Mailpit email]
    <a href="http://localhost:9999/verify?token=…&type=magiclink
@@ -474,8 +480,13 @@ the refresh-token exchange) fits the existing narrow without
 widening. The `/auth/callback` PUBLIC bypass on the route guard
 still applies. Phase 6's work is concentrated on (a) docs/
 requirements/plan narrative alignment (Task 6.1), (b) the
-`sendMagicLink` endpoint + body and the `GOTRUE_URI_ALLOW_LIST`
-widen needed for the explicit `redirect_to` to survive (Task 6.2),
+`sendMagicLink` endpoint and the query-string carrier for
+`redirect_to` (Task 6.2 — the `GOTRUE_URI_ALLOW_LIST` widen this
+task originally planned turned out to be a no-op for dev: GoTrue's
+`IsRedirectURLValid` short-circuits to `true` when `redirect_to`
+and `SITE_URL` share a host, so the allow-list isn't consulted
+at all; prod will need an entry, but that lands with the prod-
+deploy plan, not here),
 (c) the callback page implementation plus the new
 `exchangeRefreshToken` helper (Task 6.3), (d) the Playwright
 happy-path spec for the redirect chain, which supersedes Task 5.2

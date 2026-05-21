@@ -38,16 +38,25 @@ writing to `pendingLogin`; a network or 5xx error surfaces via the
 snackbar primitive. The screen exists outside the route guard (R7)
 so a signed-out user can reach it.
 
-The POST goes to `/auth/magiclink` with body
-`{email, redirect_to}`, where `redirect_to` is
-`${window.location.origin}/auth/callback`. The explicit
-`redirect_to` is load-bearing: it must match
-`GOTRUE_URI_ALLOW_LIST` (set to include
-`http://localhost:5173/auth/callback` in `docker-compose.yml`,
-see R11), otherwise GoTrue silently strips the path and falls
-back to `SITE_URL`. The email GoTrue sends carries an `<a href>`
-pointing at GoTrue's own `/verify` endpoint with `token`, `type`,
-and `redirect_to` in the query string. When the user clicks the
+The POST goes to `/auth/magiclink` with body `{email}` and
+`redirect_to` carried in the **query string** as
+`?redirect_to=${encodeURIComponent(window.location.origin + '/auth/callback')}`.
+The query-string carrier is load-bearing: in
+`supabase/gotrue:v2.158.1`, `MagicLinkParams`
+(`internal/api/magic_link.go`) has no `RedirectTo` field, so a
+body-shaped `redirect_to` is silently dropped by Go's
+`encoding/json`. GoTrue's `getRedirectTo`
+(`internal/utilities/request.go`) reads from (a) the `redirect_to`
+HTTP header, (b) `r.Form.Get("redirect_to")` (URL query string or
+`application/x-www-form-urlencoded` body) — never from JSON.
+We pick the query string for cleanness (no header plumbing, no
+content-type change). Same-host `redirect_to` values short-circuit
+GoTrue's `IsRedirectURLValid` to `true` without consulting
+`GOTRUE_URI_ALLOW_LIST`, so no dev-side allow-list widen is
+needed; prod will need an entry once `SITE_URL` and `redirect_to`
+diverge in host (see R11). The email GoTrue sends carries an
+`<a href>` pointing at GoTrue's own `/verify` endpoint with
+`token`, `type`, and `redirect_to` in the query string. When the user clicks the
 link, GoTrue validates the token and 302-redirects to
 `${origin}/auth/callback#access_token=…&refresh_token=…&type=magiclink`
 — the tokens travel in the URL hash fragment, and the callback
@@ -540,23 +549,23 @@ This shim approximates what Caddy will do in production; the divergence
 `docker-compose.yml` adds three environment variables to the
 `gotrue` service:
 
-- `GOTRUE_URI_ALLOW_LIST` includes `http://localhost:5173/auth/callback`
-  as a literal entry alongside the existing `http://localhost:5173`
-  origin (the dev `SITE_URL`). The allow-list is GoTrue's redirect-
-  target check: any `redirect_to` value on a `POST /auth/magiclink`
-  must match an entry exactly (no path-substring fallback) or
-  GoTrue silently drops the path and falls back to `SITE_URL`
-  before composing the email's link. Empirically (v2.158.1 probe,
-  2026-05-21), the allow-list defaulting on `SITE_URL` is what
-  made the email's `<a href>` carry `redirect_to=http://localhost:5173`
-  (path stripped) instead of `redirect_to=http://localhost:5173/auth/callback`
-  before the widen. Adding the callback URL is what makes R1's
-  explicit body field `redirect_to: ${origin}/auth/callback`
-  survive end-to-end and the post-`/verify` 302 reach the SvelteKit
-  callback page. The narrow form (explicit URL literal) is
-  preferred over a `http://localhost:5173/**` glob — the dev
-  surface only needs the callback path; widening to a glob is a
-  future opt-in.
+- `GOTRUE_URI_ALLOW_LIST` stays at `http://localhost:5173` (the
+  dev `SITE_URL`). Empirically (v2.158.1 source dive,
+  2026-05-21), the allow-list is **not consulted** when
+  `redirect_to`'s host matches `SITE_URL`'s host:
+  `IsRedirectURLValid` short-circuits to `true` on a same-host
+  match before reaching the glob-list check. The earlier
+  symptom — the email's `<a href>` carrying
+  `redirect_to=http://localhost:5173` (path stripped) — was the
+  consequence of the JSON body shape, not the allow-list: GoTrue's
+  `MagicLinkParams` has no `RedirectTo` field, so the body field
+  was silently dropped by `encoding/json` and `redirect_to`
+  defaulted to `SITE_URL`. R1 now carries `redirect_to` in the
+  query string, which is one of the accepted carriers, and the
+  path survives end-to-end. Prod will need an entry under the
+  glob form once `SITE_URL` and `redirect_to` diverge in host (a
+  different DNS name for the callback than for the bare origin);
+  that lands with the prod-deploy plan, not Step 3.
 - `GOTRUE_MAILER_URLPATHS_MAGICLINK: /auth/callback` — set as
   defence-in-depth and forward-compatibility. **In v2.158.1 this
   env var has no observable effect on `POST /magiclink`'s email
@@ -863,20 +872,26 @@ plumbing that breaks on every GoTrue mailer-variable rename,
 exceeding the security delta's value for Cairn's
 data-sensitivity tier.
 
-The `redirect_to` body field on `POST /auth/magiclink` is set
+The `redirect_to` value on `POST /auth/magiclink` is set
 explicitly to `${window.location.origin}/auth/callback` rather
 than relying on GoTrue's default (which is `GOTRUE_SITE_URL`,
 set to `http://localhost:5173` in `docker-compose.yml:44`). The
-explicit per-call value (a) is now required because GoTrue's
-default-to-`SITE_URL` strips the callback path, landing the
-post-`/verify` 302 on `/` rather than `/auth/callback`, and
-(b) keeps dev and prod call sites structurally identical without
-env-var threading through the auth client. R11's `URI_ALLOW_LIST`
-bullet records the matching server-side widen required for the
-explicit value to survive GoTrue's redirect-target check.
+explicit per-call value (a) lands the post-`/verify` 302 on
+`/auth/callback` rather than `/` (which would be the
+`SITE_URL`-default behaviour, dropping the user at the route
+guard's redirect target without the hash-fragment exchange
+running), and (b) keeps dev and prod call sites structurally
+identical without env-var threading through the auth client.
 
-R1 records the `{email, redirect_to}` body. The `create_user` flag
-does not exist on `/magiclink`: autosignup in dev is implicit
+`redirect_to` travels in the **query string**, not the JSON
+body — `MagicLinkParams` in v2.158.1 has no `RedirectTo` field,
+so the body field would be silently dropped. R1 records the
+call shape; the query-string carrier and its empirical
+justification live in R1 and the `internal/api/magic_link.go`
+and `internal/utilities/request.go` references there. R11
+records why no `URI_ALLOW_LIST` widen is needed in dev
+(same-host short-circuit). The `create_user` flag does not
+exist on `/magiclink`: autosignup in dev is implicit
 (autoconfirm), and the production gate is server-side via
 `GOTRUE_DISABLE_SIGNUP` exactly as R1 already describes.
 

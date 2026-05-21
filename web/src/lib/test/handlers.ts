@@ -16,7 +16,7 @@ import { http, HttpResponse, type RequestHandler } from 'msw';
 // read tokens from the body would still fail under this default.
 export const handlers: RequestHandler[] = [
 	http.get('*/auth/user', () => new HttpResponse(null, { status: 401 })),
-	http.post('*/auth/otp', () => HttpResponse.json({})),
+	http.post('*/auth/magiclink', () => HttpResponse.json({})),
 	http.post('*/auth/verify', () =>
 		HttpResponse.json({
 			token_type: 'bearer',
