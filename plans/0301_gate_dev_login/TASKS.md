@@ -317,10 +317,10 @@ test file should pass both `pnpm test` and `pnpm check`.
 
 **Verify:** `cd web && pnpm test src/lib/auth/components/LoginRequest.test.ts`
 
-### [ ] 2.2 Rewire `LoginRequest.svelte` to dynamic-import the child (GREEN)
+### [x] 2.2 Rewire `LoginRequest.svelte` to dynamic-import the child (GREEN)
 
 **Created:** 2026-05-21T12:04:34Z
-**Completed:**
+**Completed:** 2026-05-21T12:36:30Z
 
 **Why:** Move the dev gate from runtime (`{#if}`) to build time
 (literal `if (import.meta.env.DEV)` + dynamic `import()`), per
