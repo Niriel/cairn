@@ -73,10 +73,10 @@ behaviour after this plan lands · `cd web && pnpm format:check`
 
 ## Phase 1 — extract `DevShortcuts.svelte`
 
-### [ ] 1.1 Write `DevShortcuts.test.ts` (RED)
+### [x] 1.1 Write `DevShortcuts.test.ts` (RED)
 
 **Created:** 2026-05-21T12:04:34Z
-**Completed:**
+**Completed:** 2026-05-21T12:27:38Z
 
 **Why:** Lock in the behaviour the extracted component must satisfy
 before writing it. The tests are direct ports of the dev-only cases
@@ -150,10 +150,10 @@ behavioural reference. `web/src/lib/test/render.ts` exposes the
 
 **Verify:** `cd web && pnpm test src/lib/auth/components/DevShortcuts.test.ts`
 
-### [ ] 1.2 Create `DevShortcuts.svelte` (GREEN)
+### [x] 1.2 Create `DevShortcuts.svelte` (GREEN)
 
 **Created:** 2026-05-21T12:04:34Z
-**Completed:**
+**Completed:** 2026-05-21T12:31:15Z
 
 **Why:** Lift the dev-only UI out of `LoginRequest.svelte` into a
 component that can be excluded from the prod bundle by a literal
