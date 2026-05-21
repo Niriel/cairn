@@ -27,17 +27,12 @@ numbered step gets its own detailed plan, slotted into this directory
 as a three-file directory: `plans/<NNNN>_<slug>/{REQUIREMENTS,PLAN,TASKS}.md`
 (see `.claude/commands/write-plan.md`). Master-plan steps are
 numbered in **hundreds** — step 2 → `0200`, step 3 → `0300`, …,
-step 13 → `1300` — leaving 99 free slots between adjacent steps for
+step 14 → `1400` — leaving 99 free slots between adjacent steps for
 the small fixes and refinements big features generate (e.g. `0210`,
 `0250`). Step 1 is the one-off exception: `plans/0010_db_foundation/`
 keeps its `0010` prefix from before the hundreds convention because
 the branch was already published — renumbering would churn the
 in-flight branch for no gain.
-
-The list has thirteen steps. Three of them (5 Avatars, 10 Data export,
-12 Legal & About) came in via the design handoff at
-`docs/handoffs/design_handoff_cairn/` and slot into the build order
-where their dependencies make sense — see Sequencing rationale below.
 
 ## The order
 
@@ -76,12 +71,50 @@ where their dependencies make sense — see Sequencing rationale below.
      and load it via a literal `if (import.meta.env.DEV)` dynamic
      import so the module and its transitive imports drop from the
      prod graph entirely; verify by re-grepping the post-build
-     bundle for `alice@example.test`. Must land before step 13's
+     bundle for `alice@example.test`. Must land before step 14's
      deploy. Background and the three deploy-time watch items live at
      `docs/deployment.md` → "Auth surface: pre-deploy checklist";
      the general convention this implements is at
      `docs/development.md` → "Gating dev-only UI so it doesn't ship
      to prod".
+   - [ ] **0302: honour the magic-link anti-enumeration contract in
+     the sign-in UI.** `docs/admin.md` → "What the web app shows when
+     a banned user tries to sign in" requires the post-submit screen
+     to be identical for every outcome GoTrue can produce (link
+     sent, banned, unconfirmed, rate-limited, unknown email). The
+     current `LoginRequest.svelte` violates this: 4xx renders an
+     inline *"Please check the email and try again"* and 5xx flips
+     an error snackbar — both distinguish failure from success.
+     Replace with: treat any non-2xx from `POST /auth/magiclink`
+     as a success in the UI (navigate to `LoginCheck` regardless,
+     no inline error, no error snackbar). Apply the design-handoff
+     copy fixes the same pass: *"a link to continue"* in
+     `LoginRequest.svelte`, *"Tap it on this device to continue"*
+     in `LoginCheck.svelte` (the design canvas already has them,
+     the Svelte didn't follow). Update the Vitest tests in
+     `LoginRequest.test.ts` and the Playwright `auth.spec.ts` to
+     assert the new shape, including a non-2xx branch that still
+     lands on `LoginCheck`. Must land before step 14's deploy so
+     the contract is honoured on day 1 of production. Background:
+     `docs/admin.md` § "What the web app shows…" and the *"02b ·
+     One screen, five outcomes"* artboard in the design canvas.
+   - [ ] **0303: strip the OTP code from the magic-link email.**
+     GoTrue's default magic-link template includes both
+     `{{ .ConfirmationURL }}` (the link) and `{{ .Token }}` (a
+     six-digit code). Cairn's sign-in flow is link-only — there is
+     no code-entry screen, and a code in the email is a surface
+     the user can be social-engineered into reading aloud over
+     the phone. Configure GoTrue to use a custom template
+     (`GOTRUE_MAILER_TEMPLATES_MAGIC_LINK` pointing at a mounted
+     HTML file) that renders only the link, the brand, and a one-line
+     *"if you didn't request this, ignore it"* note. Same for the
+     plaintext fallback. Land the template file under
+     `gotrue/templates/magic_link.html`, wire it into
+     `docker-compose.yml` (and the prod compose at step 14) as a
+     read-only bind mount, and add a Playwright assertion that
+     Mailpit's captured email contains the link **and does not
+     contain a six-digit numeric token**. Must land before step
+     14's deploy so prod's first email is link-only.
 
 4. [ ] **MVP product surface (single-user happy path).** Lists overview,
    create list, items list with one-at-a-time accordion, add/edit
@@ -143,7 +176,32 @@ where their dependencies make sense — see Sequencing rationale below.
    sidecar is already running from step 5). See
    `docs/account-deletion.md`.
 
-10. [ ] **Data export (GDPR portability).** `export_my_data()`
+10. [ ] **Admin: schema, audit table, RPCs, CLI.** Land
+    `db/migrations/0006_admin.sql` (numbering pending — slot it after
+    whatever the deletion migration takes) creating the `admin`
+    schema, the `admin.actions` audit table, and the eight RPCs
+    sketched in `docs/admin.md` (`ban_user`, `unban_user`,
+    `delete_account_as`, `moderate_item`, `purge_item`,
+    `moderate_list`, `purge_list`, `inspect_user`). The `admin`
+    schema must **not** be on `PGRST_DB_SCHEMAS`, so PostgREST
+    cannot reach it — that structural unreachability is the
+    primary defence; the `cairn_admin` Postgres role + per-column
+    grants are the secondary defence. Every destructive RPC takes
+    a required `reason` (CHECK-constrained, non-empty) and writes
+    one row to `admin.actions` in the same transaction, with the
+    pre-state snapshot in `payload`. pgTAP coverage in
+    `db/tests/admin_*.sql`: the reason-empty CHECK rejects, the
+    audit row writes atomically, `purge_*` cascades correctly,
+    `delete_account_as` produces the same end-state as the
+    user-initiated `delete_account()` from step 9. Plus the
+    `scripts/cairn-admin` shell (Python; SET ROLE discipline; no
+    `--yes` flag without a `--reason`). No web-app changes — admin
+    is operator-over-SSH only; see `docs/admin.md` § "Why no admin
+    UI". Depends on step 1 (`auth.users` exists, the data model is
+    settled) and step 9 (the `delete_account()` shape and tombstone
+    semantics that `delete_account_as` mirrors).
+
+11. [ ] **Data export (GDPR portability).** `export_my_data()`
     security-definer RPC returning per-user JSONB (see
     `docs/data-export.md` → "How the export is produced"). Settings →
     Privacy & data → **Download my data** row, hub, packaging,
@@ -154,12 +212,12 @@ where their dependencies make sense — see Sequencing rationale below.
     pgTAP coverage on per-user filtering and on the rejection of
     `uid = tombstone`.
 
-11. [ ] **PWA shell.** `manifest.webmanifest`, icons, install prompts, and
+12. [ ] **PWA shell.** `manifest.webmanifest`, icons, install prompts, and
     a minimal service worker for the read-only offline behaviour
     described in `docs/architecture.md` (offline-first conflict
     resolution is explicitly *not* a v1 goal).
 
-12. [ ] **Legal & About surface.** About hub (L1), Privacy policy (L2 —
+13. [ ] **Legal & About surface.** About hub (L1), Privacy policy (L2 —
     references `docs/logging.md`), Terms of service (L3), Imprint
     (L4 — every legally-required field must be filled in by launch;
     needs a German-speaking lawyer's pass — see
@@ -167,7 +225,7 @@ where their dependencies make sense — see Sequencing rationale below.
     (L6), Cairn license (L7). Mostly static content; no DB work. See
     `design/cairn-legal-screens.jsx`.
 
-13. [ ] **Production rollout.** Add the missing `caddy/Caddyfile.prod`,
+14. [ ] **Production rollout.** Add the missing `caddy/Caddyfile.prod`,
     `.env.prod` template, Restic backup script, the avatar sidecar
     container in `docker-compose.prod.yml`, the
     `/srv/cairn/avatars/` directory + permissions, and walk through
@@ -207,30 +265,43 @@ where their dependencies make sense — see Sequencing rationale below.
 - Account deletion (step 9) after invites because the tombstone has
   to re-point attribution on shared content created during sharing
   flows.
-- **Data export (step 10) after account deletion (step 9)** because
+- **Admin (step 10) after account deletion (step 9)** because
+  `admin.delete_account_as` mirrors the user-initiated
+  `delete_account()` shape — building the user path first means the
+  admin path can copy it rather than the two diverging. Admin also
+  needs the full data model settled (items, lists, soft-delete,
+  tombstone) so `moderate_*` and `purge_*` have their targets in
+  place. Lands before step 14 so the operator has a banhammer and
+  an audit trail on day 1 of production.
+- **Data export (step 11) after account deletion (step 9)** because
   the export hub integrates with the Delete account screen via the
   *"Want a copy first?"* panel — building both in adjacent plans means
   the integration is one plan's responsibility, not a cross-plan
-  handoff.
-- PWA shell (step 11) before legal/about (step 12) so the install
+  handoff. Slotted after admin (step 10) but doesn't depend on it;
+  the order is data-shape stability, not a hard dependency.
+- PWA shell (step 12) before legal/about (step 13) so the install
   experience is in place when we start surfacing the privacy /
   imprint / OSS attribution screens that a careful user will look
   for around installation.
-- **Legal & About (step 12) before production rollout (step 13)**
+- **Legal & About (step 13) before production rollout (step 14)**
   because the imprint is a launch-blocker under German law (operating
   out of a Hetzner DE box) — the page must exist and must carry real
   fields, not placeholders, on the day the box goes public.
-- Production rollout (step 13) last: deployable and installable is
+- Production rollout (step 14) last: deployable and installable is
   the polish layer once the product works.
 
 ## Verification
 
-When all thirteen plans are executed: `./scripts/check.sh` is green,
+When every plan above is executed: `./scripts/check.sh` is green,
 `pnpm test:e2e` covers the MVP + invite + avatar + export happy paths,
 the dev stack lets a developer sign in via Mailpit and exercise every
 screen in the design canvas (including the avatar upload + export +
-legal flows), `docs/open-questions.md` is empty (or its remaining
-bullets have been deliberately deferred post-v1 with a one-line
-reason), and the production stack is reachable at `cairn.<domain>`
-with an installable PWA, a complete Imprint, a working data-export
-download, and avatars served from disk.
+legal flows) without the sign-in screen ever distinguishing failure
+from success (the 0302 anti-enumeration contract), the operator can
+ban / unban / moderate / purge / inspect from the VPS via
+`cairn-admin` and every destructive action lands in `admin.actions`
+with a non-empty `reason`, `docs/open-questions.md` is empty (or its
+remaining bullets have been deliberately deferred post-v1 with a
+one-line reason), and the production stack is reachable at
+`cairn.<domain>` with an installable PWA, a complete Imprint, a
+working data-export download, and avatars served from disk.
