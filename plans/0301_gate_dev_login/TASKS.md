@@ -14,10 +14,10 @@
 
 ## Phase 0 — reconcile `docs/deployment.md`
 
-### [ ] 0.1 Update "Auth surface: pre-deploy checklist" (DOC)
+### [x] 0.1 Update "Auth surface: pre-deploy checklist" (DOC)
 
 **Created:** 2026-05-21T12:04:34Z
-**Completed:**
+**Completed:** 2026-05-21T12:24:50Z
 
 **Why:** `docs/deployment.md` lines 429–441 describe the bundle-leak as
 current state ("the underlying code still ships in the prod client JS
