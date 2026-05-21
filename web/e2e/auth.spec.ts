@@ -2,12 +2,12 @@ import { expect, test } from '@playwright/test';
 
 import { waitForMagicLink } from './helpers/mailpit';
 
-// One spec, two independent tests — see plans/0300_auth_http_client/TASKS.md 5.2.
-// The dev-shortcut test probes the DOM for the button rather than reading
-// VITE_DEV_LOGIN_SHORTCUT from process.env: VITE_* vars are baked into the
-// bundle at build time, so the runner's env can diverge from what shipped.
+// Magic-link happy path + sign-out, end to end against the real backend
+// (GoTrue + Mailpit + PostgREST + the Vite cookie-plant proxy). Dev-shortcut
+// sign-in is exercised by Vitest component tests; this spec proves the full
+// stack works. See plans/0300_auth_http_client/TASKS.md 6.4.
 
-test('magic-link happy path', async ({ page, context }) => {
+test('magic-link happy path and sign-out', async ({ page, context }) => {
 	const email = `alice+${test.info().testId}@example.test`;
 
 	await page.goto('/');
@@ -21,27 +21,19 @@ test('magic-link happy path', async ({ page, context }) => {
 	await expect(page).toHaveURL(/\/auth\/check$/);
 
 	const link = await waitForMagicLink(email);
-	await page.goto(link);
 
+	// Playwright follows the GoTrue /verify → 302 → /auth/callback#… chain
+	// automatically; the callback page strips the hash and JS-navigates to /.
+	await page.goto(link);
 	await expect(page).toHaveURL(/\/$/);
-	const cookies = await context.cookies();
-	expect(cookies.find((c) => c.name === 'cairn_session')).toBeDefined();
+
+	const session = (await context.cookies()).find((c) => c.name === 'cairn_session');
+	expect(session).toBeDefined();
+	expect(session?.httpOnly).toBe(true);
+	expect(session?.sameSite).toBe('Lax');
 
 	await page.locator('[data-test="signout"]').click();
 	await expect(page).toHaveURL(/\/auth\/login$/);
-	const cookiesAfter = await context.cookies();
-	expect(cookiesAfter.find((c) => c.name === 'cairn_session')).toBeUndefined();
-});
-
-test('dev shortcut path', async ({ page, context }) => {
-	await page.goto('/auth/login');
-
-	const hasShortcut = (await page.locator('[data-test="dev-login-alice"]').count()) > 0;
-	test.skip(!hasShortcut, 'dev shortcut not present in this build');
-
-	await page.locator('[data-test="dev-login-alice"]').click();
-
-	await expect(page).toHaveURL(/\/$/);
-	const cookies = await context.cookies();
-	expect(cookies.find((c) => c.name === 'cairn_session')).toBeDefined();
+	const sessionAfter = (await context.cookies()).find((c) => c.name === 'cairn_session');
+	expect(sessionAfter).toBeUndefined();
 });

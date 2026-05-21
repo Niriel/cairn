@@ -1274,10 +1274,15 @@ Phase 6 lands the magic-link login flow end-to-end. `supabase/gotrue:v2.158.1`'s
 
 **Verify:** `pnpm test --run` green · `pnpm check` green · `grep -rnE '\bverifyToken\b' web/src/` returns no results · the callback page test asserts `history.replaceState` fires before any HTTP call.
 
-### [ ] 6.4 Land the Playwright auth happy-path spec for the redirect-chain flow (supersedes 5.2)
+### [x] 6.4 Land the Playwright auth happy-path spec for the redirect-chain flow (supersedes 5.2)
 
 **Created:** 2026-05-21T08:28:05Z
-**Completed:**
+**Completed:** 2026-05-21T10:26:37Z
+
+**Notes:**
+
+- An earlier draft of `web/e2e/auth.spec.ts` already existed on disk (originally written under 5.2). Rewrote it to match 6.4's Decisions: strengthened the cookie assertion to check `httpOnly: true` and `sameSite: 'Lax'`, collapsed the magic-link and sign-out flow into a single test that continues from the signed-in state (Decision allowed either shape; continuation keeps the test honest about cookie-clearing behaviour), and dropped the `dev shortcut path` test per 6.4's design intent ("Dev-shortcut sign-in is exercised by Vitest component tests").
+- Playwright run: **chromium green, firefox green, webkit failed at browser launch with `Host system is missing dependencies`** (`libicu74`, `libjpeg-turbo8`, `gstreamer1.0-libav`). This is a sudo-required OS install on the runner, not a spec defect — the same browser binary launched cleanly under chromium/firefox against the live stack. Flagging here so the next runner with sudo (or CI) can re-run all three projects.
 
 **Why:** Phase 5's Task 5.2 was scoped against the old query-string-on-callback design. The new flow involves a redirect chain (GoTrue `/verify` → SvelteKit `/auth/callback#…` → JS-driven `goto('/')`), which changes the assertions about URL state and timing. Rather than edit 5.2's Decisions/Steps in place (which would split design across phases), this task lands the spec directly and Task 5.2 is marked superseded.
 
@@ -1401,10 +1406,12 @@ Phase 5 ships the single Playwright spec for the magic-link happy path. This is 
 - **Pre-existing Mailpit messages remain.** Found two `derp@yolo.lol` magic-link messages in Mailpit from the user's earlier manual testing — left them in place (deleting third-party data wasn't authorized and the plan's buildup note expects accumulation).
 - **Probe cleanup.** Deleted the `mailpit-probe@example.test` Mailpit message and `auth.users` row I created while probing the body format, so the dev DB is unchanged by this task.
 
-### [ ] 5.2 Land the auth happy-path spec at `web/e2e/auth.spec.ts`
+### [x] 5.2 Land the auth happy-path spec at `web/e2e/auth.spec.ts`
 
 **Created:** 2026-05-13T12:11:12Z
-**Completed:**
+**Completed:** 2026-05-21T10:26:37Z
+
+**Superseded by:** Task 6.4. The redirect-chain shape of the hash-fragment magic-link flow (GoTrue `/verify` → SvelteKit `/auth/callback#…` → JS-driven `goto('/')`) invalidated this task's Decisions about URL state and timing; the dev-shortcut block was also dropped because Vitest component tests already cover that path. The spec now lives at `web/e2e/auth.spec.ts` per 6.4's design — see 6.4's Decisions for the current contract. Original task body retained for historical context.
 
 **Why:** This is the single E2E that proves the full stack works end-to-end: Vite proxy, GoTrue, Mailpit, cookie shim, session store, route guard. `docs/testing.md:179` lists this exact spec.
 
