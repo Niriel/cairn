@@ -141,7 +141,7 @@ function LoginRequest({ theme }) {
         </div>
 
         <div style={{ marginTop: 56 }}>
-          <label style={{ fontSize: 13, color: theme.stone, fontWeight: 500 }}>Email</label>
+          <label style={{ fontSize: 13, color: theme.stone, fontWeight: 500 }}>E-mail</label>
           <div style={{
             marginTop: 8, padding: '14px 14px',
             border: `1px solid ${theme.rule}`, borderRadius: 12,
@@ -164,7 +164,7 @@ function LoginRequest({ theme }) {
             marginTop: 18, fontSize: 12, color: theme.stone,
             textAlign: 'center', lineHeight: 1.5,
           }}>
-            No password. We'll email you a link to continue.<br/>
+            No password. We'll e-mail you a link to continue.<br/>
             Your data lives on a small server in Germany.
           </div>
         </div>

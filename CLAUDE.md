@@ -50,7 +50,23 @@ Svelte rather than porting React verbatim. Design tokens (`CAIRN_LIGHT` /
 ## Conventions
 
 - Soft-delete by default (see `docs/data-model.md`).
-- Email is private — never shown in the UI (see `docs/invites.md`).
+- User-facing text is **British English** (colour, organise, behaviour,
+  realise, …). Code, identifiers, comments, commit messages, and docs
+  stay US English — that's the lingua franca for programming. The split
+  is: anything a user reads on screen → British; anything a developer
+  reads in source → US.
+- In user-facing text, the word is **"e-mail" / "E-mail"**, hyphenated.
+  Code identifiers (prop names, variables, JSON fields, env vars,
+  classes, test selectors, URL params) stay `email` — they're the
+  programming-side spelling and changing them would churn the codebase
+  for no user-visible gain.
+- User-facing text uses **"they / them / their"** as the default
+  pronoun, including when referring to demo characters with gendered
+  names like Bob or Carol. Gender-neutral by default — never assume.
+  Proper nouns that contain a gendered pronoun (e.g. film titles like
+  *His Girl Friday*) stay as written. Same code/UI split as above:
+  this rule is about rendered copy, not code.
+- E-mail addresses are private — never shown in the UI (see `docs/invites.md`).
 - Button pairs: right is forward/committal, left is backward/destructive
   (see `docs/ui.md` → "Button order in pairs").
 - The circle model is one-directional and invisible to the other side

@@ -309,7 +309,7 @@ function PrivacyScreen({ theme, policy = 'everybody' }) {
         <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
           <Icon name="lock" size={16} color={theme.stone} style={{ marginTop: 2 }}/>
           <div>
-            Your email address is never shown to other people on Cairn — only your
+            Your e-mail address is never shown to other people on Cairn — only your
             display name and avatar.
           </div>
         </div>
@@ -381,7 +381,7 @@ function CircleScreen({ theme }) {
         ))}
       </div>
 
-      <SectionLabel theme={theme}>Add by email</SectionLabel>
+      <SectionLabel theme={theme}>Add by e-mail</SectionLabel>
       <div style={{ padding: '0 18px 24px' }}>
         <div style={{
           padding: '14px', border: `1px dashed ${theme.stoneLt}`, borderRadius: 12,
@@ -653,7 +653,7 @@ function InvitePickerScreen({ theme }) {
             Add someone
           </div>
           <div style={{ fontSize: 12.5, color: theme.stone, marginTop: 2 }}>
-            Tap to invite, or type an email below
+            Tap to invite, or type an e-mail below
           </div>
         </div>
 
@@ -674,7 +674,7 @@ function InvitePickerScreen({ theme }) {
             fontSize: 11.5, color: theme.stone, fontWeight: 600,
             letterSpacing: '0.06em', textTransform: 'uppercase',
             marginBottom: 8,
-          }}>By email</div>
+          }}>By e-mail</div>
           <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
             <Icon name="mail" size={18} color={theme.stone}/>
             <span style={{ flex: 1, fontSize: 14, color: theme.stone, fontStyle: 'italic' }}>
@@ -856,15 +856,15 @@ function CircleExplainerSheet({ theme }) {
 
         <ExplainerPoint theme={theme}
           title="It's yours alone."
-          body="Bob doesn't see whether he's in your circle. You don't see whose circle you're in. Each person manages their own."/>
+          body="Bob doesn't see whether they're in your circle. You don't see whose circle you're in. Each person manages their own."/>
 
         <ExplainerPoint theme={theme}
           title="It only governs invites coming to you."
-          body={<>It does not affect your ability to invite anyone. If Bob's policy is also <em style={{ fontFamily: theme.serif, fontStyle: 'italic' }}>Your circle</em>, what matters for inviting Bob is whether <em style={{ fontFamily: theme.serif, fontStyle: 'italic' }}>you</em> are in <em style={{ fontFamily: theme.serif, fontStyle: 'italic' }}>his</em> circle — not the other way around.</>}/>
+          body={<>It does not affect your ability to invite anyone. If Bob's policy is also <em style={{ fontFamily: theme.serif, fontStyle: 'italic' }}>Your circle</em>, what matters for inviting Bob is whether <em style={{ fontFamily: theme.serif, fontStyle: 'italic' }}>you</em> are in <em style={{ fontFamily: theme.serif, fontStyle: 'italic' }}>their</em> circle — not the other way around.</>}/>
 
         <ExplainerPoint theme={theme}
-          title="Adding by email is two-way."
-          body="If you add Bob's email here, you go on his circle too — unless he's blocked you, in which case only your side is updated. Either of you can remove the other at any time."/>
+          title="Adding by e-mail is two-way."
+          body="If you add Bob's e-mail here, you go on their circle too — unless they've blocked you, in which case only your side is updated. Either of you can remove the other at any time."/>
 
         <ExplainerPoint theme={theme}
           title="To stop someone inviting you: block them."

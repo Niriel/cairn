@@ -16,7 +16,7 @@ const SEED_LISTS = [
     id: 'l1',
     icon: 'film',
     name: 'Movies for Bob',
-    description: 'Old black-and-white films I keep telling Bob to watch and he keeps not watching.',
+    description: 'Old black-and-white films I keep telling Bob to watch and they keep not watching.',
     members: ['alice', 'bob'],
     modified_at: '2 hours ago',
     items: [
@@ -45,7 +45,7 @@ const SEED_LISTS = [
     id: 'l3',
     icon: 'map-pin',
     name: 'Things to do in Amsterdam',
-    description: 'Carol is visiting in June. Things she should not miss, in roughly priority order.',
+    description: 'Carol is visiting in June. Things they should not miss, in roughly priority order.',
     members: ['alice', 'bob', 'carol'],
     modified_at: '3 days ago',
     items: [

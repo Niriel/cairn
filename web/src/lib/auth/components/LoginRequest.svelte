@@ -53,7 +53,7 @@
 			await goto(resolve('/auth/check'));
 		} catch (err) {
 			if (isHttpError400(err)) {
-				inlineError = err.message || 'Please check the email and try again.';
+				inlineError = err.message || 'Please check the e-mail and try again.';
 			} else {
 				errorSnack = true;
 			}
@@ -71,7 +71,7 @@
 	<div class="tagline">here's the way,<br />you'll like this</div>
 
 	<form class="form" onsubmit={onSubmit}>
-		<label class="label" for="login-email-input">Email</label>
+		<label class="label" for="login-email-input">E-mail</label>
 		<input
 			id="login-email-input"
 			class="email-input"
@@ -100,7 +100,7 @@
 		</div>
 
 		<div class="hint">
-			No password. We'll email you a link that signs you in.<br />
+			No password. We'll e-mail you a link that signs you in.<br />
 			Your data lives on a small server in Germany.
 		</div>
 

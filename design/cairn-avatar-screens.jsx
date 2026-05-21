@@ -115,7 +115,7 @@ function EditProfileScreen({ theme, hasPhoto = true }) {
           }}/>
         </div>
         <div style={{ marginTop: 8, fontSize: 12, color: theme.stone, lineHeight: 1.5 }}>
-          What other list members see. Email stays private.
+          What other list members see. E-mail stays private.
         </div>
 
         <div style={{

@@ -133,7 +133,7 @@ function PrivacyPolicyScreen({ theme }) {
 
       <LegalH theme={theme}>What we store</LegalH>
       <LegalLabel theme={theme}>About you</LegalLabel>
-      Your email address (so you can sign in), your display name, and your profile photo if you uploaded one.
+      Your e-mail address (so you can sign in), your display name, and your profile photo if you uploaded one.
       <LegalLabel theme={theme}>About what you do</LegalLabel>
       The lists you create or join, the items on them, your votes, and the timestamp of each action.
       <LegalLabel theme={theme}>Technical</LegalLabel>
@@ -184,7 +184,7 @@ function TermsScreen({ theme }) {
       If you abuse the service — spam, harassment, attempts to break it — we may suspend or delete your account. We'll tell you why, unless we're legally required not to.
 
       <LegalH theme={theme}>Ending the deal</LegalH>
-      You can delete your account anytime from Settings. We can shut down Cairn anytime, with at least 30 days' notice via the app and email so you can export your data.
+      You can delete your account anytime from Settings. We can shut down Cairn anytime, with at least 30 days' notice via the app and e-mail so you can export your data.
 
       <LegalH theme={theme}>Liability</LegalH>
       To the extent the law allows, we're not liable for indirect or consequential losses from using Cairn. Mandatory consumer rights under German and EU law are unaffected.
