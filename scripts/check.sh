@@ -2,12 +2,33 @@
 # Run the full quality + unit-test gauntlet — exactly what CI runs.
 # See docs/quality.md → "A single command to check everything".
 #
-# Playwright (E2E) is intentionally NOT in here: it needs the full
-# stack up and downloads ~500 MB of browser binaries. Run separately
-# with `cd web && pnpm test:e2e`.
+# By default Playwright (E2E) is NOT run: it needs the full stack up
+# and downloads ~500 MB of browser binaries. Pass `--e2e` to append
+# `pnpm test:e2e` after the rest of the gauntlet — intended as a
+# pre-PR check, not a per-task one.
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
+
+run_e2e=0
+for arg in "$@"; do
+  case "$arg" in
+    --e2e) run_e2e=1 ;;
+    -h | --help)
+      cat <<'EOF'
+Usage: scripts/check.sh [--e2e]
+
+  --e2e    Also run Playwright (pnpm test:e2e) after the gauntlet.
+           Requires the dev stack to be up (docker compose up -d).
+EOF
+      exit 0
+      ;;
+    *)
+      printf 'check.sh: unknown argument: %s (try --help)\n' "$arg" >&2
+      exit 2
+      ;;
+  esac
+done
 
 ok() { printf '  \e[32mok\e[0m   %s\n' "$1"; }
 fail() {
@@ -53,6 +74,11 @@ if ./scripts/test-db.sh >/dev/null; then ok "pg_prove"; else fail "pg_prove"; fi
 
 echo "==> web: unit tests"
 if (cd web && pnpm test) >/dev/null; then ok "vitest"; else fail "vitest"; fi
+
+if [ "$run_e2e" -eq 1 ]; then
+  echo "==> web: e2e (playwright)"
+  if (cd web && pnpm test:e2e); then ok "playwright"; else fail "playwright"; fi
+fi
 
 echo
 echo "all checks passed"

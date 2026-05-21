@@ -77,7 +77,9 @@ Svelte rather than porting React verbatim. Design tokens (`CAIRN_LIGHT` /
 - New user-visible flows get a Playwright touch under `web/e2e/`.
 - Before marking a task done, run `./scripts/check.sh` (or the
   individual `pnpm check` / `pnpm lint` / `pnpm test` / `./scripts/test-db.sh`
-  commands). If you can't run them, say so explicitly — don't claim
+  commands). If the change touches user-visible flows, run
+  `./scripts/check.sh --e2e` (or `cd web && pnpm test:e2e`) before
+  opening a PR. If you can't run them, say so explicitly — don't claim
   success on the basis of "it should work."
 - Don't disable a lint rule, type check, or RLS policy to get a change
   through. The rule is right or the code is wrong; figure out which.

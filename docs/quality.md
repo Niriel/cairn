@@ -323,7 +323,11 @@ Runs the same gauntlet CI runs, in the same order, on the whole tree:
 
 Run this before opening a PR. If it passes, CI passes; if it fails, CI was about to. The whole thing finishes in well under a minute on a laptop.
 
-E2E (Playwright) is not in `check.sh` because it requires the full stack running; run it separately with `pnpm test:e2e` when the change touches user-visible flows.
+E2E (Playwright) is not in the default run because it requires the full stack up and downloads ~500 MB of browser binaries. Pass `--e2e` to append it (intended as a pre-PR check, not a per-task one), or run it separately with `cd web && pnpm test:e2e`:
+
+```bash
+./scripts/check.sh --e2e
+```
 
 ## CI
 
