@@ -546,8 +546,8 @@ This shim approximates what Caddy will do in production; the divergence
 
 ## R11. GoTrue config aligns with the SvelteKit callback URL and a longer session
 
-`docker-compose.yml` adds three environment variables to the
-`gotrue` service:
+`docker-compose.yml`'s `gotrue` service env is pinned by the
+following constraints:
 
 - `GOTRUE_URI_ALLOW_LIST` stays at `http://localhost:5173` (the
   dev `SITE_URL`). Empirically (v2.158.1 source dive,
@@ -566,16 +566,17 @@ This shim approximates what Caddy will do in production; the divergence
   glob form once `SITE_URL` and `redirect_to` diverge in host (a
   different DNS name for the callback than for the bare origin);
   that lands with the prod-deploy plan, not Step 3.
-- `GOTRUE_MAILER_URLPATHS_MAGICLINK: /auth/callback` — set as
-  defence-in-depth and forward-compatibility. **In v2.158.1 this
-  env var has no observable effect on `POST /magiclink`'s email
-  emission**: the email's link routes through GoTrue's own
-  `/verify` endpoint regardless, with the redirect target taken
-  from `redirect_to` (gated by `URI_ALLOW_LIST` above). The
-  variable is kept because (a) a future GoTrue version may start
-  honouring it, in which case the configured value is already
-  correct, and (b) removing it would invite a future contributor
-  to assume the omission was deliberate. R16 records the endpoint
+- `GOTRUE_MAILER_URLPATHS_MAGICLINK` is **not set**. Earlier
+  iterations of this plan added it as defence-in-depth, but in
+  `supabase/gotrue:v2.158.1` the variable has no observable
+  effect on `POST /magiclink`'s email emission: the email's link
+  routes through GoTrue's own `/verify` endpoint regardless, with
+  the redirect target taken from `redirect_to` (gated by
+  `URI_ALLOW_LIST` above). Keeping a no-op env var in
+  `docker-compose.yml` invites a future contributor to assume
+  it's load-bearing; the var is therefore omitted. If a future
+  GoTrue version starts honouring it, re-add with a comment
+  explaining the version dependency. R16 records the endpoint
   choice rationale; the relaxed JS-token contract is documented
   in `docs/architecture.md`'s JWT-storage Security-trade-off
   subsection.

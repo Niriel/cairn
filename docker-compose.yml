@@ -49,7 +49,6 @@ services:
       GOTRUE_JWT_DEFAULT_GROUP_NAME: authenticated
       GOTRUE_EXTERNAL_EMAIL_ENABLED: "true"
       GOTRUE_MAILER_AUTOCONFIRM: "true"
-      GOTRUE_MAILER_URLPATHS_MAGICLINK: /auth/callback
       GOTRUE_SMTP_HOST: mailpit
       GOTRUE_SMTP_PORT: "1025"
       GOTRUE_SMTP_ADMIN_EMAIL: dev@cairn.local

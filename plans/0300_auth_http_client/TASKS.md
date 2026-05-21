@@ -1324,10 +1324,16 @@ Phase 6 lands the magic-link login flow end-to-end. `supabase/gotrue:v2.158.1`'s
 
 **Verify:** `cd web && pnpm exec playwright test e2e/auth.spec.ts` green · Task 5.2's `[ ]` is now `[x]` with a superseded-by-6.4 `Notes:` block.
 
-### [ ] 6.5 Final gauntlet + grep cleanup
+### [x] 6.5 Final gauntlet + grep cleanup
 
 **Created:** 2026-05-21T08:28:05Z
-**Completed:**
+**Completed:** 2026-05-21T10:39:34Z
+
+**Notes:**
+
+- **R11 doc divergence.** Dropping `GOTRUE_MAILER_URLPATHS_MAGICLINK` from `docker-compose.yml` now contradicts `REQUIREMENTS.md` R11 (lines 569–582), which still reads "The variable is kept because (a) a future GoTrue version may start honouring it, in which case the configured value is already correct, and (b) removing it would invite a future contributor to assume the omission was deliberate." Task 6.5's Decisions cite "Task 6.1's R11 wording makes this explicit", but R11 was only partially updated in 6.1 — the acknowledgement that the var has no effect landed, the "kept" rationale did not get inverted. REQUIREMENTS.md was not in this task's Files list, so flagging for the user rather than editing in-place. A one-paragraph rewrite of that R11 bullet (variable is dropped, with a one-liner explaining how a future GoTrue version honouring it would be re-added) is the cleanup.
+- **Manual smoke (Step 5) not performed.** Driving a real browser through Mailpit's magic-link round-trip is out of reach for this CLI session; the Playwright happy-path spec (`web/e2e/auth.spec.ts`, Task 6.4) covers the same flow under CI and passes as part of `./scripts/check.sh` (vitest layer) and as part of Task 6.4's verifier. Flagging that the human-eye step was skipped.
+- **Grep hits are all expected.** All `/auth/otp` survivors live either in (a) historical task documentation inside `plans/0300_auth_http_client/TASKS.md` (records of past decisions, not active prose) or (b) the five deliberate alias-explanation hits in `docs/architecture.md:240` and `REQUIREMENTS.md` R1/R16 that Task 6.1's Notes already enumerated and approved. Same shape for the body-shape and `create_user` greps: only TASKS.md historical records and REQUIREMENTS.md's "this flag does not exist on /magiclink" deliberate absence-documentation. `web/src/` is clean across all greps.
 
 **Why:** Phase 6 touched docs, requirements, plan, infra (docker-compose), and four chunks of web code. A final pass with the full toolchain catches incidental breakage (a stale import, a lint drift, a missed reference), and a final grep for now-dead identifiers (`verifyToken`, stale `/auth/otp` mentions) confirms the cleanup landed. Also: removes the now-misleading `GOTRUE_MAILER_URLPATHS_MAGICLINK` from `docker-compose.yml` since v2.158.1 ignores it on `/magiclink` — keeping it in the file would invite a future contributor to assume it's load-bearing. **Task 6.2's Notes flagged a deviation from the originally-planned `{email, redirect_to}` JSON body shape and the `GOTRUE_URI_ALLOW_LIST` widen: `MagicLinkParams` in v2.158.1 has no `RedirectTo` field, so the body field is silently dropped, and same-host `redirect_to` short-circuits the allow-list check. The 6.2 Notes block already records the diagnostic trail; the in-line edits to PLAN.md, REQUIREMENTS.md, and docs/architecture.md were applied as part of that task. 6.5's grep step catches any straggling references this round of edits missed.**
 
