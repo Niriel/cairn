@@ -46,6 +46,7 @@ The same code, the same data, every device.
 - **`quality.md`** — linting, formatting, type checking, and the pre-commit hook that runs them.
 - **`deployment.md`** — how Cairn runs in production on a Hetzner VPS, including TLS, backups, and releases.
 - **`logging.md`** — what each container logs, what's deliberately not logged, retention windows, and the operator's debugging workflow.
+- **`admin.md`** — how the operator does admin tasks (banning a user, GDPR erasure, moderating an item after a complaint): the `admin` schema, the audit table, the RPCs, the `cairn-admin` CLI, and the runbook. Plus the user-facing contract the web app has to honour so admin actions stay invisible to the user.
 - **`open-questions.md`** — an index of currently-unresolved design decisions across the docs. Each bullet points at the doc section that holds the full context.
 
 The docs are written to be read in roughly that order. `architecture.md` is the load-bearing one — the others build on its choices.

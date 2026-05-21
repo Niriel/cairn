@@ -55,6 +55,43 @@ the matching entry in the underlying doc.
   given the Hetzner-DE hosting. Launch-blocker for step 13. See
   `design/cairn-legal-screens.jsx` → L4 and `plans/0000_implementation_order.md` § step 12.
 
+## Admin
+
+- **Avatar file cleanup in admin erasure.** `admin.delete_account_as`
+  currently leaves the operator to run a separate `DELETE /avatars/<uid>`
+  against the avatar sidecar (or rely on the nightly orphan sweep).
+  A single `cairn-admin delete` subcommand that does both is obvious
+  to add once the script can shell into the docker network. See
+  `admin.md` § Open questions.
+- **Weekly "what happened" summary.** A cron that emails the operator
+  the last 7 days of `admin.actions` would catch a compromised
+  operator account or a misconfiguration sooner than the current
+  "remember to check" pattern. Cheap, not v1. See `admin.md` §
+  Open questions.
+- **Locked soft-delete for moderation.** Today `admin.moderate_item`
+  is restorable from the trash by any list member — right for
+  ambiguous cases, wrong for "this item is genuinely not okay." A
+  future `moderate_item_locked` would use a non-tombstone sentinel
+  `deleted_by` and a matching policy clause that blocks restore.
+  Deferred until moderation volume justifies the second column. See
+  `admin.md` § Open questions.
+- **Two-person rule for `purge_*`.** A workflow where one operator
+  initiates a hard-delete and a second confirms within an hour.
+  Adds when there's a second operator who isn't also the first
+  operator's manager. Flag column + second RPC, no architecture
+  change. See `admin.md` § Open questions.
+- **Self-service appeal channel for banned users.** Banned users
+  currently have no in-product appeal path. They have an
+  out-of-product one (email the operator), which is fine at this
+  scale but isn't surfaced anywhere the sign-in screen mentions. A
+  single neutral *"Account issues? Contact <address>"* link shown
+  to everyone — same anti-enumeration trick at one layer of
+  indirection — is the obvious shape. Blocker: GoTrue doesn't tell
+  the front-end *why* a magic-link request failed, so adding a
+  banned-only surface would break the indistinguishability that
+  `admin.md` § "What the web app shows when a banned user tries to
+  sign in" relies on. See `admin.md` § Open questions.
+
 ## Testing
 
 - **Three-layer mock aggregator.** Default: no `tests/mocks/lists/`-
