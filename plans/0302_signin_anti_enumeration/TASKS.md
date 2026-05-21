@@ -119,13 +119,16 @@ behavioural baseline.
   dev-shortcut-disabled rendering, dev-shortcut in-flight gating,
   and absence of `<header>` chrome respectively, and none of them
   touch the surface this plan changes.
-- Use `vi.waitFor(...)` for the post-submit assertions rather than
-  a `tick()` chain. Mirrors the LoginCheck rejection-path case
-  added in Task 1.2 for the same reason — the `.catch(() => {})`
-  rewrite added in Phase 2.1 changes the rejection path's
-  microtask shape relative to the existing success-path `(c)`,
-  and `waitFor` polls until the assertion holds without coupling
-  the test to the exact tick count.
+- Use the same `await tick(); await tick();` chain that the
+  existing success-path `(c)` uses, not `vi.waitFor`. The
+  `.catch(() => {})` rewrite in Task 2.1 consumes the rejection
+  inside the same microtask the awaited promise settled in, and
+  `setPendingLogin` + `goto` then run on the same chain as today's
+  success path — so the post-GREEN microtask shape is identical
+  to `(c)`. The tick-chain pattern keeps RED snappy (each failing
+  assertion fails instantly, instead of paying `vi.waitFor`'s
+  default 1 s timeout three times under current code) and matches
+  the file's existing idiom.
 - Rewritten (d) — *"4xx still navigates to `/auth/check` and
   shows no inline error"*:
   ```ts
@@ -134,9 +137,9 @@ behavioural baseline.
     const { getByDataTest, queryByDataTest } = render(LoginRequest);
     await fireEvent.input(getByDataTest('login-email'), { target: { value: 'alice@example.test' } });
     await fireEvent.click(getByDataTest('login-submit'));
-    await vi.waitFor(() => {
-      expect(vi.mocked(goto)).toHaveBeenCalledWith('/auth/check');
-    });
+    await tick();
+    await tick();
+    expect(vi.mocked(goto)).toHaveBeenCalledWith('/auth/check');
     expect(vi.mocked(setPendingLogin)).toHaveBeenCalledWith('alice@example.test');
     expect(queryByDataTest('login-error')).toBeNull();
   });
@@ -219,21 +222,41 @@ mirror.
   'banned')`. Imports `HttpError` from `$lib/auth/model/auth-client`
   (it's already mocked at the suite level; the import is for the
   constructor).
-- Body sketch:
+- Body sketch (mirrors (d)'s fake-timer wrapping so the 3 s
+  auto-clear doesn't leak past the test):
   ```ts
   test('(f) "Sent again." appears even when sendMagicLink rejects (anti-enumeration)', async () => {
-    vi.mocked(sendMagicLink).mockRejectedValueOnce(new HttpError(400, 'banned'));
-    const { getByDataTest } = render(LoginCheck, { email: 'alice@example.test' });
-    await fireEvent.click(getByDataTest('login-check-resend'));
-    await vi.waitFor(() => {
+    vi.useFakeTimers();
+    try {
+      vi.mocked(sendMagicLink).mockRejectedValueOnce(new HttpError(400, 'banned'));
+      const { getByDataTest, queryByDataTest } = render(LoginCheck, {
+        email: 'alice@example.test'
+      });
+      await fireEvent.click(getByDataTest('login-check-resend'));
+      await tick();
       expect(getByDataTest('login-check-resend-confirmation')).toBeInTheDocument();
-    });
+
+      vi.advanceTimersByTime(3001);
+      await tick();
+      expect(queryByDataTest('login-check-resend-confirmation')).toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
   });
   ```
-- Use `vi.waitFor` rather than a `tick()` chain because the
-  confirmation flip happens *after* the `await sendMagicLink(...)`
-  microtask settles, and the rejection path takes a different
-  microtask shape than the success path.
+- Fake timers are non-optional: `onSendAgain` arms a
+  `setTimeout(..., 3000)` that flips `confirmation = false`.
+  Without `vi.useFakeTimers()` the timer fires 3 s after the test
+  ends on the destroyed component's `$state` closure — harmless
+  but inconsistent with (d) and exactly the kind of leak the
+  existing suite has paid the cost to avoid. The
+  `vi.advanceTimersByTime(3001)` round-trip also gives this case
+  the same auto-clear coverage that (d) has on the success path.
+- `await tick()` after `fireEvent.click` matches the existing
+  success-path (d): the rejection settles synchronously inside
+  `.catch(() => {})` (the GREEN code in Task 2.2 appends it to
+  the `sendMagicLink` call), `confirmation = true` runs on the
+  same microtask, and one tick is enough to see the DOM update.
 
 **Reference:** the existing success-path case in
 `LoginCheck.test.ts` is the structural template; copy its mock
@@ -286,12 +309,19 @@ go with the rewrite.
       // shows when a banned user tries to sign in."
       await sendMagicLink(email).catch(() => {});
       setPendingLogin(email);
-      await goto(resolve('/auth/check'));
+      await goto(resolve('/auth/check')).catch(() => {});
     } finally {
       sending = false;
     }
   }
   ```
+- The `.catch(() => {})` on `goto` is load-bearing: the old outer
+  `catch` block routed *any* in-try rejection (including a
+  `goto()` rejection from an interrupted same-app navigation) to
+  `errorSnack`. Dropping the outer `catch` without guarding `goto`
+  would turn that path into an unhandled promise rejection.
+  Same-app `goto` rarely rejects, but the safety net is worth the
+  five characters.
 - Keep the `inlineError = null` reset — it still serves the
   dev-shortcut path, which can set `inlineError` via the
   `onInlineError` callback, and a magic-link submit afterwards

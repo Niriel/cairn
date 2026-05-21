@@ -87,7 +87,7 @@ async function onSubmit(event: Event) {
     // shows when a banned user tries to sign in."
     await sendMagicLink(email).catch(() => {});
     setPendingLogin(email);
-    await goto(resolve('/auth/check'));
+    await goto(resolve('/auth/check')).catch(() => {});
   } finally {
     sending = false;
   }
@@ -97,13 +97,17 @@ async function onSubmit(event: Event) {
 The `inlineError = null` reset stays — it clears any prior
 dev-login inline error that might still be on the form when the
 user switches to magic link. `sending = true` / `finally` stays
-because R5 / 0301's cross-form gating depends on it. The
-`.catch(() => {})` is the operative line: it preserves the await
-(so timing matches the success path) and discards the rejection
-per R1. The inline comment makes the intent legible to a future
-auditor — swallowing errors silently usually reads like a bug, and
-this is the unusual case where it's the contract. (CLAUDE.md:
-*"Only add one when the WHY is non-obvious"*.)
+because R5 / 0301's cross-form gating depends on it. The two
+`.catch(() => {})` calls are the operative lines: the first
+preserves the await (so timing matches the success path) and
+discards GoTrue's rejection per R1; the second restores the
+safety net the original outer `catch` provided around
+`goto()`, so a same-app navigation failure doesn't surface as
+an unhandled promise rejection. The inline comment makes the
+intent legible to a future auditor — swallowing errors silently
+usually reads like a bug, and this is the unusual case where
+it's the contract. (CLAUDE.md: *"Only add one when the WHY is
+non-obvious"*.)
 
 **Drop `HttpError` and `isHttpError400` from `LoginRequest.svelte`.**
 After the rewrite the parent no longer needs to distinguish 4xx
@@ -128,12 +132,13 @@ submit from setting them," which is what D1 above does.
 change at the body of the try: append `.catch(() => {})` to the
 `sendMagicLink(email)` call. The confirmation flip and the 3-second
 timer arm on every path (R2). Same justification comment as the
-submit. Considered and rejected: pre-arming the confirmation
-*before* the await (which would also remove the timing dependency
-on GoTrue's response). Rejected because it would let the
-confirmation appear visibly faster than the spinner finishes,
-diverging from the existing success behaviour and making the
-state machine harder to reason about.
+submit. `LoginCheck.svelte` has no `goto` to guard, so the resend
+needs only the single `.catch`. Considered and rejected: pre-arming
+the confirmation *before* the await (which would also remove the
+timing dependency on GoTrue's response). Rejected because it would
+let the confirmation appear visibly faster than the spinner
+finishes, diverging from the existing success behaviour and making
+the state machine harder to reason about.
 
 **Mock GoTrue with `page.route`, not a seeded banned user.**
 Playwright's route interception (`page.route('**/auth/magiclink*',
@@ -204,7 +209,7 @@ LoginRequest.svelte
 └── onSubmit (magic-link path)
     ├── await sendMagicLink(email).catch(() => {})    ← always proceed
     ├── setPendingLogin(email)
-    └── goto('/auth/check')
+    └── await goto('/auth/check').catch(() => {})     ← safety net for nav failure
 
 DevShortcuts.svelte (DEV only — stripped from prod by 0301)
 └── onDevLogin
