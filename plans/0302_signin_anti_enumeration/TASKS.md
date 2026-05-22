@@ -447,10 +447,21 @@ brings it back.
 
 ## Phase 3 — Playwright + close-out
 
-### [ ] 3.1 Add the non-2xx route-mock test to `auth.spec.ts`
+### [x] 3.1 Add the non-2xx route-mock test to `auth.spec.ts`
 
 **Created:** 2026-05-21T13:47:35Z
-**Completed:**
+**Completed:** 2026-05-22T08:28:18Z
+
+**Notes:**
+- Verifier `pnpm test:e2e -- auth.spec.ts` only fully passes on
+  chromium in this dev environment — firefox/webkit fail with
+  *Host system is missing dependencies* (the fallback ubuntu24
+  build needs `libicu74`/`libjpeg-turbo8`/`gstreamer1.0-libav`,
+  which require root to install on this Fedora host). Both the
+  pre-existing happy-path test and the new anti-enumeration test
+  pass on `--project=chromium`. CI installs system deps via the
+  official Playwright Docker image, so cross-browser coverage is
+  unaffected — flagging the local-only gap.
 
 **Why:** Lock the contract in at the full-stack layer: a real
 browser, the real Svelte build, route-intercepted GoTrue

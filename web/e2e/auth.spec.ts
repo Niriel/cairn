@@ -37,3 +37,21 @@ test('magic-link happy path and sign-out', async ({ page, context }) => {
 	const sessionAfter = (await context.cookies()).find((c) => c.name === 'cairn_session');
 	expect(sessionAfter).toBeUndefined();
 });
+
+test('magic-link non-2xx still lands on /auth/check (anti-enumeration)', async ({ page }) => {
+	const email = `alice+${test.info().testId}@example.test`;
+
+	await page.route('**/auth/magiclink*', (route) =>
+		route.fulfill({ status: 429, contentType: 'application/json', body: '{}' })
+	);
+
+	await page.goto('/');
+	await expect(page).toHaveURL(/\/auth\/login$/);
+
+	await page.locator('[data-test="login-email"]').fill(email);
+	await page.locator('[data-test="login-submit"]').click();
+
+	await expect(page).toHaveURL(/\/auth\/check$/);
+	await expect(page.locator('[data-test="login-check-heading"]')).toHaveText('Check your inbox');
+	await expect(page.locator('[data-test="login-check-email"]')).toHaveText(email);
+});
