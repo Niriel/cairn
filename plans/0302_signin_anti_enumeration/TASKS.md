@@ -196,10 +196,10 @@ read once to pick the right "didn't open" assertion shape.
 
 **Verify:** `cd web && pnpm test src/lib/auth/components/LoginRequest.test.ts`
 
-### [ ] 1.2 Add a "Sent again." appears on failure case to `LoginCheck.test.ts`
+### [x] 1.2 Add a "Sent again." appears on failure case to `LoginCheck.test.ts`
 
 **Created:** 2026-05-21T13:47:35Z
-**Completed:**
+**Completed:** 2026-05-22T07:40:27Z
 
 **Why:** `LoginCheck.svelte`'s `onSendAgain` currently sets
 `confirmation = true` only on success — on failure the button
