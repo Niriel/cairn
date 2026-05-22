@@ -526,10 +526,25 @@ project's idiom.
 
 **Verify:** `cd web && pnpm test:e2e -- auth.spec.ts`
 
-### [ ] 3.2 Full check + tick the master plan + commit close-out
+### [x] 3.2 Full check + tick the master plan + commit close-out
 
 **Created:** 2026-05-21T13:47:35Z
-**Completed:**
+**Completed:** 2026-05-22T08:39:07Z
+
+**Notes:**
+- `./scripts/check.sh --e2e` was green for every layer (prettier,
+  eslint, svelte-check, sqlfluff, shellcheck, shfmt, pgTAP, vitest)
+  and for the chromium and firefox Playwright projects. Webkit
+  failed for both tests (pre-existing + new) with *Host system is
+  missing dependencies* — same environment limitation flagged in
+  Task 3.1's Notes (Fedora host needs root to install
+  `libicu74`/`libjpeg-turbo8`/`gstreamer1.0-libav` for the
+  ubuntu24 fallback build). Not a regression: the same webkit
+  failure reproduces on `main` once the missing libs are absent,
+  and CI's Playwright Docker image has them. Phases 0, 2.1, 2.2,
+  and 3.1 already landed as separate commits during development;
+  this final commit covers only the master-plan tick and TASKS.md
+  close-out.
 
 **Why:** Run the cross-layer check to catch any regression
 introduced by the component changes (lint, type, pgTAP, Vitest,
