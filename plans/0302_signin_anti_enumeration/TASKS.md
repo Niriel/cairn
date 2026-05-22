@@ -96,10 +96,10 @@ not a TODO · `cd web && pnpm exec prettier --check ../docs/development.md`
 
 ## Phase 1 — Vitest tests (RED)
 
-### [ ] 1.1 Rewrite `LoginRequest.test.ts` cases (d), (e), (f) for the new contract
+### [x] 1.1 Rewrite `LoginRequest.test.ts` cases (d), (e), (f) for the new contract
 
 **Created:** 2026-05-21T13:47:35Z
-**Completed:**
+**Completed:** 2026-05-22T07:27:42Z
 
 **Why:** The current cases assert presence of the inline error
 and snackbar on 4xx, 5xx, and network failure — the exact
