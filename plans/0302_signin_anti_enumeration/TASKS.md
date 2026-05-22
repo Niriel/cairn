@@ -281,10 +281,20 @@ setup and `render` call.
 
 ## Phase 2 — code changes (GREEN)
 
-### [ ] 2.1 Rewrite `onSubmit` in `LoginRequest.svelte` + copy fix
+### [x] 2.1 Rewrite `onSubmit` in `LoginRequest.svelte` + copy fix
 
 **Created:** 2026-05-21T13:47:35Z
-**Completed:**
+**Completed:** 2026-05-22T08:00:06Z
+
+**Notes:**
+- Side work: updated the `goto` mock in `LoginRequest.test.ts` from
+  `vi.fn()` to `vi.fn(() => Promise.resolve())`. The plan committed
+  to `.catch(() => {})` on `goto`, which requires the mock to return
+  a promise (matching real SvelteKit `goto`). Without it the test
+  run had 5 unhandled `TypeError: Cannot read properties of undefined
+  (reading 'catch')` from the post-GREEN code — every test still
+  passed assertions, but the unhandled-rejection noise would mask
+  future real rejections.
 
 **Why:** Turn Task 1.1's RED cases green by removing the magic-link
 path's branching into inline error and snackbar, and land the

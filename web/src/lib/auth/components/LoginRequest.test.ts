@@ -16,7 +16,7 @@ vi.mock('$lib/shared/state/session.svelte');
 vi.mock('$lib/auth/model/dev-shortcut', () => ({
 	isDevLoginShortcutEnabled: vi.fn(() => false)
 }));
-vi.mock('$app/navigation', () => ({ goto: vi.fn() }));
+vi.mock('$app/navigation', () => ({ goto: vi.fn(() => Promise.resolve()) }));
 
 afterEach(() => {
 	vi.clearAllMocks();
