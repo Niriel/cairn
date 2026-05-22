@@ -379,10 +379,10 @@ consumer alone.
 
 **Verify:** `cd web && pnpm test src/lib/auth/components/LoginRequest.test.ts` · `cd web && pnpm check`
 
-### [ ] 2.2 Patch `onSendAgain` and update copy in `LoginCheck.svelte`
+### [x] 2.2 Patch `onSendAgain` and update copy in `LoginCheck.svelte`
 
 **Created:** 2026-05-21T13:47:35Z
-**Completed:**
+**Completed:** 2026-05-22T08:16:18Z
 
 **Why:** Turn Task 1.2's RED case green by making the resend
 confirmation appear regardless of `sendMagicLink`'s outcome, and

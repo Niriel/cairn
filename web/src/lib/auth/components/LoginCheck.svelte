@@ -13,7 +13,10 @@
 		if (sending) return;
 		sending = true;
 		try {
-			await sendMagicLink(email);
+			// Anti-enumeration: show the same confirmation regardless
+			// of GoTrue's response. See docs/admin.md → "Don't add a
+			// 'resend' button that distinguishes failure modes."
+			await sendMagicLink(email).catch(() => {});
 			confirmation = true;
 			if (confirmationTimer !== null) clearTimeout(confirmationTimer);
 			confirmationTimer = setTimeout(() => {
@@ -34,8 +37,8 @@
 	<h1 class="heading" data-test="login-check-heading">Check your inbox</h1>
 
 	<p class="body">
-		We sent a link to <b data-test="login-check-email">{email}</b>. Tap it on this device to sign
-		in.
+		We sent a link to <b data-test="login-check-email">{email}</b>. Tap it on this device to
+		continue.
 	</p>
 
 	<div class="resend-row">
