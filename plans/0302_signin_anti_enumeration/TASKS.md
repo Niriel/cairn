@@ -18,10 +18,10 @@
 
 ## Phase 0 — reconcile `docs/development.md`
 
-### [ ] 0.1 Re-cast the anti-enumeration paragraph in past tense (DOC)
+### [x] 0.1 Re-cast the anti-enumeration paragraph in past tense (DOC)
 
 **Created:** 2026-05-21T13:47:35Z
-**Completed:**
+**Completed:** 2026-05-22T07:26:07Z
 
 **Why:** `docs/development.md:230` describes the *current* state of
 `LoginRequest.svelte` as broken (*"Step 3's `LoginRequest` screen
