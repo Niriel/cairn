@@ -16,7 +16,7 @@ vi.mock('$lib/shared/state/session.svelte');
 vi.mock('$lib/auth/model/dev-shortcut', () => ({
 	isDevLoginShortcutEnabled: vi.fn(() => false)
 }));
-vi.mock('$app/navigation', () => ({ goto: vi.fn() }));
+vi.mock('$app/navigation', () => ({ goto: vi.fn(() => Promise.resolve()) }));
 
 afterEach(() => {
 	vi.clearAllMocks();
@@ -96,7 +96,7 @@ describe('LoginRequest', () => {
 		expect(setPendingOrder).toBeLessThan(gotoOrder);
 	});
 
-	test('(d) 4xx renders inline error, no navigate, no setPendingLogin', async () => {
+	test('(d) 4xx still navigates to /auth/check, sets pendingLogin, shows no error UI', async () => {
 		vi.mocked(sendMagicLink).mockRejectedValueOnce(new HttpError(400, 'invalid email'));
 
 		const { getByDataTest, queryByDataTest } = render(LoginRequest);
@@ -107,46 +107,43 @@ describe('LoginRequest', () => {
 		await tick();
 		await tick();
 
-		expect(queryByDataTest('login-error')).not.toBeNull();
-		expect(vi.mocked(setPendingLogin)).not.toHaveBeenCalled();
-		expect(vi.mocked(goto)).not.toHaveBeenCalled();
+		expect(vi.mocked(goto)).toHaveBeenCalledWith('/auth/check');
+		expect(vi.mocked(setPendingLogin)).toHaveBeenCalledWith('alice@example.test');
+		expect(queryByDataTest('login-error')).toBeNull();
 	});
 
-	test('(e) 5xx opens Snackbar, no setPendingLogin', async () => {
-		vi.useFakeTimers();
-		try {
-			vi.mocked(sendMagicLink).mockRejectedValueOnce(new HttpError(503, 'service unavailable'));
-			const { getByDataTest, queryByDataTest } = render(LoginRequest);
-			await fireEvent.input(getByDataTest('login-email'), {
-				target: { value: 'alice@example.test' }
-			});
-			await fireEvent.click(getByDataTest('login-submit'));
-			await vi.waitFor(() => {
-				expect(queryByDataTest('login-snackbar')).not.toBeNull();
-			});
-			expect(vi.mocked(setPendingLogin)).not.toHaveBeenCalled();
-		} finally {
-			vi.useRealTimers();
-		}
+	test('(e) 5xx still navigates to /auth/check, sets pendingLogin, no snackbar', async () => {
+		vi.mocked(sendMagicLink).mockRejectedValueOnce(new HttpError(503, 'service unavailable'));
+
+		const { getByDataTest, queryByDataTest } = render(LoginRequest);
+		await fireEvent.input(getByDataTest('login-email'), {
+			target: { value: 'alice@example.test' }
+		});
+		await fireEvent.click(getByDataTest('login-submit'));
+		await tick();
+		await tick();
+
+		expect(vi.mocked(goto)).toHaveBeenCalledWith('/auth/check');
+		expect(vi.mocked(setPendingLogin)).toHaveBeenCalledWith('alice@example.test');
+		expect(queryByDataTest('login-error')).toBeNull();
+		expect(queryByDataTest('login-snackbar')).toBeNull();
 	});
 
-	test('(f) non-HttpError rejection (network failure) opens Snackbar', async () => {
-		vi.useFakeTimers();
-		try {
-			vi.mocked(sendMagicLink).mockRejectedValueOnce(new TypeError('Failed to fetch'));
-			const { getByDataTest, queryByDataTest } = render(LoginRequest);
-			await fireEvent.input(getByDataTest('login-email'), {
-				target: { value: 'alice@example.test' }
-			});
-			await fireEvent.click(getByDataTest('login-submit'));
-			await vi.waitFor(() => {
-				expect(queryByDataTest('login-snackbar')).not.toBeNull();
-			});
-			expect(queryByDataTest('login-error')).toBeNull();
-			expect(vi.mocked(setPendingLogin)).not.toHaveBeenCalled();
-		} finally {
-			vi.useRealTimers();
-		}
+	test('(f) non-HttpError rejection (network failure) still navigates to /auth/check, no snackbar', async () => {
+		vi.mocked(sendMagicLink).mockRejectedValueOnce(new TypeError('Failed to fetch'));
+
+		const { getByDataTest, queryByDataTest } = render(LoginRequest);
+		await fireEvent.input(getByDataTest('login-email'), {
+			target: { value: 'alice@example.test' }
+		});
+		await fireEvent.click(getByDataTest('login-submit'));
+		await tick();
+		await tick();
+
+		expect(vi.mocked(goto)).toHaveBeenCalledWith('/auth/check');
+		expect(vi.mocked(setPendingLogin)).toHaveBeenCalledWith('alice@example.test');
+		expect(queryByDataTest('login-error')).toBeNull();
+		expect(queryByDataTest('login-snackbar')).toBeNull();
 	});
 
 	test('(h) dev-shortcut buttons absent when isDevLoginShortcutEnabled returns false', async () => {

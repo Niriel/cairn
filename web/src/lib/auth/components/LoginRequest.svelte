@@ -5,7 +5,7 @@
 	import { resolve } from '$app/paths';
 
 	import Button from '$lib/basic/components/Button.svelte';
-	import { HttpError, sendMagicLink } from '$lib/auth/model/auth-client';
+	import { sendMagicLink } from '$lib/auth/model/auth-client';
 	import { isDevLoginShortcutEnabled } from '$lib/auth/model/dev-shortcut';
 	import { setPendingLogin } from '$lib/auth/state/pending-login.svelte';
 	import CairnGlyph from '$lib/shared/components/CairnGlyph.svelte';
@@ -38,25 +38,19 @@
 		emailValid = target.validity.valid && target.value.length > 0;
 	}
 
-	function isHttpError400(err: unknown): err is HttpError {
-		return err instanceof HttpError && err.status >= 400 && err.status < 500;
-	}
-
 	async function onSubmit(event: Event) {
 		event.preventDefault();
 		if (!emailValid || sending) return;
 		sending = true;
 		inlineError = null;
 		try {
-			await sendMagicLink(email);
+			// Anti-enumeration: any GoTrue outcome (link sent, banned,
+			// unconfirmed, rate-limited, unknown email) renders the same
+			// post-submit screen. See docs/admin.md → "What the web app
+			// shows when a banned user tries to sign in."
+			await sendMagicLink(email).catch(() => {});
 			setPendingLogin(email);
-			await goto(resolve('/auth/check'));
-		} catch (err) {
-			if (isHttpError400(err)) {
-				inlineError = err.message || 'Please check the e-mail and try again.';
-			} else {
-				errorSnack = true;
-			}
+			await goto(resolve('/auth/check')).catch(() => {});
 		} finally {
 			sending = false;
 		}
@@ -100,7 +94,7 @@
 		</div>
 
 		<div class="hint">
-			No password. We'll e-mail you a link that signs you in.<br />
+			No password. We'll e-mail you a link to continue.<br />
 			Your data lives on a small server in Germany.
 		</div>
 

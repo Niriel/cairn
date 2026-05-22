@@ -2,7 +2,7 @@ import { fireEvent } from '@testing-library/svelte';
 import { tick } from 'svelte';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 
-import { sendMagicLink } from '$lib/auth/model/auth-client';
+import { HttpError, sendMagicLink } from '$lib/auth/model/auth-client';
 import { render } from '$lib/test/render';
 
 import LoginCheck from './LoginCheck.svelte';
@@ -76,5 +76,24 @@ describe('LoginCheck', () => {
 	test('(e) no <header> chrome rendered', () => {
 		const { container } = render(LoginCheck, { email: 'alice@example.test' });
 		expect(container.querySelector('header')).toBeNull();
+	});
+
+	test('(f) "Sent again." appears even when sendMagicLink rejects (anti-enumeration)', async () => {
+		vi.useFakeTimers();
+		try {
+			vi.mocked(sendMagicLink).mockRejectedValueOnce(new HttpError(400, 'banned'));
+			const { getByDataTest, queryByDataTest } = render(LoginCheck, {
+				email: 'alice@example.test'
+			});
+			await fireEvent.click(getByDataTest('login-check-resend'));
+			await tick();
+			expect(getByDataTest('login-check-resend-confirmation').textContent).toContain('Sent again.');
+
+			vi.advanceTimersByTime(3001);
+			await tick();
+			expect(queryByDataTest('login-check-resend-confirmation')).toBeNull();
+		} finally {
+			vi.useRealTimers();
+		}
 	});
 });

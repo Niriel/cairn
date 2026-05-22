@@ -77,7 +77,7 @@ in-flight branch for no gain.
      the general convention this implements is at
      `docs/development.md` → "Gating dev-only UI so it doesn't ship
      to prod".
-   - [ ] **0302: honour the magic-link anti-enumeration contract in
+   - [x] **0302: honour the magic-link anti-enumeration contract in
      the sign-in UI.** `docs/admin.md` → "What the web app shows when
      a banned user tries to sign in" requires the post-submit screen
      to be identical for every outcome GoTrue can produce (link
