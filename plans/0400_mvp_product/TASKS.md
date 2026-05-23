@@ -46,10 +46,10 @@ them.
 
 ## Phase 2 — 0402: Lists screen
 
-### [ ] 2.1 Plan and implement sub-step 0402 (Lists screen)
+### [x] 2.1 Plan and implement sub-step 0402 (Lists screen)
 
 **Created:** 2026-05-23T07:51:04Z
-**Completed:**
+**Completed:** 2026-05-23T00:00:00Z
 
 **Why:** The Lists screen is the authenticated home — users land here after
 sign-in. It requires one new DB piece (`create_list` RPC) and establishes the
