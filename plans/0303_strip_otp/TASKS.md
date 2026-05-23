@@ -109,10 +109,10 @@ container via a volume mount.
 
 ## Phase 2 — Playwright assertion (RED → GREEN)
 
-### [ ] 2.1 Extend the Mailpit helper to return full email body
+### [x] 2.1 Extend the Mailpit helper to return full email body
 
 **Created:** 2026-05-23T06:06:12Z
-**Completed:**
+**Completed:** 2026-05-23T06:53:42Z
 
 **Why:** The OTP-absence assertion needs the raw HTML and plain-text bodies of
 the email. The current `waitForMagicLink` returns only the extracted link URL.
