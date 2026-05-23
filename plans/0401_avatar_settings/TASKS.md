@@ -71,10 +71,22 @@ rather than stub it.
 
 ## Phase 2 — Profile store
 
-### [ ] 2.1 Create `profile.svelte.ts` reactive store
+### [x] 2.1 Create `profile.svelte.ts` reactive store
 
 **Created:** 2026-05-23T07:57:40Z
-**Completed:**
+**Completed:** 2026-05-23T08:41:09Z
+
+**Notes:** Discovered a pre-existing bug in `postgrest.ts`: the response
+content-type check used `contentType.includes('application/json')`, which
+doesn't match `application/vnd.pgrst.object+json` (the type PostgREST returns
+for single-object requests). Fixed to also check `contentType.includes('+json')`
+so structured-syntax JSON media types are handled. The bug would have silently
+returned `undefined` in production for any `pgGet` call using the
+`Accept: application/vnd.pgrst.object+json` header.
+
+The test pattern uses `await tick()` + `vi.waitFor()` rather than `tick()` alone,
+because `tick()` flushes the `$effect` queue but the `pgGet` fetch resolves
+asynchronously across multiple microtask hops (MSW + ReadableStream).
 
 **Why:** The Settings screen needs `display_name` for the profile chip. The
 Items screen (0403) will need it for attribution. Centralising the fetch in
