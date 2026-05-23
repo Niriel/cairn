@@ -273,10 +273,10 @@ sheet be tested in isolation.
 
 **Verify:** `pnpm test` · `pnpm check`
 
-### [ ] 3.2 Create `ListsScreen.svelte`
+### [x] 3.2 Create `ListsScreen.svelte`
 
 **Created:** 2026-05-23T09:23:49Z
-**Completed:**
+**Completed:** 2026-05-23T10:56:37Z
 
 **Why:** The Lists screen is the product's authenticated home. All authenticated
 flows start here.
