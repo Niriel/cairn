@@ -190,10 +190,10 @@ fetches" — `await tick()` then `vi.waitFor(...)` pattern.
 
 ## Phase 3 — Lists screen UI
 
-### [ ] 3.1 Create `CreateListSheet.svelte`
+### [x] 3.1 Create `CreateListSheet.svelte`
 
 **Created:** 2026-05-23T09:23:49Z
-**Completed:**
+**Completed:** 2026-05-23T10:51:29Z
 
 **Why:** The create-list form is the primary action on the Lists screen. Extracting
 it into its own component keeps `ListsScreen.svelte` focused on layout and lets the
