@@ -13,6 +13,25 @@ sub-bullets under the master-plan step they refine, and tick the
 same `[ ]` / `[x]` convention. They don't get their own numbered
 list position — the parent step's hundreds slot is their home.
 
+## Orchestration plans
+
+Some steps are large enough that landing them in a single plan and branch
+makes review and bisection hard. For those, create an **orchestration plan**:
+a `0N00`-numbered branch whose `TASKS.md` does not contain implementation
+tasks directly, but instead creates and executes numbered sub-branches
+(`0N01`, `0N02`, …), each with its own `/write-plan` and its own
+REQUIREMENTS/PLAN/TASKS. When all sub-branches are merged back into `0N00`,
+`0N00` is merged into `main` and the step's checkbox is ticked.
+
+The sub-branch numbers slot into the 99-slot gap the hundreds convention
+leaves (e.g. `0401`, `0402`, `0403` under `0400`). Each sub-plan is a normal
+plan — the only thing that makes `0N00` special is that its tasks say
+"create sub-branch → `/write-plan` → implement → merge back" rather than
+writing code directly. `plans/0400_mvp_product/` is the worked example.
+
+Use this pattern when a step would otherwise produce a PR too large to review
+in one pass. Prefer a single plan for steps that are large but coherent.
+
 ## Context
 
 Setup is done (Docker stack, Vitest/Playwright/pgTAP harnesses,
