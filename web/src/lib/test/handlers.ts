@@ -31,5 +31,12 @@ export const handlers: RequestHandler[] = [
 			user: { id: '11111111-1111-1111-1111-111111111111', email: 'dev@example.test' }
 		})
 	),
-	http.delete('*/auth/session', () => new HttpResponse(null, { status: 204 }))
+	http.delete('*/auth/session', () => new HttpResponse(null, { status: 204 })),
+	// Path-only pattern — MSW v2 query-string wildcard behaviour is unreliable
+	http.get('*/api/profiles', () =>
+		HttpResponse.json(
+			{ display_name: 'Alice' },
+			{ headers: { 'Content-Type': 'application/vnd.pgrst.object+json' } }
+		)
+	)
 ];

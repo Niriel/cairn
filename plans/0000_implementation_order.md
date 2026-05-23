@@ -29,6 +29,10 @@ plan — the only thing that makes `0N00` special is that its tasks say
 "create sub-branch → `/write-plan` → implement → merge back" rather than
 writing code directly. `plans/0400_mvp_product/` is the worked example.
 
+All merges of sub-branches back into the orchestration branch, and of the
+orchestration branch back into `main`, use `--no-ff` so the branch grouping
+is visible on the commit tree.
+
 Use this pattern when a step would otherwise produce a PR too large to review
 in one pass. Prefer a single plan for steps that are large but coherent.
 

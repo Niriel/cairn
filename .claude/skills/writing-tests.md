@@ -131,6 +131,33 @@ beforeEach(async () => {
 The `await tick()` is load-bearing — without it the reset's effect
 can land *after* your clear and leak into the next test.
 
+### Store tests that trigger async fetches
+
+`await tick()` flushes Svelte's reactive queue — it does not wait
+for Promises started *inside* an effect. If the effect under test
+calls `pgGet` (or any other async operation), `tick()` alone is not
+enough: after it returns, the fetch is in flight but not yet
+resolved.
+
+Pattern: `tick()` to fire the effect, then `vi.waitFor()` to poll
+until the async work lands:
+
+```ts
+sessionMod.setSignedIn({ id: TEST_UID, email: 'dev@example.test' });
+await tick();               // fires the $effect
+await vi.waitFor(() => {
+  expect(profileMod.profile.displayName).toBe('Alice');
+});
+```
+
+`vi.waitFor` retries the assertion on each microtask until it passes
+or the 1 s default timeout elapses — far more reliable than a fixed
+`setTimeout` delay.
+
+When testing that the store *resets* after a synchronous transition
+(e.g. sign-out sets `displayName = null` directly, without a fetch),
+`await tick()` alone is sufficient for that assertion.
+
 ## HTTP at the network layer (MSW)
 
 Component tests use MSW to intercept `fetch` and return canned

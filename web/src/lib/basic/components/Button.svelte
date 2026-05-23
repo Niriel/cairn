@@ -10,6 +10,7 @@
 		onclick?: () => void;
 		children?: Snippet;
 		'data-test'?: string;
+		'aria-pressed'?: boolean;
 	};
 
 	let {
