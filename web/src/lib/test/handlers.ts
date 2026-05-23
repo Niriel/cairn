@@ -38,5 +38,13 @@ export const handlers: RequestHandler[] = [
 			{ display_name: 'Alice' },
 			{ headers: { 'Content-Type': 'application/vnd.pgrst.object+json' } }
 		)
+	),
+	http.post('*/api/rpc/create_list', () =>
+		HttpResponse.json({
+			id: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+			name: 'My list',
+			description: null,
+			modified_at: '2026-01-01T00:00:00Z'
+		})
 	)
 ];

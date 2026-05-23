@@ -72,10 +72,10 @@ files.
 
 ## Phase 2 — List domain model and state
 
-### [ ] 2.1 Create `list/model/list.ts` and `createList` helper
+### [x] 2.1 Create `list/model/list.ts` and `createList` helper
 
 **Created:** 2026-05-23T09:23:49Z
-**Completed:**
+**Completed:** 2026-05-23T10:34:57Z
 
 **Why:** The Lists screen and the create-list sheet both need a typed `List` value
 and a function to call `POST /rpc/create_list`. Centralising them in the model
