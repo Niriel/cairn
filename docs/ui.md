@@ -364,6 +364,61 @@ Concretely:
 
 This applies to button pairs only. Single primary buttons (e.g. **Save** on the edit screen) are placed in the top-right of the top bar per platform convention.
 
+## CSS layout conventions
+
+These patterns were settled during implementation and must be followed on every new screen. They are not repeated in individual plan tasks — read this section when building any UI.
+
+### App shell width and fixed-position elements
+
+The app is constrained to `--app-max-w: 26rem` (≈ 416 px), centred with `margin-inline: auto`. This token lives in `tokens.css` and is referenced by `+layout.svelte`.
+
+Fixed-position elements (`position: fixed`) are placed relative to the viewport, not the shell, so naïve `left: 0; right: 0` or `right: 16px` will escape the container on wide screens. The correct patterns:
+
+```css
+/* Sheet: span the shell, not the viewport */
+left: max(0px, calc(50% - var(--app-max-w) / 2));
+right: max(0px, calc(50% - var(--app-max-w) / 2));
+
+/* FAB: 16 px from the shell's right edge */
+right: max(16px, calc(50% - var(--app-max-w) / 2 + 16px));
+```
+
+These are already in `Sheet.svelte` and `Fab.svelte`. Any new fixed-position element (snackbar, tooltip, keyboard-shortcut bar, etc.) must use the same pattern — **never bare `left: 0` or `right: 16px` on a fixed element**.
+
+### Full-height screens and vertical centring
+
+Screens that can show an empty state should be flex columns that fill the viewport so the empty state can be centred:
+
+```css
+.screen {
+    display: flex;
+    flex-direction: column;
+    min-height: 100dvh;   /* dvh, not vh — shrinks when iOS Safari chrome expands */
+}
+.content {
+    flex: 1;              /* fills remaining height below the TopBar */
+}
+.empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+```
+
+### TopBar visual spec
+
+Every `<TopBar>` renders with:
+- Newsreader serif, 22 px, weight 500, letter-spacing −0.01 em for the title
+- `min-height: 56px`; padding 12 px top / 18 px sides (plus safe-area insets)
+- `border-bottom: 1px solid var(--rule)`
+
+These styles live inside `TopBar.svelte` — callers do not re-apply them. Screens that are the navigation root (e.g. Lists) pass `showBack={false}`; all others omit it.
+
+### Empty-state copy and style
+
+Empty states use two short lines: the first states the fact ("No lists yet."), the second gives the action ("Tap [icon] to create one."). Colour: `var(--stone)`. Font size: ≥ 22 px — large enough to read comfortably in the centre of an otherwise empty screen. Inline icon hints (the circular FAB replica) use `background: var(--accent); color: var(--paper)` and `border-radius: 50%`.
+
 ## Not decided
 
 These are deferred — they need a design pass but aren't blocking v1.

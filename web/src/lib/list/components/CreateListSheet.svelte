@@ -64,3 +64,64 @@
 		</ButtonPair>
 	</form>
 </Sheet>
+
+<style>
+	form {
+		display: flex;
+		flex-direction: column;
+		gap: 0.75rem;
+	}
+
+	input,
+	textarea {
+		width: 100%;
+		padding: 12px 14px;
+		border: 1px solid var(--rule);
+		border-radius: 12px;
+		background: var(--paper);
+		color: var(--ink);
+		font: inherit;
+		font-size: 16px;
+		resize: none;
+	}
+
+	input::placeholder,
+	textarea::placeholder {
+		color: var(--stone);
+	}
+
+	textarea {
+		min-height: 4rem;
+	}
+
+	p {
+		margin: 0;
+		font-size: 13px;
+		color: var(--ember);
+	}
+
+	button {
+		padding: 12px 20px;
+		border: none;
+		border-radius: 12px;
+		font: inherit;
+		font-size: 15px;
+		font-weight: 600;
+		cursor: pointer;
+	}
+
+	button[type='button'] {
+		background: transparent;
+		color: var(--ink-soft);
+	}
+
+	button[type='submit'] {
+		background: var(--accent);
+		color: var(--paper);
+	}
+
+	button:disabled {
+		opacity: 0.5;
+		cursor: default;
+	}
+</style>

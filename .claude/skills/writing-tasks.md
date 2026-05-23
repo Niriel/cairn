@@ -192,7 +192,7 @@ canonical body and the rationale for living in `public`.
   layer). Use the per-layer commands when only one layer is
   affected:
   - DB-only changes → `./scripts/test-db.sh`
-  - Web-only changes → `pnpm check` · `pnpm lint` · `pnpm test`
+  - Web-only changes → `pnpm lint` · `pnpm check` · `pnpm test`
   - Touching schema/RLS *and* web code → `./scripts/check.sh`
 - **TDD is mandatory for testable logic.** RED steps before GREEN
   steps. For DB work specifically: every change to schema, RLS,

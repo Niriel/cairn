@@ -2,6 +2,7 @@
 	import { goto } from '$app/navigation';
 
 	import Fab from '$lib/basic/components/Fab.svelte';
+	import Icon from '$lib/basic/components/Icon.svelte';
 	import Accordion from '$lib/shared/components/Accordion.svelte';
 	import TopBar from '$lib/shared/components/TopBar.svelte';
 	import { lists, refreshLists } from '$lib/list/state/lists.svelte';
@@ -12,59 +13,64 @@
 	let expandedId = $state<string | null>(null);
 </script>
 
-<TopBar>Lists</TopBar>
+<div class="screen">
+	<TopBar showBack={false}>Lists</TopBar>
 
-{#if lists.loading}
-	<div data-test="lists-loading">Loading…</div>
-{:else if lists.items.length === 0}
-	<p data-test="lists-empty">No lists yet. Tap + to create one.</p>
-{:else}
-	<ul>
-		{#each lists.items as item (item.id)}
-			<li data-test="list-row-{item.id}">
-				{#if item.description !== null}
-					<Accordion
-						expanded={expandedId === item.id}
-						pushesHistory={true}
-						onexpand={() => {
-							expandedId = item.id;
-						}}
-						oncollapse={() => {
-							expandedId = null;
-						}}
-					>
-						{#snippet header()}
-							<button
-								data-test="list-nav-{item.id}"
-								onclick={() => {
-									// eslint-disable-next-line svelte/no-navigation-without-resolve
-									void goto('/lists/' + item.id); // swap to resolve() when /lists/[id] route exists
-								}}>{item.name}</button
-							>
-						{/snippet}
-						{#snippet body()}
-							<p>{item.description}</p>
-						{/snippet}
-					</Accordion>
-				{:else}
-					<button
-						data-test="list-nav-{item.id}"
-						onclick={() => {
-							// eslint-disable-next-line svelte/no-navigation-without-resolve
-							void goto('/lists/' + item.id); // swap to resolve() when /lists/[id] route exists
-						}}>{item.name}</button
-					>
-				{/if}
-			</li>
-		{/each}
-	</ul>
-{/if}
+	{#if lists.loading}
+		<div class="content" data-test="lists-loading">Loading…</div>
+	{:else if lists.items.length === 0}
+		<div class="content empty" data-test="lists-empty">
+			<p>No lists yet.</p>
+			<p>Tap <span class="fab-hint"><Icon name="plus" size={14} /></span> to create one.</p>
+		</div>
+	{:else}
+		<ul>
+			{#each lists.items as item (item.id)}
+				<li data-test="list-row-{item.id}">
+					{#if item.description !== null}
+						<Accordion
+							expanded={expandedId === item.id}
+							pushesHistory={true}
+							onexpand={() => {
+								expandedId = item.id;
+							}}
+							oncollapse={() => {
+								expandedId = null;
+							}}
+						>
+							{#snippet header()}
+								<button
+									data-test="list-nav-{item.id}"
+									onclick={() => {
+										// eslint-disable-next-line svelte/no-navigation-without-resolve
+										void goto('/lists/' + item.id); // swap to resolve() when /lists/[id] route exists
+									}}>{item.name}</button
+								>
+							{/snippet}
+							{#snippet body()}
+								<p>{item.description}</p>
+							{/snippet}
+						</Accordion>
+					{:else}
+						<button
+							data-test="list-nav-{item.id}"
+							onclick={() => {
+								// eslint-disable-next-line svelte/no-navigation-without-resolve
+								void goto('/lists/' + item.id); // swap to resolve() when /lists/[id] route exists
+							}}>{item.name}</button
+						>
+					{/if}
+				</li>
+			{/each}
+		</ul>
+	{/if}
+</div>
 
 <Fab
 	data-test="lists-fab"
 	onclick={() => {
 		createSheetOpen = true;
-	}}>+</Fab
+	}}><Icon name="plus" size={24} /></Fab
 >
 
 {#if createSheetOpen}
@@ -78,3 +84,44 @@
 		}}
 	/>
 {/if}
+
+<style>
+	.screen {
+		display: flex;
+		flex-direction: column;
+		min-height: 100dvh;
+	}
+
+	.content {
+		flex: 1;
+	}
+
+	.empty {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+		gap: 0.5rem;
+		text-align: center;
+		padding: 2rem;
+		color: var(--stone);
+		font-size: 22px;
+	}
+
+	.empty p {
+		margin: 0;
+	}
+
+	.fab-hint {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		width: 1.8em;
+		height: 1.8em;
+		border-radius: 50%;
+		background: var(--accent);
+		color: var(--paper);
+		vertical-align: middle;
+		margin-inline: 0.2em;
+	}
+</style>

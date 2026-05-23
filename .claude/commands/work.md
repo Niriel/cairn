@@ -79,8 +79,9 @@ chose the verifier; respect their choice. Common ones:
   the task spans layers.
 - `./scripts/test-db.sh` — pgTAP only. Use when the task is
   schema/RLS/trigger/view-shaped.
-- `pnpm check` / `pnpm lint` / `pnpm test` — web-only tasks.
-  `pnpm check` runs svelte-check; `pnpm test` runs Vitest.
+- `pnpm lint` · `pnpm check` · `pnpm test` — web-only tasks.
+  `pnpm lint` runs ESLint + Prettier; `pnpm check` runs svelte-check; `pnpm test` runs Vitest.
+  Order matters: format/lint first (cheapest, catches the most trivial failures), then types, then tests.
 - `pnpm exec playwright test <file>` — when the task adds or
   modifies a Playwright touch.
 

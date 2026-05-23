@@ -27,8 +27,8 @@
 <style>
 	div {
 		position: fixed;
-		left: 0;
-		right: 0;
+		left: max(0px, calc(50% - var(--app-max-w) / 2));
+		right: max(0px, calc(50% - var(--app-max-w) / 2));
 		bottom: 0;
 		background: var(--paper);
 		padding: 1rem calc(1rem + env(safe-area-inset-right)) calc(1rem + env(safe-area-inset-bottom))
