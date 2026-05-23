@@ -77,6 +77,24 @@ control the template.
    the already-configured stack from Phase 1. The `\b\d{6}\b` check is the
    machine-verifiable contract that the template change is effective.
 
+## Phase 3 — Fix template delivery (GoTrue fetches over HTTP, not filesystem)
+
+Phase 1 mounted `gotrue/templates/` into the GoTrue container and pointed
+`GOTRUE_MAILER_TEMPLATES_MAGIC_LINK` at the in-container path. This never
+worked: GoTrue treats the env var value as a **URL**, not a file path. When
+the value starts with `/`, GoTrue prepends `GOTRUE_SITE_URL` and issues an
+HTTP GET — e.g. `GET http://localhost:5173/gotrue/templates/magic_link.html`.
+The container logs confirm the failure (`Error loading template … connection
+refused`) and GoTrue fell back to its built-in default, which still includes
+the OTP.
+
+The fix is to place the template under `web/static/` so SvelteKit serves it
+at precisely the URL GoTrue is trying to fetch. The volume mount and the
+`gotrue/templates/` directory at the repo root are then removed.
+
+This also corrects R2 in `REQUIREMENTS.md`, which described the volume-mount
+approach as the intended design.
+
 ## Reference docs and skills
 
 - **`docs/testing.md`** — three test layers; Playwright is the right layer for

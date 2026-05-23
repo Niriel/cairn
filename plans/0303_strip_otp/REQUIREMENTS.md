@@ -21,10 +21,14 @@ any six-digit numeric sequence that could be read as an OTP.
 
 ## R2. Template wired into the dev Docker stack
 
-The GoTrue service in `docker-compose.yml` mounts
-`./gotrue/templates` into the container as a read-only bind mount and sets
-`GOTRUE_MAILER_TEMPLATES_MAGIC_LINK` to the in-container path of the HTML
-file. The existing stack configuration is otherwise unchanged.
+The GoTrue service in `docker-compose.yml` has
+`GOTRUE_MAILER_TEMPLATES_MAGIC_LINK` set to `/gotrue/templates/magic_link.html`.
+GoTrue fetches this value as a URL by prepending `GOTRUE_SITE_URL`
+(`http://localhost:5173`), so the template must be served by the SvelteKit dev
+server — not mounted into the container. The template file lives at
+`web/static/gotrue/templates/magic_link.html` so SvelteKit serves it at
+exactly the path GoTrue requests. The `gotrue/templates/` directory at the repo
+root and its volume mount are removed.
 
 ## R3. Plain-text email part also code-free
 

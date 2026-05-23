@@ -153,10 +153,10 @@ immediately after Phase 1).
 **Verify:** `cd web && pnpm check` — expect one type error on `auth.spec.ts`
 line 23 (the call site update is Task 2.2's job).
 
-### [ ] 2.2 Add OTP-absence assertions to the happy-path Playwright test
+### [x] 2.2 Add OTP-absence assertions to the happy-path Playwright test
 
 **Created:** 2026-05-23T06:06:12Z
-**Completed:**
+**Completed:** 2026-05-23T06:56:13Z
 
 **Why:** A machine-verifiable assertion that the email contains no six-digit
 numeric token is the only way to guarantee the template change is effective
@@ -206,3 +206,56 @@ reads `const link = await waitForMagicLink(email)` and fails `pnpm check`).
 **Verify:** `cd web && pnpm check` — no type errors. · `cd web && pnpm test:e2e`
 — all tests green, including the two new assertions. · `./scripts/check.sh`
 — fully green.
+
+## Phase 3 — Fix template delivery
+
+### [ ] 3.1 Move template to web/static and remove dead volume mount
+
+**Created:** 2026-05-23T07:15:00Z
+**Completed:**
+
+**Why:** GoTrue treats `GOTRUE_MAILER_TEMPLATES_MAGIC_LINK` as a URL, not a
+filesystem path. When the value is `/gotrue/templates/magic_link.html`, GoTrue
+prepends `GOTRUE_SITE_URL` (`http://localhost:5173`) and does an HTTP GET.
+The Phase 1 volume mount was never read; GoTrue fell back to its built-in
+default template (which includes `{{ .Token }}`) every time. Moving the file
+to `web/static/` makes SvelteKit serve it at exactly the URL GoTrue requests.
+
+**Prerequisites:** Tasks 1.1 and 1.2 complete (template file exists at
+`gotrue/templates/magic_link.html`; env var already set in `docker-compose.yml`).
+
+**Decisions:**
+- Template destination: `web/static/gotrue/templates/magic_link.html`. SvelteKit
+  serves everything under `web/static/` at its relative path, so this resolves
+  to `http://localhost:5173/gotrue/templates/magic_link.html` — the exact URL
+  GoTrue constructs. Works in prod too: `GOTRUE_SITE_URL` will be the production
+  domain; as long as the built SvelteKit app serves the static file, GoTrue
+  can fetch it.
+- `GOTRUE_MAILER_TEMPLATES_MAGIC_LINK: /gotrue/templates/magic_link.html` in
+  `docker-compose.yml` stays unchanged — the env var value was always correct;
+  only the delivery mechanism was wrong.
+- Remove the `volumes` block from the `gotrue` service entirely. It no longer
+  serves any purpose and leaving it in would be misleading.
+- Delete `gotrue/templates/` from the repo root — the directory has no further
+  purpose once the file is moved.
+
+**Files:**
+- `web/static/gotrue/templates/magic_link.html` (create — move from `gotrue/templates/magic_link.html`)
+- `gotrue/templates/magic_link.html` (delete)
+- `docker-compose.yml` (modify — remove `volumes` block from `gotrue` service)
+
+**Steps:**
+1. Create `web/static/gotrue/templates/` and copy the template file there.
+   Content is identical to `gotrue/templates/magic_link.html`.
+2. Delete `gotrue/templates/magic_link.html` and `gotrue/templates/`.
+3. In `docker-compose.yml`, remove the `volumes` block from the `gotrue`
+   service (the two lines `volumes:` and `  - ./gotrue/templates:/gotrue/templates:ro`).
+4. Restart GoTrue: `docker compose up -d --force-recreate gotrue`.
+5. Confirm the fix: `docker compose logs --tail=20 gotrue` — must NOT contain
+   `Error loading template`. Then request a magic link in the browser and check
+   Mailpit: the email must show "Sign in to Cairn" with no six-digit code.
+6. Run `cd web && pnpm test:e2e` — the OTP-absence assertions added in Task 2.2
+   must go GREEN for the first time.
+7. Run `./scripts/check.sh` — fully green.
+
+**Verify:** `docker compose logs --tail=5 gotrue` — no `Error loading template`. · `cd web && pnpm test:e2e` — all green. · `./scripts/check.sh` — fully green.
