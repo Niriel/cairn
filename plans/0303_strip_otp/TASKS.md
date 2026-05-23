@@ -209,53 +209,104 @@ reads `const link = await waitForMagicLink(email)` and fails `pnpm check`).
 
 ## Phase 3 — Fix template delivery
 
-### [ ] 3.1 Move template to web/static and remove dead volume mount
+### [x] 3.1 Move template to web/static and remove dead volume mount
 
 **Created:** 2026-05-23T07:15:00Z
-**Completed:**
+**Completed:** 2026-05-23T07:30:00Z
 
 **Why:** GoTrue treats `GOTRUE_MAILER_TEMPLATES_MAGIC_LINK` as a URL, not a
 filesystem path. When the value is `/gotrue/templates/magic_link.html`, GoTrue
 prepends `GOTRUE_SITE_URL` (`http://localhost:5173`) and does an HTTP GET.
 The Phase 1 volume mount was never read; GoTrue fell back to its built-in
 default template (which includes `{{ .Token }}`) every time. Moving the file
-to `web/static/` makes SvelteKit serve it at exactly the URL GoTrue requests.
+to `web/static/` is the first half of the fix — it puts the template where both
+SvelteKit (production) and the static sidecar (dev, Task 3.2) can serve it.
 
-**Prerequisites:** Tasks 1.1 and 1.2 complete (template file exists at
-`gotrue/templates/magic_link.html`; env var already set in `docker-compose.yml`).
+**Prerequisites:** Tasks 1.1 and 1.2 complete.
 
 **Decisions:**
-- Template destination: `web/static/gotrue/templates/magic_link.html`. SvelteKit
-  serves everything under `web/static/` at its relative path, so this resolves
-  to `http://localhost:5173/gotrue/templates/magic_link.html` — the exact URL
-  GoTrue constructs. Works in prod too: `GOTRUE_SITE_URL` will be the production
-  domain; as long as the built SvelteKit app serves the static file, GoTrue
-  can fetch it.
-- `GOTRUE_MAILER_TEMPLATES_MAGIC_LINK: /gotrue/templates/magic_link.html` in
-  `docker-compose.yml` stays unchanged — the env var value was always correct;
-  only the delivery mechanism was wrong.
-- Remove the `volumes` block from the `gotrue` service entirely. It no longer
-  serves any purpose and leaving it in would be misleading.
-- Delete `gotrue/templates/` from the repo root — the directory has no further
-  purpose once the file is moved.
+- Template destination: `web/static/gotrue/templates/magic_link.html`.
+- Remove the `volumes` block from the `gotrue` service entirely.
+- Delete `gotrue/templates/` from the repo root.
+- The env var value is updated in Task 3.2 once the sidecar approach is decided.
 
 **Files:**
-- `web/static/gotrue/templates/magic_link.html` (create — move from `gotrue/templates/magic_link.html`)
-- `gotrue/templates/magic_link.html` (delete)
-- `docker-compose.yml` (modify — remove `volumes` block from `gotrue` service)
+- `web/static/gotrue/templates/magic_link.html` (created — moved from `gotrue/templates/magic_link.html`)
+- `gotrue/templates/magic_link.html` (deleted)
+- `docker-compose.yml` (modified — removed `volumes` block from `gotrue` service)
+
+**Note:** After this task, GoTrue still fell back to the default template in dev
+because `http://localhost:5173` is unreachable from inside Docker (see Task 3.2).
+
+### [x] 3.2 Add nginx static sidecar to serve the template within Docker
+
+**Created:** 2026-05-23T07:45:00Z
+**Completed:** 2026-05-23T07:50:00Z
+
+**Why:** Inside a Docker container, `localhost` resolves to the container itself,
+not the host machine. With `GOTRUE_SITE_URL: http://localhost:5173`, GoTrue
+constructs `http://localhost:5173/gotrue/templates/magic_link.html` and tries to
+GET it — but `pnpm dev` runs on the host, not inside Docker, so the connection is
+refused. GoTrue silently falls back to its built-in default template. This was
+confirmed from GoTrue logs (`dial tcp [::1]:5173: connect: connection refused`)
+and from reading the source (`mailme/mailme.go`: `http.Client.Get(url)` with
+silent fallback on error).
+
+The fix is a dedicated `static` service in `docker-compose.yml` using
+`nginx:alpine`, serving `./web/static/` from within the Compose network. The
+env var is changed to a full `http://static/...` URL so GoTrue uses it verbatim
+(the "starts with http → use as-is" branch in `mailme.go`) without prepending
+`GOTRUE_SITE_URL`. The sidecar is always reachable regardless of whether
+`pnpm dev` is running.
+
+**Prerequisites:** Task 3.1 (`web/static/gotrue/templates/magic_link.html` exists).
+
+**Decisions:**
+- Sidecar image: `nginx:alpine` — minimal, no configuration needed for plain
+  static file serving.
+- Service name `static` — short, descriptive, and used as the hostname in the
+  template URL.
+- Full URL in env var: `http://static/gotrue/templates/magic_link.html`. Using
+  the full URL prevents GoTrue from prepending `GOTRUE_SITE_URL` (which would
+  re-introduce the localhost problem). Confirmed by source: values starting with
+  `http` are used as-is.
+- No port mapping needed — the nginx container is internal to the Compose
+  network; nothing needs to reach it from the host.
+- Production compose (`docker-compose.prod.yml`) does not need this sidecar:
+  `GOTRUE_SITE_URL` will be the real domain, the relative-path form
+  (`/gotrue/templates/magic_link.html`) is correct there, and the static file
+  is served by the production web container.
+
+**Files:**
+- `docker-compose.yml` (modify — add `static` service; update
+  `GOTRUE_MAILER_TEMPLATES_MAGIC_LINK`; add `static` to `gotrue` depends_on)
 
 **Steps:**
-1. Create `web/static/gotrue/templates/` and copy the template file there.
-   Content is identical to `gotrue/templates/magic_link.html`.
-2. Delete `gotrue/templates/magic_link.html` and `gotrue/templates/`.
-3. In `docker-compose.yml`, remove the `volumes` block from the `gotrue`
-   service (the two lines `volumes:` and `  - ./gotrue/templates:/gotrue/templates:ro`).
-4. Restart GoTrue: `docker compose up -d --force-recreate gotrue`.
-5. Confirm the fix: `docker compose logs --tail=20 gotrue` — must NOT contain
-   `Error loading template`. Then request a magic link in the browser and check
-   Mailpit: the email must show "Sign in to Cairn" with no six-digit code.
-6. Run `cd web && pnpm test:e2e` — the OTP-absence assertions added in Task 2.2
-   must go GREEN for the first time.
+1. In `docker-compose.yml`, add after the `mailpit` service:
+   ```yaml
+   static:
+     image: nginx:alpine
+     volumes:
+       - ./web/static:/usr/share/nginx/html:ro
+   ```
+2. Change `GOTRUE_MAILER_TEMPLATES_MAGIC_LINK` in the `gotrue` environment block
+   to:
+   ```yaml
+   GOTRUE_MAILER_TEMPLATES_MAGIC_LINK: http://static/gotrue/templates/magic_link.html
+   ```
+3. Add `static` to the `gotrue` service `depends_on`:
+   ```yaml
+   static:
+     condition: service_started
+   ```
+4. Restart: `docker compose up -d --force-recreate gotrue static`.
+5. Verify the sidecar serves the file:
+   ```bash
+   docker compose exec static wget -qO- http://localhost/gotrue/templates/magic_link.html
+   ```
+   Should return the HTML. No `Error loading template` in GoTrue logs.
+6. Request a magic link in the browser; check Mailpit — email must show
+   "Sign in to Cairn" with no six-digit code.
 7. Run `./scripts/check.sh` — fully green.
 
-**Verify:** `docker compose logs --tail=5 gotrue` — no `Error loading template`. · `cd web && pnpm test:e2e` — all green. · `./scripts/check.sh` — fully green.
+**Verify:** `docker compose exec static wget -qO- http://localhost/gotrue/templates/magic_link.html` — returns HTML. · `docker compose logs --tail=5 gotrue` after a magic-link request — no `Error loading template`. · Mailpit shows custom template, no OTP. · `./scripts/check.sh` — fully green.

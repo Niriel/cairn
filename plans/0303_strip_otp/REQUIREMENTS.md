@@ -22,12 +22,17 @@ any six-digit numeric sequence that could be read as an OTP.
 ## R2. Template wired into the dev Docker stack
 
 The GoTrue service in `docker-compose.yml` has
-`GOTRUE_MAILER_TEMPLATES_MAGIC_LINK` set to `/gotrue/templates/magic_link.html`.
-GoTrue fetches this value as a URL by prepending `GOTRUE_SITE_URL`
-(`http://localhost:5173`), so the template must be served by the SvelteKit dev
-server — not mounted into the container. The template file lives at
-`web/static/gotrue/templates/magic_link.html` so SvelteKit serves it at
-exactly the path GoTrue requests. The `gotrue/templates/` directory at the repo
+`GOTRUE_MAILER_TEMPLATES_MAGIC_LINK` set to a full URL pointing at a dedicated
+`static` sidecar service (`nginx:alpine`) that serves `web/static/` from within
+the Compose network. GoTrue always fetches templates over HTTP (no file-path
+support); inside a Docker container `localhost` resolves to the container itself,
+not the host, so relying on the SvelteKit dev server being reachable from inside
+GoTrue does not work. The `static` service is always up when the Compose stack
+is running, independent of `pnpm dev`.
+
+The template file lives at `web/static/gotrue/templates/magic_link.html` so it
+is also served correctly in production (where `GOTRUE_SITE_URL` is the real
+domain and no sidecar is needed). The `gotrue/templates/` directory at the repo
 root and its volume mount are removed.
 
 ## R3. Plain-text email part also code-free

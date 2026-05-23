@@ -77,7 +77,7 @@ control the template.
    the already-configured stack from Phase 1. The `\b\d{6}\b` check is the
    machine-verifiable contract that the template change is effective.
 
-## Phase 3 — Fix template delivery (GoTrue fetches over HTTP, not filesystem)
+## Phase 3 — Fix template delivery (GoTrue fetches over HTTP, not filesystem; localhost is not the host)
 
 Phase 1 mounted `gotrue/templates/` into the GoTrue container and pointed
 `GOTRUE_MAILER_TEMPLATES_MAGIC_LINK` at the in-container path. This never
@@ -88,12 +88,35 @@ The container logs confirm the failure (`Error loading template … connection
 refused`) and GoTrue fell back to its built-in default, which still includes
 the OTP.
 
-The fix is to place the template under `web/static/` so SvelteKit serves it
-at precisely the URL GoTrue is trying to fetch. The volume mount and the
-`gotrue/templates/` directory at the repo root are then removed.
+Phase 3 has two sub-problems that were discovered sequentially:
 
-This also corrects R2 in `REQUIREMENTS.md`, which described the volume-mount
-approach as the intended design.
+**Sub-problem A — filesystem paths.** GoTrue treats
+`GOTRUE_MAILER_TEMPLATES_MAGIC_LINK` as a URL, not a file path. When the value
+starts with `/`, GoTrue prepends `GOTRUE_SITE_URL` and issues an HTTP GET. The
+Phase 1 volume mount was never read; GoTrue fell back to its built-in default
+every time. This is confirmed by reading
+[`mailme/mailme.go`](https://github.com/supabase/mailme) in the GoTrue
+dependency tree — the fetch is unconditionally `http.Client.Get(url)`.
+
+Moving the template to `web/static/gotrue/templates/magic_link.html` and
+removing the volume mount (Task 3.1) fixed sub-problem A.
+
+**Sub-problem B — Docker networking.** With the template at `web/static/`, the
+env var `/gotrue/templates/magic_link.html` becomes
+`http://localhost:5173/gotrue/templates/magic_link.html` after GoTrue prepends
+`GOTRUE_SITE_URL`. But inside a Docker container, `localhost` resolves to the
+container itself, not the host machine. `pnpm dev` runs on the host; the GoTrue
+container cannot reach it at `localhost:5173`.
+
+The fix is a dedicated `static` sidecar service (`nginx:alpine`) in
+`docker-compose.yml` that serves `./web/static/` from within the Compose
+network. The env var is changed to the full URL
+`http://static/gotrue/templates/magic_link.html` (starting with `http`, so
+GoTrue uses it verbatim without prepending `GOTRUE_SITE_URL`). The sidecar is
+always reachable regardless of whether `pnpm dev` is running (Task 3.2).
+
+This also corrects R2 in `REQUIREMENTS.md`, which described the SvelteKit
+serving approach as the intended design.
 
 ## Reference docs and skills
 
