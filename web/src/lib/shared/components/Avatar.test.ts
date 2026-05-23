@@ -35,10 +35,10 @@ describe('Avatar', () => {
 		expect(h1).toBe(h2);
 	});
 
-	test('(f) size prop sets width and height style', () => {
+	test('(f) size prop sets width and height style in rem', () => {
 		const { container } = render(Avatar, { displayName: 'Alice', size: 60 });
 		const el = container.firstElementChild as HTMLElement;
-		expect(el.style.width).toBe('60px');
-		expect(el.style.height).toBe('60px');
+		expect(el.style.width).toBe('3.75rem');
+		expect(el.style.height).toBe('3.75rem');
 	});
 });
