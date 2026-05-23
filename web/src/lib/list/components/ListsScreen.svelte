@@ -5,6 +5,7 @@
 	import Icon from '$lib/basic/components/Icon.svelte';
 	import Accordion from '$lib/shared/components/Accordion.svelte';
 	import TopBar from '$lib/shared/components/TopBar.svelte';
+	import { resolve } from '$app/paths';
 	import { lists, refreshLists } from '$lib/list/state/lists.svelte';
 
 	import CreateListSheet from './CreateListSheet.svelte';
@@ -14,7 +15,19 @@
 </script>
 
 <div class="screen">
-	<TopBar showBack={false}>Lists</TopBar>
+	<TopBar showBack={false}>
+		Lists
+		{#snippet right()}
+			<button
+				class="settings-btn"
+				aria-label="Settings"
+				data-test="lists-settings"
+				onclick={() => goto(resolve('/settings'))}
+			>
+				<Icon name="settings" size={22} />
+			</button>
+		{/snippet}
+	</TopBar>
 
 	{#if lists.loading}
 		<div class="content" data-test="lists-loading">Loading…</div>
@@ -112,14 +125,25 @@
 		margin: 0;
 	}
 
+	.settings-btn {
+		background: none;
+		border: none;
+		padding: 4px;
+		color: var(--ink);
+		cursor: pointer;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+	}
+
 	.fab-hint {
 		display: inline-flex;
 		align-items: center;
 		justify-content: center;
 		width: 1.8em;
 		height: 1.8em;
-		border-radius: 50%;
-		background: var(--accent);
+		border-radius: 5px;
+		background: var(--ink);
 		color: var(--paper);
 		vertical-align: middle;
 		margin-inline: 0.2em;

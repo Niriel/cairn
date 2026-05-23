@@ -23,10 +23,12 @@
 		width: 56px;
 		height: 56px;
 		border: none;
-		border-radius: 50%;
-		background: var(--accent);
+		border-radius: 18px;
+		background: var(--ink);
 		color: var(--paper);
-		box-shadow: var(--shadow);
+		box-shadow:
+			0 8px 24px rgba(60, 40, 20, 0.25),
+			0 2px 6px rgba(60, 40, 20, 0.15);
 		display: inline-flex;
 		align-items: center;
 		justify-content: center;

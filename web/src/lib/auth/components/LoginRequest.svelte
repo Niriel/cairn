@@ -166,7 +166,7 @@
 		padding: 14px;
 		border: 1px solid var(--rule);
 		border-radius: 12px;
-		background: var(--paper);
+		background: var(--paper-alt);
 		color: var(--ink);
 		font: inherit;
 		font-size: 16px;

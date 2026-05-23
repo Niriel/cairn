@@ -1,7 +1,6 @@
 <script lang="ts">
 	import type { Snippet } from 'svelte';
 
-	import Button from '$lib/basic/components/Button.svelte';
 	import Icon from '$lib/basic/components/Icon.svelte';
 
 	let {
@@ -20,9 +19,9 @@
 <header data-test={rest['data-test']}>
 	<div class="left">
 		{#if showBack}
-			<Button variant="ghost" onclick={() => history.back()} data-test="topbar-back">
-				<Icon name="chevron-left" />
-			</Button>
+			<button class="icon-btn" onclick={() => history.back()} data-test="topbar-back">
+				<Icon name="chevron-left" size={22} />
+			</button>
 		{/if}
 	</div>
 	<div class="centre">
@@ -37,7 +36,8 @@
 
 <style>
 	header {
-		display: flex;
+		display: grid;
+		grid-template-columns: 1fr auto 1fr;
 		align-items: center;
 		min-height: 56px;
 		padding: calc(env(safe-area-inset-top) + 12px) calc(env(safe-area-inset-right) + 18px) 12px
@@ -47,21 +47,35 @@
 		border-bottom: 1px solid var(--rule);
 	}
 
-	.left,
-	.right {
-		flex: 0 0 auto;
+	.left {
 		display: flex;
 		align-items: center;
+		justify-content: flex-start;
+	}
+
+	.right {
+		display: flex;
+		align-items: center;
+		justify-content: flex-end;
 	}
 
 	.centre {
-		flex: 1 1 auto;
-		min-width: 0;
 		text-align: center;
 		font-family: 'Newsreader Variable', Georgia, serif;
 		font-size: 22px;
 		font-weight: 500;
 		letter-spacing: -0.01em;
 		line-height: 1.1;
+	}
+
+	.icon-btn {
+		background: none;
+		border: none;
+		padding: 4px;
+		color: var(--ink);
+		cursor: pointer;
+		display: flex;
+		align-items: center;
+		justify-content: center;
 	}
 </style>
