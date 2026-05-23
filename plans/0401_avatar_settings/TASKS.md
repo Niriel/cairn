@@ -222,10 +222,10 @@ exist at `__mocks__/`.
 
 **Verify:** `pnpm test` · `pnpm check` · `pnpm lint`
 
-### [ ] 3.2 Wire the route, update placeholder, update Playwright spec
+### [x] 3.2 Wire the route, update placeholder, update Playwright spec
 
 **Created:** 2026-05-23T07:57:40Z
-**Completed:**
+**Completed:** 2026-05-23T09:01:28Z
 
 **Why:** Makes Settings reachable at `/settings`, removes Sign Out from the
 placeholder home, and updates the Playwright auth spec so it still tests
