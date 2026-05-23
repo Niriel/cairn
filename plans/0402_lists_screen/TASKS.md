@@ -346,10 +346,10 @@ state" — each test sets `lists.items = [...]` inline.
 
 **Verify:** `pnpm test` · `pnpm check`
 
-### [ ] 3.3 Create `/(app)/lists/+page.svelte` route
+### [x] 3.3 Create `/(app)/lists/+page.svelte` route
 
 **Created:** 2026-05-23T09:23:49Z
-**Completed:**
+**Completed:** 2026-05-23T11:18:18Z
 
 **Why:** Wires the `ListsScreen` component into the SvelteKit route tree at
 `/(app)/lists/`. This is the authenticated home the root page now redirects to.
@@ -374,4 +374,21 @@ state" — each test sets `lists.items = [...]` inline.
 2. GREEN — Create `web/src/routes/(app)/lists/+page.svelte`.
 3. GREEN — Re-run `pnpm test` — confirm green.
 
-**Verify:** `pnpm test` · `pnpm check` · `pnpm lint`
+**Verify:** `pnpm lint` · `pnpm check` · `pnpm test`
+
+**Notes:**
+- The task itself was trivial. A separate visual-polish pass was needed after the
+  functional code landed: `Sheet` and `Fab` were using viewport-relative `left`/`right`
+  that ignored the `--app-max-w` shell; `TopBar` lacked its Newsreader 22 px title
+  styling and bottom border; `CreateListSheet` had no form layout or input theming;
+  and the empty state needed vertical centring and a two-line split. All fixed in the
+  same session.
+- Root cause: the plan tasks didn't consult `design/cairn-screens.jsx` before writing
+  Decisions, so the visual spec wasn't captured. `CLAUDE.md` and `docs/ui.md` updated
+  with a CSS layout conventions section and an explicit reminder to read the design JSX
+  before writing UI tasks. Memory saved.
+- Also fixed: `TopBar` back button was showing on the Lists screen (the navigation
+  root). Fixed by passing `showBack={false}`.
+- Also fixed: `root +page.svelte` still used `eslint-disable` + bare string goto;
+  switched to `goto(resolve('/lists'))` now that the route exists. (This was the
+  follow-up noted in task 1.1.)

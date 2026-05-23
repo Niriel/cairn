@@ -1,9 +1,9 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
+	import { resolve } from '$app/paths';
 
 	onMount(() => {
-		// eslint-disable-next-line svelte/no-navigation-without-resolve -- swap to resolve('/lists') in task 3.3
-		void goto('/lists', { replaceState: true });
+		void goto(resolve('/lists'), { replaceState: true });
 	});
 </script>
