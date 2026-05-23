@@ -86,10 +86,10 @@
 
 ## Phase 2 — Redesign ListsScreen
 
-### [ ] 2.1 Overhaul ListsScreen rows, TopBar usage, and empty state
+### [x] 2.1 Overhaul ListsScreen rows, TopBar usage, and empty state
 
 **Created:** 2026-05-23T17:04:13Z
-**Completed:**
+**Completed:** 2026-05-23T17:24:41Z
 
 **Why:** The functional Lists screen from 0402 has unstyled `<ul>/<li>` rows, a misused Accordion, and a minimal empty state. This task replaces all three with the design-spec layout.
 
@@ -134,5 +134,132 @@
    g. Rewrite the template per Decisions above.
    h. Add CSS: `.list`, `.row`, `.row-inner`, `.row-body`, `.name`, `.desc`, `.desc.expanded`, `.meta`, `.empty` styles per the design spec values in Decisions.
 4. GREEN — Run `cd web && pnpm test -- ListsScreen` and confirm all tests pass.
+
+**Verify:** `cd web && pnpm lint && pnpm check && pnpm test`
+
+---
+
+## Phase 3 — Complete metadata row
+
+### [x] 3.1 DB migration — `lists_item_count` function and `list_members → profiles` FK
+
+**Created:** 2026-05-23T17:35:11Z
+**Completed:** 2026-05-23T17:41:24Z
+
+**Why:** The metadata row (R3) requires an item count and member avatars. Item count needs a PostgreSQL computed-column function that PostgREST v12 can expose; member display names need a FK from `list_members.user_id` to `public.profiles(id)` so PostgREST can embed profiles in the lists response.
+
+**Prerequisites:** `0004_domain_schema.sql` exists with `public.lists`, `public.list_members`, `public.items`, and `public.profiles` tables.
+
+**Decisions:**
+- Migration file: `db/migrations/0005_list_metadata.sql`.
+- FK: `ALTER TABLE public.list_members ADD CONSTRAINT fk_list_members_profile FOREIGN KEY (user_id) REFERENCES public.profiles(id) ON DELETE CASCADE`. Safe because `profiles.id = auth.users.id` always; Postgres deduplicates the two cascade paths (via `auth.users` and via `profiles`) on user deletion.
+- Computed column function: `CREATE FUNCTION public.lists_item_count(l public.lists) RETURNS bigint LANGUAGE sql STABLE SET search_path = public AS $$ SELECT count(*)::bigint FROM public.items WHERE list_id = l.id AND deleted_at IS NULL $$;` — security-invoker by default, so `items_select` RLS applies.
+- Grant: `GRANT EXECUTE ON FUNCTION public.lists_item_count(public.lists) TO authenticated;`
+- pgTAP test file: `db/tests/0050_list_metadata.sql`. Three assertions: (a) function returns correct count for a list with items, (b) count excludes soft-deleted items, (c) FK constraint `fk_list_members_profile` exists on `list_members`.
+
+**Reference:** `docs/data-model.md` for table structures and the test bootstrap pattern. `docs/testing.md` for pgTAP conventions.
+
+**Files:**
+- `db/migrations/0005_list_metadata.sql` (create)
+- `db/tests/0050_list_metadata.sql` (create)
+
+**Steps:**
+1. RED — Create `db/tests/0050_list_metadata.sql` with `SELECT plan(3)`:
+   - Test (a): seed a list and two non-deleted items; call `public.lists_item_count(row)` and assert result = 2.
+   - Test (b): soft-delete one item (`deleted_at = now()`); call the function again and assert result = 1.
+   - Test (c): assert the constraint `fk_list_members_profile` exists on table `list_members` using `has_foreign_pk` or `col_is_fk`.
+2. RED — Run `./scripts/test-db.sh` and confirm the new file reports `not ok` (function and constraint don't exist yet).
+3. GREEN — Create `db/migrations/0005_list_metadata.sql`:
+   ```sql
+   -- FK: enables PostgREST to embed profiles from list_members
+   ALTER TABLE public.list_members
+     ADD CONSTRAINT fk_list_members_profile
+     FOREIGN KEY (user_id) REFERENCES public.profiles(id) ON DELETE CASCADE;
+
+   -- Computed column: item count for the lists PostgREST resource
+   CREATE FUNCTION public.lists_item_count(l public.lists)
+     RETURNS bigint LANGUAGE sql STABLE SET search_path = public
+   AS $$
+     SELECT count(*)::bigint FROM public.items
+     WHERE list_id = l.id AND deleted_at IS NULL
+   $$;
+
+   GRANT EXECUTE ON FUNCTION public.lists_item_count(public.lists) TO authenticated;
+   ```
+4. GREEN — Run `./scripts/test-db.sh` and confirm green.
+
+**Verify:** `./scripts/test-db.sh`
+
+### [ ] 3.2 Frontend — extend List type, query, and metadata row rendering
+
+**Created:** 2026-05-23T17:35:11Z
+**Completed:**
+
+**Why:** With the DB infrastructure from task 3.1, the PostgREST query can now return item counts and member display names. This task wires those fields into the `List` type, the fetch query, and the `ListsScreen` metadata row.
+
+**Prerequisites:** Task 3.1 merged — `fk_list_members_profile` constraint and `lists_item_count` function exist in the DB.
+
+**Decisions:**
+- **`List` type** gains `item_count: number` and `list_members: { profiles: { display_name: string } }[]`.
+- **Query**: `GET /lists?select=id,name,description,modified_at,item_count:lists_item_count(),list_members(profiles(display_name))&list_members.deleted_at=is.null&order=modified_at.desc`. The `list_members.deleted_at=is.null` filter restricts embedded members to live ones (the `list_members_select` policy alone does not exclude soft-deleted rows).
+- **`timeAgo(iso)` replaces `formatDate(iso)`**:
+  ```ts
+  function timeAgo(iso: string): string {
+    const diff = Date.now() - new Date(iso).getTime();
+    const mins = Math.floor(diff / 60_000);
+    if (mins < 60) return mins <= 1 ? 'just now' : `${mins} minutes ago`;
+    const hours = Math.floor(mins / 60);
+    if (hours < 24) return `${hours} ${hours === 1 ? 'hour' : 'hours'} ago`;
+    const days = Math.floor(hours / 24);
+    if (days < 30) return `${days} ${days === 1 ? 'day' : 'days'} ago`;
+    return new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
+      .format(new Date(iso));
+  }
+  ```
+- **Metadata row** (replacing the single date span):
+  ```svelte
+  <div class="meta">
+    <span>{item.item_count} {item.item_count === 1 ? 'item' : 'items'}</span>
+    <span class="dot">•</span>
+    <span>{timeAgo(item.modified_at)}</span>
+    {#if item.list_members.length > 0}
+      <span class="dot">•</span>
+      <span class="avatars">
+        {#each item.list_members as m, i}
+          <span style="margin-left: {i === 0 ? 0 : -6}px">
+            <Avatar displayName={m.profiles.display_name} size={16} />
+          </span>
+        {/each}
+      </span>
+    {/if}
+  </div>
+  ```
+  Import `Avatar` from `$lib/shared/components/Avatar.svelte`.
+- **Test fixtures**: all existing test fixtures (`LIST_A`, `LIST_B`, `LIST_C`) must gain `item_count: 0` and `list_members: []` to satisfy the updated type. Test `(i)` checks that item count text is rendered.
+- **`docs/ui.md`**: add a sentence to the "Lists screen" section noting the metadata row (count · relative time · member avatars).
+
+**Reference:** `design/cairn-screens.jsx` lines 430–452 for the metadata row layout. `web/src/lib/shared/components/Avatar.svelte` for the `displayName` and `size` props.
+
+**Files:**
+- `web/src/lib/list/model/list.ts` (modify)
+- `web/src/lib/list/state/lists.svelte.ts` (modify)
+- `web/src/lib/list/components/ListsScreen.svelte` (modify)
+- `web/src/lib/list/components/ListsScreen.test.ts` (modify)
+- `docs/ui.md` (modify)
+
+**Steps:**
+1. RED — In `ListsScreen.test.ts`:
+   a. Add `item_count: 0` and `list_members: []` to all existing fixtures (`LIST_A`, `LIST_B`, `LIST_C`).
+   b. Add test `(i)`: "metadata shows item count" — set `lists.items = [{ ...LIST_B, item_count: 3, list_members: [] }]`, render, assert the text "3 items" is in the document.
+2. RED — Run `cd web && pnpm test -- ListsScreen` and confirm new test fails (type errors on fixtures and missing "3 items" text).
+3. GREEN — Update `web/src/lib/list/model/list.ts`: add `item_count: number` and `list_members: { profiles: { display_name: string } }[]` to the `List` type.
+4. GREEN — Update `web/src/lib/list/state/lists.svelte.ts`: change the `pgGet` URL to the extended query in Decisions.
+5. GREEN — Update `web/src/lib/list/components/ListsScreen.svelte`:
+   a. Replace `formatDate` with `timeAgo` (body from Decisions).
+   b. Import `Avatar` from `$lib/shared/components/Avatar.svelte`.
+   c. Replace the `.meta` div content with the full metadata row from Decisions (count • time • avatars).
+   d. Add `.dot { color: var(--stone-lt); }` and `.avatars { display: inline-flex; align-items: center; }` to `<style>`.
+6. GREEN — Update `docs/ui.md` "Lists screen" section: add "Each row also shows a metadata line: item count, time since last modification, and avatar initials of current members."
+7. GREEN — Run `cd web && pnpm test -- ListsScreen` and confirm all tests pass.
 
 **Verify:** `cd web && pnpm lint && pnpm check && pnpm test`

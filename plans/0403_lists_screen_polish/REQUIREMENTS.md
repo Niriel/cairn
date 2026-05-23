@@ -30,7 +30,7 @@ List rows replace the current `<ul>/<li>` markup (which renders browser bullet p
 - Row body: flex row, `align-items: baseline`, with the text block taking `flex: 1`
 - **Name:** Newsreader 17 px, weight 600, `var(--ink)`. Clicking the name navigates to the list.
 - **Description:** always rendered below the name; 13.5 px, `line-height: 1.5`. When the list has a description and it is collapsed: `white-space: nowrap; overflow: hidden; text-overflow: ellipsis`, `color: var(--ink-soft)`. When expanded: `white-space: normal`, same colour. When the list has no description: renders the literal text `(no description)` in `color: var(--stone); font-style: italic`; clicking it does nothing (or is not a button).
-- **Metadata line:** 11.5 px, `var(--stone)`; shows the formatted `modified_at` date. Items count and member avatars are excluded (no data available yet).
+- **Metadata line:** 11.5 px, `var(--stone)`; shows three elements separated by `•` bullet dots: (1) item count ("N items", singular "1 item"), (2) relative time since `modified_at` ("2 hours ago", "3 days ago", falling back to a locale date for older entries), (3) a row of overlapping `<Avatar>` initials discs (size 16, −6 px margin on non-first) for each live list member.
 - **Chevron:** `<Icon name="chevron-right" size={18} color="var(--stone-lt)" />` on the trailing edge.
 
 ## R4. Multiple list descriptions can be expanded simultaneously
@@ -56,11 +56,33 @@ When `lists.items` is empty and `lists.loading` is false, the Lists screen rende
 1. Clarify that the two-line guideline applies to *simple* empty states; elaborate illustrated empty states (like the Lists screen) use the illustrated circle + CTA pattern from the design spec instead.
 2. Note that the TopBar now uses a flex layout (not the previous grid) and supports `left` and `sub` props.
 
+## R7. `lists_item_count` PostgreSQL computed-column function
+
+A PostgreSQL function `public.lists_item_count(l public.lists) RETURNS bigint` counts non-soft-deleted items for a given list row. PostgREST v12 exposes computed-column functions in the `select` parameter as `item_count:lists_item_count()`. The function is `LANGUAGE sql STABLE` (security-invoker by default), so `items_select` RLS applies correctly — a user only counts items they can see. `GRANT EXECUTE` is given to `authenticated`.
+
+## R8. FK `list_members.user_id → profiles(id)` for PostgREST resource embedding
+
+PostgREST follows FK chains to resolve embedded resource joins. `list_members.user_id` currently references `auth.users(id)` but not `public.profiles(id)` directly, so PostgREST cannot find the path to `profiles.display_name`. Adding the constraint `fk_list_members_profile FOREIGN KEY (user_id) REFERENCES public.profiles(id) ON DELETE CASCADE` fixes this. The values are always consistent (`profiles.id = auth.users.id`), so the constraint is always satisfiable.
+
+## R9. `List` type and PostgREST query extended to include item count and member display names
+
+`web/src/lib/list/model/list.ts` adds two fields:
+
+```ts
+item_count: number;
+list_members: { profiles: { display_name: string } }[];
+```
+
+`web/src/lib/list/state/lists.svelte.ts` updates the query to:
+
+```
+/lists?select=id,name,description,modified_at,item_count:lists_item_count(),list_members(profiles(display_name))&list_members.deleted_at=is.null&order=modified_at.desc
+```
+
+`list_members.deleted_at=is.null` filters the embedded resource to live members only (the `list_members_select` RLS policy does not filter `deleted_at` automatically).
+
 ## Non-requirements (explicitly excluded)
 
 - **Row icon** — the list-icon field (`l.icon` in design JSX) is excluded; no icon data exists in the current schema.
-- **Items count in metadata** — excluded; requires a separate count query or view not yet in scope.
-- **Member avatars in metadata** — excluded; circle members are not yet loaded in the lists query.
 - **Accordion component reuse for list rows** — list rows manage their own expand/collapse state; the shared `Accordion` component uses `pushHistoryGuard` which is appropriate for item panels but not for list description previews that can be multiply-open.
-- **DB changes** — the existing `List` model (`id`, `name`, `description`, `modified_at`) provides all needed fields.
 - **Animation** — deferred per `docs/ui.md` "Not decided".

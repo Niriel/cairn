@@ -54,3 +54,32 @@ All work is in existing files. No new routes, stores, or components are introduc
 - **`design/cairn-screens.jsx` lines 28–514** — TopBar JSX (lines 28–50), ListsScreen JSX (lines 384–456), EmptyListsScreen JSX (lines 457–514).
 - **`docs/ui.md`** — TopBar visual spec (near bottom), empty-state pattern, Lists screen interaction model (tap name navigates, tap description expands).
 - **`docs/frontend-layout.md`** — lib tier split and filename conventions.
+
+---
+
+## Phase 3 — Complete metadata row (R7–R9)
+
+The metadata line delivered in Phase 2 only shows a formatted date. The design spec (lines 430–452 of `design/cairn-screens.jsx`) shows three elements: item count, relative time, and overlapping member avatars. These were incorrectly listed as non-requirements; Phase 3 adds them.
+
+**Why two tasks.** The DB infrastructure (R7 + R8) must land before the frontend can compile against the extended `List` type; splitting them keeps each task a clean commit unit with passing tests.
+
+**`lists_item_count` function (R7).** A PostgreSQL computed-column function is the right tool: PostgREST v12 exposes it automatically via `item_count:lists_item_count()` in the select parameter, no view or migration-table change needed. It runs as the caller (security-invoker default), so `items_select` RLS applies — users only count items they can see.
+
+**FK to `profiles` (R8).** PostgREST resolves embedded joins by following FK chains. `list_members.user_id → auth.users.id` is there, but PostgREST only introspects the `public` schema; the chain to `public.profiles` is invisible without a direct FK. Adding `fk_list_members_profile FOREIGN KEY (user_id) REFERENCES public.profiles(id) ON DELETE CASCADE` closes the gap. `profiles.id = auth.users.id` always, so the constraint never fails on existing data, and Postgres deduplicates the two cascade paths on `auth.users` deletion.
+
+**Relative time helper (R3 refinement).** `formatDate` in the Phase 2 component is replaced by `timeAgo(iso)`: minutes → hours → days → locale date for entries older than 30 days. This is a pure frontend change, no DB dependency.
+
+**Filtering embedded members.** The `list_members_select` RLS policy (`is_list_member(list_id) OR user_id = uid()`) does not filter on `deleted_at`; a soft-removed member's row is still selectable by themselves. The query includes `&list_members.deleted_at=is.null` to restrict the embedded list to live members only.
+
+### Phase 3 Architecture additions
+
+New files:
+- **`db/migrations/0005_list_metadata.sql`** — FK constraint + `lists_item_count` function + grant.
+- **`db/tests/0050_list_metadata.sql`** — pgTAP tests for function behaviour and FK existence.
+
+Modified files:
+- **`web/src/lib/list/model/list.ts`** — add `item_count: number` and `list_members` fields.
+- **`web/src/lib/list/state/lists.svelte.ts`** — extended PostgREST query.
+- **`web/src/lib/list/components/ListsScreen.svelte`** — `timeAgo` helper, `Avatar` import, full metadata row rendering.
+- **`web/src/lib/list/components/ListsScreen.test.ts`** — update fixtures; add metadata test.
+- **`docs/ui.md`** — add metadata row description to the Lists screen section.
