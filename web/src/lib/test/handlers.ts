@@ -46,5 +46,6 @@ export const handlers: RequestHandler[] = [
 			description: null,
 			modified_at: '2026-01-01T00:00:00Z'
 		})
-	)
+	),
+	http.get('*/api/lists', () => HttpResponse.json([]))
 ];

@@ -121,10 +121,10 @@ the exact RPC signature and return shape.
 
 **Verify:** `pnpm test` · `pnpm check`
 
-### [ ] 2.2 Create `list/state/lists.svelte.ts` and reactive store
+### [x] 2.2 Create `list/state/lists.svelte.ts` and reactive store
 
 **Created:** 2026-05-23T09:23:49Z
-**Completed:**
+**Completed:** 2026-05-23T10:39:13Z
 
 **Why:** The Lists screen and the create-list flow need a shared reactive source of
 truth for the user's lists. A module-level store (matching the `profile.svelte.ts`
