@@ -3,7 +3,9 @@
 
 	type Props = {
 		showBack?: boolean;
+		left?: Snippet;
 		right?: Snippet;
+		sub?: string;
 		children: Snippet;
 		'data-test'?: string;
 	};

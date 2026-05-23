@@ -5,6 +5,8 @@ export type List = {
 	name: string;
 	description: string | null;
 	modified_at: string;
+	item_count: number;
+	list_members: { profiles: { display_name: string } }[];
 };
 
 export function createList(name: string, description?: string): Promise<List> {
