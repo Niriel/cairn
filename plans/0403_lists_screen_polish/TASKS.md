@@ -43,10 +43,10 @@
 
 ## Phase 1 — Extend TopBar
 
-### [ ] 1.1 Add `left` and `sub` props to TopBar, switch to flex layout
+### [x] 1.1 Add `left` and `sub` props to TopBar, switch to flex layout
 
 **Created:** 2026-05-23T17:04:13Z
-**Completed:**
+**Completed:** 2026-05-23T17:18:08Z
 
 **Why:** The Lists screen design (and the design spec for every other screen in `cairn-screens.jsx`) uses a flex-row TopBar where the `left` element and title are visually adjacent. Adding `left` and `sub` unblocks the ListsScreen redesign in Phase 2.
 
