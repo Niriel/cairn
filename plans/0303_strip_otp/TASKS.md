@@ -9,10 +9,10 @@
 
 ## Phase 1 — template file and stack wiring
 
-### [ ] 1.1 Create the custom magic-link HTML template
+### [x] 1.1 Create the custom magic-link HTML template
 
 **Created:** 2026-05-23T06:06:12Z
-**Completed:**
+**Completed:** 2026-05-23T06:47:35Z
 
 **Why:** GoTrue's default template includes `{{ .Token }}` (a six-digit OTP).
 Supplying a custom template that omits it removes the social-engineering surface
