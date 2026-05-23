@@ -413,11 +413,26 @@ Every `<TopBar>` renders with:
 - `min-height: 56px`; padding 12 px top / 18 px sides (plus safe-area insets)
 - `border-bottom: 1px solid var(--rule)`
 
-These styles live inside `TopBar.svelte` — callers do not re-apply them. Screens that are the navigation root (e.g. Lists) pass `showBack={false}`; all others omit it.
+The TopBar uses `display: flex; align-items: center; gap: 10px`. The title div has `flex: 1; min-width: 0`, so the leading element and title are visually adjacent. Optional props:
+
+- **`left?: Snippet`** — rendered in the leading slot. When provided, it replaces the back button (`showBack` is ignored). Use this for root screens that need a brand element rather than a back arrow (e.g. `<CairnGlyph>` on the Lists screen).
+- **`sub?: string`** — a secondary line rendered directly below the title; 12 px, `var(--stone)`.
+
+These styles live inside `TopBar.svelte` — callers do not re-apply them. Screens that are the navigation root (e.g. Lists) pass a `left` snippet instead of `showBack={false}`.
 
 ### Empty-state copy and style
 
-Empty states use two short lines: the first states the fact ("No lists yet."), the second gives the action ("Tap [icon] to create one."). Colour: `var(--stone)`. Font size: ≥ 22 px — large enough to read comfortably in the centre of an otherwise empty screen. Inline icon hints (the circular FAB replica) use `background: var(--accent); color: var(--paper)` and `border-radius: 50%`.
+Two patterns are used, depending on the screen's design spec.
+
+**Simple empty state** — for utility screens with no illustration: two short lines, the first stating the fact ("No items yet."), the second giving the action ("Tap [icon] to create one."). Colour: `var(--stone)`. Font size: ≥ 22 px. Inline icon hints (the circular FAB replica) use `background: var(--accent); color: var(--paper)` and `border-radius: 50%`.
+
+**Illustrated empty state** — for screens where the first-run experience warrants more visual weight (e.g. the Lists screen). Structure:
+- A centred 96 × 96 px circle: `background: var(--paper-alt); border: 1px dashed var(--stone-lt); border-radius: 99px`. Contains a brand illustration (e.g. `<CairnGlyph size={44} color="var(--stone)" />`).
+- A heading: Newsreader 24 px, weight 500, `var(--ink)`, letter-spacing −0.01 em.
+- Body copy: 14 px, `var(--ink-soft)`, line-height 1.5, max-width 280 px.
+- A CTA button: `background: var(--ink); color: var(--paper)`, border-radius 12 px, padding 12 px 22 px, weight 600, 14 px, with a leading icon.
+
+Use the pattern specified by the screen's design JSX in `design/cairn-screens.jsx`.
 
 ## Not decided
 

@@ -10,10 +10,10 @@
 
 ## Phase 0 — Reconcile docs
 
-### [ ] 0.1 Update docs/ui.md — TopBar spec and empty-state pattern
+### [x] 0.1 Update docs/ui.md — TopBar spec and empty-state pattern
 
 **Created:** 2026-05-23T17:04:13Z
-**Completed:**
+**Completed:** 2026-05-23T17:10:10Z
 
 **Why:** `docs/ui.md` currently describes the TopBar as having a three-column grid layout with no `left` or `sub` props, and describes all empty states using a simple two-line text pattern. Both contradict the design spec in `design/cairn-screens.jsx`. Fixing the docs first ensures downstream plans (especially 0404) reference an accurate spec.
 
