@@ -1,9 +1,9 @@
 <script lang="ts">
-	import { resolve } from '$app/paths';
+	import { onMount } from 'svelte';
+	import { goto } from '$app/navigation';
 
-	import CairnWordmark from '$lib/shared/components/CairnWordmark.svelte';
+	onMount(() => {
+		// eslint-disable-next-line svelte/no-navigation-without-resolve -- swap to resolve('/lists') in task 3.3
+		void goto('/lists', { replaceState: true });
+	});
 </script>
-
-<h1><CairnWordmark size={36} /></h1>
-
-<p>Signed in. Lists land in step 4. Sign out is in <a href={resolve('/settings')}>Settings</a>.</p>

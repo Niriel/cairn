@@ -14,10 +14,10 @@
 
 ## Phase 1 — Root redirect
 
-### [ ] 1.1 Redirect `/+page.svelte` to `/lists`
+### [x] 1.1 Redirect `/+page.svelte` to `/lists`
 
 **Created:** 2026-05-23T09:23:49Z
-**Completed:**
+**Completed:** 2026-05-23T10:03:29Z
 
 **Why:** The placeholder home page currently renders a static paragraph. After this
 task it becomes a redirect to `/lists`, which is the authenticated home added by
