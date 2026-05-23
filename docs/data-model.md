@@ -658,7 +658,7 @@ To translate the schema into the API the web app actually consumes, here are the
 - `POST /items` — add an item
 - `PATCH /items?id=eq.<uuid>` — edit, soft-delete, or restore an item (restore = `PATCH` with `deleted_at: null`)
 - `POST /votes` — cast a vote (with `Prefer: resolution=merge-duplicates` to handle re-voting)
-- `DELETE /votes?item_id=eq.<uuid>&user_id=eq.<uuid>` — retract a vote
+- `DELETE /votes?item_id=eq.<uuid>` — retract a vote. The `votes_delete` RLS policy (`using (user_id = public.uid())`) scopes the delete to the caller's own vote; omit `user_id` from the query — RLS is the enforcement, not the application filter.
 - `GET /profiles?id=eq.<uuid>` — fetch a profile (world-readable to authenticated callers; only `id`, `display_name`, `created_at`)
 - `PATCH /profiles?id=eq.<my-uid>` — update your own profile (`display_name` only, in v1)
 - `GET /user_settings?id=eq.<my-uid>` — fetch your own settings (RLS rejects any other id; the only row a caller ever sees is their own)

@@ -104,7 +104,7 @@ Reasons:
 - **Clamping at the ends is safer than wrapping.** Wrapping `+++ → ---` on an extra tap is a footgun that's hard to recover from. If a user wants to flip sides, the opposite thumb is right there and the path through `=` is short.
 - **One tap = one vote unit.** This keeps the speed of binary voting for the common case (one tap to express interest), while leaving room for stronger feelings when they exist.
 
-The buttons stay enabled at the extremes; tapping does nothing visible. We don't gray them out — that's a small visual flicker that costs more than it gains.
+At the extremes (±3), the button in the clamped direction renders at 35% opacity with `cursor: default` and emits no event when tapped. The opposite button remains fully active. This matches the design spec in `design/cairn-ui.jsx` `VoteControl`.
 
 ## Color
 
