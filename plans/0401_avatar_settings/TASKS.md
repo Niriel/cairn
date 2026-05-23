@@ -14,10 +14,10 @@
 
 ## Phase 1 — Avatar component
 
-### [ ] 1.1 Create `Avatar.svelte` with initials-disc and deterministic colour
+### [x] 1.1 Create `Avatar.svelte` with initials-disc and deterministic colour
 
 **Created:** 2026-05-23T07:57:40Z
-**Completed:**
+**Completed:** 2026-05-23T08:31:14Z
 
 **Why:** `Avatar` is used in the Settings profile chip (task 3.1) and later in
 item attribution (0403). It must land first so downstream tasks can import it
