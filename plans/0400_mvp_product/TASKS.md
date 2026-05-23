@@ -80,10 +80,10 @@ introduced here.
 
 ## Phase 3 — 0403: Lists screen visual polish
 
-### [ ] 3.1 Plan and implement sub-step 0403 (Lists screen visual polish)
+### [x] 3.1 Plan and implement sub-step 0403 (Lists screen visual polish)
 
 **Created:** 2026-05-23T00:00:00Z
-**Completed:**
+**Completed:** 2026-05-23T18:33:37Z
 
 **Why:** The 0402 task delivered the functional plumbing but the visual
 implementation diverges significantly from the design spec. List rows render
