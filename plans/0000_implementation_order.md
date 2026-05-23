@@ -98,7 +98,7 @@ in-flight branch for no gain.
      the contract is honoured on day 1 of production. Background:
      `docs/admin.md` § "What the web app shows…" and the *"02b ·
      One screen, five outcomes"* artboard in the design canvas.
-   - [ ] **0303: strip the OTP code from the magic-link email.**
+   - [x] **0303: strip the OTP code from the magic-link email.**
      GoTrue's default magic-link template includes both
      `{{ .ConfirmationURL }}` (the link) and `{{ .Token }}` (a
      six-digit code). Cairn's sign-in flow is link-only — there is

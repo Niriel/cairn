@@ -15,6 +15,7 @@ interface MailpitListResponse {
 
 interface MailpitMessage {
 	HTML: string;
+	Text: string;
 }
 
 /**
@@ -24,7 +25,10 @@ interface MailpitMessage {
  * Does not delete the message — parallel tests filter by `To` address, so the
  * spec uses unique `alice+${testId}@example.test` emails per run.
  */
-export async function waitForMagicLink(email: string, timeoutMs = 10_000): Promise<string> {
+export async function waitForMagicLink(
+	email: string,
+	timeoutMs = 10_000
+): Promise<{ link: string; html: string; text: string }> {
 	const target = email.toLowerCase();
 	const deadline = Date.now() + timeoutMs;
 
@@ -43,7 +47,7 @@ export async function waitForMagicLink(email: string, timeoutMs = 10_000): Promi
 					);
 				}
 				const msg = (await msgRes.json()) as MailpitMessage;
-				return extractMagicLink(msg.HTML, email);
+				return { link: extractMagicLink(msg.HTML, email), html: msg.HTML, text: msg.Text };
 			}
 		}
 		await sleep(200);
