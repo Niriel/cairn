@@ -38,6 +38,7 @@
 		height: {size / 16}rem;
 		font-size: {(size * 0.46) / 16}rem;
 		font-weight: 600;
+		line-height: 1;
 		color: #fff;
 		background: {bg};
 		user-select: none;
