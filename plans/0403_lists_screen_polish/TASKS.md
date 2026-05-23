@@ -190,10 +190,17 @@
 
 **Verify:** `./scripts/test-db.sh`
 
-### [ ] 3.2 Frontend — extend List type, query, and metadata row rendering
+### [x] 3.2 Frontend — extend List type, query, and metadata row rendering
 
 **Created:** 2026-05-23T17:35:11Z
-**Completed:**
+**Completed:** 2026-05-23T17:52:56Z
+
+**Notes:**
+- **PostgREST computed-column syntax:** the task spec wrote `item_count:lists_item_count()` (with parentheses) in the query, which caused a live PGRST200 error — PostgREST treated it as a relationship lookup rather than a computed column. The correct syntax is `item_count:lists_item_count` (no `()`). The Decisions section above has been corrected.
+- **`timeAgo` extracted to `shared/model/`:** rather than defining `timeAgo` inline in `ListsScreen.svelte`, it was moved to `web/src/lib/shared/model/time-ago.ts` with its own test suite, because the same function will be needed on the items screen and elsewhere.
+- **Name + chevron merged into one button:** initially implemented as two separate buttons (`.name` and `.chevron`), leaving a dead tap zone between them. Merged into a single `.row-nav` button (`display: flex; align-items: flex-start`) containing a `<span class="name">` (`flex: 1`) and a `<span class="chevron">`. `align-items: flex-start` (not `center`) is required so the chevron pins to the top of the name when it wraps to multiple lines.
+- **`cursor: pointer` removed from `.desc`:** pointer signals a link/navigation action. An expand/collapse toggle should use the browser default (arrow) cursor. Removed the rule; buttons default to `auto`/`default` anyway.
+- **`(see more)` / `(see less)` added (unplanned):** the expand/collapse interaction was undiscoverable. Added inline truncation detection via `bind:this` + `$effect` measuring `scrollWidth > offsetWidth`, showing "(see more)" only when the text genuinely overflows and "(see less)" when expanded. Linter constraints: `void expr` instead of `const _ = expr` to silence unused-var; plain `Set` in `$state` triggers `svelte/prefer-svelte-reactivity` — the correct pattern is `const truncatedIds = new SvelteSet<string>()` (no `$state` wrapper, mutated in the effect via `.clear()` + `.add()`).
 
 **Why:** With the DB infrastructure from task 3.1, the PostgREST query can now return item counts and member display names. This task wires those fields into the `List` type, the fetch query, and the `ListsScreen` metadata row.
 
@@ -201,7 +208,7 @@
 
 **Decisions:**
 - **`List` type** gains `item_count: number` and `list_members: { profiles: { display_name: string } }[]`.
-- **Query**: `GET /lists?select=id,name,description,modified_at,item_count:lists_item_count(),list_members(profiles(display_name))&list_members.deleted_at=is.null&order=modified_at.desc`. The `list_members.deleted_at=is.null` filter restricts embedded members to live ones (the `list_members_select` policy alone does not exclude soft-deleted rows).
+- **Query**: `GET /lists?select=id,name,description,modified_at,item_count:lists_item_count,list_members(profiles(display_name))&list_members.deleted_at=is.null&order=modified_at.desc`. The `list_members.deleted_at=is.null` filter restricts embedded members to live ones (the `list_members_select` policy alone does not exclude soft-deleted rows). Note: computed columns are referenced **without** `()` in the PostgREST `select` parameter — parentheses trigger a relationship lookup, not a computed-column call.
 - **`timeAgo(iso)` replaces `formatDate(iso)`**:
   ```ts
   function timeAgo(iso: string): string {

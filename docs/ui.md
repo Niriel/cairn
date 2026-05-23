@@ -6,7 +6,7 @@ Cairn is a Progressive Web App built with SvelteKit. "The app" in this document 
 
 ## First launch — choose your name
 
-Brand-new accounts land on a single-field screen (*"What should we call you?"*) before anything else loads. The on-signup trigger seeds `profiles.display_name` with the fixed placeholder `'New user'` (see `data-model.md` → `tg_profile_on_signup` for why the placeholder isn't derived from the email's local part), and the app forces this screen whenever it reads that placeholder back. A short input, a single **Continue** button, no skip — the user can rename later from Settings → Edit profile, but they can't reach the Lists screen carrying the placeholder. The avatar is also `avatar_version = 0` at this point, so the user is rendered as the initials disc of whatever name they pick from here on (see "Avatars" below).
+Brand-new accounts land on a single-field screen (_"What should we call you?"_) before anything else loads. The on-signup trigger seeds `profiles.display_name` with the fixed placeholder `'New user'` (see `data-model.md` → `tg_profile_on_signup` for why the placeholder isn't derived from the email's local part), and the app forces this screen whenever it reads that placeholder back. A short input, a single **Continue** button, no skip — the user can rename later from Settings → Edit profile, but they can't reach the Lists screen carrying the placeholder. The avatar is also `avatar_version = 0` at this point, so the user is rendered as the initials disc of whatever name they pick from here on (see "Avatars" below).
 
 ## Lists screen
 
@@ -31,6 +31,8 @@ Two distinct interactions on a list row:
 The split is deliberate. The name is the primary action — that's how you get to the contents — and the description tap is secondary, for when the one-line preview isn't enough. A list with no description renders as `(no description)` in muted text and isn't tappable for expansion.
 
 The expanded description pushes the rows below it down (accordion style, same as items — see below). Multiple list descriptions can be expanded simultaneously on this screen; the constraint of "only one open at a time" applies to items, not list descriptions, because list descriptions are short and the cost of having several open is small.
+
+Each row also shows a metadata line: item count, time since last modification, and avatar initials of current members.
 
 A floating button creates a new list. Editing a list's name or description, and deleting a list, are not yet designed — see "Not decided" below.
 
@@ -71,15 +73,15 @@ Three elements, always in the same order: thumb-down button, vote indicator, thu
 
 The **vote indicator** shows the current user's vote on this item, as one of seven values:
 
-| Vote  | Display | Color           |
-|-------|---------|-----------------|
-| −3    | `---`   | red             |
-| −2    | `--`    | red             |
-| −1    | `-`     | red             |
-| 0     | `=`     | muted (default) |
-| +1    | `+`     | green           |
-| +2    | `++`    | green           |
-| +3    | `+++`   | green           |
+| Vote | Display | Color           |
+| ---- | ------- | --------------- |
+| −3   | `---`   | red             |
+| −2   | `--`    | red             |
+| −1   | `-`     | red             |
+| 0    | `=`     | muted (default) |
+| +1   | `+`     | green           |
+| +2   | `++`    | green           |
+| +3   | `+++`   | green           |
 
 The indicator's slot is **fixed-width** — wide enough to hold `+++` without truncation. `=` and the single `+`/`-` characters are centered within that slot. This means rows do not reflow, shimmer, or shift as votes change. Color is applied to the characters, not the slot background, so the layout reads as stable even when many items are visible at once.
 
@@ -128,7 +130,7 @@ The app uses three CSS techniques together:
 
 The floating action button is positioned with `position: fixed; bottom: calc(env(safe-area-inset-bottom) + 16px); right: 16px;`. Never a bare `16px` on `bottom`. The same pattern applies to the snackbar.
 
-The virtual keyboard is the trickiest piece. The web platform's [VisualViewport API](https://developer.mozilla.org/en-US/docs/Web/API/VisualViewport) is the source of truth: when the keyboard opens, the visual viewport shrinks. The app listens for `visualViewport.resize` and adjusts the layout so the focused text field stays visible above the keyboard. CSS-only approaches (e.g. `100dvh`) handle most cases on Android Chrome but fail on iOS Safari, where the keyboard can sit *over* the page without resizing the layout viewport — the JS path is required.
+The virtual keyboard is the trickiest piece. The web platform's [VisualViewport API](https://developer.mozilla.org/en-US/docs/Web/API/VisualViewport) is the source of truth: when the keyboard opens, the visual viewport shrinks. The app listens for `visualViewport.resize` and adjusts the layout so the focused text field stays visible above the keyboard. CSS-only approaches (e.g. `100dvh`) handle most cases on Android Chrome but fail on iOS Safari, where the keyboard can sit _over_ the page without resizing the layout viewport — the JS path is required.
 
 When the app is running as an installed PWA (`display: standalone` in the manifest, see `architecture.md`), there's no browser address bar and no tab strip — the page is the whole window. When it's running in a browser tab, the address bar is part of the user's chrome, and we don't try to hide or compete with it. Either way, our work begins inside the viewport the browser hands us; we don't draw OS chrome and we don't pretend it isn't there.
 
@@ -143,7 +145,7 @@ The principle: **the back stack is the source of truth, and every visible thing 
 Concretely:
 
 - **Route changes push history.** SvelteKit's router does this by default for `goto()` and `<a href>` — every screen transition (Lists → Items → Item details → Edit, etc.) adds an entry. Browser back and Android system back call `history.back()`, which SvelteKit handles as a route change in reverse. The in-app top-bar **←** also calls `history.back()` (never a hard-coded previous route), so it cannot disagree with system back.
-- **Dismissible overlays push history too.** Bottom sheets (delete-item confirmation, list overflow menu, invite picker, avatar source sheet), modal dialogs, the profile sheet, and the unfolded accordion panel all push a state on open and listen for `popstate` to close. The user expects back to close what they just opened; system back and the sheet's own Cancel are then equivalent. Without this, back skips past the overlay and pops the user out of the screen entirely — the bug usually reported as *"the back button is broken."*
+- **Dismissible overlays push history too.** Bottom sheets (delete-item confirmation, list overflow menu, invite picker, avatar source sheet), modal dialogs, the profile sheet, and the unfolded accordion panel all push a state on open and listen for `popstate` to close. The user expects back to close what they just opened; system back and the sheet's own Cancel are then equivalent. Without this, back skips past the overlay and pops the user out of the screen entirely — the bug usually reported as _"the back button is broken."_
 - **The Lists screen is the back-stack root.** Pressing back from there does nothing inside the running app. On Android-installed-PWA the OS handles it (typically closes the app), which is fine — we don't fight the platform. On iOS-installed-PWA (`display: standalone`) there is no system back gesture at all, so the in-app **←** is the only path; the design's top-bar arrow must always be reachable.
 - **The auth callback URL replaces history rather than pushing.** Hitting back from the first post-login screen must not return the user to `cairn.<domain>/auth/callback?token=…`, which is single-use. Use SvelteKit's `goto(target, { replaceState: true })` from the callback handler.
 - **Transient surfaces don't push history.** The 6-second undo snackbar dismisses on its own timer; it doesn't consume a back press. Pressing back during the snackbar does whatever back means at that point in the route — it doesn't dismiss the snackbar in lieu of navigating.
@@ -165,7 +167,7 @@ A profile chip sits at the top: current avatar (initials disc or photo), display
 
 Larger sizes are not just an accessibility nicety — Cairn is read in cafés, on a couch, with a glass of wine. The defaults should look good at M; L should feel like a proper "large text" mode without breaking any layout.
 
-Both preferences are **device-local** — stored in `localStorage`, not in the database. Theme and font size are properties of the screen you're reading on (a phone in bright sun versus a laptop indoors at night), not properties of the user, so they shouldn't follow you across devices. Anything that genuinely *should* follow the user — invite policy, future notification preferences — lives on `user_settings` (see `data-model.md`).
+Both preferences are **device-local** — stored in `localStorage`, not in the database. Theme and font size are properties of the screen you're reading on (a phone in bright sun versus a laptop indoors at night), not properties of the user, so they shouldn't follow you across devices. Anything that genuinely _should_ follow the user — invite policy, future notification preferences — lives on `user_settings` (see `data-model.md`).
 
 The other sections are navigation rows that open dedicated screens:
 
@@ -200,9 +202,9 @@ Tapping **Delete account** in Settings opens a full-screen page. It is not a she
 2. **What stays.** Items you've added on lists you share with other people, including their names and notes. Bob and Carol need that material to keep using their lists. Your name on those items changes to "Deleted user" with a gray avatar; the items themselves are unchanged.
 3. **What's deleted with you.** Lists where you were the only remaining member, along with everything on them. Nothing of yours is left behind in someone else's space.
 
-Below those blocks: a single text field labeled *"Type **delete** to confirm"* and a destructive **Delete my account** button in ember, disabled until the user types the magic word. Above the button, in muted text: *"This can't be undone."* No countdown timer, no checkboxes — the typed confirmation is the friction.
+Below those blocks: a single text field labeled _"Type **delete** to confirm"_ and a destructive **Delete my account** button in ember, disabled until the user types the magic word. Above the button, in muted text: _"This can't be undone."_ No countdown timer, no checkboxes — the typed confirmation is the friction.
 
-A small non-blocking panel sits *above* the destructive button: *"Want a copy of your data first? A few seconds. Yours to keep, even after deletion."* with a **Download** button that opens the Data export hub. Tapping it navigates to the export hub; the Delete account screen's state (typed-confirmation, etc.) is preserved when the user returns. Export and delete are independent — neither blocks the other. See `data-export.md` and screen E5 in `design/cairn-export-screens.jsx`.
+A small non-blocking panel sits _above_ the destructive button: _"Want a copy of your data first? A few seconds. Yours to keep, even after deletion."_ with a **Download** button that opens the Data export hub. Tapping it navigates to the export hub; the Delete account screen's state (typed-confirmation, etc.) is preserved when the user returns. Export and delete are independent — neither blocks the other. See `data-export.md` and screen E5 in `design/cairn-export-screens.jsx`.
 
 After tapping the destructive button: a brief loading state, then a confirmation screen ("Your account has been deleted") with a single button back to the sign-in screen. The session cookie is cleared (the server's `DELETE /auth/session` endpoint sets `Max-Age=0` on the `cairn_session` cookie); the app is fully logged out.
 
@@ -218,8 +220,8 @@ The full feature is documented in `invites.md`; this section covers the UI surfa
 
 When the user has at least one pending invite, a single row appears at the top of the Lists screen, above the list of lists:
 
-- One pending invite: *"Alice invited you to **Stuff to read**"* with two inline affordances — **Accept** (sage) and **Decline** (muted).
-- More than one: *"3 pending invites"* with a chevron; tapping opens the full inbox screen.
+- One pending invite: _"Alice invited you to **Stuff to read**"_ with two inline affordances — **Accept** (sage) and **Decline** (muted).
+- More than one: _"3 pending invites"_ with a chevron; tapping opens the full inbox screen.
 
 The row uses a slightly tinted background (warm cream in light mode, slate-700 in dark) to distinguish it from list rows without competing for attention. It disappears entirely when the inbox is empty — invites are not a permanent UI element.
 
@@ -228,11 +230,11 @@ The row uses a slightly tinted background (warm cream in light mode, slate-700 i
 Reachable from Settings → Invites or by tapping the multi-invite row on the Lists screen. Plain list of pending invitations, sorted newest first. Each row:
 
 - Inviter's display name and avatar.
-- *"invited you to"* in muted text.
+- _"invited you to"_ in muted text.
 - The list name, in the same weight as a list-row title.
 - An **Accept** button (sage) and a **Decline** button (muted), side by side.
 
-Accept navigates immediately into the list (the user is now a full member). Decline removes the row with no animation drama and no "Are you sure?" — the row is replaced by the next pending invite, or by an empty-state message if it was the last (*"No pending invites"*, gentle, friendly).
+Accept navigates immediately into the list (the user is now a full member). Decline removes the row with no animation drama and no "Are you sure?" — the row is replaced by the next pending invite, or by an empty-state message if it was the last (_"No pending invites"_, gentle, friendly).
 
 There is no "report as spam" affordance and no "Bob invited you again" coalescing in v1 — the dedup is done server-side at insert time (one pending invite per list per recipient).
 
@@ -241,23 +243,24 @@ There is no "report as spam" affordance and no "Bob invited you again" coalescin
 Reachable from Settings → Privacy. Three sections, top to bottom:
 
 **1. Who can invite you to lists.** Three-way segmented control:
-- **Everybody** (default — *"Anyone with a Cairn account"*)
-- **Your circle** (*"Only people in your circle"*)
-- **Nobody** (*"You can still create lists and invite others"*)
 
-The subtitle below the segmented control changes based on the selected value, explaining the concrete consequence in plain language. Changing this setting auto-declines any pending invites that would now be blocked — a one-line note explains this when the value changes (*"3 pending invites have been declined to match your new setting"*).
+- **Everybody** (default — _"Anyone with a Cairn account"_)
+- **Your circle** (_"Only people in your circle"_)
+- **Nobody** (_"You can still create lists and invite others"_)
 
-**2. Your circle.** A row showing the count (*"7 people"*) with a chevron; tapping opens the **Circle** screen. The circle is the per-user allowlist that powers the *"Your circle"* invite policy. See below.
+The subtitle below the segmented control changes based on the selected value, explaining the concrete consequence in plain language. Changing this setting auto-declines any pending invites that would now be blocked — a one-line note explains this when the value changes (_"3 pending invites have been declined to match your new setting"_).
 
-**3. Blocked.** A row showing the count (*"0 people"* if empty) with a chevron; tapping opens the **Blocked** screen. People here can never invite you, regardless of any other setting.
+**2. Your circle.** A row showing the count (_"7 people"_) with a chevron; tapping opens the **Circle** screen. The circle is the per-user allowlist that powers the _"Your circle"_ invite policy. See below.
+
+**3. Blocked.** A row showing the count (_"0 people"_ if empty) with a chevron; tapping opens the **Blocked** screen. People here can never invite you, regardless of any other setting.
 
 ### Circle screen
 
-Reachable from Settings → Privacy → Your circle. A single list of **People in your circle** — those you've added. Each row: avatar, display name, a small action affordance to remove (with confirmation: *"Stop accepting invites from Bob?"*).
+Reachable from Settings → Privacy → Your circle. A single list of **People in your circle** — those you've added. Each row: avatar, display name, a small action affordance to remove (with confirmation: _"Stop accepting invites from Bob?"_).
 
-The screen does *not* show "people who have you in their circle." Each user's circle is their own private permission setting on themselves — surfacing it to the people listed in it would turn a private setting into a quasi-social signal, which is the opposite of the intent. See `circles.md`.
+The screen does _not_ show "people who have you in their circle." Each user's circle is their own private permission setting on themselves — surfacing it to the people listed in it would turn a private setting into a quasi-social signal, which is the opposite of the intent. See `circles.md`.
 
-At the top of the list, a small *"What is a circle?"* link opens a brief explainer sheet (one paragraph; same content as the top of `circles.md`). The link is always present — a circle is subtle enough that even returning users may want to re-check.
+At the top of the list, a small _"What is a circle?"_ link opens a brief explainer sheet (one paragraph; same content as the top of `circles.md`). The link is always present — a circle is subtle enough that even returning users may want to re-check.
 
 At the bottom, an **Add by email** field. Typing an email and confirming triggers the mutual email-add path (see `invites.md`). The success toast is generic — same on success, on "Bob doesn't exist," on "Bob blocked you" — to preserve Bob's privacy.
 
@@ -265,29 +268,30 @@ The screen is empty-state-friendly: a new user sees the brief explainer above th
 
 ### Blocked screen
 
-Reachable from Settings → Privacy → Blocked. A plain list of blocked users (avatar + display name) with an **Unblock** action on each row. Empty state: *"You haven't blocked anyone."* No add-by-email field here — blocking happens from a profile screen, not by typing an email.
+Reachable from Settings → Privacy → Blocked. A plain list of blocked users (avatar + display name) with an **Unblock** action on each row. Empty state: _"You haven't blocked anyone."_ No add-by-email field here — blocking happens from a profile screen, not by typing an email.
 
 ### Profile screen (sheet)
 
 Tapping any user's avatar or name (in a list members screen, the inbox, or anywhere else a user appears) opens a profile sheet. The sheet is modal, dismissed by tap-outside or a chevron-down handle.
 
 Contents:
+
 - Large avatar at top.
 - Display name in the same weight as a screen title.
 - (No email, no bio, no member-since, no list of shared lists. Privacy by minimalism — see `invites.md`.)
 - A vertical stack of action rows, each tappable, showing only the actions valid given current state:
 
-| Action | Shown when |
-|---|---|
-| **Add to circle** | Other user not in viewer's circle |
-| **Remove from circle** | Other user is in viewer's circle |
-| **Block** | Other user not blocked by viewer |
-| **Unblock** | Other user is blocked by viewer |
+| Action                    | Shown when                                   |
+| ------------------------- | -------------------------------------------- |
+| **Add to circle**         | Other user not in viewer's circle            |
+| **Remove from circle**    | Other user is in viewer's circle             |
+| **Block**                 | Other user not blocked by viewer             |
+| **Unblock**               | Other user is blocked by viewer              |
 | **Cancel pending invite** | Viewer has a pending invite to a shared list |
 
-The profile screen never shows whether *the other person* has the viewer in their circle. That's their private setting on themselves; not the viewer's business. (See `circles.md`.)
+The profile screen never shows whether _the other person_ has the viewer in their circle. That's their private setting on themselves; not the viewer's business. (See `circles.md`.)
 
-Add to circle and Remove from circle are quiet — no confirmation, no animation drama. Block and Unblock prompt for confirmation (*"Block Bob? He won't be able to invite you to any list."*). Cancel pending invite is also quiet.
+Add to circle and Remove from circle are quiet — no confirmation, no animation drama. Block and Unblock prompt for confirmation (_"Block Bob? He won't be able to invite you to any list."_). Cancel pending invite is also quiet.
 
 Tapping your **own** avatar bounces to Settings rather than opening a profile sheet. There is no "my profile" screen in v1.
 
@@ -295,7 +299,7 @@ Tapping your **own** avatar bounces to Settings rather than opening a profile sh
 
 Opened from the **Members** screen of a list, by tapping the **Add member** affordance. A bottom sheet sliding up to roughly 75% of the screen height, with three sections, top to bottom:
 
-1. **Your circle** — people in the viewer's circle, excluding existing members of the current list. Each row: avatar, display name, a tap-to-invite affordance. A single tap sends the invite; the row briefly shows a check or the generic *"Couldn't send"* error toast.
+1. **Your circle** — people in the viewer's circle, excluding existing members of the current list. Each row: avatar, display name, a tap-to-invite affordance. A single tap sends the invite; the row briefly shows a check or the generic _"Couldn't send"_ error toast.
 2. **People you share other lists with** — live co-members on the viewer's other lists, deduplicated, excluding circle members already in section 1 and existing members of the current list. Same row shape as above.
 3. **By email** — a text field at the bottom of the sheet. Submit triggers the email-invite path. Success and failure show the same generic toast as the tap-to-invite rows.
 
@@ -321,7 +325,7 @@ The seven-step indicator is rendered with **plain ASCII characters** (`---` `--`
 
 Each item row shows an aggregate-score badge next to the name when the score is non-zero — small, monospace, sage for positive and ember for negative. This is a v1 decision, reversing the earlier "not shown until v2" plan: the badge is small enough not to compete with the per-user vote control, and it gives a quick at-a-glance read of group sentiment that makes the list materially more useful. A score of exactly zero renders no badge (clean, no clutter for items everyone is neutral on).
 
-The user's *own* vote remains the primary signal on the row (the indicator on the trailing edge); the aggregate is a secondary read on the leading edge. The two never compete because they use different weights and different positions.
+The user's _own_ vote remains the primary signal on the row (the indicator on the trailing edge); the aggregate is a secondary read on the leading edge. The two never compete because they use different weights and different positions.
 
 ## Trash & undo
 
@@ -329,21 +333,21 @@ Soft delete is universal in Cairn (see `data-model.md`): items, lists, and list 
 
 ### Undo snackbar
 
-Whenever a user soft-deletes an item, a snackbar appears at the bottom of the items screen for **6 seconds**: *"Deleted 'Bringing Up Baby' · Undo"*. Tapping Undo clears the `deleted_at` and the row pops back into place. After the snackbar dismisses, the item is in the trash, recoverable from there. The snackbar replaces — not stacks with — any previous one; the most recent delete wins.
+Whenever a user soft-deletes an item, a snackbar appears at the bottom of the items screen for **6 seconds**: _"Deleted 'Bringing Up Baby' · Undo"_. Tapping Undo clears the `deleted_at` and the row pops back into place. After the snackbar dismisses, the item is in the trash, recoverable from there. The snackbar replaces — not stacks with — any previous one; the most recent delete wins.
 
-While the snackbar is up, the FAB is hidden. The two share the bottom-right corner, and the Undo affordance must not be covered by the "add" button — undo *is* the action we want the user to take in those six seconds. The FAB returns when the snackbar dismisses.
+While the snackbar is up, the FAB is hidden. The two share the bottom-right corner, and the Undo affordance must not be covered by the "add" button — undo _is_ the action we want the user to take in those six seconds. The FAB returns when the snackbar dismisses.
 
 The same pattern applies to deleting a list (snackbar on the lists screen) and to removing a member (snackbar on the members screen).
 
 ### Trash screen
 
-Each list has a **Trash** entry in its overflow menu (the long-press / `⋮` sheet). Opening it shows the list's soft-deleted items, ordered most-recently-deleted first. Each row shows the item name, a faint *"deleted by Bob, 3 May 2026"* attribution, and a single **Restore** button. Tapping Restore clears `deleted_at` and returns the item to the live list at its original position in the sort.
+Each list has a **Trash** entry in its overflow menu (the long-press / `⋮` sheet). Opening it shows the list's soft-deleted items, ordered most-recently-deleted first. Each row shows the item name, a faint _"deleted by Bob, 3 May 2026"_ attribution, and a single **Restore** button. Tapping Restore clears `deleted_at` and returns the item to the live list at its original position in the sort.
 
 There is no "empty trash" action. Hard deletion is not exposed in the UI; nothing in v1 ever calls `DELETE` on items. If we ever add a server-side garbage collection for very old deletions, that's a backend decision (see the open question in `architecture.md`), not a user-facing one.
 
 A trashed list is reachable from a separate **Trash** entry in Settings (one trash per user, listing all deleted lists they were a member of). Restoring a list returns it to the lists screen with all its members and its trash intact.
 
-The trash is not a feature we promise users — it's a safety net. The copy in delete confirmations should reflect that without making promises about retention windows: *"Bob and Carol will no longer see this item. You can restore it from this list's trash."* No "for 30 days," no countdown — just the affordance.
+The trash is not a feature we promise users — it's a safety net. The copy in delete confirmations should reflect that without making promises about retention windows: _"Bob and Carol will no longer see this item. You can restore it from this list's trash."_ No "for 30 days," no countdown — just the affordance.
 
 ## Other surfaces
 
@@ -354,7 +358,7 @@ A few smaller patterns, pinned down so they stay consistent:
 
 ## Button order in pairs
 
-When two buttons sit side-by-side at the bottom of a sheet, dialog, or card, **right is the more committal action; left is the more backward / less committal one**. The right-side action is the one the screen exists to perform. The left-side action is the escape, the dismissal, or the more destructive option that takes the user *out* of the current context.
+When two buttons sit side-by-side at the bottom of a sheet, dialog, or card, **right is the more committal action; left is the more backward / less committal one**. The right-side action is the one the screen exists to perform. The left-side action is the escape, the dismissal, or the more destructive option that takes the user _out_ of the current context.
 
 Concretely:
 
@@ -391,24 +395,25 @@ Screens that can show an empty state should be flex columns that fill the viewpo
 
 ```css
 .screen {
-    display: flex;
-    flex-direction: column;
-    min-height: 100dvh;   /* dvh, not vh — shrinks when iOS Safari chrome expands */
+	display: flex;
+	flex-direction: column;
+	min-height: 100dvh; /* dvh, not vh — shrinks when iOS Safari chrome expands */
 }
 .content {
-    flex: 1;              /* fills remaining height below the TopBar */
+	flex: 1; /* fills remaining height below the TopBar */
 }
 .empty {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
 }
 ```
 
 ### TopBar visual spec
 
 Every `<TopBar>` renders with:
+
 - Newsreader serif, 22 px, weight 500, letter-spacing −0.01 em for the title
 - `min-height: 56px`; padding 12 px top / 18 px sides (plus safe-area insets)
 - `border-bottom: 1px solid var(--rule)`
@@ -420,6 +425,39 @@ The TopBar uses `display: flex; align-items: center; gap: 10px`. The title div h
 
 These styles live inside `TopBar.svelte` — callers do not re-apply them. Screens that are the navigation root (e.g. Lists) pass a `left` snippet instead of `showBack={false}`.
 
+### Row navigation pattern
+
+When a list row has a primary label and a trailing chevron that both navigate to the same destination, **wrap them in a single `<button>`** — not two separate elements. Two buttons leave a dead tap zone between them.
+
+```svelte
+<button class="row-nav" onclick={navigate}>
+  <span class="name">{item.name}</span>
+  <span class="chevron"><Icon name="chevron-right" size={18} /></span>
+</button>
+```
+
+```css
+.row-nav {
+  display: flex;
+  align-items: flex-start; /* NOT center — pins chevron to top when name wraps */
+  gap: 12px;
+  width: 100%;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+}
+.name { flex: 1; min-width: 0; }
+.chevron { flex-shrink: 0; }
+```
+
+`align-items: flex-start` is required so the chevron stays at the top of a multi-line name rather than drifting to the vertical midpoint.
+
+### Cursor convention
+
+- `cursor: pointer` — **navigation and explicit call-to-action buttons only** (links, FABs, row-nav buttons, CTA buttons). The pointer (hand) signals "this takes you somewhere or submits something."
+- `cursor: default` (the arrow) — **interactive elements that don't navigate**: expand/collapse toggles, disabled states, non-link buttons that operate in place. Browsers render buttons as `auto`/`default` by default; don't add `cursor: pointer` unless the element genuinely navigates.
+
 ### Empty-state copy and style
 
 Two patterns are used, depending on the screen's design spec.
@@ -427,6 +465,7 @@ Two patterns are used, depending on the screen's design spec.
 **Simple empty state** — for utility screens with no illustration: two short lines, the first stating the fact ("No items yet."), the second giving the action ("Tap [icon] to create one."). Colour: `var(--stone)`. Font size: ≥ 22 px. Inline icon hints (the circular FAB replica) use `background: var(--accent); color: var(--paper)` and `border-radius: 50%`.
 
 **Illustrated empty state** — for screens where the first-run experience warrants more visual weight (e.g. the Lists screen). Structure:
+
 - A centred 96 × 96 px circle: `background: var(--paper-alt); border: 1px dashed var(--stone-lt); border-radius: 99px`. Contains a brand illustration (e.g. `<CairnGlyph size={44} color="var(--stone)" />`).
 - A heading: Newsreader 24 px, weight 500, `var(--ink)`, letter-spacing −0.01 em.
 - Body copy: 14 px, `var(--ink-soft)`, line-height 1.5, max-width 280 px.
@@ -442,4 +481,4 @@ These are deferred — they need a design pass but aren't blocking v1.
 - **Exact typography for the indicator.** Whether `+++` should grow visually with magnitude (light → bold) within the fixed-width slot is a polish question for the implementation, not a v1 contract.
 - **Haptics.** A small tick on each tap would be nice. Defer.
 - **Animation.** A subtle slide for the accordion unfold and for vote-state transitions would be nice. Defer.
-- **Accessibility labels.** Every control needs a screen-reader label ("Downvote *Casablanca*, currently rated +2 by you, tap to lower to +1"). The exact phrasing is for the implementation pass, but the requirement is fixed: every button is reachable and labeled.
+- **Accessibility labels.** Every control needs a screen-reader label ("Downvote _Casablanca_, currently rated +2 by you, tap to lower to +1"). The exact phrasing is for the implementation pass, but the requirement is fixed: every button is reachable and labeled.

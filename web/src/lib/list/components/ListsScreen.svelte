@@ -4,28 +4,32 @@
 	import { resolve } from '$app/paths';
 
 	import CairnGlyph from '$lib/shared/components/CairnGlyph.svelte';
+	import Avatar from '$lib/shared/components/Avatar.svelte';
 	import Icon from '$lib/basic/components/Icon.svelte';
 	import Fab from '$lib/basic/components/Fab.svelte';
 	import TopBar from '$lib/shared/components/TopBar.svelte';
 	import { profile } from '$lib/shared/state/profile.svelte';
 	import { lists, refreshLists } from '$lib/list/state/lists.svelte';
+	import { timeAgo } from '$lib/shared/model/time-ago';
 
 	import CreateListSheet from './CreateListSheet.svelte';
 
 	let createSheetOpen = $state(false);
 	const expandedIds = new SvelteSet<string>();
+	let descTextEls: Record<string, HTMLElement> = {};
+	const truncatedIds = new SvelteSet<string>();
+
+	$effect(() => {
+		void lists.items; // reactive dependency — re-run when list reloads
+		truncatedIds.clear();
+		for (const [id, el] of Object.entries(descTextEls)) {
+			if (el && el.scrollWidth > el.offsetWidth) truncatedIds.add(id);
+		}
+	});
 
 	function toggleDesc(id: string) {
 		if (expandedIds.has(id)) expandedIds.delete(id);
 		else expandedIds.add(id);
-	}
-
-	function formatDate(iso: string): string {
-		return new Intl.DateTimeFormat('en-GB', {
-			day: 'numeric',
-			month: 'short',
-			year: 'numeric'
-		}).format(new Date(iso));
 	}
 </script>
 
@@ -77,33 +81,48 @@
 		<div class="list">
 			{#each lists.items as item, i (item.id)}
 				<div class="row" class:last={i === lists.items.length - 1} data-test="list-row-{item.id}">
-					<div class="row-inner">
-						<div class="row-body">
-							<button
-								class="name"
-								data-test="list-nav-{item.id}"
-								onclick={() => {
-									// eslint-disable-next-line svelte/no-navigation-without-resolve
-									void goto('/lists/' + item.id); // swap to resolve() when /lists/[id] route exists
-								}}
-							>
-								{item.name}
-							</button>
-							{#if item.description !== null}
-								<button
-									class="desc"
-									class:expanded={expandedIds.has(item.id)}
-									data-test="list-desc-{item.id}"
-									onclick={() => toggleDesc(item.id)}
-								>
-									{item.description}
-								</button>
-							{:else}
-								<div class="desc no-desc" data-test="list-desc-{item.id}">(no description)</div>
-							{/if}
-							<div class="meta">{formatDate(item.modified_at)}</div>
-						</div>
+					<button
+						class="row-nav"
+						data-test="list-nav-{item.id}"
+						onclick={() => {
+							// eslint-disable-next-line svelte/no-navigation-without-resolve
+							void goto('/lists/' + item.id); // swap to resolve() when /lists/[id] route exists
+						}}
+					>
+						<span class="name">{item.name}</span>
 						<span class="chevron"><Icon name="chevron-right" size={18} /></span>
+					</button>
+					{#if item.description !== null}
+						<button
+							class="desc"
+							class:expanded={expandedIds.has(item.id)}
+							data-test="list-desc-{item.id}"
+							onclick={() => toggleDesc(item.id)}
+						>
+							<span class="desc-text" bind:this={descTextEls[item.id]}>{item.description}</span>
+							{#if expandedIds.has(item.id)}
+								<span class="see-toggle">(see less)</span>
+							{:else if truncatedIds.has(item.id)}
+								<span class="see-toggle">(see more)</span>
+							{/if}
+						</button>
+					{:else}
+						<div class="desc no-desc" data-test="list-desc-{item.id}">(no description)</div>
+					{/if}
+					<div class="meta">
+						<span>{item.item_count} {item.item_count === 1 ? 'item' : 'items'}</span>
+						<span class="dot">•</span>
+						<span>{timeAgo(item.modified_at)}</span>
+						{#if item.list_members.length > 0}
+							<span class="dot">•</span>
+							<span class="avatars">
+								{#each item.list_members as m, i (m.profiles.display_name + i)}
+									<span style="margin-left: {i === 0 ? 0 : -6}px">
+										<Avatar displayName={m.profiles.display_name} size={16} />
+									</span>
+								{/each}
+							</span>
+						{/if}
 					</div>
 				</div>
 			{/each}
@@ -156,25 +175,21 @@
 		border-bottom: none;
 	}
 
-	.row-inner {
+	.row-nav {
 		display: flex;
-		align-items: baseline;
+		align-items: flex-start;
 		gap: 12px;
-	}
-
-	.row-body {
-		flex: 1;
-		min-width: 0;
-	}
-
-	.name {
-		display: block;
 		width: 100%;
 		background: none;
 		border: none;
 		padding: 0;
 		text-align: left;
 		cursor: pointer;
+	}
+
+	.name {
+		flex: 1;
+		min-width: 0;
 		font-family: 'Newsreader Variable', Georgia, serif;
 		font-size: 17px;
 		font-weight: 600;
@@ -184,27 +199,40 @@
 	}
 
 	.desc {
-		display: block;
+		display: flex;
+		align-items: baseline;
+		gap: 4px;
 		width: 100%;
 		background: none;
 		border: none;
 		padding: 0;
 		text-align: left;
-		cursor: pointer;
 		font: inherit;
 		margin-top: 4px;
 		font-size: 13.5px;
 		line-height: 1.5;
 		color: var(--ink-soft);
-		white-space: nowrap;
+	}
+
+	.desc-text {
+		flex: 1;
+		min-width: 0;
 		overflow: hidden;
+		white-space: nowrap;
 		text-overflow: ellipsis;
 	}
 
-	.desc.expanded {
+	.desc.expanded .desc-text {
 		white-space: normal;
 		overflow: visible;
 		text-overflow: unset;
+	}
+
+	.see-toggle {
+		flex-shrink: 0;
+		white-space: nowrap;
+		font-size: 11.5px;
+		color: var(--stone);
 	}
 
 	.desc.no-desc {
@@ -217,6 +245,18 @@
 		margin-top: 6px;
 		font-size: 11.5px;
 		color: var(--stone);
+		display: flex;
+		align-items: center;
+		gap: 4px;
+	}
+
+	.dot {
+		color: var(--stone-lt);
+	}
+
+	.avatars {
+		display: inline-flex;
+		align-items: center;
 	}
 
 	.chevron {

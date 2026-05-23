@@ -25,21 +25,27 @@ const LIST_A = {
 	id: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
 	name: 'List A',
 	description: null,
-	modified_at: '2026-01-01T00:00:00Z'
+	modified_at: '2026-01-01T00:00:00Z',
+	item_count: 0,
+	list_members: []
 };
 
 const LIST_B = {
 	id: 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
 	name: 'List B',
 	description: 'A description',
-	modified_at: '2026-01-02T00:00:00Z'
+	modified_at: '2026-01-02T00:00:00Z',
+	item_count: 0,
+	list_members: []
 };
 
 const LIST_C = {
 	id: 'cccccccc-cccc-cccc-cccc-cccccccccccc',
 	name: 'List C',
 	description: 'Another description',
-	modified_at: '2026-01-03T00:00:00Z'
+	modified_at: '2026-01-03T00:00:00Z',
+	item_count: 0,
+	list_members: []
 };
 
 describe('ListsScreen', () => {
@@ -108,5 +114,12 @@ describe('ListsScreen', () => {
 		const { getByDataTest } = render(ListsScreen);
 		const descEl = getByDataTest(`list-desc-${LIST_A.id}`);
 		expect(descEl.textContent).toContain('(no description)');
+	});
+
+	test('(i) metadata shows item count', () => {
+		lists.items = [{ ...LIST_B, item_count: 3, list_members: [] }];
+		const { getByDataTest } = render(ListsScreen);
+		const row = getByDataTest(`list-row-${LIST_B.id}`);
+		expect(row.textContent).toContain('3 items');
 	});
 });

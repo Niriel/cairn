@@ -168,6 +168,28 @@ that the compat layer still accepts but no real Cairn component uses;
 mocks that reach for `<slot />` quietly diverge from the surface
 they're meant to stand in for, so don't write them that way.
 
+## Svelte reactive collections
+
+Use `SvelteSet` and `SvelteMap` (from `svelte/reactivity`) instead of plain `Set` / `Map` whenever the collection is read in a template or a `$derived`. The linter (`svelte/prefer-svelte-reactivity`) enforces this.
+
+**Do not wrap `SvelteSet` / `SvelteMap` in `$state()`** — they are already reactive. The linter will flag this as `svelte/no-unnecessary-state-wrap`. Declare them as `const` and mutate in place:
+
+```ts
+const expandedIds = new SvelteSet<string>(); // ✓ const, not $state(new SvelteSet())
+
+$effect(() => {
+  void someReactiveDep; // read a reactive value to subscribe; use void to suppress no-unused-vars
+  expandedIds.clear();
+  for (const id of computeIds()) expandedIds.add(id);
+});
+```
+
+When you need a Set computed from reactive inputs (not mutated), use `$derived`:
+
+```ts
+const expandedIds = $derived(new Set(someArray.map((x) => x.id)));
+```
+
 ## Testing rules
 
 Component tests assert what the user sees — props in, rendered output
