@@ -1,4 +1,5 @@
 :root {
+	--app-max-w: 26rem;
 	--paper: oklch(98% 0.012 85);
 	--paper-alt: oklch(96% 0.014 82);
 	--ink: oklch(24% 0.02 65);

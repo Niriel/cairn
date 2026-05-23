@@ -584,8 +584,8 @@ FOR EACH ROW EXECUTE FUNCTION public.tg_set_modified_at();
 -- in-body guards (uid()-NULL, tombstone-UID) are defence-in-depth
 -- on top of the GRANT-layer denial; both raise SQLSTATE 28000.
 CREATE OR REPLACE FUNCTION public.create_list(
-  p_name text,
-  p_description text DEFAULT NULL
+  name text,
+  description text DEFAULT NULL
 )
 RETURNS public.lists
 LANGUAGE plpgsql
@@ -604,7 +604,7 @@ BEGIN
     USING errcode = '28000';
   END IF;
   INSERT INTO public.lists (name, description)
-  VALUES (p_name, p_description)
+  VALUES (name, description)
   RETURNING * INTO new_list;
   INSERT INTO public.list_members (list_id, user_id)
   VALUES (new_list.id, uid);

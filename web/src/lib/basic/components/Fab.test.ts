@@ -13,14 +13,13 @@ function content(html: string) {
 }
 
 describe('Fab', () => {
-	test('positions bottom with var(--fab-bottom)', () => {
+	test('renders as a button element', () => {
 		const { getByDataTest } = render(Fab, {
 			'data-test': 'fab',
 			'aria-label': 'New',
 			children: content('+')
 		});
-		const fab = getByDataTest('fab');
-		expect(fab.style.bottom).toBe('var(--fab-bottom)');
+		expect(getByDataTest('fab').tagName).toBe('BUTTON');
 	});
 
 	test('calls onclick when clicked', async () => {

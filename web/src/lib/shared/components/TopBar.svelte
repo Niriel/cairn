@@ -39,12 +39,12 @@
 	header {
 		display: flex;
 		align-items: center;
-		gap: 0.5rem;
-		padding-top: env(safe-area-inset-top);
-		padding-left: env(safe-area-inset-left);
-		padding-right: env(safe-area-inset-right);
+		min-height: 56px;
+		padding: calc(env(safe-area-inset-top) + 12px) calc(env(safe-area-inset-right) + 18px) 12px
+			calc(env(safe-area-inset-left) + 18px);
 		background: var(--paper);
 		color: var(--ink);
+		border-bottom: 1px solid var(--rule);
 	}
 
 	.left,
@@ -58,5 +58,10 @@
 		flex: 1 1 auto;
 		min-width: 0;
 		text-align: center;
+		font-family: 'Newsreader Variable', Georgia, serif;
+		font-size: 22px;
+		font-weight: 500;
+		letter-spacing: -0.01em;
+		line-height: 1.1;
 	}
 </style>
