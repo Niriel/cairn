@@ -7,7 +7,7 @@ and control their appearance settings — giving us something real to dogfood
 before sharing (step 7) is added.
 
 This plan is an orchestration plan: its tasks are about creating and
-executing three sub-plans (0401, 0402, 0403), each of which carries its own
+executing four sub-plans (0401, 0402, 0403, 0404), each of which carries its own
 detailed REQUIREMENTS/PLAN/TASKS. Requirements here describe the overall
 step-4 contract; the sub-plans refine them.
 

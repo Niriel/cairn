@@ -53,7 +53,7 @@ them.
 
 **Why:** The Lists screen is the authenticated home — users land here after
 sign-in. It requires one new DB piece (`create_list` RPC) and establishes the
-authenticated route layout that the Items screen (0403) will also live under.
+authenticated route layout that the Items screen (0404) will also live under.
 
 **Prerequisites:** Task 1.1 merged — `0400_mvp_product` contains the Avatar
 component and the Settings screen; the authenticated layout stub may be
@@ -78,23 +78,65 @@ introduced here.
 
 ---
 
-## Phase 3 — 0403: Items screen
+## Phase 3 — 0403: Lists screen visual polish
 
-### [ ] 3.1 Plan and implement sub-step 0403 (Items screen + vote control + accordion)
+### [ ] 3.1 Plan and implement sub-step 0403 (Lists screen visual polish)
 
-**Created:** 2026-05-23T07:51:04Z
+**Created:** 2026-05-23T00:00:00Z
 **Completed:**
 
-**Why:** The Items screen is the heaviest piece of step 4 — it combines the
-vote control, the one-at-a-time accordion, and the add/edit/delete item flows.
-It depends on the Lists screen (0402) for the route structure it navigates
-from.
+**Why:** The 0402 task delivered the functional plumbing but the visual
+implementation diverges significantly from the design spec. List rows render
+as unstyled `<ul>/<li>` elements with browser-default bullet points, names as
+bare `<button>` elements with no layout, and the `Accordion` is misused by
+nesting a `<button>` inside its header. The TopBar lacks the Cairn glyph and
+subtitle. The empty state is a two-line text hint rather than the illustrated
+call-to-action. This must be corrected before 0404 builds the Items screen
+on top of it.
 
 **Prerequisites:** Task 2.1 merged — `0400_mvp_product` contains the Lists
 screen and the authenticated layout.
 
 **Decisions:**
 - Sub-branch cut from the updated `0400_mvp_product` (post-0402 merge).
+- The plan covers: extend `TopBar` with a `left` snippet and `sub` text prop;
+  redesign `ListsScreen` rows (div-based, Newsreader 17 px bold name,
+  description always shown and collapsible, `modified_at` metadata, chevron);
+  fix empty state (illustrated circle + CTA button matching design spec).
+- No DB changes — uses existing `List` model fields (`name`, `description`,
+  `modified_at`). Icon, items count, and member avatars are out of scope
+  (no data yet).
+
+**Steps:**
+1. `git checkout -b 0403_lists_screen_polish 0400_mvp_product`
+2. Invoke `/write-plan` to create `plans/0403_lists_screen_polish/` with its three files.
+3. Implement the sub-plan task by task.
+4. Run `./scripts/check.sh` — must be green.
+5. `git checkout 0400_mvp_product && git merge --no-ff 0403_lists_screen_polish`
+
+**Verify:** `./scripts/check.sh` green on `0400_mvp_product` after merge.
+Open `/lists` in the browser: no bullet points, rows match design spec, empty
+state shows the illustrated circle and CTA button.
+
+---
+
+## Phase 4 — 0404: Items screen
+
+### [ ] 4.1 Plan and implement sub-step 0404 (Items screen + vote control + accordion)
+
+**Created:** 2026-05-23T07:51:04Z
+**Completed:**
+
+**Why:** The Items screen is the heaviest piece of step 4 — it combines the
+vote control, the one-at-a-time accordion, and the add/edit/delete item flows.
+It depends on the Lists screen (0402/0403) for the route structure it navigates
+from.
+
+**Prerequisites:** Task 3.1 merged — `0400_mvp_product` contains the visually
+polished Lists screen.
+
+**Decisions:**
+- Sub-branch cut from the updated `0400_mvp_product` (post-0403 merge).
 - The plan covers: Items screen (`/(app)/lists/[list_id]/`), `VoteControl`
   (±1 nudge, ±3 clamp, upsert/delete via PostgREST), item accordion (one open
   at a time, notes + attribution + per-member votes panel + Edit/Delete
@@ -105,19 +147,19 @@ screen and the authenticated layout.
   already in place from step 1.
 
 **Steps:**
-1. `git checkout -b 0403_items_screen 0400_mvp_product`
-2. Invoke `/write-plan` to create `plans/0403_items_screen/` with its three files.
+1. `git checkout -b 0404_items_screen 0400_mvp_product`
+2. Invoke `/write-plan` to create `plans/0404_items_screen/` with its three files.
 3. Implement the sub-plan task by task.
 4. Run `./scripts/check.sh --e2e` — must be green.
-5. `git checkout 0400_mvp_product && git merge --no-ff 0403_items_screen`
+5. `git checkout 0400_mvp_product && git merge --no-ff 0404_items_screen`
 
 **Verify:** `./scripts/check.sh --e2e` green on `0400_mvp_product` after merge.
 
 ---
 
-## Phase 4 — Wrap up
+## Phase 5 — Wrap up
 
-### [ ] 4.1 Final verification and merge to main
+### [ ] 5.1 Final verification and merge to main
 
 **Created:** 2026-05-23T07:51:04Z
 **Completed:**
@@ -125,7 +167,7 @@ screen and the authenticated layout.
 **Why:** Confirms the full step-4 happy path works end-to-end on the
 integration branch before it lands on `main`.
 
-**Prerequisites:** Tasks 1.1, 2.1, 3.1 all merged into `0400_mvp_product`.
+**Prerequisites:** Tasks 1.1, 2.1, 3.1, 4.1 all merged into `0400_mvp_product`.
 
 **Decisions:**
 - Run the full E2E suite (sign in → lists → items → vote → edit → delete →
