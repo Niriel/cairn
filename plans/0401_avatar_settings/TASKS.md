@@ -157,10 +157,10 @@ Items screen (0403) will need it for attribution. Centralising the fetch in
 
 ## Phase 3 — Settings screen + route
 
-### [ ] 3.1 Create `SettingsScreen` component
+### [x] 3.1 Create `SettingsScreen` component
 
 **Created:** 2026-05-23T07:57:40Z
-**Completed:**
+**Completed:** 2026-05-23T08:55:01Z
 
 **Why:** The Settings screen is the first product screen. It gives the
 existing `preferences` store a real UI and moves Sign Out to its permanent
