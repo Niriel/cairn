@@ -133,6 +133,21 @@ TDD order: each task writes RED tests first, GREEN implementation second. Cross-
 both land before 3.2's `ListsScreen.test.ts` can run without unhandled-request
 errors or missing-mock failures.
 
+## Phase 4 — Fix `create_list` parameter names (bugfix)
+
+After all Phase 1–3 tasks landed, creating a list from the UI produced PostgREST
+error "Could not find the function public.create_list(description, name) in the
+schema cache." Root cause: the SQL function was written with `p_name` /
+`p_description` parameters, but the frontend sends `{ name, description }` (per R2).
+PostgREST v10+ matches RPC bodies by parameter name, so the mismatch is fatal.
+
+The fix is to rename the two parameters in `db/migrations/0004_domain_schema.sql`
+from `p_name` / `p_description` to `name` / `description` and update the two
+references in the function body. The migration uses `CREATE OR REPLACE FUNCTION`,
+so re-running it (or resetting the dev DB) is enough to apply the change. No
+pgTAP tests need updating — `rpc_create_list.sql` calls the function with
+positional arguments.
+
 ## Reference docs and skills
 
 - **`docs/data-model.md`** — `lists` table schema, RLS, `create_list` RPC signature, PostgREST endpoints.

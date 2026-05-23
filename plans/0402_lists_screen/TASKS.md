@@ -392,3 +392,47 @@ state" — each test sets `lists.items = [...]` inline.
 - Also fixed: `root +page.svelte` still used `eslint-disable` + bare string goto;
   switched to `goto(resolve('/lists'))` now that the route exists. (This was the
   follow-up noted in task 1.1.)
+
+---
+
+## Phase 4 — Fix `create_list` parameter names
+
+### [x] 4.1 Rename `p_name`/`p_description` to `name`/`description` in migration
+
+**Created:** 2026-05-23T00:00:00Z
+**Completed:** 2026-05-23T00:00:00Z
+
+**Why:** PostgREST v10+ routes RPC body fields to function parameters by name.
+The `create_list` SQL function was written with `p_name` / `p_description`, but the
+frontend sends `{ name, description }` per R2. The mismatch produces "Could not
+find the function public.create_list(description, name) in the schema cache" at
+runtime. Renaming the parameters to `name` and `description` aligns the SQL with
+the wire format.
+
+**Prerequisites:** All Phase 1–3 tasks complete (`create_list` RPC already exists
+in the DB; the frontend code already sends the correct field names).
+
+**Decisions:**
+- Edit in the migration file (`0004_domain_schema.sql`) rather than writing a new
+  migration. This is a pre-alpha dev DB and the function was never correct — a
+  fixup migration would just add noise. The migration uses `CREATE OR REPLACE
+  FUNCTION`, so resetting the dev DB re-applies the corrected definition cleanly.
+- No pgTAP test changes needed: `db/tests/rpc_create_list.sql` calls the function
+  with positional arguments (`public.create_list('My list', NULL)`), so parameter
+  names are irrelevant to those tests.
+
+**Files:**
+- `db/migrations/0004_domain_schema.sql` (modify — lines ~587–607)
+
+**Steps:**
+1. In `db/migrations/0004_domain_schema.sql`, change the `create_list` function
+   signature and body:
+   - Line ~587: `p_name text` → `name text`
+   - Line ~588: `p_description text DEFAULT NULL` → `description text DEFAULT NULL`
+   - Line ~607: `VALUES (p_name, p_description)` → `VALUES (name, description)`
+2. Reset the dev DB so the corrected function definition is applied (use the
+   VSCode "Migrate" task or equivalent).
+3. Confirm in the running app: open the Lists screen, tap the FAB, fill in a name,
+   submit — the sheet should close and the new list should appear.
+
+**Verify:** `./scripts/test-db.sh` · manual create-list flow in the running app

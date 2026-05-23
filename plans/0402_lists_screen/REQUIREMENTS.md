@@ -19,6 +19,11 @@ function live in `web/src/lib/list/model/list.ts`. `createList` posts to
 `POST /rpc/create_list` with body `{ name, description: description ?? null }` and
 returns the new `List` row. Thin wrapper over `pgPost` — no retry, no caching.
 
+The SQL function's parameters must be named `name` and `description` (no `p_`
+prefix) so PostgREST routes the JSON body fields to the correct parameters. PostgREST
+v10+ matches RPC bodies by parameter name; a `p_name` / `p_description` mismatch
+causes a schema-cache "function not found" error at runtime.
+
 ```typescript
 export type List = {
   id: string;
