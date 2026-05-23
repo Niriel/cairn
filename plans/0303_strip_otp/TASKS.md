@@ -65,10 +65,10 @@ the code.
 
 **Verify:** `grep -i token gotrue/templates/magic_link.html` — must return no output.
 
-### [ ] 1.2 Wire the template into docker-compose.yml
+### [x] 1.2 Wire the template into docker-compose.yml
 
 **Created:** 2026-05-23T06:06:12Z
-**Completed:**
+**Completed:** 2026-05-23T06:50:26Z
 
 **Why:** GoTrue only uses a custom template when told where to find it via
 `GOTRUE_MAILER_TEMPLATES_MAGIC_LINK` and when the file is reachable inside the
