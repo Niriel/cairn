@@ -118,6 +118,29 @@ always reachable regardless of whether `pnpm dev` is running (Task 3.2).
 This also corrects R2 in `REQUIREMENTS.md`, which described the SvelteKit
 serving approach as the intended design.
 
+## Phase 4 — Email-client compatibility
+
+Mailpit's HTML checker flagged the initial template at 84% compatibility.
+The problems were CSS properties that email clients strip or ignore: body-level
+styles, `display:inline-block`, `background` on `<a>`, `border-radius`,
+`margin` for spacing, and `font-weight:bold` without a tag fallback.
+
+The fix is a rewrite of `magic_link.html` following email-safe HTML conventions
+(documented in `docs/email-html.md`):
+
+- Table-based layout replaces all CSS layout properties.
+- `<td>` `padding` replaces `margin` for spacing.
+- `bgcolor` attribute on `<td>` replaces CSS `background` on the button `<a>`.
+- The button is a nested `<table>` — no `display:inline-block`.
+- `<b>` replaces `font-weight:bold`.
+- `font-family` and `color` moved off `<body>` to the wrapper `<td>`.
+- `border-radius` removed (degrades to square corners in Outlook; acceptable).
+
+Result: 95% Mailpit HTML check score. The remaining 5% is the `<body>` element
+warning (structural — all webmail clients replace `<body>` with a `<div>`, so
+even a bare `<body>` flags) and `margin:0` on `<h2>` (cosmetic degradation
+only). Neither is fixable without removing content or adding VML hacks.
+
 ## Reference docs and skills
 
 - **`docs/testing.md`** — three test layers; Playwright is the right layer for

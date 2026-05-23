@@ -58,6 +58,27 @@ return `{ link: string; html: string; text: string }` so the assertion in R4
 can be written without a second network round-trip to Mailpit. Existing callers
 are updated to destructure `link` from the result.
 
+## R6. Email template uses email-safe HTML
+
+The magic-link template must render acceptably across all major email clients,
+including webmail clients that strip `<body>` styles, Outlook on Windows (which
+uses Word's layout engine), and mobile clients. Specifically:
+
+- Layout uses `<table>` elements only — no `flexbox`, `grid`, or
+  `display:inline-block`.
+- Spacing uses `padding` on `<td>` cells, not CSS `margin`.
+- Background colours use the `bgcolor` HTML attribute alongside CSS
+  `background` for clients that strip CSS.
+- The call-to-action button is a nested `<table>` with `bgcolor` on the `<td>`
+  — not an `<a>` with `display:inline-block` and `background`.
+- `<body>` carries only `margin:0;padding:0`; `font-family` and `color` live on
+  the outermost wrapper `<td>`.
+- Bold text uses `<b>` (not `font-weight:bold` alone).
+- No `<style>` blocks; all styles are inline.
+
+The email-HTML conventions that justify these choices are documented in
+`docs/email-html.md`.
+
 ## Non-requirements (explicitly excluded)
 
 - **Separate plain-text template file** — GoTrue strips HTML for the text

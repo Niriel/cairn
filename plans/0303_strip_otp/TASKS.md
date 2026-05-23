@@ -310,3 +310,43 @@ env var is changed to a full `http://static/...` URL so GoTrue uses it verbatim
 7. Run `./scripts/check.sh` — fully green.
 
 **Verify:** `docker compose exec static wget -qO- http://localhost/gotrue/templates/magic_link.html` — returns HTML. · `docker compose logs --tail=5 gotrue` after a magic-link request — no `Error loading template`. · Mailpit shows custom template, no OTP. · `./scripts/check.sh` — fully green.
+
+## Phase 4 — Email-client compatibility
+
+### [x] 4.1 Rewrite template using email-safe HTML
+
+**Created:** 2026-05-23T09:30:00Z
+**Completed:** 2026-05-23T09:35:00Z
+
+**Why:** Mailpit's HTML checker scored the initial template at 84%. The
+failures were all CSS properties that email clients strip: body-level layout
+styles, `display:inline-block` on the button link, CSS `background` without
+an HTML attribute fallback, `border-radius`, `margin` for spacing, and
+`font-weight:bold` without a tag fallback. Because webmail clients embed the
+email inside their own HTML document, they replace `<body>` with a `<div>` and
+discard any styles on it.
+
+**Prerequisites:** Task 1.1 (template file exists and is being delivered).
+
+**Decisions:**
+- Table-based layout for centering and the button — the only layout model with
+  broad email client support.
+- `padding` on `<td>` for spacing, not `margin`.
+- `bgcolor="#111"` attribute on the button `<td>` alongside `style="..."` —
+  attribute survives clients that strip CSS.
+- Button is a nested `<table>` containing the `<a>`, not an `<a>` with
+  `display:inline-block`.
+- `<b>` tag for bold text, not `font-weight:bold` alone.
+- `font-family` and `color` on the wrapper `<td>`, not on `<body>`.
+- `<body>` carries only `margin:0;padding:0`.
+- `border-radius` removed — Outlook cannot render it; square corners are
+  acceptable at this stage.
+- No `<style>` block — stripped by Gmail and other webmail clients.
+
+**Files:**
+- `web/static/gotrue/templates/magic_link.html` (rewritten)
+- `docs/email-html.md` (created — records the conventions for all future
+  Cairn email templates)
+
+**Verify:** Mailpit HTML Check score ≥ 90%. Remaining warnings are `<body>`
+element (structural, unfixable) and `margin` on `<h2>` (cosmetic only).
