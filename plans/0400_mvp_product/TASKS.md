@@ -11,10 +11,10 @@
 
 ## Phase 1 — 0401: Avatar + Settings
 
-### [ ] 1.1 Plan and implement sub-step 0401 (Avatar component + Settings screen)
+### [x] 1.1 Plan and implement sub-step 0401 (Avatar component + Settings screen)
 
 **Created:** 2026-05-23T07:51:04Z
-**Completed:**
+**Completed:** 2026-05-23T09:13:06Z
 
 **Why:** The `Avatar` component and Settings screen are foundational — Avatar
 is used in the Settings profile chip and later in item attribution; Settings
