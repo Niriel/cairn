@@ -30,6 +30,11 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:3000/ >/dev/null"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
     restart: unless-stopped
 
   gotrue:
@@ -77,5 +82,25 @@ services:
       - "1025:1025"
     restart: unless-stopped
 
+  sidecar:
+    build: ./sidecar
+    environment:
+      GOTRUE_JWT_SECRET: ${JWT_SECRET}
+      POSTGREST_URL: http://postgrest:3000
+      AVATARS_DIR: /srv/cairn/avatars
+      PORT: "3001"
+    volumes:
+      - avatars:/srv/cairn/avatars
+    depends_on:
+      postgrest:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3001/healthz', r => process.exit(r.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))"]
+      interval: 5s
+      timeout: 3s
+      retries: 3
+    restart: unless-stopped
+
 volumes:
   postgres_data:
+  avatars:

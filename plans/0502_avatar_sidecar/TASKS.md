@@ -482,10 +482,10 @@ single-command gauntlet (R10).
 
 ## Phase 2 — Infrastructure wiring
 
-### [ ] 2.1 Docker Compose — sidecar service and named avatars volume
+### [x] 2.1 Docker Compose — sidecar service and named avatars volume
 
 **Created:** 2026-05-24T18:59:33Z
-**Completed:**
+**Completed:** 2026-05-24T20:59:15Z
 
 **Why:** The sidecar service needs to be reachable in the dev stack for the
 0503 Playwright tests to exercise the upload flow end-to-end. The named
