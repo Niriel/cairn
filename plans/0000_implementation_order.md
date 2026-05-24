@@ -139,7 +139,7 @@ in-flight branch for no gain.
      contain a six-digit numeric token**. Must land before step
      14's deploy so prod's first email is link-only.
 
-4. [ ] **MVP product surface (single-user happy path).** Lists overview,
+4. [x] **MVP product surface (single-user happy path).** Lists overview,
    create list, items list with one-at-a-time accordion, add/edit
    item, vote control (±1 nudges, ±3 clamp), settings (theme + font
    size persisted to the browser's `localStorage` — they're
