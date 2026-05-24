@@ -40,10 +40,10 @@ section already reads `deleted_at: null` without `deleted_by: null` — no chang
 
 **Verify:** `git diff docs/data-model.md`
 
-### [ ] 0.1 Add items→profiles FK constraints
+### [x] 0.1 Add items→profiles FK constraints
 
 **Created:** 2026-05-23T18:40:40Z
-**Completed:**
+**Completed:** 2026-05-24T12:55:04Z
 
 **Why:** PostgREST embedded resource joins require an explicit FK constraint between the joined tables. `fetchItems` (Task 1.1) queries `items_ranked` with `?select=*,created_by_profile:profiles!created_by(display_name),modified_by_profile:profiles!modified_by(display_name)` — requiring `items.created_by → public.profiles(id)` and `items.modified_by → public.profiles(id)`. The votes query uses `&select=item_id,user_id,value,profile:profiles!user_id(display_name)` — requiring `votes.user_id → public.profiles(id)`. None of these FKs exist yet (all three columns reference `auth.users(id)` only). The equivalent gap for `list_members.user_id` was closed in migration 0005 for the same reason.
 
