@@ -79,8 +79,8 @@ That's it. After this you have:
 - PostgREST on `localhost:3000`
 - GoTrue on `localhost:9999`
 - Mailpit on `localhost:8025` (web UI) and `localhost:1025` (SMTP)
-- Avatar sidecar on `localhost:3001` — healthz at `/healthz`; upload/delete at `/avatars`
-- Caddy on `localhost:8080` — static avatar serving (`GET /avatars/*`) and write proxy (`POST`/`DELETE /avatars`) to the sidecar
+- Caddy on `localhost:8080` — static avatar serving (`GET /avatars/*`) and write proxy (`POST`/`DELETE /avatars`) to the sidecar; this is the avatar endpoint the browser uses
+- Avatar sidecar on `sidecar:3001` (compose-internal only) — Caddy proxies to it; not reachable from the host
 - The SvelteKit dev server on `localhost:5173`, proxying `/api` to PostgREST and `/auth` to GoTrue.
 
 Open `http://localhost:5173` and you're in.
