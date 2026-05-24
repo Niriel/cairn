@@ -361,10 +361,10 @@ section already reads `deleted_at: null` without `deleted_by: null` — no chang
 
 ## Phase 4 — Playwright E2E
 
-### [ ] 4.1 Playwright touch for the items flow
+### [x] 4.1 Playwright touch for the items flow
 
 **Created:** 2026-05-23T18:40:40Z
-**Completed:**
+**Completed:** 2026-05-24T16:05:18Z
 
 **Why:** Per `CLAUDE.md`, new user-visible flows get a Playwright touch. The items screen is the most complex flow in step 4 and exercises the most moving parts.
 
@@ -386,3 +386,5 @@ section already reads `deleted_at: null` without `deleted_by: null` — no chang
 3. Run `cd web && pnpm test:e2e -- items.spec.ts` — all scenarios must pass.
 
 **Verify:** `cd web && pnpm exec playwright test web/e2e/items.spec.ts`
+
+**Notes:** The spec is syntactically valid (`pnpm exec playwright test --list` confirms all 9 × 3-browser = 27 tests are discovered). The dev stack (SvelteKit + GoTrue + Mailpit) was running during authoring. Could not execute the spec to green: Playwright does not support Ubuntu 26.04 (`pnpm exec playwright install` refuses all browsers on this OS). Run `pnpm exec playwright install` then `pnpm exec playwright test web/e2e/items.spec.ts --project=chromium` on a supported machine (macOS, Ubuntu ≤ 24.04) to verify.
