@@ -264,10 +264,10 @@ section already reads `deleted_at: null` without `deleted_by: null` — no chang
 
 ## Phase 3 — ItemsScreen
 
-### [ ] 3.1 ItemsScreen with rows, accordion, and empty state
+### [x] 3.1 ItemsScreen with rows, accordion, and empty state
 
 **Created:** 2026-05-23T18:40:40Z
-**Completed:**
+**Completed:** 2026-05-24T14:05:05Z
 
 **Why:** This replaces the placeholder `ItemsScreen.svelte` stub with the real component. It renders the TopBar, item rows with the one-at-a-time accordion (ItemPanel), the empty state, and the FAB. Sheets and snackbar come in Task 3.2.
 
@@ -318,6 +318,13 @@ section already reads `deleted_at: null` without `deleted_by: null` — no chang
 7. Run `pnpm lint && pnpm check && pnpm test`.
 
 **Verify:** `pnpm lint` · `pnpm check` · `pnpm test`
+
+**Notes:**
+- Inline `vi.mock(path, factory)` for `AddEditItemSheet`/`DeleteItemSheet` is not practical for Svelte 5 components in this test setup (no existing inline Svelte component factory pattern in the codebase). Created `__mocks__/` files instead; noted the deviation from the task's "one-off inline" preference.
+- The back-stack module has module-level state (`suppressNextPopState`, `activeListeners`) that persists across tests. Test (h) was broken by `suppressNextPopState = true` left by test (d)'s guard cleanup. Fixed by importing `_resetForTesting()` and calling it in `afterEach` alongside `vi.restoreAllMocks()`.
+- `$state(item?.name ?? '')` triggers Svelte's `state_referenced_locally` warning (capturing initial prop value). Refactored to `$derived` + `$effect` initialization pattern to silence the warning cleanly.
+- `upsertVote` was sending `{ item_id, value }` without `user_id`; the `votes_insert` RLS policy requires `user_id = public.uid()` and there is no attribution trigger on `votes` to fill it in automatically. Added `user_id` to the POST body (read from session in the state layer, passed as a parameter to the model function). Fixed as a side effect of noticing the live 403 in the browser.
+- Attribution timestamps switched from `formatDate` (e.g. "1 Jan 2026") to `timeAgo` (e.g. "3 days ago") per user preference, using the existing `$lib/shared/model/time-ago` utility.
 
 ### [ ] 3.2 Undo snackbar
 
