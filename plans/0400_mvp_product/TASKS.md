@@ -122,10 +122,10 @@ state shows the illustrated circle and CTA button.
 
 ## Phase 4 — 0404: Items screen
 
-### [ ] 4.1 Plan and implement sub-step 0404 (Items screen + vote control + accordion)
+### [x] 4.1 Plan and implement sub-step 0404 (Items screen + vote control + accordion)
 
 **Created:** 2026-05-23T07:51:04Z
-**Completed:**
+**Completed:** 2026-05-24T16:10:44Z
 
 **Why:** The Items screen is the heaviest piece of step 4 — it combines the
 vote control, the one-at-a-time accordion, and the add/edit/delete item flows.
