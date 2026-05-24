@@ -1,15 +1,16 @@
 # Testing
 
-Cairn tests in three layers, each catching a different class of bug. This document is the canonical reference for what each layer is for, where the tests live, how to run them, and — just as important — what *not* to put in each layer. `development.md` covers the dev stack itself; this doc assumes that stack is up and running.
+Cairn tests in four layers, each catching a different class of bug. This document is the canonical reference for what each layer is for, where the tests live, how to run them, and — just as important — what *not* to put in each layer. `development.md` covers the dev stack itself; this doc assumes that stack is up and running.
 
 The guiding principle: **the database is the security boundary**, so the database tests are the load-bearing layer. Vitest and Playwright are excellent and we want both, but if forced to choose one suite to keep, it would be the pgTAP suite. Authorization lives in row-level security; if RLS is wrong, every other layer is a Maginot Line.
 
-## The three layers
+## The four layers
 
 | Layer | Tool | What it catches | Speed |
 | --- | --- | --- | --- |
 | Database | [pgTAP](https://pgtap.org/) + `pg_prove` | RLS policies, triggers, views, constraints | Sub-second per test, ~1s startup |
 | Unit / component | [Vitest](https://vitest.dev/) + [`@testing-library/svelte`](https://testing-library.com/docs/svelte-testing-library/intro/) | Pure-function logic in `src/lib/`, component rendering and interaction | Milliseconds |
+| Sidecar | [Vitest](https://vitest.dev/) + [supertest](https://github.com/ladjs/supertest) | Avatar upload/delete routes: security gates (magic bytes, decoded bounds, size limit), auth middleware, success and error paths | Milliseconds |
 | End-to-end | [Playwright](https://playwright.dev/) | Real user flows across the full stack (browser → Caddy/Vite → PostgREST → Postgres) | Seconds per test |
 
 The numbers in the [test pyramid](https://martinfowler.com/articles/practical-test-pyramid.html) sense: many pgTAP tests, many Vitest tests, a handful of Playwright tests. We do not aim for "100% coverage" of any layer — we aim for the *right* tests in each, with deliberate redundancy where the cost of a regression is highest (auth, votes, soft-delete recovery).

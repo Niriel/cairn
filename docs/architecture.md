@@ -249,7 +249,7 @@ A login request:
 
 The same `docker-compose.yml` runs on a developer's laptop, with these changes:
 
-- **Caddy is omitted on the laptop**; backend services are reached directly on `localhost` ports. TLS is meaningless on loopback.
+- **Caddy runs in the dev compose for avatar static serving** (host port 8080); all other backend services are reached directly on `localhost` ports. TLS is meaningless on loopback.
 - **The web app is run via `pnpm dev`**, not from the production static bundle, so HMR works. The dev server proxies `/api` and `/auth` to the local backend ports.
 - **Mailpit replaces the production SMTP provider**, catching magic-link emails in a local web UI.
 - **The cookie shim is approximated** in the SvelteKit dev server's proxy config — the dev experience matches production closely enough to debug auth flows without surprises.

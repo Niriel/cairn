@@ -2,7 +2,7 @@
 
 This document is the practical guide to working on Cairn from a developer's laptop. It assumes you've read `architecture.md` (so you know what the pieces are) and `data-model.md` (so you know what the schema looks like). The goal is that a fresh checkout, plus the steps in this document, gets you to a running stack you can develop against in under fifteen minutes.
 
-The design principle behind everything here is **dev/prod parity**: the containers running on your laptop are bit-identical to the ones running in production. The only differences are the things that have to be different — TLS, the mail provider, and the absence of the reverse proxy on loopback (the SvelteKit dev server fills its routing role locally).
+The design principle behind everything here is **dev/prod parity**: the containers running on your laptop are bit-identical to the ones running in production. The only differences are the things that have to be different — TLS, the mail provider, and TLS-termination. Caddy runs in dev compose for avatar static serving (port 8080); for `/api` and `/auth` the SvelteKit dev server proxies directly to PostgREST and GoTrue and handles the JWT cookie shim.
 
 ## Prerequisites
 
@@ -36,16 +36,18 @@ cairn/
 │   ├── seed/dev_seed.sql   ← no-op until step 3 — see "Seed data" below
 │   ├── test-bootstrap.sql  ← bootstraps a fresh test DB before pgTAP runs
 │   └── tests/              ← pgTAP suites (RLS, triggers, views, constraints)
-└── web/                    ← the SvelteKit project
-    ├── .env.example        ← template for VITE_* (copy to .env, which is gitignored)
-    ├── e2e/                ← Playwright suites
-    └── src/lib/            ← see docs/frontend-layout.md for the tier split
-        ├── basic/          ← presentational primitives (Button, Icon, Sheet, …)
-        ├── shared/         ← cross-feature components, state, styles
-        └── test/           ← Vitest helpers and MSW handlers
+├── web/                    ← the SvelteKit project
+│   ├── .env.example        ← template for VITE_* (copy to .env, which is gitignored)
+│   ├── e2e/                ← Playwright suites
+│   └── src/lib/            ← see docs/frontend-layout.md for the tier split
+│       ├── basic/          ← presentational primitives (Button, Icon, Sheet, …)
+│       ├── shared/         ← cross-feature components, state, styles
+│       └── test/           ← Vitest helpers and MSW handlers
+├── sidecar/                ← avatar upload / delete sidecar (Node + Express)
+└── caddy/                  ← Caddyfile for dev (avatar static serving + sidecar proxy)
 ```
 
-The `docker-compose.yml` at the root defines the backend (Postgres, PostgREST, GoTrue, Mailpit). The web app is _not_ in compose during development — you run it directly via `pnpm dev` for fast HMR. The deployment compose file (`docker-compose.prod.yml`) layers on the production-only services including a `web` container; see `deployment.md`.
+The `docker-compose.yml` at the root defines the backend (Postgres, PostgREST, GoTrue, Mailpit, the avatar sidecar, and Caddy). The web app is _not_ in compose during development — you run it directly via `pnpm dev` for fast HMR. The deployment compose file (`docker-compose.prod.yml`) layers on the production-only services including a `web` container; see `deployment.md`.
 
 ## First-time setup
 
@@ -77,6 +79,8 @@ That's it. After this you have:
 - PostgREST on `localhost:3000`
 - GoTrue on `localhost:9999`
 - Mailpit on `localhost:8025` (web UI) and `localhost:1025` (SMTP)
+- Caddy on `localhost:8080` — static avatar serving (`GET /avatars/*`) and write proxy (`POST`/`DELETE /avatars`) to the sidecar; this is the avatar endpoint the browser uses
+- Avatar sidecar on `sidecar:3001` (compose-internal only) — Caddy proxies to it; not reachable from the host
 - The SvelteKit dev server on `localhost:5173`, proxying `/api` to PostgREST and `/auth` to GoTrue.
 
 Open `http://localhost:5173` and you're in.
@@ -93,7 +97,7 @@ curl http://localhost:9999/health
 
 ## The development stack
 
-The `docker-compose.yml` defines four backend services. A trimmed sketch:
+The `docker-compose.yml` defines six backend services. A trimmed sketch:
 
 ```yaml
 services:
@@ -141,6 +145,29 @@ services:
     ports:
       - "8025:8025" # web UI
       - "1025:1025" # SMTP
+
+  sidecar:
+    build: ./sidecar
+    environment:
+      GOTRUE_JWT_SECRET: ${JWT_SECRET}
+      POSTGREST_URL: http://postgrest:3000
+      AVATARS_DIR: /srv/cairn/avatars
+      PORT: "3001"
+    ports:
+      - "3001:3001"
+    volumes:
+      - avatars:/srv/cairn/avatars
+    depends_on:
+      postgrest:
+        condition: service_healthy
+
+  caddy:
+    image: caddy:2.9.1
+    ports:
+      - "8080:80"
+    volumes:
+      - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - avatars:/srv/cairn/avatars:ro
 ```
 
 A few things worth knowing about this:
@@ -148,7 +175,7 @@ A few things worth knowing about this:
 - **The `JWT_SECRET` is shared** between PostgREST and GoTrue. GoTrue signs JWTs with it; PostgREST verifies signatures with it. They have to match. In dev it's a random string in `.env`; in production it's a stronger random string in a secrets file.
 - **Postgres roles**: `cairn` is the superuser used for migrations (created by Postgres from `POSTGRES_USER`); the rest are created by the migrations. `authenticator` is what PostgREST connects as — it has no rights of its own and `SET ROLE`s to `anon` or `authenticated` per request based on the JWT. `anon` and `authenticated` are no-login group roles that RLS policies reference. `gotrue` is what GoTrue connects as; it owns the `auth` schema. There is also a no-login `postgres` stub role: recent supabase/gotrue migrations hardcode `GRANT ... TO postgres` against their auth tables, so the role has to exist even though our superuser is named `cairn`.
 - **`GOTRUE_MAILER_AUTOCONFIRM: "true"`** is a development convenience: signing up doesn't require clicking a confirmation email. In production this is `false` so users actually have to verify their email. Magic-link login itself works the same way in both environments.
-- **`GOTRUE_SITE_URL: http://localhost:5173`** is the SvelteKit dev server. Magic-link emails point at it; clicking the link opens a browser tab on the dev server. Caddy is not in the loop locally — its cookie shim is approximated by the SvelteKit dev server's API proxy (see below).
+- **`GOTRUE_SITE_URL: http://localhost:5173`** is the SvelteKit dev server. Magic-link emails point at it; clicking the link opens a browser tab on the dev server. Caddy's _cookie shim_ is not in the loop locally — it is approximated by the SvelteKit dev server's API proxy (see below). Caddy itself does run in the dev compose for avatar static serving (port 8080).
 
 ## The SvelteKit dev server and the cookie shim
 

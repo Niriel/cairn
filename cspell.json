@@ -80,6 +80,7 @@
     // run, or invoke. Lowercase / mixed-case entries appear separately
     // when both forms turn up (e.g. import vs prose).
     "Automerge",
+    "BMFF",
     "Caddy",
     "Caddy's",
     "Caddyfile",
@@ -132,6 +133,12 @@
 
     // Code identifiers, config keys, file tokens, and shell flags that
     // show up in literals across the repo.
+    "EXDEV",
+    "ftyp",
+    "healthz",
+    "libheif",
+    "libwebp",
+    "plpython",
     "editorconfig",
     "envconfig",
     "magiclink",
