@@ -42,6 +42,18 @@ Read everything in the plan directory (`REQUIREMENTS.md`,
 - The actual source files the plan claims to modify — don't review
   in the abstract; check types, function signatures, existing
   behaviour, and callers against what the plan claims.
+- **For sub-plans (branch name matches `0Nxy` where `xy ≠ 00`, e.g.
+  `0503_avatar_frontend`)**: also read the parent plan at
+  `plans/0N00_<slug>/` (`REQUIREMENTS.md`, `PLAN.md`, `TASKS.md`).
+  The parent plan is the authoritative source for decisions that
+  pre-date the sub-plan — locked-in technology choices, binding
+  constraints, port numbers, file paths, env var names, data-flow
+  diagrams, and anything the sub-plan's author may have forgotten to
+  carry forward. When a sub-plan's information is missing, ambiguous,
+  or contradicts its own parent, the parent is the reference — raise
+  it as a concern if the sub-plan fails to reflect it. For `0N00`
+  plans, do the same with `plans/0000_implementation_order.md` (a
+  single file, not a three-file directory).
 - **For any plan that builds UI screens**: the relevant JSX
   functions in `design/cairn-screens.jsx` and `design/cairn-ui.jsx`
   — compare the plan's pixel values, layout decisions, and component
