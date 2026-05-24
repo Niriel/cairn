@@ -104,10 +104,10 @@ section already reads `deleted_at: null` without `deleted_by: null` — no chang
 
 ## Phase 1 — Route stub + model layer
 
-### [ ] 1.1 Create route stub and item model
+### [x] 1.1 Create route stub and item model
 
 **Created:** 2026-05-23T18:40:40Z
-**Completed:**
+**Completed:** 2026-05-24T13:13:55Z
 
 **Why:** The `[list_id]` route must exist before `svelte-check` accepts `resolve('/lists/' + id)` in `ListsScreen.svelte`. Creating the stub unblocks the type checker for everything that follows. The item model defines the wire types and API functions that the store (Task 2.1) and components (Phase 4) depend on.
 
