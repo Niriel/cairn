@@ -31,7 +31,7 @@ The pattern is well-trodden: GitLab does this, Mastodon does this, every self-ho
 
 ## Schema delta
 
-A single column on `profiles`, baked into a new migration (e.g. `db/migrations/0005_avatars.sql`). The column lands *before* `created_at` per the schema-wide rule in `data-model.md` ("New payload columns are always inserted before `created_at`"):
+A single column on `profiles`, baked into a new migration (`db/migrations/0007_avatars.sql`). (`ALTER TABLE ADD COLUMN` appends after the last physical column; per the schema convention "payload before timestamps" governs `CREATE TABLE` statements and `\d` canonical form, not the physical order after `ALTER` — position is immaterial to correctness.)
 
 ```sql
 alter table public.profiles
@@ -80,6 +80,8 @@ grant  execute on function public.clear_avatar() to authenticated;
 ```
 
 No new RLS policy is needed: `profiles_update` already gates writes to the caller's own row, and both RPCs run as `security definer` with an explicit `where id = public.uid()` predicate. `bump_avatar_version` is a separate RPC (rather than letting the sidecar `PATCH /profiles?id=eq.<self>`) so the increment is server-side atomic — two parallel uploads cannot both write `version = 1`.
+
+The same migration adds a third RPC, `public.set_display_name(new_name text)`, for the Edit Profile screen (0503). It trims whitespace from the input, rejects empty or >100-character trimmed values with SQLSTATE `23514` (`check_violation`), and updates `display_name` using the same `SECURITY DEFINER` / `WHERE id = public.uid()` posture. The Edit Profile screen calls `/rpc/set_display_name` rather than a direct `PATCH /profiles` so trimming and length validation are enforced server-side. Direct `PATCH /profiles` remains possible via the existing `profiles_update` RLS policy but is unvalidated.
 
 The `tg_set_modified_at` trigger on `profiles` should have `avatar_version` added to its column list so a version bump also bumps `modified_at` — same shape as adding any new payload column.
 
