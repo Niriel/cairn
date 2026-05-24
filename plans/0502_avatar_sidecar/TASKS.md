@@ -226,10 +226,13 @@ else in Phase 1 builds on this scaffold.
 
 **Verify:** `cd sidecar && pnpm install && pnpm test`
 
-### [ ] 1.2 JWT auth middleware and UUID validation
+### [x] 1.2 JWT auth middleware and UUID validation
 
 **Created:** 2026-05-24T18:59:33Z
-**Completed:**
+**Completed:** 2026-05-24T20:30:26Z
+
+**Notes:**
+- The task spec said to put `setupFiles` in `package.json` under a `"vitest"` key. Vitest v2 does not read that field — `setupFiles` was silently ignored and the module-load guard in `auth.ts` threw before any test ran. Fixed by adding `vitest.config.ts` with the `test.setupFiles` entry, and removed the dead `"vitest"` block from `package.json`.
 
 **Why:** Every protected route (R3, R4) needs bearer-token verification and
 UUID extraction before file-path construction. Landing the middleware in its
