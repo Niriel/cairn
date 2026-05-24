@@ -46,14 +46,100 @@ accurate before Phase 1 executes.
 
 **Verify:** `grep -n "Caddy" docs/architecture.md`
 
+### [ ] 0.2 Update docs/development.md and docs/deployment.md
+
+**Created:** 2026-05-24T20:25:00Z
+**Completed:**
+
+**Why:** Two docs are now stale as a result of this plan:
+- `docs/development.md` still describes the stack as having four backend
+  services and says Caddy is absent from the dev loop — both are now false.
+- `docs/deployment.md` calls the sidecar service `avatars` with
+  `build: ./avatars` and env var `JWT_SECRET`, but this plan names the
+  service `sidecar`, builds from `./sidecar/`, and uses `GOTRUE_JWT_SECRET`.
+  The deployment doc must match what we're actually building.
+
+**Prerequisites:** None. (No code exists yet for Phase 1 beyond the scaffold,
+so there are no moving targets to chase.)
+
+**Decisions:**
+- `docs/development.md` intro paragraph: remove "the absence of the reverse
+  proxy on loopback" and replace with a note that Caddy runs in dev compose
+  (port 8080) for avatar static serving — the SvelteKit dev server still
+  handles the JWT cookie shim for `/api` and `/auth`.
+- `docs/development.md` "After this you have:" list: add Caddy on
+  `localhost:8080` and the sidecar on `localhost:3001` (the sidecar is
+  exposed on the host so developers can curl it directly).
+- `docs/development.md` "The development stack" paragraph: change "four
+  backend services" to "six backend services" (or remove the count and just
+  name them). Add brief YAML sketches for `caddy` and `sidecar` matching what
+  2.1 and 2.2 will wire up, so the doc is a faithful preview.
+- `docs/development.md` repo layout block: add `sidecar/` and `caddy/` lines.
+- `docs/development.md` line 151: "Caddy is not in the loop locally" is now
+  partially false — Caddy runs locally for avatar serving. Narrow the sentence
+  to say Caddy's _cookie shim_ is still handled by Vite, which remains true.
+- `docs/deployment.md` production compose snippet: rename service `avatars` →
+  `sidecar`, build context `./avatars` → `./sidecar`, env var `JWT_SECRET` →
+  `GOTRUE_JWT_SECRET`. Update the file-layout block to show `sidecar/` instead
+  of (or in addition to) the generic listing.
+- `docs/deployment.md` image tag: the snippet uses `caddy:2` (floating). Leave
+  it as-is in the doc — the exact pinned tag will be filled in at task 2.2 and
+  will live in the actual compose file; the doc is showing intent, not a
+  lockfile.
+
+**Files:**
+- `docs/development.md` (modify)
+- `docs/deployment.md` (modify)
+
+**Steps:**
+1. In `docs/development.md` line 5, replace:
+   "TLS, the mail provider, and the absence of the reverse proxy on loopback
+   (the SvelteKit dev server fills its routing role locally)."
+   with:
+   "TLS, the mail provider, and TLS-termination. Caddy runs in dev compose
+   for avatar static serving (port 8080); for `/api` and `/auth` the
+   SvelteKit dev server proxies directly to PostgREST and GoTrue and
+   handles the JWT cookie shim."
+2. In `docs/development.md`, update the "After this you have:" bullet list
+   (around line 74) to add:
+   - `Caddy on localhost:8080` — avatar static serving (`GET /avatars/*`)
+     and write proxying (`POST`/`DELETE /avatars`) to the sidecar
+   - `Avatar sidecar on localhost:3001` — healthz at `/healthz`; upload/delete at `/avatars`
+3. In `docs/development.md` "The development stack" section, change "four
+   backend services" to "six backend services" and add brief YAML entries for
+   `sidecar` and `caddy` after the `mailpit` block, matching the structure
+   that tasks 2.1 and 2.2 will create.
+4. In `docs/development.md` repo layout block, add after the `web/` entry:
+   ```
+   ├── sidecar/                ← avatar upload / delete sidecar (Node + Express)
+   └── caddy/                  ← Caddyfile for dev (avatar static serving + sidecar proxy)
+   ```
+5. In `docs/development.md` line 151, narrow the Caddy sentence:
+   "Caddy is not in the loop locally — its cookie shim is approximated by
+   the SvelteKit dev server's API proxy (see below)."
+   → "Caddy's _cookie shim_ is not in the loop locally — it is approximated
+   by the SvelteKit dev server's API proxy (see below). Caddy itself does run
+   in the dev compose for avatar static serving (port 8080)."
+6. In `docs/deployment.md` production compose snippet (around line 142),
+   rename the service from `avatars` to `sidecar`, change `build: ./avatars`
+   to `build: ./sidecar`, and change `JWT_SECRET: ${JWT_SECRET}` to
+   `GOTRUE_JWT_SECRET: ${JWT_SECRET}` (the env var the sidecar reads is
+   `GOTRUE_JWT_SECRET`; the compose secret backing it is still `${JWT_SECRET}`
+   from the shared `.env.prod`).
+7. In `docs/deployment.md` file-layout block (around line 90), update the
+   checkout listing to show `sidecar/` alongside `caddy/`.
+
+**Verify:** `grep -n "six backend\|sidecar\|caddy" docs/development.md` ·
+`grep -n "sidecar\|GOTRUE_JWT_SECRET" docs/deployment.md`
+
 ---
 
 ## Phase 1 — Sidecar service
 
-### [ ] 1.1 Scaffold the sidecar package
+### [x] 1.1 Scaffold the sidecar package
 
 **Created:** 2026-05-24T18:59:33Z
-**Completed:**
+**Completed:** 2026-05-24T20:19:29Z
 
 **Why:** Establishes the `sidecar/` directory, package manifest, TypeScript
 config, Dockerfile, and the trivially-testable `GET /healthz` route. Everything
