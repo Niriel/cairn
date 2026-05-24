@@ -3,7 +3,7 @@ import { tick } from 'svelte';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { http, HttpResponse } from 'msw';
 
-import { items } from '$lib/item/state/items.svelte';
+import { items, undoDelete } from '$lib/item/state/items.svelte';
 import { _resetForTesting } from '$lib/shared/state/back-stack.svelte';
 import { server } from '$lib/test/server';
 import { render } from '$lib/test/render';
@@ -130,5 +130,46 @@ describe('ItemsScreen', () => {
 		window.dispatchEvent(new PopStateEvent('popstate', { state: null }));
 		await tick();
 		expect(queryByDataTest('item-panel')).toBeNull();
+	});
+
+	test('(i-a) snackbar is visible with item name when pendingDelete is set', async () => {
+		items.pendingDelete = { item: ITEM_1, timerId: 0 as unknown as ReturnType<typeof setTimeout> };
+		const { queryByDataTest } = render(ItemsScreen, { listId: 'test-list-id' });
+		await tick();
+		const snackbar = queryByDataTest('undo-snackbar');
+		expect(snackbar).not.toBeNull();
+		expect(snackbar?.textContent).toContain('First item');
+	});
+
+	test('(i-b) FAB is hidden while snackbar is showing', async () => {
+		items.pendingDelete = { item: ITEM_1, timerId: 0 as unknown as ReturnType<typeof setTimeout> };
+		const { queryByDataTest } = render(ItemsScreen, { listId: 'test-list-id' });
+		await tick();
+		expect(queryByDataTest('items-fab')).toBeNull();
+	});
+
+	test('(i-c) tapping UNDO calls undoDelete', async () => {
+		items.pendingDelete = { item: ITEM_1, timerId: 0 as unknown as ReturnType<typeof setTimeout> };
+		const { getByDataTest } = render(ItemsScreen, { listId: 'test-list-id' });
+		await tick();
+		await fireEvent.click(getByDataTest('undo-btn'));
+		expect(vi.mocked(undoDelete)).toHaveBeenCalledTimes(1);
+	});
+
+	test('(i-d) snackbar is not in DOM when pendingDelete is null', async () => {
+		items.pendingDelete = null;
+		const { queryByDataTest } = render(ItemsScreen, { listId: 'test-list-id' });
+		await tick();
+		expect(queryByDataTest('undo-snackbar')).toBeNull();
+	});
+
+	test('(i-e) error state shows failure message and hides UNDO button', async () => {
+		items.pendingDelete = { item: ITEM_1, timerId: 0 as unknown as ReturnType<typeof setTimeout> };
+		items.error = 'Failed to restore item';
+		const { queryByDataTest } = render(ItemsScreen, { listId: 'test-list-id' });
+		await tick();
+		const snackbar = queryByDataTest('undo-snackbar');
+		expect(snackbar?.textContent).toContain("Couldn't restore");
+		expect(queryByDataTest('undo-btn')).toBeNull();
 	});
 });

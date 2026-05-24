@@ -1,7 +1,13 @@
 <script lang="ts">
 	import { pgGet } from '$lib/shared/http/postgrest';
 	import { pushHistoryGuard } from '$lib/shared/state/back-stack.svelte';
-	import { items, loadItems, upsertVote, deleteVote } from '$lib/item/state/items.svelte';
+	import {
+		items,
+		loadItems,
+		upsertVote,
+		deleteVote,
+		undoDelete
+	} from '$lib/item/state/items.svelte';
 	import type { Item } from '$lib/item/model/item';
 	import { timeAgo } from '$lib/shared/model/time-ago';
 
@@ -165,6 +171,22 @@
 		<Fab onclick={() => (addSheetOpen = true)} aria-label="Add item" data-test="items-fab">
 			<Icon name="plus" size={22} />
 		</Fab>
+	{/if}
+
+	{#if items.pendingDelete}
+		<div class="undo-snackbar" data-test="undo-snackbar">
+			<Icon name="trash-2" size={16} />
+			{#if items.error}
+				<span class="snackbar-text">Couldn't restore — item is in trash.</span>
+			{:else}
+				<span class="snackbar-text">
+					Deleted '<span class="snackbar-item-name">{items.pendingDelete.item.name}</span>'
+				</span>
+				<button class="undo-btn" data-test="undo-btn" onclick={() => void undoDelete()}>
+					UNDO
+				</button>
+			{/if}
+		</div>
 	{/if}
 
 	{#if addSheetOpen}
@@ -436,5 +458,46 @@
 		display: flex;
 		align-items: center;
 		justify-content: center;
+	}
+
+	.undo-snackbar {
+		position: fixed;
+		left: max(0px, calc(50% - var(--app-max-w) / 2 + 12px));
+		right: max(0px, calc(50% - var(--app-max-w) / 2 + 12px));
+		bottom: calc(env(safe-area-inset-bottom) + 18px);
+		display: flex;
+		align-items: center;
+		gap: 10px;
+		padding: 14px 16px;
+		background: var(--ink);
+		color: var(--paper);
+		border-radius: 12px;
+		box-shadow: 0 4px 16px rgba(0, 0, 0, 0.18);
+		z-index: 200;
+	}
+
+	.snackbar-text {
+		flex: 1;
+		font-size: 13.5px;
+		overflow: hidden;
+		white-space: nowrap;
+		text-overflow: ellipsis;
+	}
+
+	.snackbar-item-name {
+		font-weight: 500;
+	}
+
+	.undo-btn {
+		background: none;
+		border: none;
+		padding: 0 4px;
+		color: var(--sage);
+		font: inherit;
+		font-size: 13px;
+		font-weight: 700;
+		cursor: pointer;
+		letter-spacing: 0.04em;
+		flex-shrink: 0;
 	}
 </style>

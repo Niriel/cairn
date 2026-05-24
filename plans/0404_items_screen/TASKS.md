@@ -326,10 +326,10 @@ section already reads `deleted_at: null` without `deleted_by: null` — no chang
 - `upsertVote` was sending `{ item_id, value }` without `user_id`; the `votes_insert` RLS policy requires `user_id = public.uid()` and there is no attribution trigger on `votes` to fill it in automatically. Added `user_id` to the POST body (read from session in the state layer, passed as a parameter to the model function). Fixed as a side effect of noticing the live 403 in the browser.
 - Attribution timestamps switched from `formatDate` (e.g. "1 Jan 2026") to `timeAgo` (e.g. "3 days ago") per user preference, using the existing `$lib/shared/model/time-ago` utility.
 
-### [ ] 3.2 Undo snackbar
+### [x] 3.2 Undo snackbar
 
 **Created:** 2026-05-23T18:40:40Z
-**Completed:**
+**Completed:** 2026-05-24T15:05:13Z
 
 **Why:** The undo snackbar is a distinct UI piece with its own timer and FAB-hiding logic. Separating it from task 3.1 keeps each task commit-sized.
 

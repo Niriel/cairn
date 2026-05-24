@@ -10,6 +10,8 @@ const TEST_UID = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
 const LIST_ID = 'llllllll-llll-llll-llll-llllllllllll';
 const ITEM_ID = 'iiiiiiii-iiii-iiii-iiii-iiiiiiiiiiii';
 
+const ITEM_ID_B = 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb';
+
 const RANKED_A: ItemRanked = {
 	id: ITEM_ID,
 	list_id: LIST_ID,
@@ -22,6 +24,15 @@ const RANKED_A: ItemRanked = {
 	modified_at: '2026-01-01T00:00:00Z',
 	created_by_profile: { display_name: 'Alice' },
 	modified_by_profile: null
+};
+
+const RANKED_B: ItemRanked = {
+	...RANKED_A,
+	id: ITEM_ID_B,
+	name: 'Item B',
+	score: 1,
+	created_at: '2026-01-02T00:00:00Z',
+	modified_at: '2026-01-02T00:00:00Z'
 };
 
 // Item handlers that return RANKED_A for this test file's scenarios.
@@ -87,6 +98,34 @@ describe('softDeleteItem', () => {
 			expect(itemsMod.items.rows).toHaveLength(0);
 			expect(itemsMod.items.pendingDelete).not.toBeNull();
 			expect(itemsMod.items.pendingDelete!.item.id).toBe(ITEM_ID);
+		} finally {
+			vi.useRealTimers();
+		}
+	});
+
+	test('(d2) second delete clears first timer and resets the 6s countdown', async () => {
+		vi.useFakeTimers();
+		try {
+			server.use(
+				http.get('*/api/items_ranked', () => HttpResponse.json([RANKED_A, RANKED_B])),
+				http.get('*/api/votes', () => HttpResponse.json([]))
+			);
+			await itemsMod.loadItems(LIST_ID);
+			await itemsMod.softDeleteItem(ITEM_ID);
+			expect(itemsMod.items.pendingDelete!.item.id).toBe(ITEM_ID);
+
+			// 3 s into item A's 6 s window — delete item B
+			await vi.advanceTimersByTimeAsync(3000);
+			await itemsMod.softDeleteItem(ITEM_ID_B);
+			expect(itemsMod.items.pendingDelete!.item.id).toBe(ITEM_ID_B);
+
+			// 3 s more — item A's old timer would have fired here if not cleared
+			await vi.advanceTimersByTimeAsync(3000);
+			expect(itemsMod.items.pendingDelete).not.toBeNull();
+
+			// 3 s more (6 s from item B's delete) — item B's timer fires
+			await vi.advanceTimersByTimeAsync(3000);
+			expect(itemsMod.items.pendingDelete).toBeNull();
 		} finally {
 			vi.useRealTimers();
 		}

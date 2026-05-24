@@ -64,6 +64,7 @@ export async function deleteVote(itemId: string): Promise<void> {
 }
 
 export async function softDeleteItem(itemId: string): Promise<void> {
+	if (items.pendingDelete) clearTimeout(items.pendingDelete.timerId);
 	const idx = items.rows.findIndex((r) => r.id === itemId);
 	if (idx === -1) return;
 	const item = { ...items.rows[idx] };
