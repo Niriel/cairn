@@ -85,8 +85,7 @@
 						class="row-nav"
 						data-test="list-nav-{item.id}"
 						onclick={() => {
-							// eslint-disable-next-line svelte/no-navigation-without-resolve
-							void goto('/lists/' + item.id); // swap to resolve() when /lists/[id] route exists
+							void goto(resolve(`/lists/${item.id}`));
 						}}
 					>
 						<span class="name">{item.name}</span>

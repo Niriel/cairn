@@ -104,7 +104,7 @@ Reasons:
 - **Clamping at the ends is safer than wrapping.** Wrapping `+++ → ---` on an extra tap is a footgun that's hard to recover from. If a user wants to flip sides, the opposite thumb is right there and the path through `=` is short.
 - **One tap = one vote unit.** This keeps the speed of binary voting for the common case (one tap to express interest), while leaving room for stronger feelings when they exist.
 
-The buttons stay enabled at the extremes; tapping does nothing visible. We don't gray them out — that's a small visual flicker that costs more than it gains.
+At the extremes (±3), the button in the clamped direction renders at 35% opacity with `cursor: default` and emits no event when tapped. The opposite button remains fully active. This matches the design spec in `design/cairn-ui.jsx` `VoteControl`.
 
 ## Color
 
@@ -311,9 +311,11 @@ For the data model and the policy/block check sequence behind all of this, see `
 
 ## Dates
 
-Dates are formatted **day-month-year, with the month written out**: `1 May 2026`, `14 Apr 2026`. No US `5/1/2026`, no ISO `2026-05-01` in user-facing text. This is the format used in the accordion attribution line ("Added by Alice on 1 May 2026") and anywhere else a date appears.
+Relative timestamps are shown wherever an age is more meaningful than a calendar date: "just now", "15 minutes ago", "3 days ago". Use the `timeAgo` utility at `$lib/shared/model/time-ago`. It automatically falls back to an absolute date (`1 May 2026`) once the timestamp is more than 30 days old, so old items still show a legible date rather than "400 days ago".
 
-The format is fixed in copy — it does not follow the device locale. Cairn is a small private app for friends, not a localized product; one consistent format is clearer than locale guessing, and `1 May 2026` reads naturally to English speakers everywhere. If we later add real localization, the date format follows the language file like any other string.
+The accordion attribution line reads **"Added by Alice 3 days ago."** — no "on", no preposition before the relative string.
+
+When an absolute date is needed (e.g. the `timeAgo` fallback itself), format it **day-month-year with the month written out**: `1 May 2026`, `14 Apr 2026`. No US `5/1/2026`, no ISO `2026-05-01`. The format is fixed — it does not follow the device locale.
 
 Times of day are not shown anywhere in v1.
 

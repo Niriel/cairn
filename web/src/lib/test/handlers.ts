@@ -47,5 +47,28 @@ export const handlers: RequestHandler[] = [
 			modified_at: '2026-01-01T00:00:00Z'
 		})
 	),
-	http.get('*/api/lists', () => HttpResponse.json([]))
+	http.get('*/api/lists', () => HttpResponse.json([])),
+	http.get('*/api/items_ranked', () => HttpResponse.json([])),
+	http.get('*/api/votes', () => HttpResponse.json([])),
+	http.post('*/api/items', () =>
+		HttpResponse.json(
+			{
+				id: 'stub-item-id',
+				list_id: 'stub-list-id',
+				name: 'Stub item',
+				notes: null,
+				created_by: 'stub-user-id',
+				modified_by: 'stub-user-id',
+				score: 0,
+				created_at: '2026-01-01T00:00:00Z',
+				modified_at: '2026-01-01T00:00:00Z',
+				created_by_profile: { display_name: 'Stub user' },
+				modified_by_profile: null
+			},
+			{ status: 201 }
+		)
+	),
+	http.patch('*/api/items', () => new HttpResponse(null, { status: 204 })),
+	http.post('*/api/votes', () => new HttpResponse(null, { status: 200 })),
+	http.delete('*/api/votes', () => new HttpResponse(null, { status: 204 }))
 ];
