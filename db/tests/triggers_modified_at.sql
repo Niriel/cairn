@@ -10,12 +10,12 @@
 -- its real "last content change" value rather than getting bumped
 -- on every row the deleted user ever touched.
 --
--- 10 assertions:
---   1–6: bump on the canonical content change per table (one
+-- 11 assertions:
+--   1–7: bump on the canonical content change per table (one
 --        column from each table's OF list).
---   7–9: cascade-skip per attribution-bearing table (load-bearing
+--   8–10: cascade-skip per attribution-bearing table (load-bearing
 --        for Risk #12.b).
---   10:  non-OF positive — UPDATE a column outside the OF list,
+--   11:  non-OF positive — UPDATE a column outside the OF list,
 --        assert modified_at unchanged. Catches a future migration
 --        that accidentally adds an attribution column to the OF
 --        list of t20.
@@ -29,7 +29,7 @@
 
 BEGIN;
 
-SELECT plan(10);
+SELECT plan(11);
 
 \i /db/tests/fixtures/list_shared_alice_bob.sql
 
@@ -180,8 +180,34 @@ SELECT cmp_ok(
   'votes: UPDATE value bumps modified_at'
 );
 
+-- 7. profiles.avatar_version via bump_avatar_version() ---------------
+-- Set JWT claims to Alice so uid() resolves and the RPC updates her
+-- row. A tiny sleep before the call ensures clock_timestamp() advances
+-- within the same transaction (same constraint as all other bump tests).
+SELECT set_config(
+  'request.jwt.claims',
+  '{"sub":"aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"}',
+  TRUE
+);
+CREATE TEMPORARY TABLE _b_profiles_av AS
+SELECT modified_at FROM public.profiles
+WHERE id = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
+
+SELECT pg_sleep(0.001);
+SELECT public.bump_avatar_version();
+
+SELECT cmp_ok(
+  (
+    SELECT modified_at FROM public.profiles
+    WHERE id = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'
+  ),
+  '>',
+  (SELECT b.modified_at FROM _b_profiles_av AS b),
+  'profiles: UPDATE avatar_version via bump_avatar_version() bumps modified_at'
+);
+
 -- ===================================================================
--- 7–9: cascade-skip (load-bearing for Risk #12.b)
+-- 8–10: cascade-skip (load-bearing for Risk #12.b)
 -- ===================================================================
 -- Re-capture modified_at on Alice-attributed rows that will
 -- survive the cascade. The lists row (created_by = alice) and
@@ -207,7 +233,7 @@ WHERE
 DELETE FROM auth.users
 WHERE id = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
 
--- 7. lists: SET DEFAULT on created_by leaves modified_at unchanged.
+-- 8. lists: SET DEFAULT on created_by leaves modified_at unchanged.
 -- The cascade UPDATE only touches created_by; t20's OF list is
 -- (name, description, deleted_at), so t20 never fires.
 SELECT is(
@@ -219,7 +245,7 @@ SELECT is(
   'lists cascade-skip: SET DEFAULT on created_by leaves modified_at unchanged'
 );
 
--- 8. items: SET DEFAULT on created_by AND modified_by AND
+-- 9. items: SET DEFAULT on created_by AND modified_by AND
 -- (eventually) deleted_by, each via a separate cascade UPDATE.
 -- t20's OF list is (list_id, name, notes, deleted_at); none of
 -- the cascades touch those columns, so t20 never fires.
@@ -233,7 +259,7 @@ SELECT is(
   'deleted_by leaves modified_at unchanged'
 );
 
--- 9. list_members (Bob's row): SET DEFAULT on created_by AND
+-- 10. list_members (Bob's row): SET DEFAULT on created_by AND
 -- deleted_by, each via a separate cascade UPDATE. t20's OF list
 -- is (deleted_at); neither cascade touches it, so t20 never fires.
 SELECT is(
@@ -249,7 +275,7 @@ SELECT is(
 );
 
 -- ===================================================================
--- 10: non-OF positive — UPDATE an attribution column directly,
+-- 11: non-OF positive — UPDATE an attribution column directly,
 -- assert modified_at unchanged. Locks in the OF-clause
 -- restriction. If a future migration accidentally adds an
 -- attribution column to t20's OF list, this assertion reds.

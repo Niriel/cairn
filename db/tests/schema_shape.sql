@@ -14,7 +14,7 @@
 
 BEGIN;
 
-SELECT plan(52);
+SELECT plan(56);
 
 -- ---------------------------------------------------------------------
 -- Tables (6) — every new table introduced by 0004 must exist.
@@ -38,6 +38,10 @@ SELECT has_column(
 );
 SELECT has_column(
   'public', 'profiles', 'modified_at', 'profiles.modified_at exists'
+);
+SELECT has_column(
+  'public', 'profiles', 'avatar_version',
+  'profiles has avatar_version column'
 );
 
 -- ---------------------------------------------------------------------
@@ -207,6 +211,18 @@ SELECT has_function(
   'create_list',
   ARRAY['text', 'text'],
   'public.create_list(text, text) exists'
+);
+SELECT has_function(
+  'public', 'bump_avatar_version', ARRAY[]::text [],
+  'public.bump_avatar_version() exists with no args'
+);
+SELECT has_function(
+  'public', 'clear_avatar', ARRAY[]::text [],
+  'public.clear_avatar() exists with no args'
+);
+SELECT has_function(
+  'public', 'set_display_name', ARRAY['text'],
+  'public.set_display_name(text) exists'
 );
 
 -- ---------------------------------------------------------------------
