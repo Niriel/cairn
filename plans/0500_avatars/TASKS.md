@@ -13,10 +13,10 @@
 
 ## Phase 1 — 0501: Avatar DB
 
-### [ ] 1.1 Plan and implement sub-step 0501 (avatar migration + pgTAP)
+### [x] 1.1 Plan and implement sub-step 0501 (avatar migration + pgTAP)
 
 **Created:** 2026-05-24T00:00:00Z
-**Completed:**
+**Completed:** 2026-05-24T18:48:46Z
 
 **Why:** The DB contract must be settled before the sidecar or the frontend
 can be built against it. Landing the migration first means sub-plans 0502 and
