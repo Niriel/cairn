@@ -14,10 +14,10 @@
 
 ## Phase 0 — Reconcile docs
 
-### [ ] 0.1 Update docs/architecture.md local dev parity section
+### [x] 0.1 Update docs/architecture.md local dev parity section
 
 **Created:** 2026-05-24T00:00:00Z
-**Completed:**
+**Completed:** 2026-05-24T20:13:30Z
 
 **Why:** The Local development parity section of `docs/architecture.md` says "Caddy
 is omitted on the laptop." This plan adds a `caddy` service to docker-compose.yml for
