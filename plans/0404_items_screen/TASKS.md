@@ -227,10 +227,10 @@ section already reads `deleted_at: null` without `deleted_by: null` — no chang
 
 ## Phase 2 — VoteControl component
 
-### [ ] 2.1 VoteControl component
+### [x] 2.1 VoteControl component
 
 **Created:** 2026-05-23T18:40:40Z
-**Completed:**
+**Completed:** 2026-05-24T13:37:44Z
 
 **Why:** `VoteControl` is the most interactive primitive on the items screen. Isolating and testing it first means the component is reliable before it's embedded in dozens of rows.
 
@@ -257,6 +257,8 @@ section already reads `deleted_at: null` without `deleted_by: null` — no chang
 4. Run `pnpm lint && pnpm check && pnpm test`.
 
 **Verify:** `pnpm lint` · `pnpm check` · `pnpm test`
+
+**Notes:** Svelte 5 event delegation (onclick registered at document root) meant `e.stopPropagation()` fired after the event had already bubbled through the DOM, making test (i) fail. Fixed by using a Svelte `use:` action (`thumbButton`) to register a direct, non-delegated `addEventListener` on each button — stopPropagation and onchange both handled in that direct listener. Duplicate button inline styles factored into `thumbStyle(dir)` helper per user feedback.
 
 ---
 
