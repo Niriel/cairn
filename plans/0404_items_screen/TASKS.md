@@ -14,10 +14,10 @@
 
 ## Phase 0 — Doc reconciliation + DB migration
 
-### [ ] 0.0 Update docs/data-model.md — restoreItem payload
+### [x] 0.0 Update docs/data-model.md — restoreItem payload
 
 **Created:** 2026-05-24T00:00:00Z
-**Completed:**
+**Completed:** 2026-05-24T07:28:24Z
 
 **Why:** `docs/data-model.md` `items_deleted` paragraph (the `PATCH /items` restore sentence) shows
 `{"deleted_at": null, "deleted_by": null}`. But `tg_set_attribution_items`'s restore branch
