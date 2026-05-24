@@ -284,10 +284,10 @@ own task keeps 1.3 (the complex upload route) focused on image processing.
 
 **Verify:** `cd sidecar && pnpm test`
 
-### [ ] 1.3 POST /avatars — security-gate tests and full route implementation
+### [x] 1.3 POST /avatars — security-gate tests and full route implementation
 
 **Created:** 2026-05-24T18:59:33Z
-**Completed:**
+**Completed:** 2026-05-24T20:46:17Z
 
 **Why:** The upload route is the security-critical path (R5, R7). Three
 automated tests for the load-bearing gates must be written and confirmed red
