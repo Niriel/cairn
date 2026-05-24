@@ -87,7 +87,7 @@
 	 * layout doesn't double-pad.
 	 */
 	.app-shell {
-		max-width: 26rem;
+		max-width: var(--app-max-w);
 		margin-inline: auto;
 	}
 	.boot-screen {

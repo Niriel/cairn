@@ -13,6 +13,29 @@ sub-bullets under the master-plan step they refine, and tick the
 same `[ ]` / `[x]` convention. They don't get their own numbered
 list position — the parent step's hundreds slot is their home.
 
+## Orchestration plans
+
+Some steps are large enough that landing them in a single plan and branch
+makes review and bisection hard. For those, create an **orchestration plan**:
+a `0N00`-numbered branch whose `TASKS.md` does not contain implementation
+tasks directly, but instead creates and executes numbered sub-branches
+(`0N01`, `0N02`, …), each with its own `/write-plan` and its own
+REQUIREMENTS/PLAN/TASKS. When all sub-branches are merged back into `0N00`,
+`0N00` is merged into `main` and the step's checkbox is ticked.
+
+The sub-branch numbers slot into the 99-slot gap the hundreds convention
+leaves (e.g. `0401`, `0402`, `0403` under `0400`). Each sub-plan is a normal
+plan — the only thing that makes `0N00` special is that its tasks say
+"create sub-branch → `/write-plan` → implement → merge back" rather than
+writing code directly. `plans/0400_mvp_product/` is the worked example.
+
+All merges of sub-branches back into the orchestration branch, and of the
+orchestration branch back into `main`, use `--no-ff` so the branch grouping
+is visible on the commit tree.
+
+Use this pattern when a step would otherwise produce a PR too large to review
+in one pass. Prefer a single plan for steps that are large but coherent.
+
 ## Context
 
 Setup is done (Docker stack, Vitest/Playwright/pgTAP harnesses,
@@ -116,7 +139,7 @@ in-flight branch for no gain.
      contain a six-digit numeric token**. Must land before step
      14's deploy so prod's first email is link-only.
 
-4. [ ] **MVP product surface (single-user happy path).** Lists overview,
+4. [x] **MVP product surface (single-user happy path).** Lists overview,
    create list, items list with one-at-a-time accordion, add/edit
    item, vote control (±1 nudges, ±3 clamp), settings (theme + font
    size persisted to the browser's `localStorage` — they're

@@ -31,5 +31,44 @@ export const handlers: RequestHandler[] = [
 			user: { id: '11111111-1111-1111-1111-111111111111', email: 'dev@example.test' }
 		})
 	),
-	http.delete('*/auth/session', () => new HttpResponse(null, { status: 204 }))
+	http.delete('*/auth/session', () => new HttpResponse(null, { status: 204 })),
+	// Path-only pattern — MSW v2 query-string wildcard behaviour is unreliable
+	http.get('*/api/profiles', () =>
+		HttpResponse.json(
+			{ display_name: 'Alice' },
+			{ headers: { 'Content-Type': 'application/vnd.pgrst.object+json' } }
+		)
+	),
+	http.post('*/api/rpc/create_list', () =>
+		HttpResponse.json({
+			id: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+			name: 'My list',
+			description: null,
+			modified_at: '2026-01-01T00:00:00Z'
+		})
+	),
+	http.get('*/api/lists', () => HttpResponse.json([])),
+	http.get('*/api/items_ranked', () => HttpResponse.json([])),
+	http.get('*/api/votes', () => HttpResponse.json([])),
+	http.post('*/api/items', () =>
+		HttpResponse.json(
+			{
+				id: 'stub-item-id',
+				list_id: 'stub-list-id',
+				name: 'Stub item',
+				notes: null,
+				created_by: 'stub-user-id',
+				modified_by: 'stub-user-id',
+				score: 0,
+				created_at: '2026-01-01T00:00:00Z',
+				modified_at: '2026-01-01T00:00:00Z',
+				created_by_profile: { display_name: 'Stub user' },
+				modified_by_profile: null
+			},
+			{ status: 201 }
+		)
+	),
+	http.patch('*/api/items', () => new HttpResponse(null, { status: 204 })),
+	http.post('*/api/votes', () => new HttpResponse(null, { status: 200 })),
+	http.delete('*/api/votes', () => new HttpResponse(null, { status: 204 }))
 ];

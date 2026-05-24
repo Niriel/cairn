@@ -327,7 +327,7 @@ where i.deleted_at is not null
 
 The `security_invoker = false` is deliberate (and the opposite of `items_ranked`): the view runs as its owner (`cairn`, the table owner, exempt from RLS), so it can read soft-deleted rows that the `items_select` policy hides from `authenticated`. To compensate for the bypassed RLS, the view body adds `and public.is_list_member(i.list_id)` — this is now the *only* authorization gate for the trash, and is therefore covered by a load-bearing negative pgTAP test (a non-member sees zero rows through the view).
 
-The web app queries `GET /items_deleted?list_id=eq.<uuid>&order=deleted_at.desc` to populate the trash. Restoring an item is a `PATCH /items?id=eq.<uuid>` with `{"deleted_at": null, "deleted_by": null}` — the standard update path, gated by the live `items_update` policy. There is no separate "restore" endpoint. Note that `items_update` checks `is_list_member()` against `list_members.deleted_at is null`, so a member who has soft-removed themselves can no longer restore items in a list they've left, even if their session still had the trash open. That's the desired behaviour.
+The web app queries `GET /items_deleted?list_id=eq.<uuid>&order=deleted_at.desc` to populate the trash. Restoring an item is a `PATCH /items?id=eq.<uuid>` with `{"deleted_at": null}` (the trigger's restore branch clears `deleted_by` automatically) — the standard update path, gated by the live `items_update` policy. There is no separate "restore" endpoint. Note that `items_update` checks `is_list_member()` against `list_members.deleted_at is null`, so a member who has soft-removed themselves can no longer restore items in a list they've left, even if their session still had the trash open. That's the desired behaviour.
 
 A matching `lists_deleted` view follows the same pattern for the per-user list trash reachable from Settings:
 
@@ -658,7 +658,7 @@ To translate the schema into the API the web app actually consumes, here are the
 - `POST /items` — add an item
 - `PATCH /items?id=eq.<uuid>` — edit, soft-delete, or restore an item (restore = `PATCH` with `deleted_at: null`)
 - `POST /votes` — cast a vote (with `Prefer: resolution=merge-duplicates` to handle re-voting)
-- `DELETE /votes?item_id=eq.<uuid>&user_id=eq.<uuid>` — retract a vote
+- `DELETE /votes?item_id=eq.<uuid>` — retract a vote. The `votes_delete` RLS policy (`using (user_id = public.uid())`) scopes the delete to the caller's own vote; omit `user_id` from the query — RLS is the enforcement, not the application filter.
 - `GET /profiles?id=eq.<uuid>` — fetch a profile (world-readable to authenticated callers; only `id`, `display_name`, `created_at`)
 - `PATCH /profiles?id=eq.<my-uid>` — update your own profile (`display_name` only, in v1)
 - `GET /user_settings?id=eq.<my-uid>` — fetch your own settings (RLS rejects any other id; the only row a caller ever sees is their own)

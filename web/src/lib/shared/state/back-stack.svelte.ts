@@ -9,6 +9,24 @@ function isGuardState(state: unknown): state is GuardState {
 	);
 }
 
+// When a guard is cleaned up programmatically (not via the browser back button),
+// its history.back() fires an async popstate that any concurrently-installed guard
+// would otherwise misinterpret as a real user navigation. This flag tells the next
+// guard listener to ignore that spurious popstate.
+let suppressNextPopState = false;
+
+// Not reactive — purely for test cleanup via _resetForTesting.
+const activeListeners: Array<(e: PopStateEvent) => void> = [];
+
+/** Reset module state between tests. Not for production use. */
+export function _resetForTesting(): void {
+	suppressNextPopState = false;
+	for (const listener of activeListeners) {
+		window.removeEventListener('popstate', listener);
+	}
+	activeListeners.length = 0;
+}
+
 export function pushHistoryGuard(onPop: () => void): () => void {
 	const id = crypto.randomUUID();
 	history.pushState({ cairnGuard: true, id } satisfies GuardState, '');
@@ -16,6 +34,10 @@ export function pushHistoryGuard(onPop: () => void): () => void {
 	let fired = false;
 
 	const onPopState = (event: PopStateEvent) => {
+		if (suppressNextPopState) {
+			suppressNextPopState = false;
+			return;
+		}
 		if (fired) return;
 		// This guard's marker is no longer the top of history iff the
 		// post-popstate state's id is not ours. When two guards are stacked,
@@ -25,17 +47,21 @@ export function pushHistoryGuard(onPop: () => void): () => void {
 		if (topId === id) return;
 		fired = true;
 		window.removeEventListener('popstate', onPopState);
+		activeListeners.splice(activeListeners.indexOf(onPopState), 1);
 		onPop();
 	};
 
 	window.addEventListener('popstate', onPopState);
+	activeListeners.push(onPopState);
 
 	return () => {
 		if (fired) return;
 		fired = true;
 		window.removeEventListener('popstate', onPopState);
-		// Pop the marker we pushed. The listener is already removed, so the
-		// resulting popstate won't re-enter onPop.
+		activeListeners.splice(activeListeners.indexOf(onPopState), 1);
+		// Pop the marker we pushed. Suppress the resulting popstate so any
+		// concurrently-installed guard doesn't mistake it for a user back press.
+		suppressNextPopState = true;
 		history.back();
 	};
 }

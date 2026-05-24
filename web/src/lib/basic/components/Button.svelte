@@ -10,6 +10,7 @@
 		onclick?: () => void;
 		children?: Snippet;
 		'data-test'?: string;
+		'aria-pressed'?: boolean;
 	};
 
 	let {
@@ -41,10 +42,14 @@
 
 <style>
 	button {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
 		padding: 0.5rem 1rem;
 		border-radius: 6px;
 		border: none;
 		font: inherit;
+		line-height: 1;
 	}
 
 	.primary {

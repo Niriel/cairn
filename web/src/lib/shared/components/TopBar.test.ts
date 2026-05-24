@@ -51,4 +51,28 @@ describe('TopBar', () => {
 		});
 		expect(getByDataTest('cog')).not.toBeNull();
 	});
+
+	test('(e) renders the left snippet when provided', () => {
+		const { getByDataTest } = render(TopBar, {
+			children: span('Hello'),
+			left: span('G', 'left-slot')
+		});
+		expect(getByDataTest('left-slot')).not.toBeNull();
+	});
+
+	test('(f) does not render back button when left is provided', () => {
+		const { queryByDataTest } = render(TopBar, {
+			children: span('Hello'),
+			left: span('G')
+		});
+		expect(queryByDataTest('topbar-back')).toBeNull();
+	});
+
+	test('(g) renders sub text when sub prop is provided', () => {
+		const { getByText } = render(TopBar, {
+			children: span('Hello'),
+			sub: 'hello sub'
+		});
+		expect(getByText('hello sub')).not.toBeNull();
+	});
 });

@@ -273,3 +273,22 @@ The choice of CI host is deliberately not prescribed here: any runner that can r
 **A Playwright test is flaky.** Almost always one of: (a) waiting for a network response that may have already arrived (use `page.waitForResponse` carefully, or `expect(...).toHaveText` with auto-retry); (b) a real timing bug worth investigating (don't paper over it with `await page.waitForTimeout`).
 
 **The whole suite is fast locally and slow in CI.** Disk I/O on the runner, usually. Use a tmpfs Postgres data volume in CI.
+
+**`fk_ok()` gives a false result when a column has multiple foreign keys.** pgTAP 1.3's `fk_ok()` looks up FKs by source column only — no filter on the referenced table — so when two constraints exist on the same column (e.g. one to `auth.users` and one to `public.profiles`) it picks one row from `pg_all_foreign_keys` arbitrarily, and the assertion becomes a coin flip. Cairn has several columns in this shape: `items.created_by`, `items.modified_by`, and `votes.user_id` each carry both an `auth.users` FK (for cascade behaviour) and a `public.profiles` FK (for PostgREST embedded joins). **Do not use `fk_ok()` for those columns.** Instead, query `pg_constraint` by constraint name:
+
+```sql
+SELECT ok(
+  EXISTS (
+    SELECT 1 FROM pg_constraint AS c
+    INNER JOIN pg_class AS reftbl ON c.confrelid = reftbl.oid
+    INNER JOIN pg_namespace AS refns ON reftbl.relnamespace = refns.oid
+    WHERE c.conname = 'my_constraint_name'
+      AND c.contype = 'f'
+      AND refns.nspname = 'public'
+      AND reftbl.relname = 'profiles'
+  ),
+  'my_table.my_col FK to profiles'
+);
+```
+
+The pattern is safe for any column with a single FK too — prefer it whenever you know the constraint name.

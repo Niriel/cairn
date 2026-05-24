@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, test, vi, type MockInstance } from 'vitest';
 
-import { pushHistoryGuard } from './back-stack.svelte';
+import { pushHistoryGuard, _resetForTesting } from './back-stack.svelte';
 
 describe('pushHistoryGuard', () => {
 	let pushStateSpy: MockInstance<typeof history.pushState>;
@@ -16,6 +16,7 @@ describe('pushHistoryGuard', () => {
 	afterEach(() => {
 		pushStateSpy.mockRestore();
 		backSpy.mockRestore();
+		_resetForTesting();
 	});
 
 	test('(a) pushes a guard marker with a unique id', () => {
@@ -60,6 +61,22 @@ describe('pushHistoryGuard', () => {
 		cleanup();
 
 		expect(backSpy).not.toHaveBeenCalled();
+	});
+
+	test('(f) programmatic cleanup of guard B does not fire a concurrently-installed guard A', () => {
+		const onPopB = vi.fn();
+		const cleanupB = pushHistoryGuard(onPopB);
+
+		const onPopA = vi.fn();
+		pushHistoryGuard(onPopA);
+
+		// B cleaned up programmatically (e.g. accordion switch): should suppress the
+		// resulting popstate so A's onPop is not triggered.
+		cleanupB();
+		dispatchEvent(new PopStateEvent('popstate', { state: null }));
+
+		expect(onPopA).not.toHaveBeenCalled();
+		expect(onPopB).not.toHaveBeenCalled();
 	});
 
 	test('(e) stacked guards: only the top-most guard fires per back press', () => {

@@ -104,7 +104,11 @@ the format in the three writing-* skills.
   Context, Decisions, Architecture, Phase structure,
   References. See `.claude/skills/writing-plan.md`.
 - **`TASKS.md`** captures the *how for the LLM executor* —
-  self-contained task blocks with RED-before-GREEN steps. See
+  self-contained task blocks with RED-before-GREEN steps. A task is
+  a **commit unit**: tests and the implementation they cover belong
+  in the same task. RED steps come first within the task; they are
+  never split off into a separate prior task, because that would
+  leave a commit with failing tests. See
   `.claude/skills/writing-tasks.md`.
 
 If a plan-mode draft exists at the path noted in your plan-mode

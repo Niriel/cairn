@@ -117,8 +117,10 @@ room cold.
 - **TDD steps.** Prefix each step with `RED` for writing failing
   tests first, `GREEN` for implementation that makes them pass.
   Every task that produces testable logic has RED steps before
-  GREEN steps. Tests ship with the code they cover; they are not
-  deferred to a later task.
+  GREEN steps. **The RED and GREEN steps for a given piece of logic
+  must live in the same task.** A task is a commit boundary — a
+  commit that ends with failing tests is broken code. Writing tests
+  is the *first half* of the task, not a separate prior task.
 - **Right-sized.** A task is a meaningful chunk of work — typically
   one commit's worth — not a single-line checkbox. Multiple steps
   per task is normal. If a task has only one step, it probably
@@ -190,7 +192,7 @@ canonical body and the rationale for living in `public`.
   layer). Use the per-layer commands when only one layer is
   affected:
   - DB-only changes → `./scripts/test-db.sh`
-  - Web-only changes → `pnpm check` · `pnpm lint` · `pnpm test`
+  - Web-only changes → `pnpm lint` · `pnpm check` · `pnpm test`
   - Touching schema/RLS *and* web code → `./scripts/check.sh`
 - **TDD is mandatory for testable logic.** RED steps before GREEN
   steps. For DB work specifically: every change to schema, RLS,

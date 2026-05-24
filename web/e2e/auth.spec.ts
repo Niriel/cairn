@@ -35,6 +35,7 @@ test('magic-link happy path and sign-out', async ({ page, context }) => {
 	expect(session?.httpOnly).toBe(true);
 	expect(session?.sameSite).toBe('Lax');
 
+	await page.goto('/settings');
 	await page.locator('[data-test="signout"]').click();
 	await expect(page).toHaveURL(/\/auth\/login$/);
 	const sessionAfter = (await context.cookies()).find((c) => c.name === 'cairn_session');

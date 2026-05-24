@@ -42,6 +42,15 @@ Read everything in the plan directory (`REQUIREMENTS.md`,
 - The actual source files the plan claims to modify — don't review
   in the abstract; check types, function signatures, existing
   behaviour, and callers against what the plan claims.
+- **For any plan that builds UI screens**: the relevant JSX
+  functions in `design/cairn-screens.jsx` and `design/cairn-ui.jsx`
+  — compare the plan's pixel values, layout decisions, and component
+  structure against the design mockups. Flag discrepancies where the
+  plan specifies different dimensions, colours, copy, or component
+  structure than the JSX. Also check for inconsistencies *within*
+  the JSX itself (e.g., two mocks of the same screen disagree on
+  ordering or copy) — the plan must pick a canonical answer when
+  the design is ambiguous.
 
 ### What to look for
 
@@ -121,6 +130,14 @@ fact, so a thin one is still worth raising.
   tests too. Use judgement: a doc-only edit is cheap when the
   doc is purely descriptive of an unbuilt area, expensive when
   the described thing is already shipped.
+- **Design spec deviations** — for UI plans, mismatches between
+  what the plan specifies and what the JSX in `design/` shows:
+  wrong font sizes, incorrect padding/margin values, wrong colors
+  or color variables, missing or extra UI elements, incorrect copy,
+  structural differences in component layout. Also raise
+  inconsistencies *within* the JSX (two mockups of the same screen
+  that contradict each other) when the plan hasn't resolved the
+  ambiguity — the executor will make an arbitrary choice.
 - **UX concerns** — interactions that violate the principle of
   least surprise (unexpected behaviour, hidden state changes,
   silent failures), missing or unclear feedback, awkward flows

@@ -47,6 +47,15 @@ visual and structural reference — re-implement screens idiomatically in
 Svelte rather than porting React verbatim. Design tokens (`CAIRN_LIGHT` /
 `CAIRN_DARK` in `design/cairn-ui.jsx`) can be lifted directly.
 
+**Before writing plan tasks for any UI screen**, read the corresponding JSX in
+`design/cairn-screens.jsx` (or the relevant `design/*.jsx` file) and record
+the visual spec — font sizes, padding, colours, component structure — in the
+task's **Decisions** or **Reference** section. Skipping this step means the
+task will under-specify the UI and the implementation will need a separate
+visual-polish pass. Also read `docs/ui.md` for cross-screen layout conventions
+(TopBar styling, fixed-element positioning within `--app-max-w`, empty-state
+patterns) that aren't repeated in every task.
+
 ## Conventions
 
 - Soft-delete by default (see `docs/data-model.md`).
