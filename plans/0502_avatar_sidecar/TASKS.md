@@ -46,10 +46,10 @@ accurate before Phase 1 executes.
 
 **Verify:** `grep -n "Caddy" docs/architecture.md`
 
-### [ ] 0.2 Update docs/development.md and docs/deployment.md
+### [x] 0.2 Update docs/development.md and docs/deployment.md
 
 **Created:** 2026-05-24T20:25:00Z
-**Completed:**
+**Completed:** 2026-05-24T20:24:56Z
 
 **Why:** Two docs are now stale as a result of this plan:
 - `docs/development.md` still describes the stack as having four backend
