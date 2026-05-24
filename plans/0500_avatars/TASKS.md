@@ -48,10 +48,10 @@ can be built against it. Landing the migration first means sub-plans 0502 and
 
 ## Phase 2 — 0502: Avatar sidecar + Caddy
 
-### [ ] 2.1 Plan and implement sub-step 0502 (Node sidecar + Caddy static block)
+### [x] 2.1 Plan and implement sub-step 0502 (Node sidecar + Caddy static block)
 
 **Created:** 2026-05-24T00:00:00Z
-**Completed:**
+**Completed:** 2026-05-24T21:12:16Z
 
 **Why:** The sidecar is the write path for all avatar uploads. It must exist
 before the frontend can wire up the upload flow. This is also where the Docker
