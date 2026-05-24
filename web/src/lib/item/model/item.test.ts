@@ -105,7 +105,7 @@ describe('upsertVote', () => {
 				return new HttpResponse(null, { status: 200 });
 			})
 		);
-		await upsertVote(ITEM_ID, 1);
+		await upsertVote(ITEM_ID, 1, 'user-1');
 		expect(capturedPrefer).toContain('resolution=merge-duplicates');
 	});
 });

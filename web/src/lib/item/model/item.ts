@@ -125,10 +125,10 @@ export function restoreItem(itemId: string): Promise<void> {
 	return pgPatch(`/items?id=eq.${itemId}`, { deleted_at: null });
 }
 
-export function upsertVote(itemId: string, value: number): Promise<void> {
+export function upsertVote(itemId: string, value: number, userId: string): Promise<void> {
 	return pgPost(
 		'/votes',
-		{ item_id: itemId, value },
+		{ item_id: itemId, user_id: userId, value },
 		{ headers: { Prefer: 'resolution=merge-duplicates' } }
 	);
 }

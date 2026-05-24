@@ -34,13 +34,15 @@ export async function loadItems(listId: string): Promise<void> {
 }
 
 export async function upsertVote(itemId: string, value: number): Promise<void> {
+	const s = session.current;
+	if (s.status !== 'signed-in') return;
 	const idx = items.rows.findIndex((r) => r.id === itemId);
 	if (idx === -1) return;
 	const old = { my_vote: items.rows[idx].my_vote, score: items.rows[idx].score };
 	items.rows[idx].my_vote = value;
 	items.rows[idx].score = old.score + value - (old.my_vote ?? 0);
 	try {
-		await apiUpsertVote(itemId, value);
+		await apiUpsertVote(itemId, value, s.user.id);
 	} catch {
 		items.rows[idx].my_vote = old.my_vote;
 		items.rows[idx].score = old.score;
