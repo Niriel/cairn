@@ -15,6 +15,13 @@ Canonical references: `docs/data-model.md` (schema, RLS, triggers,
 views), `docs/testing.md` (pgTAP layer), `docs/quality.md`
 (lint/format toolchain), `.sqlfluff` at the repo root.
 
+## Keeping this skill current
+
+This skill is a living document. **When you hit a new sqlfluff pattern,
+pgTAP quirk, or role-context trap that isn't covered here, update this
+file before moving on.** Additions and corrections are welcome — the
+goal is that the next session doesn't repeat the same stumble.
+
 ## When to use this skill
 
 - Writing or modifying anything under `db/` — migrations, tests,
@@ -83,6 +90,57 @@ load-bearing for the parser rather than for the dialect.
 - **References-keywords (`aliases` policy).** Table aliases are
   required when joining; bare table names in JOINed queries get
   flagged.
+
+### LT02 formatting patterns — exact shapes sqlfluff accepts
+
+These are commonly rewritten incorrectly; sqlfluff will reject the
+wrong shape with `LT02` errors. Use the accepted form from the start.
+
+- **Multi-line subqueries inside pgTAP helpers (`is`, `cmp_ok`,
+  `ok`).** The subquery must expand to its own line group:
+  ```sql
+  SELECT is(
+    (
+      SELECT avatar_version FROM public.profiles
+      WHERE id = 'aaaa…'
+    ),
+    0,
+    'description'
+  );
+  ```
+  The broken form — `(SELECT … FROM …\n   WHERE …)` with the
+  closing paren on the WHERE line — trips LT02 on both lines.
+  Single-line subqueries (`(SELECT count(*) FROM t)`) are fine
+  when they fit within the line-length limit.
+
+- **Array type casts: `text []` not `text[]`.** sqlfluff (LT01)
+  requires a space between the `text` keyword and the `[]`:
+  `ARRAY[]::text []`. Without the space: `LT01 Expected single
+  whitespace between 'text' keyword and start square bracket`.
+
+- **`ALTER TABLE … ADD COLUMN … CHECK` — zero indentation on
+  continuation lines.** Unlike a `CREATE TABLE` body, the lines
+  after `ALTER TABLE` are at column 0:
+  ```sql
+  ALTER TABLE public.profiles
+  ADD COLUMN avatar_version int NOT NULL DEFAULT 0
+  CHECK (avatar_version >= 0);
+  ```
+  Indenting `ADD COLUMN` or `CHECK` triggers `LT02 Line should
+  not be indented`.
+
+- **`ok(…)` closing `)` on its own line.** The closing paren of
+  `ok(…, 'description')` must be on a separate line; appending it
+  to the final string literal trips LT02:
+  ```sql
+  -- wrong
+  SELECT ok(has_function_privilege(…), 'description');
+  -- right
+  SELECT ok(
+    has_function_privilege(…),
+    'description'
+  );
+  ```
 
 ### Auto-fixer over-corrections — pre-qualify, don't trust
 

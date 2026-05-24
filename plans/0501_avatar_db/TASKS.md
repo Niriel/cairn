@@ -46,10 +46,10 @@ on disk.)
 
 ## Phase 1 — DB migration + pgTAP
 
-### [ ] 1.1 Add `avatar_version` column, three RPCs, trigger rebind, and pgTAP tests
+### [x] 1.1 Add `avatar_version` column, three RPCs, trigger rebind, and pgTAP tests
 
 **Created:** 2026-05-24T17:47:28Z
-**Completed:**
+**Completed:** 2026-05-24T18:40:18Z
 
 **Why:** The `profiles` table needs an `avatar_version` column and three RPCs
 (`bump_avatar_version`, `clear_avatar`, `set_display_name`) before the upload

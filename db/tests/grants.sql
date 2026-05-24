@@ -4,16 +4,16 @@
 -- so every omission needs a load-bearing negative assertion in
 -- addition to the positive grants.
 --
--- 54 assertions, four groups:
+-- 60 assertions, four groups:
 --
 -- A. Positive matrix for `authenticated` (15) — every (table,
 --    verb) explicitly granted.
 -- B. View SELECT positives (3) and function EXECUTE positives
---    (4) for `authenticated`.
+--    (3+7) for `authenticated`.
 -- C. Load-bearing INSERT negatives (4) — `lists`, `list_members`,
 --    `profiles`, `user_settings` all close direct-INSERT footguns
 --    at the GRANT layer (orphan-list, consent-bypass, trigger-only).
--- D. Anon-coverage negatives (28) — every (table, verb) and every
+-- D. Anon-coverage negatives (31) — every (table, verb) and every
 --    function lock in the doc's "anonymous users have no access"
 --    rule. Closes the smoke-script gap left when `/profiles` got
 --    dropped from `scripts/smoke.sh` in A.3.
@@ -25,7 +25,7 @@
 
 BEGIN;
 
-SELECT plan(54);
+SELECT plan(60);
 
 -- ===================================================================
 -- A. Positive matrix for `authenticated`
@@ -141,6 +141,24 @@ SELECT ok(
     'authenticated', 'public.create_list(text, text)', 'EXECUTE'
   ),
   'authenticated has EXECUTE on public.create_list(text, text)'
+);
+SELECT ok(
+  has_function_privilege(
+    'authenticated', 'public.bump_avatar_version()', 'EXECUTE'
+  ),
+  'authenticated has EXECUTE on public.bump_avatar_version()'
+);
+SELECT ok(
+  has_function_privilege(
+    'authenticated', 'public.clear_avatar()', 'EXECUTE'
+  ),
+  'authenticated has EXECUTE on public.clear_avatar()'
+);
+SELECT ok(
+  has_function_privilege(
+    'authenticated', 'public.set_display_name(text)', 'EXECUTE'
+  ),
+  'authenticated has EXECUTE on public.set_display_name(text)'
 );
 
 -- ===================================================================
@@ -305,6 +323,24 @@ SELECT ok(
   ),
   'anon has no EXECUTE on public.create_list(text, text) '
   '(load-bearing: closes the RPC GRANT layer)'
+);
+SELECT ok(
+  NOT has_function_privilege(
+    'anon', 'public.bump_avatar_version()', 'EXECUTE'
+  ),
+  'anon has no EXECUTE on public.bump_avatar_version()'
+);
+SELECT ok(
+  NOT has_function_privilege(
+    'anon', 'public.clear_avatar()', 'EXECUTE'
+  ),
+  'anon has no EXECUTE on public.clear_avatar()'
+);
+SELECT ok(
+  NOT has_function_privilege(
+    'anon', 'public.set_display_name(text)', 'EXECUTE'
+  ),
+  'anon has no EXECUTE on public.set_display_name(text)'
 );
 
 SELECT finish();
