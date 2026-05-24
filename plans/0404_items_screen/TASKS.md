@@ -160,10 +160,10 @@ section already reads `deleted_at: null` without `deleted_by: null` — no chang
 
 **Verify:** `pnpm lint` · `pnpm check` · `pnpm test`
 
-### [ ] 1.2 Items state store
+### [x] 1.2 Items state store
 
 **Created:** 2026-05-23T18:40:40Z
-**Completed:**
+**Completed:** 2026-05-24T13:26:42Z
 
 **Why:** The store is the single source of truth for a list's items. Components read from it and call its mutation functions. Having the store tested in isolation (before any UI) makes the optimistic-update and undo-timer logic verifiable without rendering.
 
