@@ -12,10 +12,10 @@
 
 ## Phase 0 — Doc reconciliation
 
-### [ ] 0.1 Update docs before migration lands
+### [x] 0.1 Update docs before migration lands
 
 **Created:** 2026-05-24T17:47:28Z
-**Completed:**
+**Completed:** 2026-05-24T18:23:37Z
 
 **Why:** One remaining doc gap must close before the migration is written:
 the **Build order** section of `docs/avatars.md` still references `0005_avatars.sql`

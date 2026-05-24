@@ -165,7 +165,7 @@ No other table changes. No other RLS policy changes. The trash views, the items_
 
 The smallest useful slice is "upload and replace, no remove yet":
 
-1. `0005_avatars.sql` migration: the column + the two RPCs + pgTAP coverage on the column default, the `bump_avatar_version` increment, and the `clear_avatar` reset.
+1. `0007_avatars.sql` migration: the column + three RPCs (`bump_avatar_version`, `clear_avatar`, `set_display_name`) + pgTAP coverage on the column default, the increment, the reset, display-name validation, and cross-user isolation.
 2. The sidecar: `POST /avatars` only, with magic-byte validation and the resize. Docker-Composed in alongside Caddy.
 3. Caddy: the `handle_path /avatars/*` block, read-only mount.
 4. The web app: extend the `<Avatar>` component to render `?v=` when `avatar_version > 0`, render the existing initials disc otherwise. The Edit Profile / source sheet / crop / upload-state screens from the design canvas.
