@@ -436,10 +436,10 @@ before the implementation is written, per the TDD convention.
 
 **Verify:** `cd sidecar && pnpm test`
 
-### [ ] 1.4 Wire sidecar tests into check.sh
+### [x] 1.4 Wire sidecar tests into check.sh
 
 **Created:** 2026-05-24T18:59:33Z
-**Completed:**
+**Completed:** 2026-05-24T20:52:23Z
 
 **Why:** The three security-gate tests are load-bearing (R10); they must be
 part of the CI gauntlet, not a per-developer courtesy. `check.sh` is the
