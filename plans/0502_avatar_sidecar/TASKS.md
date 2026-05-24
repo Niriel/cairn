@@ -545,10 +545,10 @@ and Caddy (read-only, added in 2.2). (R8)
 
 **Verify:** `docker compose config`
 
-### [ ] 2.2 Caddy config and docker-compose service
+### [x] 2.2 Caddy config and docker-compose service
 
 **Created:** 2026-05-24T18:59:33Z
-**Completed:**
+**Completed:** 2026-05-24T21:04:17Z
 
 **Why:** Caddy is the serve path for avatar bytes. Creating the Caddyfile and
 wiring the `caddy` service into compose gives local dev the same read path as
