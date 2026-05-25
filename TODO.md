@@ -18,7 +18,15 @@
    to follow at call sites and can be imported by tests and components without
    repeating the shape. Do on a quiet branch; no behaviour change needed.
 
-3. [ ] **Font size setting must scale the whole app, not just the container
+3. [ ] **No type erasure (`as unknown as T`)** — double-cast expressions are a
+   code smell that silences the type-checker rather than fixing it. Prefer:
+   (a) an explicit intermediate `unknown` variable with narrowing, (b) accessing
+   a typed property directly on the cast expression (e.g.
+   `((await res.json()) as { version: number }).version`), or (c) a type guard.
+   If a double-cast is genuinely the only option, it needs a comment explaining
+   why — and a reviewer should push back.
+
+4. [ ] **Font size setting must scale the whole app, not just the container
    width** — the Settings font-size preference (XS/S/M/L/XL, stored in
    `localStorage`) currently only affects `--app-max-w`. All pixel values in
    the design JSX are specified at Medium; the full app — type sizes, padding,

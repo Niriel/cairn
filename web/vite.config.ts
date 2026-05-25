@@ -87,6 +87,18 @@ export default defineConfig({
 					});
 				}
 			},
+			'/avatars': {
+				target: 'http://localhost:8080',
+				changeOrigin: false,
+				configure: (proxy) => {
+					proxy.on('proxyReq', (proxyReq, req) => {
+						const token = readBearerFromCookie(req);
+						if (token && !proxyReq.getHeader('authorization')) {
+							proxyReq.setHeader('Authorization', `Bearer ${token}`);
+						}
+					});
+				}
+			},
 			'/auth': {
 				target: 'http://localhost:9999',
 				changeOrigin: false,
