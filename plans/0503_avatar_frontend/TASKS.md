@@ -200,10 +200,10 @@ keeps the change small and independently testable.
 
 ## Phase 3 — Avatar pickers
 
-### [ ] 3.1 `AvatarSourceSheet` and `AvatarCropScreen` components
+### [x] 3.1 `AvatarSourceSheet` and `AvatarCropScreen` components
 
 **Created:** 2026-05-25T00:00:00Z
-**Completed:**
+**Completed:** 2026-05-25T09:31:21Z
 
 **Why:** These components must exist (with mocks) before task 4.1 can import and
 test them in the profile route. Landing them independently keeps each task
