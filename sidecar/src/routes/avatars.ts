@@ -57,8 +57,7 @@ router.post(
         return;
       }
 
-      const data = (await pgRes.json()) as Array<{ avatar_version: number }>;
-      const version = data[0].avatar_version;
+      const version = (await pgRes.json()) as number;
       res.status(200).json({ version, url: `/avatars/${req.uid}.webp?v=${version}` });
     } catch (err) {
       next(err);

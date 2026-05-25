@@ -328,10 +328,10 @@ testable in isolation.
 
 ## Phase 4 — Edit Profile screen
 
-### [ ] 4.1 Full Edit Profile screen (R8, R9, R10, R12) + Vite `/avatars` proxy
+### [x] 4.1 Full Edit Profile screen (R8, R9, R10, R12) + Vite `/avatars` proxy
 
 **Created:** 2026-05-25T00:00:00Z
-**Completed:**
+**Completed:** 2026-05-25T09:50:59Z
 
 **Why:** This task replaces the stub from 0.1 with the full implementation. It is
 intentionally last in the component sequence so AvatarSourceSheet and
@@ -501,6 +501,16 @@ AvatarCropScreen mocks already exist for the route test.
 6. **GREEN** — Run `pnpm test`; all profile page tests must pass.
 
 **Verify:** `pnpm lint && pnpm check && pnpm test`
+
+**Notes:** Two deviations from the task spec:
+
+- **`postgrest.ts` updated (side work)**: PostgREST returns `[{code,message,...}]` (array) for constraint-violation errors from RPCs, but `request()` was only handling single-object error bodies. Added normalisation: `Array.isArray(raw) ? raw[0] : raw` so `ApiError.code` is properly populated. Without this, the `23514` error code was unreachable and the page fell back to input-value sniffing. This is a correctness fix for all existing callers too.
+- **Name-error handling is code-specific**: The page catches only `ApiError` with `code === '23514'` and shows the validation message; all other errors show "Something went wrong — please try again." rather than a misleading validation string.
+- **Apostrophe encoding**: The Write tool auto-upgraded straight apostrophes to curly quotes in `UPLOAD_TITLE` for `'too-big'` and `'wrong-format'`; fixed via `sed` after the fact.
+
+**Bug fixed post-completion:**
+
+- **Sidecar 500 on upload** (`sidecar/src/routes/avatars.ts` + `sidecar/src/index.ts`): `bump_avatar_version()` is declared `RETURNS int`, so PostgREST v12 returns a bare scalar (e.g. `1`), not `[{ avatar_version: 1 }]`. The sidecar was reading it as `Array<{ avatar_version: number }>`, so `data[0]` was `undefined` → TypeError → unhandled → Express default HTML 500. The file write and DB bump both succeeded (avatar appeared after F5), but the sidecar crashed before it could return the new version to the frontend. Fixed by reading `const version = (await pgRes.json()) as number` and correcting the Vitest mock to `Response.json(1, ...)`. Also added a global Express error handler to `index.ts` so future unhandled errors return JSON rather than HTML. Note: the fix only takes effect after `docker compose up --build sidecar -d` — a plain `docker compose restart` runs the old compiled image.
 
 ---
 
