@@ -1,0 +1,13 @@
+:80 {
+	@sidecar_writes {
+		method POST DELETE
+		path /avatars*
+	}
+	reverse_proxy @sidecar_writes sidecar:3001
+
+	handle_path /avatars/* {
+		root * /srv/cairn/avatars
+		file_server
+		header Cache-Control "public, max-age=31536000, immutable"
+	}
+}

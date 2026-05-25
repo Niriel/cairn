@@ -95,6 +95,7 @@ The repo lives on the VPS at `/home/cairn/cairn`. Updates are `git pull && docke
 │   ├── .env.prod                   ← production secrets (NOT in git)
 │   ├── caddy/
 │   │   └── Caddyfile.prod
+│   ├── sidecar/                    ← avatar upload / delete sidecar
 │   ├── db/migrations/
 │   ├── web/                        ← the SvelteKit project
 │   └── ...
@@ -139,8 +140,8 @@ services:
     ports: []
     restart: unless-stopped
 
-  avatars:
-    build: ./avatars
+  sidecar:
+    build: ./sidecar
     # the avatar upload sidecar (see avatars.md); validates, resizes to
     # 256x256 WebP, writes /srv/cairn/avatars/{uid}.webp, calls
     # bump_avatar_version on PostgREST.
@@ -149,7 +150,7 @@ services:
       - /srv/cairn/avatars:/srv/cairn/avatars   # read-write
     environment:
       POSTGREST_URL: http://postgrest:3000
-      JWT_SECRET: ${JWT_SECRET}
+      GOTRUE_JWT_SECRET: ${JWT_SECRET}
     restart: unless-stopped
     depends_on: [postgrest]
 

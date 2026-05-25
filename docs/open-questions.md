@@ -8,10 +8,6 @@ the matching entry in the underlying doc.
 
 ## Avatars
 
-- **Sidecar implementation language.** Go vs Python vs Node. All three
-  are fine; the call is "pick what the team is comfortable
-  maintaining." The sidecar is well under 300 lines in any reasonable
-  language. See `avatars.md` § Open questions.
 - **Image format on disk.** WebP is the v1 choice (universal support
   in 2026 browsers, smallest acceptable-quality file). JPEG and AVIF
   are documented fallback paths if v1's WebP-only stance ever needs

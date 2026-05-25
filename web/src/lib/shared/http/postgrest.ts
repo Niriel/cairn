@@ -54,16 +54,22 @@ async function request<T>(
 	if (!res.ok) {
 		const contentType = res.headers.get('content-type') ?? '';
 		if (contentType.includes('application/json')) {
-			const payload = (await res.json()) as {
-				code?: string;
-				message?: string;
-				details?: string;
-				hint?: string;
-			};
-			throw new ApiError(payload.message ?? res.statusText, {
-				code: payload.code,
-				details: payload.details,
-				hint: payload.hint
+			// PostgREST returns either a single `{code,message,...}` object or an
+			// array `[{code,message,...}]` for constraint-violation errors from RPCs.
+			// Normalise to the first element so callers can always check `err.code`.
+			const raw = (await res.json()) as unknown;
+			const payload = (Array.isArray(raw) ? raw[0] : raw) as
+				| {
+						code?: string;
+						message?: string;
+						details?: string;
+						hint?: string;
+				  }
+				| undefined;
+			throw new ApiError(payload?.message ?? res.statusText, {
+				code: payload?.code,
+				details: payload?.details,
+				hint: payload?.hint
 			});
 		}
 		throw new ApiError(res.statusText);

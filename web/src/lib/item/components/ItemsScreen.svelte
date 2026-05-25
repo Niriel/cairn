@@ -121,7 +121,12 @@
 								<div class="member-votes">
 									{#each item.member_votes as mv (mv.user_id)}
 										<span class="member-vote">
-											<Avatar displayName={mv.display_name} size={18} />
+											<Avatar
+												displayName={mv.display_name}
+												size={18}
+												uid={mv.user_id}
+												avatarVersion={mv.avatar_version}
+											/>
 											<span class="mv-name">{mv.display_name}</span>
 											<span
 												class="mv-val"

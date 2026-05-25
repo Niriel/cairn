@@ -75,6 +75,12 @@ if ./scripts/test-db.sh >/dev/null; then ok "pg_prove"; else fail "pg_prove"; fi
 echo "==> web: unit tests"
 if (cd web && pnpm test) >/dev/null; then ok "vitest"; else fail "vitest"; fi
 
+echo "==> sidecar: install (frozen)"
+if (cd sidecar && pnpm install --frozen-lockfile) >/dev/null; then ok "sidecar pnpm install"; else fail "sidecar pnpm install"; fi
+
+echo "==> sidecar: unit tests"
+if (cd sidecar && pnpm test) >/dev/null; then ok "sidecar vitest"; else fail "sidecar vitest"; fi
+
 if [ "$run_e2e" -eq 1 ]; then
   echo "==> web: e2e (playwright)"
   if (cd web && pnpm test:e2e); then ok "playwright"; else fail "playwright"; fi

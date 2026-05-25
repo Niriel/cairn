@@ -13,7 +13,7 @@ export type Item = {
 	created_at: string;
 	modified_at: string;
 	my_vote: number | null;
-	member_votes: { user_id: string; display_name: string; value: number }[];
+	member_votes: MemberVote[];
 };
 
 // Wire type from the items_ranked view — profile embeds may be null if
@@ -32,11 +32,18 @@ export type ItemRanked = {
 	modified_by_profile: { display_name: string } | null;
 };
 
+export type MemberVote = {
+	user_id: string;
+	display_name: string;
+	avatar_version: number;
+	value: number;
+};
+
 export type VoteRow = {
 	item_id: string;
 	user_id: string;
 	value: number;
-	profile: { display_name: string } | null;
+	profile: { display_name: string; avatar_version: number } | null;
 };
 
 export async function fetchItems(listId: string, uid: string): Promise<Item[]> {
@@ -48,7 +55,7 @@ export async function fetchItems(listId: string, uid: string): Promise<Item[]> {
 	const votes =
 		ids.length > 0
 			? await pgGet<VoteRow[]>(
-					`/votes?item_id=in.(${ids})&select=item_id,user_id,value,profile:profiles!user_id(display_name)`
+					`/votes?item_id=in.(${ids})&select=item_id,user_id,value,profile:profiles!user_id(display_name,avatar_version)`
 				)
 			: [];
 
@@ -82,6 +89,7 @@ export async function fetchItems(listId: string, uid: string): Promise<Item[]> {
 			member_votes: itemVotes.map((v) => ({
 				user_id: v.user_id,
 				display_name: v.profile?.display_name ?? 'Unknown',
+				avatar_version: v.profile?.avatar_version ?? 0,
 				value: v.value
 			}))
 		};

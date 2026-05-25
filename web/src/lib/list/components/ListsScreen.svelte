@@ -115,9 +115,14 @@
 						{#if item.list_members.length > 0}
 							<span class="dot">•</span>
 							<span class="avatars">
-								{#each item.list_members as m, i (m.profiles.display_name + i)}
+								{#each item.list_members as m, i (m.user_id + i)}
 									<span style="margin-left: {i === 0 ? 0 : -6}px">
-										<Avatar displayName={m.profiles.display_name} size={16} />
+										<Avatar
+											displayName={m.profiles.display_name}
+											size={16}
+											uid={m.user_id}
+											avatarVersion={m.profiles.avatar_version}
+										/>
 									</span>
 								{/each}
 							</span>

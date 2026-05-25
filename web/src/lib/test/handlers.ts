@@ -35,7 +35,7 @@ export const handlers: RequestHandler[] = [
 	// Path-only pattern — MSW v2 query-string wildcard behaviour is unreliable
 	http.get('*/api/profiles', () =>
 		HttpResponse.json(
-			{ display_name: 'Alice' },
+			{ display_name: 'Alice', avatar_version: 0 },
 			{ headers: { 'Content-Type': 'application/vnd.pgrst.object+json' } }
 		)
 	),
@@ -70,5 +70,9 @@ export const handlers: RequestHandler[] = [
 	),
 	http.patch('*/api/items', () => new HttpResponse(null, { status: 204 })),
 	http.post('*/api/votes', () => new HttpResponse(null, { status: 200 })),
-	http.delete('*/api/votes', () => new HttpResponse(null, { status: 204 }))
+	http.delete('*/api/votes', () => new HttpResponse(null, { status: 204 })),
+	http.post('*/api/rpc/set_display_name', () => new HttpResponse(null, { status: 204 })),
+	http.post('*/api/rpc/clear_avatar', () => new HttpResponse(null, { status: 204 })),
+	http.post('*/avatars', () => HttpResponse.json({ version: 1, url: '/avatars/test.webp?v=1' })),
+	http.delete('*/avatars/me', () => HttpResponse.json({ ok: true }))
 ];

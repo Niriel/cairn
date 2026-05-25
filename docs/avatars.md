@@ -31,7 +31,7 @@ The pattern is well-trodden: GitLab does this, Mastodon does this, every self-ho
 
 ## Schema delta
 
-A single column on `profiles`, baked into a new migration (e.g. `db/migrations/0005_avatars.sql`). The column lands *before* `created_at` per the schema-wide rule in `data-model.md` ("New payload columns are always inserted before `created_at`"):
+A single column on `profiles`, baked into a new migration (`db/migrations/0007_avatars.sql`). (`ALTER TABLE ADD COLUMN` appends after the last physical column; per the schema convention "payload before timestamps" governs `CREATE TABLE` statements and `\d` canonical form, not the physical order after `ALTER` — position is immaterial to correctness.)
 
 ```sql
 alter table public.profiles
@@ -81,11 +81,13 @@ grant  execute on function public.clear_avatar() to authenticated;
 
 No new RLS policy is needed: `profiles_update` already gates writes to the caller's own row, and both RPCs run as `security definer` with an explicit `where id = public.uid()` predicate. `bump_avatar_version` is a separate RPC (rather than letting the sidecar `PATCH /profiles?id=eq.<self>`) so the increment is server-side atomic — two parallel uploads cannot both write `version = 1`.
 
+The same migration adds a third RPC, `public.set_display_name(new_name text)`, for the Edit Profile screen (0503). It trims whitespace from the input, rejects empty or >100-character trimmed values with SQLSTATE `23514` (`check_violation`), and updates `display_name` using the same `SECURITY DEFINER` / `WHERE id = public.uid()` posture. The Edit Profile screen calls `/rpc/set_display_name` rather than a direct `PATCH /profiles` so trimming and length validation are enforced server-side. Direct `PATCH /profiles` remains possible via the existing `profiles_update` RLS policy but is unvalidated.
+
 The `tg_set_modified_at` trigger on `profiles` should have `avatar_version` added to its column list so a version bump also bumps `modified_at` — same shape as adding any new payload column.
 
 ## The sidecar
 
-A single-binary HTTP service (Go, Python, or Node — language is uninteresting; the existing stack is Docker-Compose anyway). It exposes exactly three routes, all gated by GoTrue bearer-token verification:
+A TypeScript/Node HTTP service (language chosen 2026-05 for stack consistency; see `plans/0500_avatars/PLAN.md`). It exposes exactly three routes — two gated by GoTrue bearer-token verification (`POST /avatars` and `DELETE /avatars/me`), plus one open endpoint for the Docker healthcheck:
 
 - `POST /avatars` — multipart upload. Enforces an **8 MB request-body cap**, validates content-type (`image/jpeg`, `image/png`, `image/webp`, `image/heic`), validates the magic bytes (don't trust the header), checks the **decoded bounds (max 4096×4096)**, resizes to 256×256 WebP quality 80, writes to `/srv/cairn/avatars/{uid}.webp` (atomic rename from a temp file), then calls `POST /rpc/bump_avatar_version` on PostgREST with the user's bearer token. Returns the new version number and the cache-busted URL. **The original bytes are discarded the moment the resize returns** — only the ~10 KB WebP file is kept; nothing else is logged or retained.
 - `DELETE /avatars/me` — unlinks `/srv/cairn/avatars/{uid}.webp` and is best-effort (file may not exist). Called by the web app *after* a successful `clear_avatar` RPC or `delete_account` RPC.
@@ -163,7 +165,7 @@ No other table changes. No other RLS policy changes. The trash views, the items_
 
 The smallest useful slice is "upload and replace, no remove yet":
 
-1. `0005_avatars.sql` migration: the column + the two RPCs + pgTAP coverage on the column default, the `bump_avatar_version` increment, and the `clear_avatar` reset.
+1. `0007_avatars.sql` migration: the column + three RPCs (`bump_avatar_version`, `clear_avatar`, `set_display_name`) + pgTAP coverage on the column default, the increment, the reset, display-name validation, and cross-user isolation.
 2. The sidecar: `POST /avatars` only, with magic-byte validation and the resize. Docker-Composed in alongside Caddy.
 3. Caddy: the `handle_path /avatars/*` block, read-only mount.
 4. The web app: extend the `<Avatar>` component to render `?v=` when `avatar_version > 0`, render the existing initials disc otherwise. The Edit Profile / source sheet / crop / upload-state screens from the design canvas.
@@ -180,3 +182,4 @@ Then the rest:
 - **Multiple sizes.** v1 ships one size (256²). A retina-conscious 512² variant at `/avatars/{uid}@2x.webp` is straightforward to add later — the sidecar writes both files, the version column covers both, and the URL pattern extends to `?v=N` on each. Not worth doing pre-v1.
 - **AVIF.** Smaller than WebP at the same quality, but the encoder is slow and the libheif/libavif surface area is bigger. Re-evaluate post-v1 if avatar disk usage ever matters.
 - **Animated avatars.** Explicitly not supported. The sidecar strips animation on resize. If a user uploads a 60-frame GIF, they get the first frame. The product doesn't need animated avatars and the bandwidth implications are awful.
+- **Sidecar implementation language.** TypeScript/Node — chosen 2026-05 for stack consistency; see `plans/0500_avatars/PLAN.md`. (Settled.)
