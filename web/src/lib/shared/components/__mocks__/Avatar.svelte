@@ -2,6 +2,8 @@
 	type Props = {
 		displayName: string;
 		size?: number;
+		uid?: string;
+		avatarVersion?: number;
 		'data-test'?: string;
 	};
 

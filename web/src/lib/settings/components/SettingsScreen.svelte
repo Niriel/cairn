@@ -39,7 +39,13 @@
 					<div class="skeleton-name"></div>
 				</div>
 			{:else}
-				<Avatar displayName={profile.displayName} size={44} data-test="profile-avatar" />
+				<Avatar
+					displayName={profile.displayName}
+					size={44}
+					uid={profile.uid ?? ''}
+					avatarVersion={profile.avatarVersion}
+					data-test="profile-avatar"
+				/>
 				<span class="display-name">{profile.displayName}</span>
 			{/if}
 		</section>

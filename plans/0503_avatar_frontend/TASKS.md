@@ -70,10 +70,10 @@ unknown route IDs at type-check time.
 
 ## Phase 1 — Avatar component
 
-### [ ] 1.1 `<Avatar>` photo branch + all callers
+### [x] 1.1 `<Avatar>` photo branch + all callers
 
 **Created:** 2026-05-25T00:00:00Z
-**Completed:**
+**Completed:** 2026-05-25T07:40:29Z
 
 **Why:** The photo branch must be live before the Edit Profile screen can display
 an actual avatar photo. All three existing callers (SettingsScreen, ListsScreen,
@@ -148,6 +148,8 @@ optional props. The data model types for list members and vote rows gain
 8. **GREEN** — Run `pnpm test`; all Avatar tests must pass including (g) and (h).
 
 **Verify:** `pnpm lint && pnpm check && pnpm test`
+
+**Notes:** Extracted the inline `member_votes` object shape on `Item` into a named `MemberVote` type (exported from `item.ts`) to make the type easier to follow. No behaviour change.
 
 ---
 

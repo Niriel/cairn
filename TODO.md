@@ -12,7 +12,13 @@
    enforce (e.g. `PATCH /profiles?id=eq.<my-uid>` is fine — PostgREST needs
    the PK to address the right row, not as a security gate).
 
-2. [ ] **Font size setting must scale the whole app, not just the container
+2. [ ] **Audit inline object types in model files** — scan `src/lib/*/model/*.ts`
+   for anonymous inline shapes on exported types (e.g. `{ user_id: string; display_name: string; value: number }[]`)
+   and consider extracting them as named exported types. Named types are easier
+   to follow at call sites and can be imported by tests and components without
+   repeating the shape. Do on a quiet branch; no behaviour change needed.
+
+3. [ ] **Font size setting must scale the whole app, not just the container
    width** — the Settings font-size preference (XS/S/M/L/XL, stored in
    `localStorage`) currently only affects `--app-max-w`. All pixel values in
    the design JSX are specified at Medium; the full app — type sizes, padding,
