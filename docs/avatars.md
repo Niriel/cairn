@@ -87,7 +87,7 @@ The `tg_set_modified_at` trigger on `profiles` should have `avatar_version` adde
 
 ## The sidecar
 
-A single-binary HTTP service (Go, Python, or Node — language is uninteresting; the existing stack is Docker-Compose anyway). It exposes exactly three routes — two gated by GoTrue bearer-token verification (`POST /avatars` and `DELETE /avatars/me`), plus one open endpoint for the Docker healthcheck:
+A TypeScript/Node HTTP service (language chosen 2026-05 for stack consistency; see `plans/0500_avatars/PLAN.md`). It exposes exactly three routes — two gated by GoTrue bearer-token verification (`POST /avatars` and `DELETE /avatars/me`), plus one open endpoint for the Docker healthcheck:
 
 - `POST /avatars` — multipart upload. Enforces an **8 MB request-body cap**, validates content-type (`image/jpeg`, `image/png`, `image/webp`, `image/heic`), validates the magic bytes (don't trust the header), checks the **decoded bounds (max 4096×4096)**, resizes to 256×256 WebP quality 80, writes to `/srv/cairn/avatars/{uid}.webp` (atomic rename from a temp file), then calls `POST /rpc/bump_avatar_version` on PostgREST with the user's bearer token. Returns the new version number and the cache-busted URL. **The original bytes are discarded the moment the resize returns** — only the ~10 KB WebP file is kept; nothing else is logged or retained.
 - `DELETE /avatars/me` — unlinks `/srv/cairn/avatars/{uid}.webp` and is best-effort (file may not exist). Called by the web app *after* a successful `clear_avatar` RPC or `delete_account` RPC.
@@ -182,3 +182,4 @@ Then the rest:
 - **Multiple sizes.** v1 ships one size (256²). A retina-conscious 512² variant at `/avatars/{uid}@2x.webp` is straightforward to add later — the sidecar writes both files, the version column covers both, and the URL pattern extends to `?v=N` on each. Not worth doing pre-v1.
 - **AVIF.** Smaller than WebP at the same quality, but the encoder is slow and the libheif/libavif surface area is bigger. Re-evaluate post-v1 if avatar disk usage ever matters.
 - **Animated avatars.** Explicitly not supported. The sidecar strips animation on resize. If a user uploads a 60-frame GIF, they get the first frame. The product doesn't need animated avatars and the bandwidth implications are awful.
+- **Sidecar implementation language.** TypeScript/Node — chosen 2026-05 for stack consistency; see `plans/0500_avatars/PLAN.md`. (Settled.)

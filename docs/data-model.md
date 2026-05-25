@@ -661,7 +661,7 @@ To translate the schema into the API the web app actually consumes, here are the
 - `DELETE /votes?item_id=eq.<uuid>` — retract a vote. The `votes_delete` RLS policy (`using (user_id = public.uid())`) scopes the delete to the caller's own vote; omit `user_id` from the query — RLS is the enforcement, not the application filter.
 - `GET /profiles?id=eq.<uuid>` — fetch a profile (world-readable to authenticated callers; only `id`, `display_name`, `avatar_version`, `created_at`)
 - `PATCH /profiles?id=eq.<my-uid>` — update your own profile (direct write; prefer `/rpc/set_display_name` which trims and validates)
-- `/rpc/set_display_name` — update your own `display_name`; trims whitespace, rejects empty or >100-character values (SQLSTATE `23514`)
+- `POST /rpc/set_display_name` — update your own `display_name`. Body: `{new_name}`. Trims whitespace, rejects empty or >100-character values (SQLSTATE `23514`)
 - `GET /user_settings?id=eq.<my-uid>` — fetch your own settings (RLS rejects any other id; the only row a caller ever sees is their own)
 - `PATCH /user_settings?id=eq.<my-uid>` — update your settings (`invite_policy`)
 - `GET /lists_deleted` — the per-user list trash (lists you were a member of that have been soft-deleted)

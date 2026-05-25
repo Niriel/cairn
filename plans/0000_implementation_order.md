@@ -149,11 +149,11 @@ in-flight branch for no gain.
    initials-disc fallback only — `profiles.avatar_version` doesn't
    exist yet; step 5 adds the photo branch.
 
-5. [ ] **Avatars (profile pictures).** `0005_avatars.sql` migration:
+5. [x] **Avatars (profile pictures).** `0007_avatars.sql` migration:
    `profiles.avatar_version` column + `bump_avatar_version` and
    `clear_avatar` security-definer RPCs (see `docs/avatars.md` →
-   "Schema delta"). A small upload sidecar container (Go / Python /
-   Node — see `docs/open-questions.md`) that validates magic bytes,
+   "Schema delta"). A small upload sidecar container (TypeScript/Node —
+   decided 2026-05; see `plans/0500_avatars/PLAN.md`) that validates magic bytes,
    resizes to 256×256 WebP, writes
    `/srv/cairn/avatars/{uid}.webp`, and calls
    `bump_avatar_version` on PostgREST. Caddy `handle_path /avatars/*`

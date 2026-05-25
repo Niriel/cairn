@@ -180,10 +180,10 @@ Upload, replace, and remove flows work in the browser against the dev stack.
 
 ## Phase 4 — Wrap up
 
-### [ ] 4.1 Final verification and merge to main
+### [x] 4.1 Final verification and merge to main
 
 **Created:** 2026-05-24T00:00:00Z
-**Completed:**
+**Completed:** 2026-05-25T18:09:05Z
 
 **Why:** Confirms the full step-5 feature works end-to-end on the integration
 branch before it lands on `main`.
