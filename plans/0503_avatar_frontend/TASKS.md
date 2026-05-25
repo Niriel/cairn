@@ -561,10 +561,10 @@ PostgREST `bump_avatar_version` call fails, the file is orphaned but invisible
 
 ## Phase 6 — End-to-end tests
 
-### [ ] 6.1 Playwright e2e for avatar flows (R7–R10)
+### [x] 6.1 Playwright e2e for avatar flows (R7–R10)
 
 **Created:** 2026-05-25T00:00:00Z
-**Completed:**
+**Completed:** 2026-05-25T17:09:19Z
 
 **Why:** Confirms the upload, replace, and remove flows work end-to-end against
 the real backend (GoTrue + PostgREST + sidecar + Caddy). Playwright exercises
