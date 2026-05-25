@@ -35,4 +35,13 @@ describe('profile store', () => {
 		await tick();
 		expect(profileMod.profile.displayName).toBeNull();
 	});
+
+	test('(c) signed-in → uid equals session uid and avatarVersion equals 0', async () => {
+		sessionMod.setSignedIn({ id: TEST_UID, email: 'dev@example.test' });
+		await tick();
+		await vi.waitFor(() => {
+			expect(profileMod.profile.uid).toBe(TEST_UID);
+			expect(profileMod.profile.avatarVersion).toBe(0);
+		});
+	});
 });

@@ -35,7 +35,7 @@ export const handlers: RequestHandler[] = [
 	// Path-only pattern — MSW v2 query-string wildcard behaviour is unreliable
 	http.get('*/api/profiles', () =>
 		HttpResponse.json(
-			{ display_name: 'Alice' },
+			{ display_name: 'Alice', avatar_version: 0 },
 			{ headers: { 'Content-Type': 'application/vnd.pgrst.object+json' } }
 		)
 	),

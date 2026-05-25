@@ -13,10 +13,10 @@
 
 ## Phase 0 — Foundation
 
-### [ ] 0.1 Profile store update + `/profile` route stub
+### [x] 0.1 Profile store update + `/profile` route stub
 
 **Created:** 2026-05-25T00:00:00Z
-**Completed:**
+**Completed:** 2026-05-25T07:25:26Z
 
 **Why:** Two things must land before any other task can proceed. First, the profile
 store must fetch and expose `avatar_version` and `uid` — downstream tasks read
