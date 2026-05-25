@@ -516,10 +516,10 @@ AvatarCropScreen mocks already exist for the route test.
 
 ## Phase 5 — Orphan sweeper
 
-### [ ] 5.1 Orphan sweeper + `crontab.example`
+### [x] 5.1 Orphan sweeper + `crontab.example`
 
 **Created:** 2026-05-25T00:00:00Z
-**Completed:**
+**Completed:** 2026-05-25T16:36:47Z
 
 **Why:** Closes the file-lifecycle loop: if the sidecar writes a file but the
 PostgREST `bump_avatar_version` call fails, the file is orphaned but invisible

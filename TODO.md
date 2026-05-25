@@ -26,7 +26,20 @@
    If a double-cast is genuinely the only option, it needs a comment explaining
    why — and a reviewer should push back.
 
-4. [ ] **Font size setting must scale the whole app, not just the container
+4. [ ] **Cron script to hard-delete dormant unverified users** — bots and drive-by
+   visitors may submit an e-mail address but never click the magic link. These
+   accounts accumulate in GoTrue's `auth.users` table and in `public.profiles`,
+   holding an e-mail address we have no reason to keep. A nightly script should
+   hard-delete users who: (a) never confirmed their e-mail (`email_confirmed_at IS
+   NULL`), or (b) confirmed but never created a list or item and last signed in
+   more than N days ago (exact threshold TBD — 30 days is a reasonable starting
+   point). Deletion must be a hard-delete (`DELETE`, not soft-delete) to purge the
+   e-mail address from the database entirely. Cascade rules must cover
+   `public.profiles` and any other tables that reference `auth.users.id`. Model
+   after `scripts/sweep-avatars.sh`: pure shell + psql, `DATABASE_URL` env var,
+   ShellCheck + shfmt clean, with a matching entry in `crontab.example`.
+
+5. [ ] **Font size setting must scale the whole app, not just the container
    width** — the Settings font-size preference (XS/S/M/L/XL, stored in
    `localStorage`) currently only affects `--app-max-w`. All pixel values in
    the design JSX are specified at Medium; the full app — type sizes, padding,
