@@ -8,6 +8,8 @@
 	import { preferences } from '$lib/shared/state/preferences.svelte';
 	import type { FontSize, Theme } from '$lib/shared/state/preferences.svelte';
 	import { signOut } from '$lib/shared/state/session.svelte';
+	import { goto } from '$app/navigation';
+	import { resolve } from '$app/paths';
 
 	const themes: { value: Theme; label: string; icon: IconName }[] = [
 		{ value: 'light', label: 'Light', icon: 'sun' },
@@ -32,21 +34,28 @@
 	<TopBar>Settings</TopBar>
 
 	<div class="content">
-		<section class="profile-chip">
+		<section class="profile-chip-section">
 			{#if profile.displayName === null}
 				<div data-test="profile-chip-skeleton" class="skeleton">
 					<div class="skeleton-avatar"></div>
 					<div class="skeleton-name"></div>
 				</div>
 			{:else}
-				<Avatar
-					displayName={profile.displayName}
-					size={44}
-					uid={profile.uid ?? ''}
-					avatarVersion={profile.avatarVersion}
-					data-test="profile-avatar"
-				/>
-				<span class="display-name">{profile.displayName}</span>
+				<button
+					class="profile-chip"
+					data-test="profile-chip"
+					onclick={() => goto(resolve('/profile'))}
+				>
+					<Avatar
+						displayName={profile.displayName}
+						size={44}
+						uid={profile.uid ?? ''}
+						avatarVersion={profile.avatarVersion}
+						data-test="profile-avatar"
+					/>
+					<span class="display-name">{profile.displayName}</span>
+					<Icon name="chevron-right" size={18} />
+				</button>
 			{/if}
 		</section>
 
@@ -113,14 +122,25 @@
 		flex-direction: column;
 	}
 
+	.profile-chip-section {
+		border-bottom: 1px solid var(--rule);
+	}
+
 	.profile-chip {
 		display: flex;
 		align-items: center;
 		gap: 12px;
 		padding: 16px 18px;
+		width: 100%;
+		background: transparent;
+		border: none;
+		cursor: pointer;
+		color: var(--ink);
 	}
 
 	.display-name {
+		flex: 1;
+		text-align: left;
 		font-size: 15px;
 		font-weight: 600;
 		color: var(--ink);
@@ -130,6 +150,7 @@
 		display: flex;
 		align-items: center;
 		gap: 12px;
+		padding: 16px 18px;
 	}
 
 	.skeleton-avatar {

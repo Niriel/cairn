@@ -155,10 +155,10 @@ optional props. The data model types for list members and vote rows gain
 
 ## Phase 2 — Settings navigation
 
-### [ ] 2.1 Settings profile chip navigation
+### [x] 2.1 Settings profile chip navigation
 
 **Created:** 2026-05-25T00:00:00Z
-**Completed:**
+**Completed:** 2026-05-25T07:56:46Z
 
 **Why:** The chip must navigate to `/profile` before the Edit Profile screen is
 useful. Wiring navigation here (after the route stub exists from task 0.1)
@@ -193,6 +193,8 @@ keeps the change small and independently testable.
 3. **GREEN** — Run `pnpm test`; all SettingsScreen tests must pass.
 
 **Verify:** `pnpm lint && pnpm check && pnpm test`
+
+**Notes:** Two visual fixes beyond the task spec: (1) the skeleton div was missing its `16px 18px` padding after the section class was renamed from `profile-chip` to `profile-chip-section`; (2) added `border-bottom: 1px solid var(--rule)` to the section to visually separate the chip from the preference groups below.
 
 ---
 
