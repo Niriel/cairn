@@ -27,7 +27,7 @@ const STUB_VOTE: VoteRow = {
 	item_id: ITEM_ID,
 	user_id: TEST_UID,
 	value: 1,
-	profile: { display_name: 'Alice' }
+	profile: { display_name: 'Alice', avatar_version: 0 }
 };
 
 describe('fetchItems', () => {

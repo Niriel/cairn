@@ -1,0 +1,10 @@
+# Cairn orphan avatar sweeper — runs nightly at 03:00 server time.
+#
+# DATABASE_URL  — PostgreSQL connection string for the cairn database.
+#                 Example: postgres://cairn:password@localhost:5432/cairn
+# AVATARS_DIR   — Absolute path to the directory where avatar WebP files are stored.
+#                 Defaults to /srv/cairn/avatars if not set.
+#
+# Add to the cairn user's crontab with: crontab -e
+
+0 3 * * * DATABASE_URL=postgres://cairn:password@localhost:5432/cairn AVATARS_DIR=/srv/cairn/avatars /home/cairn/scripts/sweep-avatars.sh >> /var/log/cairn-sweep.log 2>&1

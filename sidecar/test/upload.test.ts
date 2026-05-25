@@ -37,7 +37,7 @@ describe('POST /avatars', () => {
   describe('success path', () => {
     it('returns 200 with version and url', async () => {
       vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
-        Response.json([{ avatar_version: 1 }], { status: 200 }),
+        Response.json(1, { status: 200 }),
       );
       const token = await validToken();
       const res = await request(app)

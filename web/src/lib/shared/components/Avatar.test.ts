@@ -41,4 +41,17 @@ describe('Avatar', () => {
 		expect(el.style.width).toBe('3.75rem');
 		expect(el.style.height).toBe('3.75rem');
 	});
+
+	test('(g) avatarVersion > 0 with uid renders img with correct src', () => {
+		const { container } = render(Avatar, { displayName: 'Alice', uid: 'abc', avatarVersion: 3 });
+		const img = container.querySelector('img');
+		expect(img).not.toBeNull();
+		expect(img?.getAttribute('src')).toBe('/avatars/abc.webp?v=3');
+	});
+
+	test('(h) avatarVersion 0 renders initials (no img)', () => {
+		const { container } = render(Avatar, { displayName: 'Alice', uid: 'abc', avatarVersion: 0 });
+		expect(container.querySelector('img')).toBeNull();
+		expect(container.textContent?.trim()).toBe('A');
+	});
 });

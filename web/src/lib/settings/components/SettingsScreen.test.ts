@@ -14,6 +14,8 @@ vi.mock('$lib/shared/state/profile.svelte');
 vi.mock('$lib/shared/state/preferences.svelte');
 vi.mock('$lib/shared/state/session.svelte');
 vi.mock('$lib/basic/components/Button.svelte');
+vi.mock('$app/navigation');
+vi.mock('$app/paths');
 
 afterEach(() => {
 	vi.clearAllMocks();
@@ -74,5 +76,15 @@ describe('SettingsScreen', () => {
 		const { queryByDataTest } = render(SettingsScreen);
 		expect(queryByDataTest('profile-chip-skeleton')).not.toBeNull();
 		expect(queryByDataTest('profile-avatar')).toBeNull();
+	});
+
+	test('(i) clicking profile chip navigates to /profile', async () => {
+		const { goto } = await import('$app/navigation');
+		const { resolve } = await import('$app/paths');
+		profile.displayName = 'Alice';
+		const { getByDataTest } = render(SettingsScreen);
+		await fireEvent.click(getByDataTest('profile-chip'));
+		expect(vi.mocked(goto)).toHaveBeenCalledOnce();
+		expect(vi.mocked(goto)).toHaveBeenCalledWith(vi.mocked(resolve)('/profile'));
 	});
 });

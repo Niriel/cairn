@@ -2,10 +2,12 @@
 	type Props = {
 		displayName: string;
 		size?: number;
+		uid?: string;
+		avatarVersion?: number;
 		'data-test'?: string;
 	};
 
-	let { displayName, size = 40, ...rest }: Props = $props();
+	let { displayName, size = 40, uid = '', avatarVersion = 0, ...rest }: Props = $props();
 
 	function initials(name: string): string {
 		const trimmed = name.trim();
@@ -24,23 +26,37 @@
 
 	const text = $derived(initials(displayName));
 	const bg = $derived(`oklch(70% 0.10 ${hue(displayName)}deg)`);
-</script>
-
-<span
-	data-test={rest['data-test']}
-	data-hue={hue(displayName)}
-	style="
+	const showPhoto = $derived(avatarVersion > 0 && uid.length > 0);
+	const sharedStyle = $derived(`
 		display: inline-flex;
 		align-items: center;
 		justify-content: center;
 		border-radius: 50%;
-		width: {size / 16}rem;
-		height: {size / 16}rem;
-		font-size: {(size * 0.46) / 16}rem;
-		font-weight: 600;
-		line-height: 1;
-		color: #fff;
-		background: {bg};
-		user-select: none;
-	">{text}</span
->
+		width: ${size / 16}rem;
+		height: ${size / 16}rem;
+	`);
+</script>
+
+{#if showPhoto}
+	<img
+		data-test={rest['data-test']}
+		src="/avatars/{uid}.webp?v={avatarVersion}"
+		alt=""
+		loading="lazy"
+		style="{sharedStyle} object-fit: cover;"
+	/>
+{:else}
+	<span
+		data-test={rest['data-test']}
+		data-hue={hue(displayName)}
+		style="
+			{sharedStyle}
+			font-size: {(size * 0.46) / 16}rem;
+			font-weight: 600;
+			line-height: 1;
+			color: #fff;
+			background: {bg};
+			user-select: none;
+		">{text}</span
+	>
+{/if}

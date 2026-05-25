@@ -135,9 +135,11 @@ and an action button:
   online.", action "Try again". The cropped image is preserved so the user
   does not have to re-pick.
 
-For error and success states, the TopBar back arrow navigates normally (same
-as the action button — back to Edit Profile for success; back to the file
-picker for error states).
+For success and error states, the TopBar back arrow returns to the edit view
+(`viewState = 'edit'`). The action button on error states ("Choose another")
+additionally reopens the source sheet; the back arrow does not — the source
+sheet's history guard was already consumed when it closed, so re-opening it
+requires an explicit state change, which only the action button makes.
 
 Visual spec: `design/cairn-avatar-screens.jsx` → `AvatarSourceSheet`,
 `AvatarCropScreen`, `UploadingState`.
