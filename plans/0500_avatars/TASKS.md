@@ -107,10 +107,10 @@ is reachable at `GET /healthz` in the running dev stack.
 
 ## Phase 3 — 0503: Avatar frontend
 
-### [ ] 3.1 Plan and implement sub-step 0503 (Avatar component + Edit Profile screens)
+### [x] 3.1 Plan and implement sub-step 0503 (Avatar component + Edit Profile screens)
 
 **Created:** 2026-05-24T00:00:00Z
-**Completed:**
+**Completed:** 2026-05-25T17:53:12Z
 
 **Why:** The frontend is the heaviest sub-step — it spans the Avatar photo
 branch, the Edit Profile screen, source sheet, crop step, five upload states,
