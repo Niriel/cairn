@@ -51,10 +51,10 @@ sheet. Downstream sub-plans reference the doc; the edit must land first.
 
 ---
 
-### [ ] 0.2 Fix stale "long-press" reference in `docs/ui.md` Settings section
+### [x] 0.2 Fix stale "long-press" reference in `docs/ui.md` Settings section
 
 **Created:** 2026-05-26T00:00:00Z
-**Completed:**
+**Completed:** 2026-05-26T18:20:53Z
 
 **Why:** Task 0.1 updated the Trash & undo and Not-decided sections, but missed a
 parenthetical in the Settings section (line 159) that still says "that's still the

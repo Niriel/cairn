@@ -156,7 +156,7 @@ Playwright should exercise this. Each user-journey spec (`testing.md`) should in
 
 ## Settings
 
-A Settings screen, reachable from the **gear icon** in the top-right of the Lists screen. (The kebab on individual list rows is unchanged — that's still the per-list long-press menu.) The screen is the canonical hub: every other Settings-shaped surface ladders back to it.
+A Settings screen, reachable from the **gear icon** in the top-right of the Lists screen. Each list row also has a ⋮ button that opens a per-list overflow sheet (see "Trash & undo" below). The screen is the canonical hub: every other Settings-shaped surface ladders back to it.
 
 A profile chip sits at the top: current avatar (initials disc or photo), display name, chevron. Tapping it opens **Edit profile** — see "Avatars" below. Below the chip, the screen is grouped into named sections.
 
