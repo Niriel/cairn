@@ -123,10 +123,10 @@ stub shape.
 
 **Verify:** `cd web && pnpm lint && pnpm check`
 
-### [ ] 1.2 Create `UndoSnackbar.svelte` and replace inline snackbar in `ItemsScreen`
+### [x] 1.2 Create `UndoSnackbar.svelte` and replace inline snackbar in `ItemsScreen`
 
 **Created:** 2026-05-26T18:28:54Z
-**Completed:**
+**Completed:** 2026-05-26T20:55:32Z
 
 **Why:** The inline `.undo-snackbar` block in `ItemsScreen.svelte` has several
 deviations from the R4/R5 spec (wrong padding, font-weight, UNDO sizing).

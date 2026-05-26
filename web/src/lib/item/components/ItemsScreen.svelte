@@ -12,6 +12,7 @@
 	import { timeAgo } from '$lib/shared/model/time-ago';
 
 	import TopBar from '$lib/shared/components/TopBar.svelte';
+	import UndoSnackbar from '$lib/shared/components/UndoSnackbar.svelte';
 	import Avatar from '$lib/shared/components/Avatar.svelte';
 	import Fab from '$lib/basic/components/Fab.svelte';
 	import Icon from '$lib/basic/components/Icon.svelte';
@@ -179,19 +180,21 @@
 	{/if}
 
 	{#if items.pendingDelete}
-		<div class="undo-snackbar" data-test="undo-snackbar">
-			<Icon name="trash-2" size={16} />
-			{#if items.error}
+		{#if items.error}
+			<div class="undo-snackbar" data-test="undo-snackbar">
+				<Icon name="trash-2" size={16} />
 				<span class="snackbar-text">Couldn't restore — item is in trash.</span>
-			{:else}
-				<span class="snackbar-text">
-					Deleted '<span class="snackbar-item-name">{items.pendingDelete.item.name}</span>'
-				</span>
-				<button class="undo-btn" data-test="undo-btn" onclick={() => void undoDelete()}>
-					UNDO
-				</button>
-			{/if}
-		</div>
+			</div>
+		{:else}
+			<UndoSnackbar
+				deletedName={items.pendingDelete.item.name}
+				onUndo={() => void undoDelete()}
+				ondismiss={() => {
+					items.pendingDelete = null;
+				}}
+				data-test="undo-snackbar"
+			/>
+		{/if}
 	{/if}
 
 	{#if addSheetOpen}
@@ -487,22 +490,5 @@
 		overflow: hidden;
 		white-space: nowrap;
 		text-overflow: ellipsis;
-	}
-
-	.snackbar-item-name {
-		font-weight: 500;
-	}
-
-	.undo-btn {
-		background: none;
-		border: none;
-		padding: 0 4px;
-		color: var(--sage);
-		font: inherit;
-		font-size: 13px;
-		font-weight: 700;
-		cursor: pointer;
-		letter-spacing: 0.04em;
-		flex-shrink: 0;
 	}
 </style>

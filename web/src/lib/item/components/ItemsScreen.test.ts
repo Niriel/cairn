@@ -14,6 +14,7 @@ import ItemsScreen from './ItemsScreen.svelte';
 vi.mock('$lib/item/state/items.svelte');
 vi.mock('$lib/basic/components/Fab.svelte');
 vi.mock('$lib/shared/components/Avatar.svelte');
+vi.mock('$lib/shared/components/UndoSnackbar.svelte');
 vi.mock('$lib/item/components/VoteControl.svelte');
 vi.mock('$lib/item/components/AddEditItemSheet.svelte');
 vi.mock('$lib/item/components/DeleteItemSheet.svelte');
@@ -148,11 +149,11 @@ describe('ItemsScreen', () => {
 		expect(queryByDataTest('items-fab')).toBeNull();
 	});
 
-	test('(i-c) tapping UNDO calls undoDelete', async () => {
+	test('(i-c) tapping UNDO in snackbar calls undoDelete', async () => {
 		items.pendingDelete = { item: ITEM_1, timerId: 0 as unknown as ReturnType<typeof setTimeout> };
 		const { getByDataTest } = render(ItemsScreen, { listId: 'test-list-id' });
 		await tick();
-		await fireEvent.click(getByDataTest('undo-btn'));
+		await fireEvent.click(getByDataTest('undo-snackbar-undo'));
 		expect(vi.mocked(undoDelete)).toHaveBeenCalledTimes(1);
 	});
 
