@@ -1,20 +1,27 @@
 <script lang="ts">
 	import { SvelteSet } from 'svelte/reactivity';
+	import { tick } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 
 	import CairnGlyph from '$lib/shared/components/CairnGlyph.svelte';
 	import Avatar from '$lib/shared/components/Avatar.svelte';
 	import Icon from '$lib/basic/components/Icon.svelte';
+	import IconButton from '$lib/basic/components/IconButton.svelte';
 	import Fab from '$lib/basic/components/Fab.svelte';
 	import TopBar from '$lib/shared/components/TopBar.svelte';
+	import MoreButton from '$lib/shared/components/MoreButton.svelte';
+	import UndoSnackbar from '$lib/shared/components/UndoSnackbar.svelte';
 	import { profile } from '$lib/shared/state/profile.svelte';
-	import { lists, refreshLists } from '$lib/list/state/lists.svelte';
+	import { lists, refreshLists, undoDeleteList } from '$lib/list/state/lists.svelte';
 	import { timeAgo } from '$lib/shared/model/time-ago';
+	import type { List } from '$lib/list/model/list';
 
 	import CreateListSheet from './CreateListSheet.svelte';
+	import ListOverflowSheet from './ListOverflowSheet.svelte';
 
 	let createSheetOpen = $state(false);
+	let overflowList = $state<List | null>(null);
 	const expandedIds = new SvelteSet<string>();
 	let descTextEls: Record<string, HTMLElement> = {};
 	const truncatedIds = new SvelteSet<string>();
@@ -43,14 +50,13 @@
 		{/snippet}
 		Cairn
 		{#snippet right()}
-			<button
-				class="icon-btn"
+			<IconButton
 				aria-label="Settings"
 				data-test="lists-settings"
 				onclick={() => goto(resolve('/settings'))}
 			>
 				<Icon name="settings" size={22} />
-			</button>
+			</IconButton>
 		{/snippet}
 	</TopBar>
 
@@ -81,16 +87,24 @@
 		<div class="list">
 			{#each lists.items as item, i (item.id)}
 				<div class="row" class:last={i === lists.items.length - 1} data-test="list-row-{item.id}">
-					<button
-						class="row-nav"
-						data-test="list-nav-{item.id}"
-						onclick={() => {
-							void goto(resolve(`/lists/${item.id}`));
-						}}
-					>
-						<span class="name">{item.name}</span>
-						<span class="chevron"><Icon name="chevron-right" size={18} /></span>
-					</button>
+					<div class="row-top">
+						<button
+							class="row-nav"
+							data-test="list-nav-{item.id}"
+							onclick={() => {
+								void goto(resolve(`/lists/${item.id}`));
+							}}
+						>
+							<span class="name">{item.name}</span>
+						</button>
+						<MoreButton
+							size={18}
+							aria-label="List options"
+							data-test="list-overflow-{item.id}"
+							onclick={() => (overflowList = item)}
+							style="color: var(--stone)"
+						/>
+					</div>
 					{#if item.description !== null}
 						<button
 							class="desc"
@@ -134,12 +148,14 @@
 	{/if}
 </div>
 
-<Fab
-	data-test="lists-fab"
-	onclick={() => {
-		createSheetOpen = true;
-	}}><Icon name="plus" size={24} /></Fab
->
+{#if !lists.pendingDelete}
+	<Fab
+		data-test="lists-fab"
+		onclick={() => {
+			createSheetOpen = true;
+		}}><Icon name="plus" size={24} /></Fab
+	>
+{/if}
 
 {#if createSheetOpen}
 	<CreateListSheet
@@ -150,6 +166,41 @@
 		oncreated={() => {
 			refreshLists();
 		}}
+	/>
+{/if}
+
+{#if overflowList}
+	<ListOverflowSheet
+		listId={overflowList.id}
+		listName={overflowList.name}
+		description={overflowList.description}
+		itemCount={overflowList.item_count}
+		memberCount={overflowList.list_members.length}
+		onDelete={() => {}}
+		onclose={() => (overflowList = null)}
+		onviewtrash={async () => {
+			const trashListId = overflowList!.id;
+			overflowList = null; // unmounts sheet → Sheet.$effect cleanup → history.back()
+			await tick();
+			// Sheet always calls pushHistoryGuard on mount, so unmounting it always
+			// fires popstate. Wait for it before navigating forward, otherwise
+			// SvelteKit sees the backward pop after the forward push and undoes the navigation.
+			await new Promise<void>((r) =>
+				window.addEventListener('popstate', () => r(), { once: true })
+			);
+			await goto(resolve(`/lists/${trashListId}/trash`));
+		}}
+	/>
+{/if}
+
+{#if lists.pendingDelete}
+	<UndoSnackbar
+		deletedName={lists.pendingDelete.list.name}
+		onUndo={() => void undoDeleteList()}
+		ondismiss={() => {
+			lists.pendingDelete = null;
+		}}
+		data-test="list-undo-snackbar"
 	/>
 {/if}
 
@@ -179,11 +230,17 @@
 		border-bottom: none;
 	}
 
+	.row-top {
+		display: flex;
+		align-items: center;
+	}
+
 	.row-nav {
 		display: flex;
 		align-items: flex-start;
 		gap: 12px;
-		width: 100%;
+		flex: 1;
+		min-width: 0;
 		background: none;
 		border: none;
 		padding: 0;
@@ -263,13 +320,6 @@
 		align-items: center;
 	}
 
-	.chevron {
-		flex-shrink: 0;
-		color: var(--stone-lt);
-		display: flex;
-		align-items: center;
-	}
-
 	/* ── Empty state ── */
 
 	.empty {
@@ -323,18 +373,5 @@
 		font-weight: 600;
 		font-family: inherit;
 		cursor: pointer;
-	}
-
-	/* ── Settings button ── */
-
-	.icon-btn {
-		background: none;
-		border: none;
-		padding: 4px;
-		color: var(--ink);
-		cursor: pointer;
-		display: flex;
-		align-items: center;
-		justify-content: center;
 	}
 </style>

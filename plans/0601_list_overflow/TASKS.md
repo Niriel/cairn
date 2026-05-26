@@ -484,10 +484,10 @@ existing list sheet for style reference.
 
 ## Phase 4 — Wiring
 
-### [ ] 4.1 Wire `ListsScreen`: ⋮ button, overflow sheet, and undo snackbar
+### [x] 4.1 Wire `ListsScreen`: ⋮ button, overflow sheet, and undo snackbar
 
 **Created:** 2026-05-26T18:28:54Z
-**Completed:**
+**Completed:** 2026-05-26T21:45:42Z
 
 **Why:** Connects `ListOverflowSheet`, `UndoSnackbar`, and the `pendingDelete`
 state to the Lists screen — the primary surface for list management.
@@ -572,6 +572,8 @@ state to the Lists screen — the primary surface for list management.
 3. Run `cd web && pnpm lint && pnpm check && pnpm test` — must be green.
 
 **Verify:** `cd web && pnpm lint && pnpm check && pnpm test`
+
+**Notes:** MoreButton mock didn't forward `onclick` — updated `__mocks__/MoreButton.svelte` to destructure and forward it so test (new-b) works. The `goto(resolve(...))` call for the trash route needed a template literal rather than string concatenation to satisfy SvelteKit's typed-route overloads. Two side fixes landed alongside this task: (1) `Sheet.svelte` gained an invisible backdrop div (same `left`/`right` formula as the sheet) that calls `onclose` on click, giving all sheets tap-outside-to-dismiss behaviour; (2) `Sheet.svelte` CSS was updated with a proper upward shadow (`0 -8px 30px rgba(0,0,0,0.15)`) and `border-radius: 24px 24px 0 0` so sheets are visually distinguishable from the page background.
 
 ### [ ] 4.2 Wire `ItemsScreen`: ⋮ button opens `ListOverflowSheet`
 
