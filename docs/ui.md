@@ -128,7 +128,7 @@ The app uses three CSS techniques together:
 - **`env(safe-area-inset-*)`** for the actual insets. Every screen's outer container reserves `env(safe-area-inset-top)` and `env(safe-area-inset-bottom)` of padding so content doesn't sit underneath the notch or the home pill. Bottom sheets do the same on the bottom edge — the delete-item confirmation and the list overflow sheet both need it, so destructive buttons aren't ever overlapped by system gestures.
 - **`100dvh` (dynamic viewport height)** instead of `100vh` for full-height layouts. `dvh` shrinks when iOS Safari's address bar expands, which keeps the FAB visible instead of clipped behind chrome.
 
-The floating action button is positioned with `position: fixed; bottom: calc(env(safe-area-inset-bottom) + 16px); right: 16px;`. Never a bare `16px` on `bottom`. The same pattern applies to the snackbar.
+The floating action button is positioned with `position: fixed; bottom: calc(env(safe-area-inset-bottom) + 16px); right: 16px;`. Never a bare `16px` on `bottom`. The snackbar uses a slightly larger offset: `bottom: calc(env(safe-area-inset-bottom) + 18px)` — matching the design spec (`ItemsScreenWithUndo`, `design/cairn-screens.jsx`).
 
 The virtual keyboard is the trickiest piece. The web platform's [VisualViewport API](https://developer.mozilla.org/en-US/docs/Web/API/VisualViewport) is the source of truth: when the keyboard opens, the visual viewport shrinks. The app listens for `visualViewport.resize` and adjusts the layout so the focused text field stays visible above the keyboard. CSS-only approaches (e.g. `100dvh`) handle most cases on Android Chrome but fail on iOS Safari, where the keyboard can sit _over_ the page without resizing the layout viewport — the JS path is required.
 
