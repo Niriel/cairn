@@ -249,10 +249,10 @@ from `Snackbar.test.ts`.
 
 **Verify:** `cd web && pnpm lint && pnpm check && pnpm test`
 
-### [ ] 1.3 Add `&deleted_at=is.null` filter to `loadLists()`
+### [x] 1.3 Add `&deleted_at=is.null` filter to `loadLists()`
 
 **Created:** 2026-05-26T18:28:54Z
-**Completed:**
+**Completed:** 2026-05-26T21:05:18Z
 
 **Why:** The `lists_select` RLS policy allows the deleter to read their own
 soft-deleted rows (needed so the soft-delete PATCH passes Postgres's WITH-CHECK

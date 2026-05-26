@@ -77,4 +77,20 @@ describe('lists store', () => {
 			expect(listsMod.lists.error).toBeTruthy();
 		});
 	});
+
+	test("(e) query includes &deleted_at=is.null to exclude the signed-in user's own soft-deleted lists", async () => {
+		let capturedUrl: string | undefined;
+		server.use(
+			http.get('*/api/lists', ({ request }) => {
+				capturedUrl = request.url;
+				return HttpResponse.json([LIST_A]);
+			})
+		);
+		sessionMod.setSignedIn({ id: TEST_UID, email: 'dev@example.test' });
+		await tick();
+		await vi.waitFor(() => {
+			expect(listsMod.lists.items).toHaveLength(1);
+		});
+		expect(capturedUrl).toContain('&deleted_at=is.null');
+	});
 });

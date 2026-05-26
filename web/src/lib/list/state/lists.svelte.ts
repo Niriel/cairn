@@ -23,7 +23,9 @@ $effect.root(() => {
 			lists.loading = true;
 			lists.error = null;
 			pgGet<List[]>(
-				'/lists?select=id,name,description,modified_at,item_count:lists_item_count,list_members(user_id,profiles(display_name,avatar_version))&list_members.deleted_at=is.null&order=modified_at.desc'
+				// lists_select allows the deleter to read their own soft-deleted rows (needed for
+				// the PATCH WITH CHECK gate), so the client must filter them out explicitly.
+				'/lists?select=id,name,description,modified_at,item_count:lists_item_count,list_members(user_id,profiles(display_name,avatar_version))&list_members.deleted_at=is.null&deleted_at=is.null&order=modified_at.desc'
 			)
 				.then((result) => {
 					lists.items = result;
