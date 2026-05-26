@@ -55,10 +55,10 @@
 
 ## Phase 1 — Foundations
 
-### [ ] 1.1 Create trash route stub and fix `Snackbar.svelte`
+### [x] 1.1 Create trash route stub and fix `Snackbar.svelte`
 
 **Created:** 2026-05-26T18:28:54Z
-**Completed:**
+**Completed:** 2026-05-26T20:36:55Z
 
 **Why:** Two toolchain prerequisites must land before later tasks can type-check:
 (a) `/(app)/lists/[list_id]/trash/+page.svelte` must exist before
