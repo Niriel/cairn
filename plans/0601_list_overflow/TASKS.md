@@ -291,10 +291,10 @@ wired in Phase 2.
 
 ## Phase 2 — List delete state
 
-### [ ] 2.1 Add `deleteList` and `undoDeleteList` to `lists.svelte.ts`
+### [x] 2.1 Add `deleteList` and `undoDeleteList` to `lists.svelte.ts`
 
 **Created:** 2026-05-26T18:28:54Z
-**Completed:**
+**Completed:** 2026-05-26T21:17:10Z
 
 **Why:** The undo snackbar on the Lists screen requires the same
 optimistic-remove / restore state pattern that `items.svelte.ts` uses for item
