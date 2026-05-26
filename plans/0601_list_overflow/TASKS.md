@@ -11,10 +11,10 @@
 
 ## Phase 0 — Basic components
 
-### [ ] 0.1 Create `IconButton` and `MoreButton` basic components
+### [x] 0.1 Create `IconButton` and `MoreButton` basic components
 
 **Created:** 2026-05-26T00:00:00Z
-**Completed:**
+**Completed:** 2026-05-26T20:18:12Z
 
 **Why:** Several files in this plan need small icon buttons (Settings gear, list-row overflow trigger, TopBar more-options). Each file currently inlines its own `<button class="icon-btn">` element with duplicate CSS, causing style drift. `IconButton.svelte` centralises that style once; `MoreButton.svelte` removes the boilerplate of composing an `IconButton` with a `more-vertical` icon everywhere a three-dot trigger appears.
 
@@ -48,6 +48,8 @@
 3. Run `cd web && pnpm lint && pnpm check && pnpm test` — must be green.
 
 **Verify:** `cd web && pnpm lint && pnpm check && pnpm test`
+
+**Notes:** `MoreButton` moved to `web/src/lib/shared/components/` (not `basic/`) per user direction — it uses Cairn-specific icon names (`more-vertical`) and belongs in `shared/`. Its test mocks `$lib/basic/components/Icon.svelte` so the `data-test="more-vertical"` assertion works via the Icon mock. All later tasks that reference `MoreButton` should import from `$lib/shared/components/MoreButton.svelte`.
 
 ---
 
@@ -495,7 +497,7 @@ state to the Lists screen — the primary surface for list management.
 - Remove `<span class="chevron"><Icon name="chevron-right" size={18} /></span>` from inside `<button class="row-nav">`. Add a `<div class="row-top">` as the first child of each `.row`, containing two siblings:
   1. `<button class="row-nav">` now wraps only `<span class="name">{item.name}</span>` (no chevron span).
   2. `<MoreButton size={18} aria-label="List options" data-test="list-overflow-{item.id}" onclick={() => (overflowList = item)} style="color: var(--stone)" />` — a sibling of `row-nav`, not nested inside it. No `e.stopPropagation()` needed; siblings do not bubble into each other.
-  Import `MoreButton` from `$lib/basic/components/MoreButton.svelte`.
+  Import `MoreButton` from `$lib/shared/components/MoreButton.svelte`.
 - **Migrate the Settings icon button:** While in `ListsScreen.svelte`, replace the existing:
   ```svelte
   <button class="icon-btn" aria-label="Settings" data-test="lists-settings" onclick={() => goto(resolve('/settings'))}>
@@ -549,7 +551,7 @@ state to the Lists screen — the primary surface for list management.
   the `fireEvent.click` query still works;
   (c) new test: when `lists.pendingDelete` is set, `<UndoSnackbar>` is present;
   (d) new test: when `lists.pendingDelete` is set, `<Fab>` is absent.
-  Add `vi.mock('$lib/basic/components/MoreButton.svelte')` and
+  Add `vi.mock('$lib/shared/components/MoreButton.svelte')` and
   `vi.mock('$lib/basic/components/IconButton.svelte')` at the top of the test file.
 
 **Files:**
@@ -596,7 +598,7 @@ already used in `ListsScreen` — pattern is established).
     <Icon name="more-vertical" size={22} />
   </button>
   ```
-  with `<MoreButton aria-label="More options" size={22} onclick={() => (overflowOpen = true)} />`. Import `MoreButton` from `$lib/basic/components/MoreButton.svelte`. Remove the `.icon-btn` CSS class block from `ItemsScreen.svelte`'s `<style>` (it is no longer used after this task — the TopBar button replaced here is the only `.icon-btn` user in this file).
+  with `<MoreButton aria-label="More options" size={22} onclick={() => (overflowOpen = true)} />`. Import `MoreButton` from `$lib/shared/components/MoreButton.svelte`. Remove the `.icon-btn` CSS class block from `ItemsScreen.svelte`'s `<style>` (it is no longer used after this task — the TopBar button replaced here is the only `.icon-btn` user in this file).
 - Render `{#if overflowOpen}` a `<ListOverflowSheet>` with:
   - `listId={listId}` (already available as a prop)
   - `listName={listMeta.name}`
@@ -623,14 +625,14 @@ already used in `ListsScreen` — pattern is established).
 - Update `ItemsScreen.test.ts`:
   (a) new test: clicking `aria-label="More options"` renders `ListOverflowSheet`
   (mocked). The `MoreButton` mock forwards `aria-label`, so `getByRole('button', { name: 'More options' })` works.
-  Add `vi.mock('$lib/basic/components/MoreButton.svelte')` at the top of the test file.
+  Add `vi.mock('$lib/shared/components/MoreButton.svelte')` at the top of the test file.
 
 **Files:**
 - `web/src/lib/item/components/ItemsScreen.svelte` (modify)
 - `web/src/lib/item/components/ItemsScreen.test.ts` (modify)
 
 **Steps:**
-1. RED — Add `vi.mock('$lib/basic/components/MoreButton.svelte')` and the new test to `ItemsScreen.test.ts`. Run
+1. RED — Add `vi.mock('$lib/shared/components/MoreButton.svelte')` and the new test to `ItemsScreen.test.ts`. Run
    `cd web && pnpm test -- --reporter=verbose ItemsScreen` — must fail.
 2. GREEN — In `ItemsScreen.svelte`: update `ListMeta` type and initial value to include `description`; extend the `pgGet` select to include `description`; add `overflowOpen` state; replace the `<button class="icon-btn">` TopBar button with `<MoreButton>` wired to `overflowOpen`; mount `<ListOverflowSheet>` conditionally (passing `description`); remove the `.icon-btn` CSS block. Import `MoreButton`, `ListOverflowSheet`, `tick`.
 3. Run `cd web && pnpm lint && pnpm check && pnpm test` — must be green.
