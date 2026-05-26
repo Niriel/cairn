@@ -34,7 +34,7 @@ The expanded description pushes the rows below it down (accordion style, same as
 
 Each row also shows a metadata line: item count, time since last modification, and avatar initials of current members.
 
-A floating button creates a new list. Editing a list's name or description, and deleting a list, are not yet designed — see "Not decided" below.
+A floating button creates a new list. Editing a list's name or description and deleting a list are done via a `⋮` overflow button on each list row, which opens a bottom sheet — see "Trash & undo" below.
 
 ## Items screen
 
@@ -343,7 +343,7 @@ The same pattern applies to deleting a list (snackbar on the lists screen) and t
 
 ### Trash screen
 
-Each list has a **Trash** entry in its overflow menu (the long-press / `⋮` sheet). Opening it shows the list's soft-deleted items, ordered most-recently-deleted first. Each row shows the item name, a faint _"deleted by Bob, 3 May 2026"_ attribution, and a single **Restore** button. Tapping Restore clears `deleted_at` and returns the item to the live list at its original position in the sort.
+Each list has a **Trash** entry in its overflow menu (the `⋮` sheet reachable from each list row on the Lists screen and from the `⋮` button in the Items screen TopBar). Opening it shows the list's soft-deleted items, ordered most-recently-deleted first. Each row shows the item name, a faint _"deleted by Bob, 3 May 2026"_ attribution, and a single **Restore** button. Tapping Restore clears `deleted_at` and returns the item to the live list at its original position in the sort.
 
 There is no "empty trash" action. Hard deletion is not exposed in the UI; nothing in v1 ever calls `DELETE` on items. If we ever add a server-side garbage collection for very old deletions, that's a backend decision (see the open question in `architecture.md`), not a user-facing one.
 
@@ -479,7 +479,6 @@ Use the pattern specified by the screen's design JSX in `design/cairn-screens.js
 
 These are deferred — they need a design pass but aren't blocking v1.
 
-- **Editing and deleting lists.** The lists screen needs an affordance for renaming or deleting a list. Could be a long-press menu, a swipe gesture, or a per-list overflow button. Pending.
 - **Exact typography for the indicator.** Whether `+++` should grow visually with magnitude (light → bold) within the fixed-width slot is a polish question for the implementation, not a v1 contract.
 - **Haptics.** A small tick on each tap would be nice. Defer.
 - **Animation.** A subtle slide for the accordion unfold and for vote-state transitions would be nice. Defer.
