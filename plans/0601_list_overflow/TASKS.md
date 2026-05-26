@@ -367,10 +367,10 @@ coverage, before any UI wiring touches it.
 
 ## Phase 3 — Overflow sheets
 
-### [ ] 3.1 Create `ListOverflowSheet`, `RenameListSheet`, and `EditDescriptionSheet`
+### [x] 3.1 Create `ListOverflowSheet`, `RenameListSheet`, and `EditDescriptionSheet`
 
 **Created:** 2026-05-26T18:28:54Z
-**Completed:**
+**Completed:** 2026-05-26T21:33:41Z
 
 **Why:** The three bottom sheets implement the core of R1–R3. They must land
 before the wiring phase so `ListsScreen` and `ItemsScreen` can import them.
@@ -477,6 +477,8 @@ existing list sheet for style reference.
 3. Run `cd web && pnpm lint && pnpm check && pnpm test` — must be green.
 
 **Verify:** `cd web && pnpm lint && pnpm check && pnpm test`
+
+**Notes:** Updated the Sheet mock (`__mocks__/Sheet.svelte`) to destructure `onclose` and render a `data-test="sheet-close"` trigger button so test (g) can simulate Sheet's onclose prop. The mock files for all three sheets use hardcoded `data-test` slugs (no prop forwarding) to avoid `@typescript-eslint/no-unsafe-member-access` errors. Two Svelte 5 `state_referenced_locally` warnings appear for `RenameListSheet` and `EditDescriptionSheet` (props used as `$state` initializers) — these are warnings not errors, the behavior is correct since the sheets are always remounted fresh.
 
 ---
 
