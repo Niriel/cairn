@@ -72,7 +72,6 @@
 		border: none;
 		color: var(--paper);
 		font: inherit;
-		text-transform: uppercase;
 		padding: 0 0.5rem;
 		cursor: pointer;
 	}

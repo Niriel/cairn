@@ -16,7 +16,7 @@
 <div class="undo-snackbar-root">
 	<Snackbar
 		open={true}
-		actionLabel="UNDO"
+		actionLabel="Undo"
 		onaction={onUndo}
 		onclose={ondismiss}
 		data-test={dataTest}
@@ -35,12 +35,18 @@
 		box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
 	}
 
+	/*
+	 * Deviation from design JSX (screen 15): the design renders "Undo" as a plain
+	 * coloured span. We use a solid primary-style button instead — white pill on
+	 * the dark snackbar — so the tap target and affordance are unambiguous.
+	 */
 	.undo-snackbar-root :global(.action) {
-		font-size: 12px;
-		padding: 4px 8px;
-		font-weight: 700;
-		letter-spacing: 0.04em;
-		text-transform: uppercase;
-		color: var(--sage);
+		background: var(--paper);
+		color: var(--ink);
+		border: none;
+		border-radius: 8px;
+		padding: 6px 14px;
+		font-size: 13px;
+		font-weight: 600;
 	}
 </style>
