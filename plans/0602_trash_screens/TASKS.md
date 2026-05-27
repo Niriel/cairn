@@ -284,10 +284,10 @@ matches (one in `ui.md`, one in `data-model.md`).
 
 **Verify:** `pnpm lint` · `pnpm check` · `pnpm test`
 
-### [ ] 2.2 Build `DeletedListsScreen` component and `/settings/deleted-lists/` route
+### [x] 2.2 Build `DeletedListsScreen` component and `/settings/deleted-lists/` route
 
 **Created:** 2026-05-27T08:27:35Z
-**Completed:**
+**Completed:** 2026-05-27T10:28:44Z
 
 **Why:** The screen and route close out the trash UX layer. 0603 will wire the Settings Recovery nav row to this route's path; the file must exist now so `goto('/settings/deleted-lists')` passes `svelte-check` when 0603 lands. Visually mirrors `TrashScreen` adapted per R4 (different row content, no per-list scoping).
 
