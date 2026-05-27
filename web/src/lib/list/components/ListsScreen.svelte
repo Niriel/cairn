@@ -9,10 +9,9 @@
 	import Icon from '$lib/basic/components/Icon.svelte';
 	import IconButton from '$lib/basic/components/IconButton.svelte';
 	import Fab from '$lib/basic/components/Fab.svelte';
-	import TopBar from '$lib/shared/components/TopBar.svelte';
+	import AppTopBar from '$lib/shared/components/AppTopBar.svelte';
 	import MoreButton from '$lib/shared/components/MoreButton.svelte';
 	import UndoSnackbar from '$lib/shared/components/UndoSnackbar.svelte';
-	import { profile } from '$lib/shared/state/profile.svelte';
 	import { lists, refreshLists, undoDeleteList } from '$lib/list/state/lists.svelte';
 	import { timeAgo } from '$lib/shared/model/time-ago';
 	import type { List } from '$lib/list/model/list';
@@ -41,10 +40,7 @@
 </script>
 
 <div class="screen">
-	<TopBar
-		showBack={false}
-		sub={profile.displayName ? `Signed in as ${profile.displayName}` : undefined}
-	>
+	<AppTopBar showBack={false}>
 		{#snippet left()}
 			<CairnGlyph size={26} color="var(--accent)" />
 		{/snippet}
@@ -58,7 +54,7 @@
 				<Icon name="settings" size={22} />
 			</IconButton>
 		{/snippet}
-	</TopBar>
+	</AppTopBar>
 
 	{#if lists.loading}
 		<div class="content" data-test="lists-loading">Loading…</div>

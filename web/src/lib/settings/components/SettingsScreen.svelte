@@ -1,6 +1,6 @@
 <script lang="ts">
 	import Avatar from '$lib/shared/components/Avatar.svelte';
-	import TopBar from '$lib/shared/components/TopBar.svelte';
+	import AppTopBar from '$lib/shared/components/AppTopBar.svelte';
 	import Icon from '$lib/basic/components/Icon.svelte';
 	import type { IconName } from '$lib/basic/model/icon-paths';
 	import { profile } from '$lib/shared/state/profile.svelte';
@@ -30,7 +30,7 @@
 </script>
 
 <div class="screen">
-	<TopBar>Settings</TopBar>
+	<AppTopBar>Settings</AppTopBar>
 
 	<div class="content">
 		<section class="profile-chip-section">

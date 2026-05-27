@@ -79,7 +79,8 @@ web/src/lib/
 ├── shared/
 │   ├── components/
 │   │   ├── TopBar.svelte
-│   │   └── TopBar.test.ts
+│   │   ├── TopBar.test.ts
+│   │   └── AppTopBar.svelte
 │   ├── state/
 │   │   ├── preferences.svelte.ts
 │   │   ├── preferences.test.ts

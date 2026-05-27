@@ -1,6 +1,6 @@
 <script lang="ts">
 	import Icon from '$lib/basic/components/Icon.svelte';
-	import TopBar from '$lib/shared/components/TopBar.svelte';
+	import AppTopBar from '$lib/shared/components/AppTopBar.svelte';
 
 	type Props = {
 		imageFile: File;
@@ -140,7 +140,7 @@
 </script>
 
 <div class="screen">
-	<TopBar showBack={false}>
+	<AppTopBar showBack={false}>
 		{#snippet left()}
 			<button class="icon-btn" data-test="crop-cancel" onclick={oncancel}>
 				<Icon name="chevron-left" size={22} />
@@ -150,7 +150,7 @@
 		{#snippet right()}
 			<button class="save-btn" data-test="crop-save" onclick={handleSave}>Save</button>
 		{/snippet}
-	</TopBar>
+	</AppTopBar>
 
 	<div class="content">
 		<div class="stage">

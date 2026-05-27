@@ -427,6 +427,8 @@ The TopBar uses `display: flex; align-items: center; gap: 10px`. The title div h
 
 These styles live inside `TopBar.svelte` — callers do not re-apply them. Screens that are the navigation root (e.g. Lists) pass a `left` snippet instead of `showBack={false}`.
 
+Inside the authenticated app, screens use `<AppTopBar>` instead of the raw `<TopBar>`. It's a thin wrapper that defaults `sub` to _"Signed in as Alice"_ (read from the profile state) when the caller doesn't supply one, so a screen with only a title — _Settings_, _Edit profile_, _Deleted lists_, _Crop_ — keeps the same two-line layout as screens that do have a real subtitle, instead of looking visually shorter than its neighbours. Pass `sub` explicitly to override (e.g. `<AppTopBar sub="3 items · 2 members">`), or use the raw `<TopBar>` if the screen is outside the signed-in context (auth pages).
+
 ### Row navigation pattern
 
 When a list row has a primary label and a trailing chevron that both navigate to the same destination, **wrap them in a single `<button>`** — not two separate elements. Two buttons leave a dead tap zone between them.

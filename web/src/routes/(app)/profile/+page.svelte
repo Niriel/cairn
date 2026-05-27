@@ -2,7 +2,7 @@
 	import { profile } from '$lib/shared/state/profile.svelte';
 	import { pgPost, ApiError } from '$lib/shared/http/postgrest';
 	import Avatar from '$lib/shared/components/Avatar.svelte';
-	import TopBar from '$lib/shared/components/TopBar.svelte';
+	import AppTopBar from '$lib/shared/components/AppTopBar.svelte';
 	import Snackbar from '$lib/shared/components/Snackbar.svelte';
 	import Icon from '$lib/basic/components/Icon.svelte';
 	import AvatarSourceSheet from '$lib/avatar/components/AvatarSourceSheet.svelte';
@@ -135,7 +135,7 @@
 </script>
 
 {#if viewState === 'edit'}
-	<TopBar showBack={false}>
+	<AppTopBar showBack={false}>
 		{#snippet left()}
 			<button class="icon-btn" onclick={() => history.back()}>
 				<Icon name="x" size={22} />
@@ -145,7 +145,7 @@
 			<button class="save-btn" data-test="save-profile" onclick={saveName}>Save</button>
 		{/snippet}
 		Edit profile
-	</TopBar>
+	</AppTopBar>
 
 	{#if showSourceSheet}
 		<AvatarSourceSheet
@@ -231,7 +231,7 @@
 	{@const isError =
 		viewState === 'too-big' || viewState === 'wrong-format' || viewState === 'network'}
 	<div data-test="upload-state">
-		<TopBar showBack={false}>
+		<AppTopBar showBack={false}>
 			{#snippet left()}
 				{#if viewState === 'uploading'}
 					<button class="icon-btn" style="pointer-events:none;opacity:0.4" disabled>
@@ -244,7 +244,7 @@
 				{/if}
 			{/snippet}
 			Profile picture
-		</TopBar>
+		</AppTopBar>
 
 		<div class="upload-body">
 			<div

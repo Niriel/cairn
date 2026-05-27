@@ -2,7 +2,7 @@
 	import { listTrash, loadDeletedLists, restoreOne } from '$lib/list/state/list-trash.svelte';
 	import { timeAgo } from '$lib/shared/model/time-ago';
 
-	import TopBar from '$lib/shared/components/TopBar.svelte';
+	import AppTopBar from '$lib/shared/components/AppTopBar.svelte';
 	import Icon from '$lib/basic/components/Icon.svelte';
 
 	$effect(() => {
@@ -11,7 +11,7 @@
 </script>
 
 <div class="screen">
-	<TopBar showBack={true}>Deleted lists</TopBar>
+	<AppTopBar showBack={true}>Deleted lists</AppTopBar>
 
 	{#if listTrash.loading}
 		<div class="loading" data-test="deleted-lists-loading">Loading…</div>
