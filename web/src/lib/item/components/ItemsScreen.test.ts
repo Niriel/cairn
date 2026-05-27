@@ -3,7 +3,7 @@ import { tick } from 'svelte';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { http, HttpResponse } from 'msw';
 
-import { items, undoDelete } from '$lib/item/state/items.svelte';
+import { items, loadItems, undoDelete } from '$lib/item/state/items.svelte';
 import { _resetForTesting } from '$lib/shared/state/back-stack.svelte';
 import { server } from '$lib/test/server';
 import { render } from '$lib/test/render';
@@ -222,5 +222,30 @@ describe('ItemsScreen', () => {
 		expect(getByDataTest(`attribution-editor-${ITEM_1.id}`).classList.contains('tombstone')).toBe(
 			true
 		);
+	});
+});
+
+describe('Refresh button', () => {
+	test('(refresh-a) renders with data-test="items-refresh" and aria-label="Refresh"', () => {
+		const { queryByDataTest } = render(ItemsScreen, { listId: 'test-list-id' });
+		const btn = queryByDataTest('items-refresh');
+		expect(btn).not.toBeNull();
+		expect(btn?.getAttribute('aria-label')).toBe('Refresh');
+	});
+
+	test('(refresh-b) clicking it calls loadItems with the listId prop', async () => {
+		const { getByDataTest } = render(ItemsScreen, { listId: 'test-list-id' });
+		await tick();
+		vi.mocked(loadItems).mockClear();
+		await fireEvent.click(getByDataTest('items-refresh'));
+		expect(vi.mocked(loadItems)).toHaveBeenCalledTimes(1);
+		expect(vi.mocked(loadItems)).toHaveBeenCalledWith('test-list-id');
+	});
+
+	test('(refresh-c) is disabled when items.loading is true', () => {
+		items.loading = true;
+		const { queryByDataTest } = render(ItemsScreen, { listId: 'test-list-id' });
+		const btn = queryByDataTest('items-refresh') as HTMLButtonElement | null;
+		expect(btn?.disabled).toBe(true);
 	});
 });

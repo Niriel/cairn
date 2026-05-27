@@ -52,10 +52,10 @@
 
 ## Phase 2 — Items screen Refresh button
 
-### [ ] 2.1 Add Refresh button to ItemsScreen and test it
+### [x] 2.1 Add Refresh button to ItemsScreen and test it
 
 **Created:** 2026-05-27T17:13:14Z
-**Completed:**
+**Completed:** 2026-05-27T18:13:43Z
 
 **Why:** Alice won't see Bob's new items or membership changes until she leaves and re-enters the list. A Refresh button re-fetches items and list metadata (R2, R4).
 

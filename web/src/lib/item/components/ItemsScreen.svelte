@@ -16,6 +16,7 @@
 	import { TOMBSTONE_UID } from '$lib/shared/model/constants';
 
 	import TopBar from '$lib/shared/components/TopBar.svelte';
+	import IconButton from '$lib/basic/components/IconButton.svelte';
 	import MoreButton from '$lib/shared/components/MoreButton.svelte';
 	import UndoSnackbar from '$lib/shared/components/UndoSnackbar.svelte';
 	import Avatar from '$lib/shared/components/Avatar.svelte';
@@ -38,15 +39,24 @@
 	let editSheetItem = $state<Item | null>(null);
 	let deleteSheetItem = $state<Item | null>(null);
 
-	$effect(() => {
-		void loadItems(listId);
-		void pgGet<ListMeta[]>(
+	async function reloadMeta() {
+		await pgGet<ListMeta[]>(
 			`/lists?id=eq.${listId}&select=name,description,list_members(user_id)&list_members.deleted_at=is.null`
 		)
 			.then((rows) => {
 				if (rows.length > 0) listMeta = rows[0];
 			})
 			.catch(() => {});
+	}
+
+	function refreshItems() {
+		void loadItems(listId);
+		void reloadMeta();
+	}
+
+	$effect(() => {
+		void loadItems(listId);
+		void reloadMeta();
 	});
 
 	const isOpen = $derived(openId !== null);
@@ -78,6 +88,14 @@
 	>
 		{listMeta.name}
 		{#snippet right()}
+			<IconButton
+				aria-label="Refresh"
+				data-test="items-refresh"
+				disabled={items.loading}
+				onclick={refreshItems}
+			>
+				<Icon name="rotate-ccw" size={22} />
+			</IconButton>
 			<MoreButton aria-label="More options" size={22} onclick={() => (overflowOpen = true)} />
 		{/snippet}
 	</TopBar>
