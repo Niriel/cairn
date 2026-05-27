@@ -47,6 +47,14 @@
 		Cairn
 		{#snippet right()}
 			<IconButton
+				aria-label="Refresh"
+				data-test="lists-refresh"
+				disabled={lists.loading}
+				onclick={() => refreshLists()}
+			>
+				<Icon name="rotate-ccw" size={22} />
+			</IconButton>
+			<IconButton
 				aria-label="Settings"
 				data-test="lists-settings"
 				onclick={() => goto(resolve('/settings'))}

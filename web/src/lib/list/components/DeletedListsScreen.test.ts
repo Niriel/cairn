@@ -2,7 +2,7 @@ import { fireEvent } from '@testing-library/svelte';
 import { tick } from 'svelte';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
-import { listTrash, restoreOne } from '$lib/list/state/list-trash.svelte';
+import { listTrash, loadDeletedLists, restoreOne } from '$lib/list/state/list-trash.svelte';
 import { render } from '$lib/test/render';
 import type { DeletedList } from '$lib/list/model/list-trash';
 
@@ -76,5 +76,29 @@ describe('DeletedListsScreen', () => {
 		const err = queryByDataTest('deleted-lists-error');
 		expect(err).not.toBeNull();
 		expect(err!.textContent).toContain("Couldn't restore");
+	});
+});
+
+describe('Refresh button', () => {
+	test('(refresh-a) renders with data-test="deleted-lists-refresh" and aria-label="Refresh"', () => {
+		const { queryByDataTest } = render(DeletedListsScreen);
+		const btn = queryByDataTest('deleted-lists-refresh');
+		expect(btn).not.toBeNull();
+		expect(btn?.getAttribute('aria-label')).toBe('Refresh');
+	});
+
+	test('(refresh-b) clicking it calls loadDeletedLists', async () => {
+		const { getByDataTest } = render(DeletedListsScreen);
+		await tick();
+		vi.mocked(loadDeletedLists).mockClear();
+		await fireEvent.click(getByDataTest('deleted-lists-refresh'));
+		expect(vi.mocked(loadDeletedLists)).toHaveBeenCalledTimes(1);
+	});
+
+	test('(refresh-c) is disabled when listTrash.loading is true', () => {
+		listTrash.loading = true;
+		const { queryByDataTest } = render(DeletedListsScreen);
+		const btn = queryByDataTest('deleted-lists-refresh') as HTMLButtonElement | null;
+		expect(btn?.disabled).toBe(true);
 	});
 });
