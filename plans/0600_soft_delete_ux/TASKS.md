@@ -361,10 +361,21 @@ renders a gray disc with no initials in the browser.
 
 ## Phase 4 — Wrap up
 
-### [ ] 4.1 Final verification and merge to main
+### [x] 4.1 Final verification and merge to main
 
 **Created:** 2026-05-26T00:00:00Z
-**Completed:**
+**Completed:** 2026-05-27T13:06:34Z
+
+**Notes:**
+- `./scripts/check.sh --e2e` was not fully green at completion time: webkit
+  can't launch (host missing system libs — `pnpm exec playwright install-deps`),
+  and `avatar.spec.ts:50` (upload avatar) plus `items.spec.ts:113` (vote
+  indicator) fail on chromium/firefox with signs of test-state pollution /
+  flakiness. User confirmed these predate 0600 and will be addressed
+  post-merge; merge proceeds on that basis.
+- Per the `/work` skill, the actual commit + `git merge --no-ff` are left to
+  the user. The plan-tick edit (step 6 in `plans/0000_implementation_order.md`)
+  is staged in the working tree for the user to include in the merge commit.
 
 **Why:** Confirms the full step-6 feature works end-to-end on the integration
 branch before it lands on `main`.
