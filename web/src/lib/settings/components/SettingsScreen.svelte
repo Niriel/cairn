@@ -1,7 +1,6 @@
 <script lang="ts">
 	import Avatar from '$lib/shared/components/Avatar.svelte';
 	import TopBar from '$lib/shared/components/TopBar.svelte';
-	import Button from '$lib/basic/components/Button.svelte';
 	import Icon from '$lib/basic/components/Icon.svelte';
 	import type { IconName } from '$lib/basic/model/icon-paths';
 	import { profile } from '$lib/shared/state/profile.svelte';
@@ -118,8 +117,15 @@
 			</button>
 		</section>
 
-		<section class="signout-section">
-			<Button variant="ghost" data-test="signout" onclick={signOut}>Sign out</Button>
+		<section class="preference-group">
+			<h2>Account</h2>
+			<button class="nav-row" data-test="signout" onclick={signOut}>
+				<Icon name="log-out" size={20} />
+				<span class="nav-row-text">
+					<span class="nav-row-title">Sign out</span>
+				</span>
+				<Icon name="chevron-right" size={18} />
+			</button>
 		</section>
 	</div>
 </div>
@@ -297,10 +303,6 @@
 		color: var(--stone);
 		margin-top: 4px;
 		line-height: 1.45;
-	}
-
-	.signout-section {
-		padding: 0 18px 24px;
 	}
 
 	.nav-row {
