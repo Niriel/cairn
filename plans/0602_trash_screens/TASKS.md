@@ -142,10 +142,15 @@ matches (one in `ui.md`, one in `data-model.md`).
 
 **Verify:** `pnpm lint` · `pnpm check` · `pnpm test`
 
-### [ ] 1.2 Build `TrashScreen` component and fill in route stub
+### [x] 1.2 Build `TrashScreen` component and fill in route stub
 
 **Created:** 2026-05-27T08:27:35Z
-**Completed:**
+**Completed:** 2026-05-27T09:55:46Z
+
+**Notes:**
+- Deviation: the task specified `<Icon name="…" color="var(--stone-lt)" />`, but the existing `Icon.svelte` component accepts only `name`, `size`, and `data-test` — it draws with `stroke="currentColor"`. The codebase convention (see `ItemsScreen.svelte`'s empty-state) is to set the icon colour via a parent's `color`. Wrapped the row's `rotate-ccw` in a `.row-icon` span and let `.empty-circle` set the colour for the empty-state icon, rather than extending `Icon`'s API for one usage.
+- User correction (during this task): the originally specified row palette (`var(--stone)` strike-through name, `var(--stone-lt)` attribution) was too faded. User asked for the row to look like a normal Items row. Updated `.name` to `15.5 px / 500 / var(--ink)` with no strike-through, `.attribution` to `12 px / var(--stone)`, and matched the Items row padding (`14 px 18 px 14 px 20 px`, `min-height: 56 px`, `gap: 10 px`). This diverges from the **Decisions** block's row spec lifted from the mockup; the user's directive supersedes.
+- Manual browser check deferred — dev stack not started in this environment.
 
 **Why:** With the model + state in place, the user-visible screen at `/(app)/lists/[list_id]/trash/` becomes a thin layout component that calls `loadTrash` on mount and renders rows. The route stub 0601 left in place gets filled in. This is one commit's worth of work: component, route fill-in, mock, and the two test files.
 
