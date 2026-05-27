@@ -225,10 +225,10 @@ cross-domain code.
 
 ---
 
-### [ ] 2.2 Add tombstone attribution styling to `ItemsScreen.svelte`
+### [x] 2.2 Add tombstone attribution styling to `ItemsScreen.svelte`
 
 **Created:** 2026-05-27T10:49:39Z
-**Completed:**
+**Completed:** 2026-05-27T12:18:23Z
 
 **Why:** Parent R11 requires the Items accordion's "Added by …" /
 "Last edited by …" attribution to render the attributor's name in
