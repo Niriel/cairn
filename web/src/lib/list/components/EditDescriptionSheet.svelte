@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { untrack } from 'svelte';
 	import Sheet from '$lib/basic/components/Sheet.svelte';
 	import { pgPatch } from '$lib/shared/http/postgrest';
 	import { refreshLists } from '$lib/list/state/lists.svelte';
@@ -11,7 +12,7 @@
 
 	let { listId, currentDescription, onclose }: Props = $props();
 
-	let description = $state(currentDescription ?? '');
+	let description = $state(untrack(() => currentDescription ?? ''));
 	let submitting = $state(false);
 	let error = $state<string | null>(null);
 
