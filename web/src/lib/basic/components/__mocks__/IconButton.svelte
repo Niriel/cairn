@@ -1,7 +1,19 @@
 <script lang="ts">
 	import type { Snippet } from 'svelte';
-
-	let { children, ...rest } = $props<{ children?: Snippet; [k: string]: unknown }>();
+	type Props = {
+		onclick?: () => void;
+		'aria-label'?: string;
+		'data-test'?: string;
+		disabled?: boolean;
+		children?: Snippet;
+	};
+	let { children, onclick, disabled, ...rest }: Props = $props();
 </script>
 
-<button data-test={rest['data-test']}>{@render children?.()}</button>
+<button
+	type="button"
+	data-test={rest['data-test']}
+	aria-label={rest['aria-label']}
+	{onclick}
+	{disabled}>{@render children?.()}</button
+>

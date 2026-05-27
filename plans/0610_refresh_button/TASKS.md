@@ -8,10 +8,10 @@
 
 ## Phase 1 — Lists screen Refresh button
 
-### [ ] 1.1 Add Refresh button to ListsScreen and test it
+### [x] 1.1 Add Refresh button to ListsScreen and test it
 
 **Created:** 2026-05-27T17:13:14Z
-**Completed:**
+**Completed:** 2026-05-27T17:47:57Z
 
 **Why:** Alice won't see Bob's new lists until she navigates away and back. A Refresh button lets her re-fetch explicitly (R1, R4).
 
@@ -94,5 +94,41 @@
    c. Add `function refreshItems() { void loadItems(listId); void reloadMeta(); }`.
    d. In the `{#snippet right()}` block, add `<IconButton aria-label="Refresh" data-test="items-refresh" disabled={items.loading} onclick={refreshItems}><Icon name="rotate-ccw" size={20} /></IconButton>` before the existing `<MoreButton>`.
 4. GREEN — Run `pnpm test -- ItemsScreen` and confirm all tests pass.
+
+**Verify:** `pnpm lint` · `pnpm check` · `pnpm test`
+
+## Phase 3 — Trash screen Refresh buttons
+
+### [ ] 3.1 Add Refresh button to TrashScreen and DeletedListsScreen and test them
+
+**Created:** 2026-05-27T17:52:00Z
+**Completed:**
+
+**Why:** Users won't see items/lists restored by others until they leave and re-enter the screen. Refresh buttons let them re-fetch explicitly.
+
+**Prerequisites:** Task 1.1 (`IconButton` mock updated).
+
+**Decisions:**
+- `TrashScreen` uses `TopBar` directly (not `AppTopBar`); `DeletedListsScreen` uses `AppTopBar`. Both forward the `right` snippet through to the real `TopBar`, and both tests use the real `IconButton` (no mock), so `onclick`/`disabled`/`aria-label` work without any changes.
+- `TrashScreen`: call `loadTrash(listId)` directly in the handler — no wrapper function needed. Button is `disabled={itemTrash.loading}`, `data-test="trash-refresh"`, `aria-label="Refresh"`, icon `rotate-ccw` size 22.
+- `DeletedListsScreen`: call `loadDeletedLists()` directly. Button is `disabled={listTrash.loading}`, `data-test="deleted-lists-refresh"`, `aria-label="Refresh"`, icon `rotate-ccw` size 22.
+- Both need `import IconButton from '$lib/basic/components/IconButton.svelte'` added.
+- `loadTrash` and `loadDeletedLists` are already `vi.fn()` in their respective mocks — no mock changes needed.
+- In `TrashScreen.test.ts`, add `loadTrash` to the existing import from `'$lib/item/state/item-trash.svelte'`. In `DeletedListsScreen.test.ts`, add `loadDeletedLists` to the existing import.
+- For the `(refresh-b)` click test in each file, call `vi.mocked(loadTrash/loadDeletedLists).mockClear()` after the initial `await tick()` to discard the on-mount call before asserting the click fires it.
+
+**Files:**
+- `web/src/lib/item/components/TrashScreen.svelte` (modify)
+- `web/src/lib/item/components/TrashScreen.test.ts` (modify)
+- `web/src/lib/list/components/DeletedListsScreen.svelte` (modify)
+- `web/src/lib/list/components/DeletedListsScreen.test.ts` (modify)
+
+**Steps:**
+1. RED — In `TrashScreen.test.ts`, add `loadTrash` to the state import and append a `describe('Refresh button')` block with three tests: `(refresh-a)` renders with `data-test="trash-refresh"` and `aria-label="Refresh"`; `(refresh-b)` clicking calls `loadTrash` with the `listId` prop (use `mockClear()` after mount tick); `(refresh-c)` is disabled when `itemTrash.loading` is true.
+2. RED — In `DeletedListsScreen.test.ts`, add `loadDeletedLists` to the state import and append a `describe('Refresh button')` block with three tests: `(refresh-a)` renders with `data-test="deleted-lists-refresh"` and `aria-label="Refresh"`; `(refresh-b)` clicking calls `loadDeletedLists` (use `mockClear()` after mount tick); `(refresh-c)` is disabled when `listTrash.loading` is true.
+3. RED — Run `pnpm test -- TrashScreen` and `pnpm test -- DeletedListsScreen` and confirm the new tests fail.
+4. GREEN — In `TrashScreen.svelte`, add `import IconButton from '$lib/basic/components/IconButton.svelte'` and add `<IconButton aria-label="Refresh" data-test="trash-refresh" disabled={itemTrash.loading} onclick={() => void loadTrash(listId)}><Icon name="rotate-ccw" size={22} /></IconButton>` in a `{#snippet right()}` block on `<TopBar>`.
+5. GREEN — In `DeletedListsScreen.svelte`, add `import IconButton from '$lib/basic/components/IconButton.svelte'` and add `<IconButton aria-label="Refresh" data-test="deleted-lists-refresh" disabled={listTrash.loading} onclick={() => void loadDeletedLists()}><Icon name="rotate-ccw" size={22} /></IconButton>` in a `{#snippet right()}` block on `<AppTopBar>`.
+6. GREEN — Run `pnpm test -- TrashScreen` and `pnpm test -- DeletedListsScreen` and confirm all tests pass.
 
 **Verify:** `pnpm lint` · `pnpm check` · `pnpm test`

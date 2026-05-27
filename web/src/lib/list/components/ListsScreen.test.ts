@@ -2,7 +2,7 @@ import { fireEvent } from '@testing-library/svelte';
 import { tick } from 'svelte';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 
-import { lists } from '$lib/list/state/lists.svelte';
+import { lists, refreshLists } from '$lib/list/state/lists.svelte';
 import { render } from '$lib/test/render';
 
 import ListsScreen from './ListsScreen.svelte';
@@ -149,5 +149,27 @@ describe('ListsScreen', () => {
 		lists.pendingDelete = { list: LIST_A, timerId: setTimeout(() => {}, 0) };
 		const { queryByDataTest } = render(ListsScreen);
 		expect(queryByDataTest('lists-fab')).toBeNull();
+	});
+});
+
+describe('Refresh button', () => {
+	test('(refresh-a) renders with data-test="lists-refresh" and aria-label="Refresh"', () => {
+		const { queryByDataTest } = render(ListsScreen);
+		const btn = queryByDataTest('lists-refresh');
+		expect(btn).not.toBeNull();
+		expect(btn?.getAttribute('aria-label')).toBe('Refresh');
+	});
+
+	test('(refresh-b) clicking it calls refreshLists', async () => {
+		const { getByDataTest } = render(ListsScreen);
+		await fireEvent.click(getByDataTest('lists-refresh'));
+		expect(vi.mocked(refreshLists)).toHaveBeenCalledTimes(1);
+	});
+
+	test('(refresh-c) is disabled when lists.loading is true', () => {
+		lists.loading = true;
+		const { queryByDataTest } = render(ListsScreen);
+		const btn = queryByDataTest('lists-refresh') as HTMLButtonElement | null;
+		expect(btn?.disabled).toBe(true);
 	});
 });
