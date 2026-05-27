@@ -1,4 +1,7 @@
 <script lang="ts">
+	import { tick } from 'svelte';
+	import { goto } from '$app/navigation';
+	import { resolve } from '$app/paths';
 	import { pgGet } from '$lib/shared/http/postgrest';
 	import { pushHistoryGuard } from '$lib/shared/state/back-stack.svelte';
 	import {
@@ -10,21 +13,26 @@
 	} from '$lib/item/state/items.svelte';
 	import type { Item } from '$lib/item/model/item';
 	import { timeAgo } from '$lib/shared/model/time-ago';
+	import { TOMBSTONE_UID } from '$lib/shared/model/constants';
 
 	import TopBar from '$lib/shared/components/TopBar.svelte';
+	import MoreButton from '$lib/shared/components/MoreButton.svelte';
+	import UndoSnackbar from '$lib/shared/components/UndoSnackbar.svelte';
 	import Avatar from '$lib/shared/components/Avatar.svelte';
 	import Fab from '$lib/basic/components/Fab.svelte';
 	import Icon from '$lib/basic/components/Icon.svelte';
 	import VoteControl from './VoteControl.svelte';
 	import AddEditItemSheet from './AddEditItemSheet.svelte';
 	import DeleteItemSheet from './DeleteItemSheet.svelte';
+	import ListOverflowSheet from '$lib/list/components/ListOverflowSheet.svelte';
 
-	type ListMeta = { name: string; list_members: { user_id: string }[] };
+	type ListMeta = { name: string; description: string | null; list_members: { user_id: string }[] };
 
 	type Props = { listId: string };
 	let { listId }: Props = $props();
 
-	let listMeta = $state<ListMeta>({ name: '', list_members: [] });
+	let listMeta = $state<ListMeta>({ name: '', description: null, list_members: [] });
+	let overflowOpen = $state(false);
 	let openId = $state<string | null>(null);
 	let addSheetOpen = $state(false);
 	let editSheetItem = $state<Item | null>(null);
@@ -33,7 +41,7 @@
 	$effect(() => {
 		void loadItems(listId);
 		void pgGet<ListMeta[]>(
-			`/lists?id=eq.${listId}&select=name,list_members(user_id)&list_members.deleted_at=is.null`
+			`/lists?id=eq.${listId}&select=name,description,list_members(user_id)&list_members.deleted_at=is.null`
 		)
 			.then((rows) => {
 				if (rows.length > 0) listMeta = rows[0];
@@ -68,9 +76,7 @@
 	>
 		{listMeta.name}
 		{#snippet right()}
-			<button class="icon-btn" aria-label="More options" onclick={() => {}}>
-				<Icon name="more-vertical" size={22} />
-			</button>
+			<MoreButton aria-label="More options" size={22} onclick={() => (overflowOpen = true)} />
 		{/snippet}
 	</TopBar>
 
@@ -140,10 +146,17 @@
 								</div>
 							{/if}
 							<div class="attribution">
-								Added by <strong>{item.created_by_name}</strong>
+								Added by <strong
+									data-test="attribution-creator-{item.id}"
+									class:tombstone={item.created_by === TOMBSTONE_UID}>{item.created_by_name}</strong
+								>
 								{timeAgo(item.created_at)}.
 								{#if item.modified_by_name}
-									Last edited by <strong>{item.modified_by_name}</strong>
+									Last edited by <strong
+										data-test="attribution-editor-{item.id}"
+										class:tombstone={item.modified_by === TOMBSTONE_UID}
+										>{item.modified_by_name}</strong
+									>
 									{timeAgo(item.modified_at)}.
 								{/if}
 							</div>
@@ -179,19 +192,21 @@
 	{/if}
 
 	{#if items.pendingDelete}
-		<div class="undo-snackbar" data-test="undo-snackbar">
-			<Icon name="trash-2" size={16} />
-			{#if items.error}
-				<span class="snackbar-text">Couldn't restore — item is in trash.</span>
-			{:else}
-				<span class="snackbar-text">
-					Deleted '<span class="snackbar-item-name">{items.pendingDelete.item.name}</span>'
-				</span>
-				<button class="undo-btn" data-test="undo-btn" onclick={() => void undoDelete()}>
-					UNDO
-				</button>
-			{/if}
-		</div>
+		{#if items.error}
+			<div class="undo-snackbar" data-test="undo-snackbar">
+				<Icon name="trash-2" size={16} />
+				<span class="snackbar-text">Undo failed — find it in the bin.</span>
+			</div>
+		{:else}
+			<UndoSnackbar
+				deletedName={items.pendingDelete.item.name}
+				onUndo={() => void undoDelete()}
+				ondismiss={() => {
+					items.pendingDelete = null;
+				}}
+				data-test="undo-snackbar"
+			/>
+		{/if}
 	{/if}
 
 	{#if addSheetOpen}
@@ -224,6 +239,29 @@
 		/>
 	{/if}
 </div>
+
+{#if overflowOpen}
+	<ListOverflowSheet
+		{listId}
+		listName={listMeta.name}
+		description={listMeta.description}
+		itemCount={items.rows.length}
+		memberCount={listMeta.list_members.length}
+		onDelete={() => history.back()}
+		onclose={() => (overflowOpen = false)}
+		onviewtrash={async () => {
+			overflowOpen = false; // unmounts sheet → Sheet.$effect cleanup → history.back()
+			await tick();
+			// Sheet always calls pushHistoryGuard on mount, so unmounting it always
+			// fires popstate. Wait for it before navigating forward, otherwise
+			// SvelteKit sees the backward pop after the forward push and undoes it.
+			await new Promise<void>((r) =>
+				window.addEventListener('popstate', () => r(), { once: true })
+			);
+			await goto(resolve(`/lists/${listId}/trash`));
+		}}
+	/>
+{/if}
 
 <style>
 	.screen {
@@ -427,6 +465,13 @@
 		font-weight: 600;
 	}
 
+	.attribution strong.tombstone {
+		font-style: italic;
+		font-weight: normal;
+		color: var(--stone-lt);
+		font-family: 'Newsreader Variable', Georgia, serif;
+	}
+
 	.panel-actions {
 		margin-top: 14px;
 		display: flex;
@@ -454,17 +499,6 @@
 		color: var(--ember);
 	}
 
-	.icon-btn {
-		background: none;
-		border: none;
-		padding: 4px;
-		color: var(--ink);
-		cursor: pointer;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-	}
-
 	.undo-snackbar {
 		position: fixed;
 		left: max(0px, calc(50% - var(--app-max-w) / 2 + 12px));
@@ -487,22 +521,5 @@
 		overflow: hidden;
 		white-space: nowrap;
 		text-overflow: ellipsis;
-	}
-
-	.snackbar-item-name {
-		font-weight: 500;
-	}
-
-	.undo-btn {
-		background: none;
-		border: none;
-		padding: 0 4px;
-		color: var(--sage);
-		font: inherit;
-		font-size: 13px;
-		font-weight: 700;
-		cursor: pointer;
-		letter-spacing: 0.04em;
-		flex-shrink: 0;
 	}
 </style>

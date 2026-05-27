@@ -165,7 +165,7 @@ in-flight branch for no gain.
    column default, the `bump_avatar_version` atomic increment, the
    `clear_avatar` reset, and the `tg_set_modified_at` extension.
 
-6. [ ] **Soft-delete UX.** Undo snackbar pattern, per-list trash (now
+6. [x] **Soft-delete UX.** Undo snackbar pattern, per-list trash (now
    reachable from the list overflow menu's *View trash* row, in
    addition to Settings → Recovery), account trash, restore flow.
    Refines step 4 — items and lists were already soft-deletable in

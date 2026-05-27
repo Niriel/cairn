@@ -66,6 +66,12 @@
 			bind:value={name}
 			required
 			placeholder="Name"
+			onkeydown={(e) => {
+				if (e.key === 'Escape') {
+					e.preventDefault();
+					oncancel();
+				}
+			}}
 		/>
 
 		<label class="field-label" for="add-edit-notes-input">
@@ -76,6 +82,15 @@
 			data-test="add-edit-notes"
 			bind:value={notes}
 			placeholder="Notes (optional)"
+			onkeydown={(e) => {
+				if (e.key === 'Enter' && !e.shiftKey && !submitting) {
+					e.preventDefault();
+					void handleSubmit();
+				} else if (e.key === 'Escape') {
+					e.preventDefault();
+					oncancel();
+				}
+			}}
 		></textarea>
 
 		<div class="actions">

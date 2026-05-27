@@ -76,6 +76,61 @@ describe('CreateListSheet', () => {
 		});
 	});
 
+	test('(f) Enter on description textarea submits the form (no newline)', async () => {
+		const oncreated = vi.fn();
+		const { getByDataTest } = render(CreateListSheet, {
+			open: true,
+			onclose: vi.fn(),
+			oncreated
+		});
+		await fireEvent.input(getByDataTest('create-list-name'), {
+			target: { value: 'My list' }
+		});
+		await fireEvent.keyDown(getByDataTest('create-list-description'), { key: 'Enter' });
+		await vi.waitFor(() => {
+			expect(oncreated).toHaveBeenCalledWith(expect.objectContaining({ id: LIST_ROW.id }));
+		});
+	});
+
+	test('(g) Shift+Enter on description textarea does not submit', async () => {
+		const oncreated = vi.fn();
+		const { getByDataTest } = render(CreateListSheet, {
+			open: true,
+			onclose: vi.fn(),
+			oncreated
+		});
+		await fireEvent.input(getByDataTest('create-list-name'), {
+			target: { value: 'My list' }
+		});
+		await fireEvent.keyDown(getByDataTest('create-list-description'), {
+			key: 'Enter',
+			shiftKey: true
+		});
+		expect(oncreated).not.toHaveBeenCalled();
+	});
+
+	test('(h) Escape on name input calls onclose', async () => {
+		const onclose = vi.fn();
+		const { getByDataTest } = render(CreateListSheet, {
+			open: true,
+			onclose,
+			oncreated: vi.fn()
+		});
+		await fireEvent.keyDown(getByDataTest('create-list-name'), { key: 'Escape' });
+		expect(onclose).toHaveBeenCalledTimes(1);
+	});
+
+	test('(i) Escape on description textarea calls onclose', async () => {
+		const onclose = vi.fn();
+		const { getByDataTest } = render(CreateListSheet, {
+			open: true,
+			onclose,
+			oncreated: vi.fn()
+		});
+		await fireEvent.keyDown(getByDataTest('create-list-description'), { key: 'Escape' });
+		expect(onclose).toHaveBeenCalledTimes(1);
+	});
+
 	test('(e) create button is disabled while submitting', async () => {
 		let resolveCreate!: () => void;
 		const createPending = new Promise<void>((r) => {

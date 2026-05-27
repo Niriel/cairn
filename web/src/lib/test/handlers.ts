@@ -69,6 +69,7 @@ export const handlers: RequestHandler[] = [
 		)
 	),
 	http.patch('*/api/items', () => new HttpResponse(null, { status: 204 })),
+	http.patch('*/api/lists', () => new HttpResponse(null, { status: 204 })),
 	http.post('*/api/votes', () => new HttpResponse(null, { status: 200 })),
 	http.delete('*/api/votes', () => new HttpResponse(null, { status: 204 })),
 	http.post('*/api/rpc/set_display_name', () => new HttpResponse(null, { status: 204 })),

@@ -13,7 +13,10 @@ import ItemsScreen from './ItemsScreen.svelte';
 
 vi.mock('$lib/item/state/items.svelte');
 vi.mock('$lib/basic/components/Fab.svelte');
+vi.mock('$lib/list/components/ListOverflowSheet.svelte');
 vi.mock('$lib/shared/components/Avatar.svelte');
+vi.mock('$lib/shared/components/MoreButton.svelte');
+vi.mock('$lib/shared/components/UndoSnackbar.svelte');
 vi.mock('$lib/item/components/VoteControl.svelte');
 vi.mock('$lib/item/components/AddEditItemSheet.svelte');
 vi.mock('$lib/item/components/DeleteItemSheet.svelte');
@@ -21,6 +24,7 @@ vi.mock('$lib/item/components/DeleteItemSheet.svelte');
 const STUB_LIST = {
 	id: 'test-list-id',
 	name: 'Test list',
+	description: null,
 	list_members: [{ user_id: 'user-1' }]
 };
 
@@ -148,11 +152,11 @@ describe('ItemsScreen', () => {
 		expect(queryByDataTest('items-fab')).toBeNull();
 	});
 
-	test('(i-c) tapping UNDO calls undoDelete', async () => {
+	test('(i-c) tapping UNDO in snackbar calls undoDelete', async () => {
 		items.pendingDelete = { item: ITEM_1, timerId: 0 as unknown as ReturnType<typeof setTimeout> };
 		const { getByDataTest } = render(ItemsScreen, { listId: 'test-list-id' });
 		await tick();
-		await fireEvent.click(getByDataTest('undo-btn'));
+		await fireEvent.click(getByDataTest('undo-snackbar-undo'));
 		expect(vi.mocked(undoDelete)).toHaveBeenCalledTimes(1);
 	});
 
@@ -163,13 +167,60 @@ describe('ItemsScreen', () => {
 		expect(queryByDataTest('undo-snackbar')).toBeNull();
 	});
 
+	test('(new-a) clicking More options renders ListOverflowSheet', async () => {
+		const { getByRole, queryByDataTest } = render(ItemsScreen, { listId: 'test-list-id' });
+		await fireEvent.click(getByRole('button', { name: 'More options' }));
+		await tick();
+		expect(queryByDataTest('list-overflow-sheet-stub')).not.toBeNull();
+	});
+
 	test('(i-e) error state shows failure message and hides UNDO button', async () => {
 		items.pendingDelete = { item: ITEM_1, timerId: 0 as unknown as ReturnType<typeof setTimeout> };
 		items.error = 'Failed to restore item';
 		const { queryByDataTest } = render(ItemsScreen, { listId: 'test-list-id' });
 		await tick();
 		const snackbar = queryByDataTest('undo-snackbar');
-		expect(snackbar?.textContent).toContain("Couldn't restore");
+		expect(snackbar?.textContent).toContain('Undo failed');
 		expect(queryByDataTest('undo-btn')).toBeNull();
+	});
+
+	test('(new-b) tombstone created_by renders italic class on creator name', async () => {
+		items.rows = [
+			{
+				...ITEM_1,
+				created_by: '00000000-0000-0000-0000-000000000000',
+				created_by_name: 'Deleted user'
+			}
+		];
+		const { getByDataTest } = render(ItemsScreen, { listId: 'test-list-id' });
+		await tick();
+		await fireEvent.click(getByDataTest(`row-${ITEM_1.id}`));
+		await tick();
+		expect(getByDataTest(`attribution-creator-${ITEM_1.id}`).classList.contains('tombstone')).toBe(
+			true
+		);
+	});
+
+	test('(new-c) live creator + tombstone editor renders italic on editor only', async () => {
+		items.rows = [
+			{
+				...ITEM_1,
+				created_by: 'user-1',
+				created_by_name: 'Alice',
+				modified_by: '00000000-0000-0000-0000-000000000000',
+				modified_by_name: 'Deleted user',
+				modified_at: '2026-02-01T00:00:00Z'
+			}
+		];
+		const { getByDataTest } = render(ItemsScreen, { listId: 'test-list-id' });
+		await tick();
+		await fireEvent.click(getByDataTest(`row-${ITEM_1.id}`));
+		await tick();
+		expect(getByDataTest(`attribution-creator-${ITEM_1.id}`).classList.contains('tombstone')).toBe(
+			false
+		);
+		expect(getByDataTest(`attribution-editor-${ITEM_1.id}`).classList.contains('tombstone')).toBe(
+			true
+		);
 	});
 });

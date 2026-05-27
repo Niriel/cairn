@@ -44,7 +44,7 @@
 <style>
 	header {
 		display: flex;
-		align-items: center;
+		align-items: flex-start;
 		gap: 10px;
 		min-height: 56px;
 		padding: calc(env(safe-area-inset-top) + 12px) calc(env(safe-area-inset-right) + 18px) 12px

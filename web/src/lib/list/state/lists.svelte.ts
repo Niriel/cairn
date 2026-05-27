@@ -1,17 +1,61 @@
-import { pgGet } from '$lib/shared/http/postgrest';
+import { pgGet, pgPatch } from '$lib/shared/http/postgrest';
 import { session } from '$lib/shared/state/session.svelte';
 import type { List } from '$lib/list/model/list';
 
-export const lists = $state<{ items: List[]; loading: boolean; error: string | null }>({
+export const lists = $state<{
+	items: List[];
+	loading: boolean;
+	error: string | null;
+	pendingDelete: { list: List; timerId: ReturnType<typeof setTimeout> } | null;
+}>({
 	items: [],
 	loading: false,
-	error: null
+	error: null,
+	pendingDelete: null
 });
 
 let refreshSignal = $state(0);
 
 export function refreshLists(): void {
 	refreshSignal++;
+}
+
+export async function deleteList(listId: string): Promise<void> {
+	if (lists.pendingDelete) clearTimeout(lists.pendingDelete.timerId);
+	const idx = lists.items.findIndex((l) => l.id === listId);
+	if (idx === -1) return;
+	const list = { ...lists.items[idx] };
+	lists.items = [...lists.items.slice(0, idx), ...lists.items.slice(idx + 1)];
+	const timerId = setTimeout(() => {
+		lists.pendingDelete = null;
+	}, 6000);
+	lists.pendingDelete = { list, timerId };
+	try {
+		// eslint-disable-next-line svelte/prefer-svelte-reactivity -- transient value used for ISO string, not reactive state
+		await pgPatch<void>(`/lists?id=eq.${listId}`, { deleted_at: new Date().toISOString() });
+	} catch {
+		clearTimeout(timerId);
+		lists.items = [...lists.items.slice(0, idx), list, ...lists.items.slice(idx)];
+		lists.pendingDelete = null;
+	}
+}
+
+export async function undoDeleteList(): Promise<void> {
+	if (!lists.pendingDelete) return;
+	const { list, timerId } = lists.pendingDelete;
+	clearTimeout(timerId);
+	try {
+		await pgPatch<void>(`/lists?id=eq.${list.id}`, { deleted_at: null });
+		lists.items = [list, ...lists.items].sort((a, b) => b.modified_at.localeCompare(a.modified_at));
+		lists.pendingDelete = null;
+	} catch (err) {
+		lists.error = err instanceof Error ? err.message : 'Failed to restore list';
+		const fallbackTimer = setTimeout(() => {
+			lists.pendingDelete = null;
+			lists.error = null;
+		}, 4000);
+		lists.pendingDelete = { list, timerId: fallbackTimer };
+	}
 }
 
 $effect.root(() => {
@@ -23,7 +67,9 @@ $effect.root(() => {
 			lists.loading = true;
 			lists.error = null;
 			pgGet<List[]>(
-				'/lists?select=id,name,description,modified_at,item_count:lists_item_count,list_members(user_id,profiles(display_name,avatar_version))&list_members.deleted_at=is.null&order=modified_at.desc'
+				// lists_select allows the deleter to read their own soft-deleted rows (needed for
+				// the PATCH WITH CHECK gate), so the client must filter them out explicitly.
+				'/lists?select=id,name,description,modified_at,item_count:lists_item_count,list_members(user_id,profiles(display_name,avatar_version))&list_members.deleted_at=is.null&deleted_at=is.null&order=modified_at.desc'
 			)
 				.then((result) => {
 					lists.items = result;

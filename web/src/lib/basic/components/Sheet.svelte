@@ -19,13 +19,22 @@
 </script>
 
 {#if open}
-	<div data-test={rest['data-test']}>
+	<div class="backdrop" role="presentation" onclick={onclose}></div>
+	<div class="sheet" data-test={rest['data-test']}>
 		{@render children?.()}
 	</div>
 {/if}
 
 <style>
-	div {
+	.backdrop {
+		position: fixed;
+		left: max(0px, calc(50% - var(--app-max-w) / 2));
+		right: max(0px, calc(50% - var(--app-max-w) / 2));
+		top: 0;
+		bottom: 0;
+	}
+
+	.sheet {
 		position: fixed;
 		left: max(0px, calc(50% - var(--app-max-w) / 2));
 		right: max(0px, calc(50% - var(--app-max-w) / 2));
@@ -33,7 +42,7 @@
 		background: var(--paper);
 		padding: 1rem calc(1rem + env(safe-area-inset-right)) calc(1rem + env(safe-area-inset-bottom))
 			calc(1rem + env(safe-area-inset-left));
-		box-shadow: var(--shadow);
-		border-radius: 16px 16px 0 0;
+		box-shadow: 0 -8px 30px rgba(0, 0, 0, 0.15);
+		border-radius: 24px 24px 0 0;
 	}
 </style>

@@ -47,6 +47,31 @@ describe('/profile page', () => {
 		});
 	});
 
+	test('(b2) Enter on display-name input calls set_display_name RPC', async () => {
+		let seenBody: unknown = null;
+		server.use(
+			http.post('*/api/rpc/set_display_name', async ({ request }) => {
+				seenBody = await request.json();
+				return new HttpResponse(null, { status: 204 });
+			})
+		);
+		profile.displayName = 'Alice';
+		const { getByDataTest } = render(Page);
+		await fireEvent.keyDown(getByDataTest('display-name-input'), { key: 'Enter' });
+		await vi.waitFor(() => {
+			expect(seenBody).toEqual({ new_name: 'Alice' });
+		});
+	});
+
+	test('(b3) Escape on display-name input calls history.back', async () => {
+		const back = vi.spyOn(history, 'back').mockImplementation(() => {});
+		profile.displayName = 'Alice';
+		const { getByDataTest } = render(Page);
+		await fireEvent.keyDown(getByDataTest('display-name-input'), { key: 'Escape' });
+		expect(back).toHaveBeenCalled();
+		back.mockRestore();
+	});
+
 	test('(c) Remove button is absent when profile.avatarVersion === 0', () => {
 		profile.avatarVersion = 0;
 		const { queryByDataTest } = render(Page);

@@ -1,15 +1,14 @@
 import * as path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 import { expect, test, type Page } from '@playwright/test';
 
 import { waitForMagicLink } from './helpers/mailpit';
 
-// Avatar upload, replace, remove, and display-name flows — exercised end-to-end
-// against the real backend (GoTrue + PostgREST + sidecar + Caddy + Vite proxy).
-// Requires: docker compose up + migrations applied + dev server running.
-// Set SKIP_E2E=1 to skip this suite (e.g. in environments without a dev stack).
-
-const FIXTURE = path.resolve(__dirname, 'fixtures/test-avatar.jpg');
+const FIXTURE = path.resolve(
+	path.dirname(fileURLToPath(import.meta.url)),
+	'fixtures/test-avatar.jpg'
+);
 
 test.describe.serial('avatar flow', () => {
 	let page: Page;
@@ -31,7 +30,7 @@ test.describe.serial('avatar flow', () => {
 		await expect(page).toHaveURL(/\/auth\/check$/);
 		const { link } = await waitForMagicLink(email);
 		await page.goto(link);
-		await expect(page).toHaveURL(/\/$/);
+		await expect(page).toHaveURL(/\/lists$/);
 	});
 
 	test.afterAll(async () => {

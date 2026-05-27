@@ -304,7 +304,7 @@ A few notes:
 
 ## The `items_deleted` view
 
-The trash screen (see `ui.md`) reads from a parallel view that filters to *only* soft-deleted rows. Same shape as `items_ranked` minus the vote tallies — vote counts on a deleted item aren't meaningful — plus the `deleted_at` and `deleted_by` columns the UI displays as the *"deleted by Bob, 3 May 2026"* attribution.
+The trash screen (see `ui.md`) reads from a parallel view that filters to *only* soft-deleted rows. Same shape as `items_ranked` minus the vote tallies — vote counts on a deleted item aren't meaningful — plus the `deleted_at` and `deleted_by` columns the UI displays as the *"deleted by Bob · 3 May 2026"* attribution.
 
 ```sql
 create view public.items_deleted

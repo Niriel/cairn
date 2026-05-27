@@ -34,7 +34,7 @@ The expanded description pushes the rows below it down (accordion style, same as
 
 Each row also shows a metadata line: item count, time since last modification, and avatar initials of current members.
 
-A floating button creates a new list. Editing a list's name or description, and deleting a list, are not yet designed — see "Not decided" below.
+A floating button creates a new list. Editing a list's name or description and deleting a list are done via a `⋮` overflow button on each list row, which opens a bottom sheet — see "Bin & undo" below.
 
 ## Items screen
 
@@ -128,7 +128,7 @@ The app uses three CSS techniques together:
 - **`env(safe-area-inset-*)`** for the actual insets. Every screen's outer container reserves `env(safe-area-inset-top)` and `env(safe-area-inset-bottom)` of padding so content doesn't sit underneath the notch or the home pill. Bottom sheets do the same on the bottom edge — the delete-item confirmation and the list overflow sheet both need it, so destructive buttons aren't ever overlapped by system gestures.
 - **`100dvh` (dynamic viewport height)** instead of `100vh` for full-height layouts. `dvh` shrinks when iOS Safari's address bar expands, which keeps the FAB visible instead of clipped behind chrome.
 
-The floating action button is positioned with `position: fixed; bottom: calc(env(safe-area-inset-bottom) + 16px); right: 16px;`. Never a bare `16px` on `bottom`. The same pattern applies to the snackbar.
+The floating action button is positioned with `position: fixed; bottom: calc(env(safe-area-inset-bottom) + 16px); right: 16px;`. Never a bare `16px` on `bottom`. The snackbar uses a slightly larger offset: `bottom: calc(env(safe-area-inset-bottom) + 18px)` — matching the design spec (`ItemsScreenWithUndo`, `design/cairn-screens.jsx`).
 
 The virtual keyboard is the trickiest piece. The web platform's [VisualViewport API](https://developer.mozilla.org/en-US/docs/Web/API/VisualViewport) is the source of truth: when the keyboard opens, the visual viewport shrinks. The app listens for `visualViewport.resize` and adjusts the layout so the focused text field stays visible above the keyboard. CSS-only approaches (e.g. `100dvh`) handle most cases on Android Chrome but fail on iOS Safari, where the keyboard can sit _over_ the page without resizing the layout viewport — the JS path is required.
 
@@ -156,7 +156,7 @@ Playwright should exercise this. Each user-journey spec (`testing.md`) should in
 
 ## Settings
 
-A Settings screen, reachable from the **gear icon** in the top-right of the Lists screen. (The kebab on individual list rows is unchanged — that's still the per-list long-press menu.) The screen is the canonical hub: every other Settings-shaped surface ladders back to it.
+A Settings screen, reachable from the **gear icon** in the top-right of the Lists screen. Each list row also has a ⋮ button that opens a per-list overflow sheet (see "Bin & undo" below). The screen is the canonical hub: every other Settings-shaped surface ladders back to it.
 
 A profile chip sits at the top: current avatar (initials disc or photo), display name, chevron. Tapping it opens **Edit profile** — see "Avatars" below. Below the chip, the screen is grouped into named sections.
 
@@ -208,7 +208,7 @@ A small non-blocking panel sits _above_ the destructive button: _"Want a copy of
 
 After tapping the destructive button: a brief loading state, then a confirmation screen ("Your account has been deleted") with a single button back to the sign-in screen. The session cookie is cleared (the server's `DELETE /auth/session` endpoint sets `Max-Age=0` on the `cairn_session` cookie); the app is fully logged out.
 
-The "Deleted user" tombstone gets a specific visual treatment wherever an avatar would normally render: a flat gray disc, no initials, the display name "Deleted user" in muted italic. This appears on item attribution lines on the accordion, on members lists (rare — the tombstone is never an active member), and on the trash screen for any item the deleted user originally added.
+The "Deleted user" tombstone gets a specific visual treatment wherever an avatar would normally render: a flat gray disc, no initials. The muted-italic display-name treatment is scoped to the **Items accordion** in v1 — it appears on item attribution lines there, and a future revisit may extend it to the members list (rare — the tombstone is never an active member) and to bin-screen "deleted by …" attribution. The bin screens currently render the literal display name "Deleted user" in the standard `var(--stone-lt)` colour, same as any other deleted-by attribution.
 
 For the data model behind all of this, see `account-deletion.md`.
 
@@ -329,27 +329,27 @@ Each item row shows an aggregate-score badge next to the name when the score is 
 
 The user's _own_ vote remains the primary signal on the row (the indicator on the trailing edge); the aggregate is a secondary read on the leading edge. The two never compete because they use different weights and different positions.
 
-## Trash & undo
+## Bin & undo
 
-Soft delete is universal in Cairn (see `data-model.md`): items, lists, and list memberships are marked with `deleted_at`, never removed. The UI surfaces this in two places — a transient undo, and a per-list trash.
+Soft delete is universal in Cairn (see `data-model.md`): items, lists, and list memberships are marked with `deleted_at`, never removed. The UI surfaces this in two places — a transient undo, and a per-list bin.
 
 ### Undo snackbar
 
-Whenever a user soft-deletes an item, a snackbar appears at the bottom of the items screen for **6 seconds**: _"Deleted 'Bringing Up Baby' · Undo"_. Tapping Undo clears the `deleted_at` and the row pops back into place. After the snackbar dismisses, the item is in the trash, recoverable from there. The snackbar replaces — not stacks with — any previous one; the most recent delete wins.
+Whenever a user soft-deletes an item, a snackbar appears at the bottom of the items screen for **6 seconds**: _"Deleted 'Bringing Up Baby' · Undo"_. Tapping Undo clears the `deleted_at` and the row pops back into place. After the snackbar dismisses, the item is in the bin, recoverable from there. The snackbar replaces — not stacks with — any previous one; the most recent delete wins.
 
 While the snackbar is up, the FAB is hidden. The two share the bottom-right corner, and the Undo affordance must not be covered by the "add" button — undo _is_ the action we want the user to take in those six seconds. The FAB returns when the snackbar dismisses.
 
 The same pattern applies to deleting a list (snackbar on the lists screen) and to removing a member (snackbar on the members screen).
 
-### Trash screen
+### Bin screen
 
-Each list has a **Trash** entry in its overflow menu (the long-press / `⋮` sheet). Opening it shows the list's soft-deleted items, ordered most-recently-deleted first. Each row shows the item name, a faint _"deleted by Bob, 3 May 2026"_ attribution, and a single **Restore** button. Tapping Restore clears `deleted_at` and returns the item to the live list at its original position in the sort.
+Each list has a **Bin** entry in its overflow menu (the `⋮` sheet reachable from each list row on the Lists screen and from the `⋮` button in the Items screen TopBar). Opening it shows the list's soft-deleted items, ordered most-recently-deleted first. Each row shows the item name, a faint _"deleted by Bob · 3 May 2026"_ attribution, and a single **Restore** button. Tapping Restore clears `deleted_at` and returns the item to the live list at its original position in the sort.
 
-There is no "empty trash" action. Hard deletion is not exposed in the UI; nothing in v1 ever calls `DELETE` on items. If we ever add a server-side garbage collection for very old deletions, that's a backend decision (see the open question in `architecture.md`), not a user-facing one.
+There is no "empty bin" action. Hard deletion is not exposed in the UI; nothing in v1 ever calls `DELETE` on items. If we ever add a server-side garbage collection for very old deletions, that's a backend decision (see the open question in `architecture.md`), not a user-facing one.
 
-A trashed list is reachable from a separate **Trash** entry in Settings (one trash per user, listing all deleted lists they were a member of). Restoring a list returns it to the lists screen with all its members and its trash intact.
+A deleted list is reachable from a separate **Bin** entry in Settings (one bin per user, listing all deleted lists they were a member of). Restoring a list returns it to the lists screen with all its members and its bin intact.
 
-The trash is not a feature we promise users — it's a safety net. The copy in delete confirmations should reflect that without making promises about retention windows: _"Bob and Carol will no longer see this item. You can restore it from this list's trash."_ No "for 30 days," no countdown — just the affordance.
+The bin is not a feature we promise users — it's a safety net. The copy in delete confirmations should reflect that without making promises about retention windows: _"Bob and Carol will no longer see this item. You can restore it from this list's bin."_ No "for 30 days," no countdown — just the affordance.
 
 ## Other surfaces
 
@@ -479,7 +479,6 @@ Use the pattern specified by the screen's design JSX in `design/cairn-screens.js
 
 These are deferred — they need a design pass but aren't blocking v1.
 
-- **Editing and deleting lists.** The lists screen needs an affordance for renaming or deleting a list. Could be a long-press menu, a swipe gesture, or a per-list overflow button. Pending.
 - **Exact typography for the indicator.** Whether `+++` should grow visually with magnitude (light → bold) within the fixed-width slot is a polish question for the implementation, not a v1 contract.
 - **Haptics.** A small tick on each tap would be nice. Defer.
 - **Animation.** A subtle slide for the accordion unfold and for vote-state transitions would be nice. Defer.

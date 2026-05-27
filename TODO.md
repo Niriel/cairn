@@ -39,6 +39,68 @@
    after `scripts/sweep-avatars.sh`: pure shell + psql, `DATABASE_URL` env var,
    ShellCheck + shfmt clean, with a matching entry in `crontab.example`.
 
+6. [ ] **Migrate inline `icon-btn` buttons to `IconButton` / `MoreButton`** —
+   several files duplicate the `.icon-btn` CSS block instead of using the
+   `IconButton` (and `MoreButton`) components introduced in step 0601. Refactor
+   after 0601 merges; no behaviour change needed.
+   - `TopBar.svelte:28` — back-chevron button (highest leverage: every screen)
+   - `profile/+page.svelte:140` — back button in the TopBar slot
+   - `profile/+page.svelte:227` — disabled pencil icon (avatar, not yet implemented)
+   - `profile/+page.svelte:231` — pencil icon to enter edit mode
+   - `AvatarCropScreen.svelte:145` — cancel button during avatar crop
+   - `ListsScreen.svelte:47` — Settings gear (covered by task 4.1 of plan 0601)
+   - `ItemsScreen.svelte:71` — `⋮` button in TopBar (covered by task 4.2 of plan 0601)
+
+7. [ ] **Centre edit sheets vertically instead of pinning them to the bottom**
+   — on phones, the on-screen keyboard covers the bottom of the viewport, so
+   any bottom-anchored sheet with a focusable text field ends up hidden behind
+   the keyboard the moment the input focuses. Affected sheets:
+   - `RenameListSheet` (single-field)
+   - `EditDescriptionSheet` (single-field)
+   - `AddEditItemSheet` (two-field — add and edit item)
+   - `CreateListSheet` (two-field, and visually inconsistent with the others —
+     fold its styling into the same treatment while we're here)
+   Either centre these sheets vertically when an input is focused, or use
+   `visualViewport` to keep them above the keyboard. Whatever the approach,
+   apply it uniformly to every sheet that contains a focusable text field.
+
+## Factor out repeating CSS into components
+
+The same handful of CSS blocks keep getting copy-pasted across screens
+because the existing components don't cover the shapes the design needs.
+The result is that visual consistency lives in `git grep`, not in code —
+one screen tweaks a colour or a padding and the others quietly drift.
+Audit each item below, identify the recurring shapes from the audit (not
+from guesswork), define a **limited** set of variants and a small parameter
+surface, and migrate. Aim is to minimise repetition without exploding the
+API; if a shape only appears once, keep it inline rather than minting a
+variant for it. Out of scope while screens are still being built; revisit
+once the screen inventory is stable.
+
+8. [ ] **Consolidate raw `<button>` elements behind a small set of button
+   components** — many screens render raw `<button>` with inline-styled
+   variants (outlined pills, chip-shaped panel actions, empty-state CTAs, the
+   row-level Restore on `TrashScreen`, `.panel-btn` and `.empty-cta` in
+   `ItemsScreen`, etc). The existing `Button` component covers only `primary` /
+   `ghost` / `destructive` filled-rectangle shapes, which is why screens keep
+   reaching past it. Rough hypothesis for the variant set (audit will refine):
+   filled-rect, outlined-pill, ghost-text, icon-only. Parameters likely needed:
+   size, leading icon, destructive tone.
+
+9. [ ] **Give `Icon` a `color` prop (or an idiomatic wrapper) so screens
+   stop copy-pasting `.row-icon { display: inline-flex; color: … }` spans**
+   — `Icon.svelte` strokes with `currentColor`, so any non-default colour
+   today requires a parent element with `display: inline-flex; color: …`.
+   That wrapper span is reappearing across screens (`TrashScreen.svelte`'s
+   `.row-icon`, the empty-state circles in `ItemsScreen` / `TrashScreen`,
+   etc.). Either accept a `color` prop on `Icon` and apply it inline on the
+   `<svg>`, or introduce a tiny `<ColoredIcon>` wrapper that owns the
+   `inline-flex` + `color` rule once. Pick whichever lets call sites read
+   as `<Icon name="rotate-ccw" color="var(--stone)" />` without an
+   intermediate `<span>`.
+
+---
+
 5. [ ] **Font size setting must scale the whole app, not just the container
    width** — the Settings font-size preference (XS/S/M/L/XL, stored in
    `localStorage`) currently only affects `--app-max-w`. All pixel values in

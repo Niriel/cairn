@@ -51,14 +51,11 @@ need docker
 echo "==> web: install (frozen)"
 if (cd web && pnpm install --frozen-lockfile) >/dev/null; then ok "pnpm install"; else fail "pnpm install"; fi
 
-echo "==> web: type check"
-if (cd web && pnpm check) >/dev/null; then ok "svelte-check"; else fail "svelte-check"; fi
+echo "==> web: format check"
+if (cd web && pnpm format:check) >/dev/null; then ok "prettier"; else fail "prettier"; fi
 
 echo "==> web: lint"
 if (cd web && pnpm lint); then ok "eslint"; else fail "eslint"; fi
-
-echo "==> web: format check"
-if (cd web && pnpm format:check) >/dev/null; then ok "prettier"; else fail "prettier"; fi
 
 echo "==> sql lint"
 if sqlfluff lint db/ scripts/ 2>/dev/null; then ok "sqlfluff"; else fail "sqlfluff"; fi
@@ -68,6 +65,9 @@ if shellcheck scripts/*.sh; then ok "shellcheck"; else fail "shellcheck"; fi
 
 echo "==> shell format"
 if shfmt -d -i 2 -ci -bn scripts/; then ok "shfmt"; else fail "shfmt"; fi
+
+echo "==> web: type check"
+if (cd web && pnpm check) >/dev/null; then ok "svelte-check"; else fail "svelte-check"; fi
 
 echo "==> database tests (pgTAP)"
 if ./scripts/test-db.sh >/dev/null; then ok "pg_prove"; else fail "pg_prove"; fi

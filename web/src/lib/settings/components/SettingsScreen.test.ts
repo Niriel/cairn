@@ -87,4 +87,20 @@ describe('SettingsScreen', () => {
 		expect(vi.mocked(goto)).toHaveBeenCalledOnce();
 		expect(vi.mocked(goto)).toHaveBeenCalledWith(vi.mocked(resolve)('/profile'));
 	});
+
+	test('(j) Recovery row renders', () => {
+		const { queryByDataTest } = render(SettingsScreen);
+		const row = queryByDataTest('settings-deleted-lists');
+		expect(row).not.toBeNull();
+		expect(row?.textContent).toContain('Deleted lists');
+	});
+
+	test('(k) clicking Recovery row navigates to /settings/deleted-lists', async () => {
+		const { goto } = await import('$app/navigation');
+		const { resolve } = await import('$app/paths');
+		const { getByDataTest } = render(SettingsScreen);
+		await fireEvent.click(getByDataTest('settings-deleted-lists'));
+		expect(vi.mocked(goto)).toHaveBeenCalledOnce();
+		expect(vi.mocked(goto)).toHaveBeenCalledWith(vi.mocked(resolve)('/settings/deleted-lists'));
+	});
 });
