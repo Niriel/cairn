@@ -15,10 +15,10 @@
 
 ## Phase 0 — Doc reconciliation
 
-### [ ] 0.1 Switch the trash-attribution separator in `docs/ui.md` and `docs/data-model.md` to a bullet
+### [x] 0.1 Switch the trash-attribution separator in `docs/ui.md` and `docs/data-model.md` to a bullet
 
 **Created:** 2026-05-27T11:00:00Z
-**Completed:**
+**Completed:** 2026-05-27T09:36:00Z
 
 **Why:** `docs/ui.md` "Trash & undo" → "Trash screen" still describes the
 attribution row as *"deleted by Bob, 3 May 2026"* (comma), and the same

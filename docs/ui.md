@@ -343,7 +343,7 @@ The same pattern applies to deleting a list (snackbar on the lists screen) and t
 
 ### Trash screen
 
-Each list has a **Trash** entry in its overflow menu (the `⋮` sheet reachable from each list row on the Lists screen and from the `⋮` button in the Items screen TopBar). Opening it shows the list's soft-deleted items, ordered most-recently-deleted first. Each row shows the item name, a faint _"deleted by Bob, 3 May 2026"_ attribution, and a single **Restore** button. Tapping Restore clears `deleted_at` and returns the item to the live list at its original position in the sort.
+Each list has a **Trash** entry in its overflow menu (the `⋮` sheet reachable from each list row on the Lists screen and from the `⋮` button in the Items screen TopBar). Opening it shows the list's soft-deleted items, ordered most-recently-deleted first. Each row shows the item name, a faint _"deleted by Bob · 3 May 2026"_ attribution, and a single **Restore** button. Tapping Restore clears `deleted_at` and returns the item to the live list at its original position in the sort.
 
 There is no "empty trash" action. Hard deletion is not exposed in the UI; nothing in v1 ever calls `DELETE` on items. If we ever add a server-side garbage collection for very old deletions, that's a backend decision (see the open question in `architecture.md`), not a user-facing one.
 
