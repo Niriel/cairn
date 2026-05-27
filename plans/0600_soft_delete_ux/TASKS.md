@@ -91,10 +91,10 @@ members"), which refers to a future members screen and is not yet resolved.
 
 ## Phase 1 — 0601: List overflow menu
 
-### [ ] 1.1 Plan and implement sub-step 0601 (list overflow, rename, delete + undo)
+### [x] 1.1 Plan and implement sub-step 0601 (list overflow, rename, delete + undo)
 
 **Created:** 2026-05-26T00:00:00Z
-**Completed:**
+**Completed:** 2026-05-27T07:38:15Z
 
 **Why:** The list-level management surface (rename, edit description, delete,
 view trash) is the foundation of step 6. It must land before the trash screens
