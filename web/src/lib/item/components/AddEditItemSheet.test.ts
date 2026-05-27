@@ -93,6 +93,62 @@ describe('AddEditItemSheet', () => {
 		});
 	});
 
+	test('(f) Enter on notes textarea (no shift) submits', async () => {
+		const onsubmit = vi.fn();
+		const { getByDataTest } = render(AddEditItemSheet, {
+			mode: 'add',
+			listId: 'test-list-id',
+			listName: 'My list',
+			onsubmit,
+			oncancel: vi.fn()
+		});
+		await fireEvent.input(getByDataTest('add-edit-name'), { target: { value: 'New film' } });
+		await fireEvent.keyDown(getByDataTest('add-edit-notes'), { key: 'Enter' });
+		await vi.waitFor(() => {
+			expect(vi.mocked(addItem)).toHaveBeenCalledWith('test-list-id', 'New film', undefined);
+		});
+	});
+
+	test('(g) Shift+Enter on notes textarea does not submit', async () => {
+		const { getByDataTest } = render(AddEditItemSheet, {
+			mode: 'add',
+			listId: 'test-list-id',
+			listName: 'My list',
+			onsubmit: vi.fn(),
+			oncancel: vi.fn()
+		});
+		await fireEvent.input(getByDataTest('add-edit-name'), { target: { value: 'New film' } });
+		await fireEvent.keyDown(getByDataTest('add-edit-notes'), { key: 'Enter', shiftKey: true });
+		expect(vi.mocked(addItem)).not.toHaveBeenCalled();
+	});
+
+	test('(h) Escape on name input calls oncancel', async () => {
+		const oncancel = vi.fn();
+		const { getByDataTest } = render(AddEditItemSheet, {
+			mode: 'add',
+			listId: 'test-list-id',
+			listName: 'My list',
+			onsubmit: vi.fn(),
+			oncancel
+		});
+		await fireEvent.keyDown(getByDataTest('add-edit-name'), { key: 'Escape' });
+		expect(oncancel).toHaveBeenCalledTimes(1);
+		expect(vi.mocked(addItem)).not.toHaveBeenCalled();
+	});
+
+	test('(i) Escape on notes textarea calls oncancel', async () => {
+		const oncancel = vi.fn();
+		const { getByDataTest } = render(AddEditItemSheet, {
+			mode: 'add',
+			listId: 'test-list-id',
+			listName: 'My list',
+			onsubmit: vi.fn(),
+			oncancel
+		});
+		await fireEvent.keyDown(getByDataTest('add-edit-notes'), { key: 'Escape' });
+		expect(oncancel).toHaveBeenCalledTimes(1);
+	});
+
 	test('(e) cancel calls oncancel without calling addItem or editItem', async () => {
 		const oncancel = vi.fn();
 		const { getByDataTest } = render(AddEditItemSheet, {

@@ -40,7 +40,21 @@
 </script>
 
 <Sheet open={true} {onclose}>
-	<input data-test="rename-list-name" type="text" bind:value={name} placeholder="List name" />
+	<input
+		data-test="rename-list-name"
+		type="text"
+		bind:value={name}
+		placeholder="List name"
+		onkeydown={(e) => {
+			if (e.key === 'Enter' && !submitting) {
+				e.preventDefault();
+				void handleSave();
+			} else if (e.key === 'Escape') {
+				e.preventDefault();
+				onclose();
+			}
+		}}
+	/>
 	{#if error}
 		<p data-test="rename-list-error">{error}</p>
 	{/if}

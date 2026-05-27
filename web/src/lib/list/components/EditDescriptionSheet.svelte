@@ -38,6 +38,15 @@
 		data-test="edit-description-textarea"
 		bind:value={description}
 		placeholder="Description (optional)"
+		onkeydown={(e) => {
+			if (e.key === 'Enter' && !e.shiftKey && !submitting) {
+				e.preventDefault();
+				void handleSave();
+			} else if (e.key === 'Escape') {
+				e.preventDefault();
+				onclose();
+			}
+		}}
 	></textarea>
 	{#if error}
 		<p data-test="edit-description-error">{error}</p>

@@ -192,6 +192,15 @@
 			class="name-input"
 			data-test="display-name-input"
 			bind:value={nameValue}
+			onkeydown={(e) => {
+				if (e.key === 'Enter') {
+					e.preventDefault();
+					void saveName();
+				} else if (e.key === 'Escape') {
+					e.preventDefault();
+					history.back();
+				}
+			}}
 		/>
 		{#if nameError}
 			<p class="field-error">{nameError}</p>

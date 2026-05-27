@@ -64,6 +64,34 @@ describe('RenameListSheet', () => {
 		expect(vi.mocked(pgPatch)).not.toHaveBeenCalled();
 	});
 
+	test('(f) Enter on input calls PATCH and onclose', async () => {
+		vi.mocked(pgPatch).mockResolvedValue(undefined);
+		const onclose = vi.fn();
+		const { getByDataTest } = render(RenameListSheet, {
+			listId: 'list-1',
+			currentName: 'Old Name',
+			onclose
+		});
+		await fireEvent.input(getByDataTest('rename-list-name'), { target: { value: 'New Name' } });
+		await fireEvent.keyDown(getByDataTest('rename-list-name'), { key: 'Enter' });
+		await vi.waitFor(() => {
+			expect(vi.mocked(pgPatch)).toHaveBeenCalledWith('/lists?id=eq.list-1', { name: 'New Name' });
+			expect(onclose).toHaveBeenCalledTimes(1);
+		});
+	});
+
+	test('(g) Escape on input calls onclose without PATCH', async () => {
+		const onclose = vi.fn();
+		const { getByDataTest } = render(RenameListSheet, {
+			listId: 'list-1',
+			currentName: 'My List',
+			onclose
+		});
+		await fireEvent.keyDown(getByDataTest('rename-list-name'), { key: 'Escape' });
+		expect(onclose).toHaveBeenCalledTimes(1);
+		expect(vi.mocked(pgPatch)).not.toHaveBeenCalled();
+	});
+
 	test('(e) Save with name > 200 chars shows max-length error and does not call PATCH', async () => {
 		const { getByDataTest, queryByDataTest, container } = render(RenameListSheet, {
 			listId: 'list-1',

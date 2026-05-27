@@ -75,6 +75,56 @@ describe('EditDescriptionSheet', () => {
 		});
 	});
 
+	test('(e) Enter on textarea (no shift) calls PATCH and onclose', async () => {
+		vi.mocked(pgPatch).mockResolvedValue(undefined);
+		const onclose = vi.fn();
+		const { getByDataTest } = render(EditDescriptionSheet, {
+			listId: 'list-1',
+			currentDescription: null,
+			onclose
+		});
+		await fireEvent.input(getByDataTest('edit-description-textarea'), {
+			target: { value: 'A description' }
+		});
+		await fireEvent.keyDown(getByDataTest('edit-description-textarea'), { key: 'Enter' });
+		await vi.waitFor(() => {
+			expect(vi.mocked(pgPatch)).toHaveBeenCalledWith('/lists?id=eq.list-1', {
+				description: 'A description'
+			});
+			expect(onclose).toHaveBeenCalledTimes(1);
+		});
+	});
+
+	test('(f) Shift+Enter on textarea does not trigger save', async () => {
+		const onclose = vi.fn();
+		const { getByDataTest } = render(EditDescriptionSheet, {
+			listId: 'list-1',
+			currentDescription: null,
+			onclose
+		});
+		await fireEvent.input(getByDataTest('edit-description-textarea'), {
+			target: { value: 'A description' }
+		});
+		await fireEvent.keyDown(getByDataTest('edit-description-textarea'), {
+			key: 'Enter',
+			shiftKey: true
+		});
+		expect(vi.mocked(pgPatch)).not.toHaveBeenCalled();
+		expect(onclose).not.toHaveBeenCalled();
+	});
+
+	test('(g) Escape on textarea calls onclose without PATCH', async () => {
+		const onclose = vi.fn();
+		const { getByDataTest } = render(EditDescriptionSheet, {
+			listId: 'list-1',
+			currentDescription: null,
+			onclose
+		});
+		await fireEvent.keyDown(getByDataTest('edit-description-textarea'), { key: 'Escape' });
+		expect(onclose).toHaveBeenCalledTimes(1);
+		expect(vi.mocked(pgPatch)).not.toHaveBeenCalled();
+	});
+
 	test('(d) Cancel calls onclose', async () => {
 		const onclose = vi.fn();
 		const { getByDataTest } = render(EditDescriptionSheet, {

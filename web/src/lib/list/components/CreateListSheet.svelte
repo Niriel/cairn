@@ -45,11 +45,26 @@
 			bind:value={name}
 			required
 			placeholder="List name"
+			onkeydown={(e) => {
+				if (e.key === 'Escape') {
+					e.preventDefault();
+					onclose();
+				}
+			}}
 		/>
 		<textarea
 			data-test="create-list-description"
 			bind:value={description}
 			placeholder="Description (optional)"
+			onkeydown={(e) => {
+				if (e.key === 'Enter' && !e.shiftKey && !submitting) {
+					e.preventDefault();
+					void handleSubmit();
+				} else if (e.key === 'Escape') {
+					e.preventDefault();
+					onclose();
+				}
+			}}
 		></textarea>
 		{#if error}
 			<p data-test="create-list-error">{error}</p>

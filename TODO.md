@@ -51,6 +51,19 @@
    - `ListsScreen.svelte:47` — Settings gear (covered by task 4.1 of plan 0601)
    - `ItemsScreen.svelte:71` — `⋮` button in TopBar (covered by task 4.2 of plan 0601)
 
+7. [ ] **Centre edit sheets vertically instead of pinning them to the bottom**
+   — on phones, the on-screen keyboard covers the bottom of the viewport, so
+   any bottom-anchored sheet with a focusable text field ends up hidden behind
+   the keyboard the moment the input focuses. Affected sheets:
+   - `RenameListSheet` (single-field)
+   - `EditDescriptionSheet` (single-field)
+   - `AddEditItemSheet` (two-field — add and edit item)
+   - `CreateListSheet` (two-field, and visually inconsistent with the others —
+     fold its styling into the same treatment while we're here)
+   Either centre these sheets vertically when an input is focused, or use
+   `visualViewport` to keep them above the keyboard. Whatever the approach,
+   apply it uniformly to every sheet that contains a focusable text field.
+
 5. [ ] **Font size setting must scale the whole app, not just the container
    width** — the Settings font-size preference (XS/S/M/L/XL, stored in
    `localStorage`) currently only affects `--app-max-w`. All pixel values in
