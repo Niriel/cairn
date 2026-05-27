@@ -78,20 +78,20 @@ The **vote indicator** shows the current user's vote on this item, as one of sev
 | −3   | `---`   | red             |
 | −2   | `--`    | red             |
 | −1   | `-`     | red             |
-| 0    | `=`     | muted (default) |
+| 0    | `0`     | muted (default) |
 | +1   | `+`     | green           |
 | +2   | `++`    | green           |
 | +3   | `+++`   | green           |
 
-The indicator's slot is **fixed-width** — wide enough to hold `+++` without truncation. `=` and the single `+`/`-` characters are centered within that slot. This means rows do not reflow, shimmer, or shift as votes change. Color is applied to the characters, not the slot background, so the layout reads as stable even when many items are visible at once.
+The indicator's slot is **fixed-width** — wide enough to hold `+++` without truncation. `0` and the single `+`/`-` characters are centered within that slot. This means rows do not reflow, shimmer, or shift as votes change. Color is applied to the characters, not the slot background, so the layout reads as stable even when many items are visible at once.
 
-The `=` state doubles as "I haven't voted." Conceptually, "neutral" and "haven't considered yet" are similar enough that splitting them into separate UI states is more cognitive load than it's worth, and the database stays simple — neutral is row absence, not a stored zero. (See `data-model.md` on the `votes` table.)
+The `0` state doubles as "I haven't voted." Conceptually, "neutral" and "haven't considered yet" are similar enough that splitting them into separate UI states is more cognitive load than it's worth, and the database stays simple — neutral is row absence, not a stored zero. (See `data-model.md` on the `votes` table.)
 
 ## Vote interaction
 
 Tapping a thumb **nudges the vote by one** in that direction.
 
-- Tap thumb-up at `=` → `+`
+- Tap thumb-up at `0` → `+`
 - Tap thumb-up at `+` → `++`
 - Tap thumb-up at `++` → `+++`
 - Tap thumb-up at `+++` → stays at `+++` (clamped; no wrap)
@@ -101,7 +101,7 @@ Tapping a thumb **nudges the vote by one** in that direction.
 Reasons:
 
 - **Relative nudging matches the +/- mental model.** People expect that pressing "up" makes things go up by one.
-- **Clamping at the ends is safer than wrapping.** Wrapping `+++ → ---` on an extra tap is a footgun that's hard to recover from. If a user wants to flip sides, the opposite thumb is right there and the path through `=` is short.
+- **Clamping at the ends is safer than wrapping.** Wrapping `+++ → ---` on an extra tap is a footgun that's hard to recover from. If a user wants to flip sides, the opposite thumb is right there and the path through `0` is short.
 - **One tap = one vote unit.** This keeps the speed of binary voting for the common case (one tap to express interest), while leaving room for stronger feelings when they exist.
 
 At the extremes (±3), the button in the clamped direction renders at 35% opacity with `cursor: default` and emits no event when tapped. The opposite button remains fully active. This matches the design spec in `design/cairn-ui.jsx` `VoteControl`.
@@ -112,7 +112,7 @@ Three semantic colors used by the vote indicator and the per-member vote breakdo
 
 - **Red** for negative values. Should be a calm, readable red — not the alarming kind. Same red is reused elsewhere only for actually destructive actions (delete confirmations).
 - **Green** for positive values. Same caveat — readable, not aggressive.
-- **Muted** (the default text color, but slightly softened) for `=` and for the "haven't voted" state.
+- **Muted** (the default text color, but slightly softened) for `0` and for the "haven't voted" state.
 
 The thumb buttons themselves are not colored; they're rendered in the platform's standard icon-button style. Coloring the buttons too would compete visually with the indicator and add no information.
 
@@ -321,7 +321,7 @@ Times of day are not shown anywhere in v1.
 
 ## Vote indicator typography
 
-The seven-step indicator is rendered with **plain ASCII characters** (`---` `--` `-` `=` `+` `++` `+++`) in a fixed-width monospace font. We considered weight-scaled variants and dot-bar visualizations during design and rejected both: the ASCII version is the visual signature of the app, instantly readable, and survives in every font fallback chain. The font weight is constant (600); only the color and the character count change between steps.
+The seven-step indicator is rendered with **plain ASCII characters** (`---` `--` `-` `0` `+` `++` `+++`) in a fixed-width monospace font. We considered weight-scaled variants and dot-bar visualizations during design and rejected both: the ASCII version is the visual signature of the app, instantly readable, and survives in every font fallback chain. The font weight is constant (600); only the color and the character count change between steps.
 
 ## Aggregate score on the row
 

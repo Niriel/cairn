@@ -164,7 +164,7 @@ function VoteIndicator({ value, style = 'ascii', theme, width = 44 }) {
     );
   }
 
-  const labels = { '-3': '---', '-2': '--', '-1': '-', '0': '=', '1': '+', '2': '++', '3': '+++' };
+  const labels = { '-3': '---', '-2': '--', '-1': '-', '0': '0', '1': '+', '2': '++', '3': '+++' };
   const weight = style === 'weighted' ? 300 + Math.abs(value) * 130 : 600;
   return (
     <span style={{

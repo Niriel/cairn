@@ -118,7 +118,7 @@ test.describe.serial('items flow', () => {
 			.locator(`.row:has([data-test="row-${alphaId}"])`)
 			.locator('[data-test="vote-indicator"]');
 
-		await expect(alphaIndicator).toHaveText('=');
+		await expect(alphaIndicator).toHaveText('0');
 		await alphaVoteUp.click();
 		await expect(alphaIndicator).toHaveText('+');
 	});

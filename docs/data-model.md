@@ -213,7 +213,7 @@ create table public.votes (
 alter table public.votes enable row level security;
 ```
 
-The "no vote" state is represented by the absence of a row, not by a stored zero — that's why zero is excluded from the constraint. The UI's neutral state (`=`) is rendered from the absence of a vote row; see `ui.md` for the rationale.
+The "no vote" state is represented by the absence of a row, not by a stored zero — that's why zero is excluded from the constraint. The UI's neutral state (`0`) is rendered from the absence of a vote row; see `ui.md` for the rationale.
 
 Removing a vote is a hard delete, not a soft delete — there's no audit value in remembering that someone briefly voted on something and then took it back.
 

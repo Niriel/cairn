@@ -10,7 +10,7 @@
 	let { value, onchange, disabled = false }: Props = $props();
 
 	function indicator(v: number | null): string {
-		if (v === null || v === 0) return '=';
+		if (v === null || v === 0) return '0';
 		const sym = v > 0 ? '+' : '-';
 		return sym.repeat(Math.abs(v));
 	}

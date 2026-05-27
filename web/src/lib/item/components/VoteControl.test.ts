@@ -6,9 +6,9 @@ import { render } from '$lib/test/render';
 import VoteControl from './VoteControl.svelte';
 
 describe('VoteControl', () => {
-	test('(a) renders = when value is null', () => {
+	test('(a) renders 0 when value is null', () => {
 		const { getByDataTest } = render(VoteControl, { value: null, onchange: vi.fn() });
-		expect(getByDataTest('vote-indicator').textContent).toBe('=');
+		expect(getByDataTest('vote-indicator').textContent).toBe('0');
 	});
 
 	test('(b) renders + when value is 1', () => {
