@@ -61,7 +61,7 @@
 	</button>
 	<button class="row" data-test="list-overflow-view-trash" onclick={onviewtrash}>
 		<Icon name="trash-2" size={18} />
-		<span class="label">View trash</span>
+		<span class="label">View bin</span>
 	</button>
 	<button
 		class="row row-delete"

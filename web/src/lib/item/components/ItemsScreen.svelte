@@ -187,7 +187,7 @@
 		{#if items.error}
 			<div class="undo-snackbar" data-test="undo-snackbar">
 				<Icon name="trash-2" size={16} />
-				<span class="snackbar-text">Couldn't restore — item is in trash.</span>
+				<span class="snackbar-text">Undo failed — find it in the bin.</span>
 			</div>
 		{:else}
 			<UndoSnackbar

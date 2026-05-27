@@ -64,6 +64,43 @@
    `visualViewport` to keep them above the keyboard. Whatever the approach,
    apply it uniformly to every sheet that contains a focusable text field.
 
+## Factor out repeating CSS into components
+
+The same handful of CSS blocks keep getting copy-pasted across screens
+because the existing components don't cover the shapes the design needs.
+The result is that visual consistency lives in `git grep`, not in code —
+one screen tweaks a colour or a padding and the others quietly drift.
+Audit each item below, identify the recurring shapes from the audit (not
+from guesswork), define a **limited** set of variants and a small parameter
+surface, and migrate. Aim is to minimise repetition without exploding the
+API; if a shape only appears once, keep it inline rather than minting a
+variant for it. Out of scope while screens are still being built; revisit
+once the screen inventory is stable.
+
+8. [ ] **Consolidate raw `<button>` elements behind a small set of button
+   components** — many screens render raw `<button>` with inline-styled
+   variants (outlined pills, chip-shaped panel actions, empty-state CTAs, the
+   row-level Restore on `TrashScreen`, `.panel-btn` and `.empty-cta` in
+   `ItemsScreen`, etc). The existing `Button` component covers only `primary` /
+   `ghost` / `destructive` filled-rectangle shapes, which is why screens keep
+   reaching past it. Rough hypothesis for the variant set (audit will refine):
+   filled-rect, outlined-pill, ghost-text, icon-only. Parameters likely needed:
+   size, leading icon, destructive tone.
+
+9. [ ] **Give `Icon` a `color` prop (or an idiomatic wrapper) so screens
+   stop copy-pasting `.row-icon { display: inline-flex; color: … }` spans**
+   — `Icon.svelte` strokes with `currentColor`, so any non-default colour
+   today requires a parent element with `display: inline-flex; color: …`.
+   That wrapper span is reappearing across screens (`TrashScreen.svelte`'s
+   `.row-icon`, the empty-state circles in `ItemsScreen` / `TrashScreen`,
+   etc.). Either accept a `color` prop on `Icon` and apply it inline on the
+   `<svg>`, or introduce a tiny `<ColoredIcon>` wrapper that owns the
+   `inline-flex` + `color` rule once. Pick whichever lets call sites read
+   as `<Icon name="rotate-ccw" color="var(--stone)" />` without an
+   intermediate `<span>`.
+
+---
+
 5. [ ] **Font size setting must scale the whole app, not just the container
    width** — the Settings font-size preference (XS/S/M/L/XL, stored in
    `localStorage`) currently only affects `--app-max-w`. All pixel values in
