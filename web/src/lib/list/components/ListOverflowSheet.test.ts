@@ -34,15 +34,15 @@ describe('ListOverflowSheet', () => {
 		expect(container.textContent).toContain('2');
 	});
 
-	test('(b) shows four rows: Rename list, Edit description, View trash, Delete list', () => {
+	test('(b) shows four rows: Rename list, Edit description, View bin, Delete list', () => {
 		const { container } = render(ListOverflowSheet, PROPS);
 		expect(container.textContent).toContain('Rename list');
 		expect(container.textContent).toContain('Edit description');
-		expect(container.textContent).toContain('View trash');
+		expect(container.textContent).toContain('View bin');
 		expect(container.textContent).toContain('Delete list');
 	});
 
-	test('(c) tapping View trash calls onviewtrash', async () => {
+	test('(c) tapping View bin calls onviewtrash', async () => {
 		const onviewtrash = vi.fn();
 		const { getByDataTest } = render(ListOverflowSheet, { ...PROPS, onviewtrash });
 		await fireEvent.click(getByDataTest('list-overflow-view-trash'));

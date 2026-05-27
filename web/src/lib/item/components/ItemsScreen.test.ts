@@ -180,7 +180,7 @@ describe('ItemsScreen', () => {
 		const { queryByDataTest } = render(ItemsScreen, { listId: 'test-list-id' });
 		await tick();
 		const snackbar = queryByDataTest('undo-snackbar');
-		expect(snackbar?.textContent).toContain("Couldn't restore");
+		expect(snackbar?.textContent).toContain('Undo failed');
 		expect(queryByDataTest('undo-btn')).toBeNull();
 	});
 });

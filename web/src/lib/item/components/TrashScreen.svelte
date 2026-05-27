@@ -14,7 +14,7 @@
 </script>
 
 <div class="screen">
-	<TopBar showBack={true} sub={itemTrash.listName ?? undefined}>Trash</TopBar>
+	<TopBar showBack={true} sub={itemTrash.listName ?? undefined}>Bin</TopBar>
 
 	<div class="description">
 		<div>Items you delete from this list land here. Tap Restore to bring one back.</div>
@@ -27,7 +27,7 @@
 			<div class="empty-circle">
 				<Icon name="trash-2" size={44} />
 			</div>
-			<div class="empty-heading">Nothing in the trash.</div>
+			<div class="empty-heading">Nothing in the bin.</div>
 		</div>
 	{:else}
 		<div class="rows">
