@@ -214,10 +214,10 @@ matches (one in `ui.md`, one in `data-model.md`).
 
 ## Phase 2 — Account deleted-lists screen
 
-### [ ] 2.1 Add `list-trash` model + state
+### [x] 2.1 Add `list-trash` model + state
 
 **Created:** 2026-05-27T08:27:35Z
-**Completed:**
+**Completed:** 2026-05-27T10:20:46Z
 
 **Why:** The account-level deleted-lists screen mirrors the item trash but reads from `lists_deleted` and PATCHes `/lists`. The model and state layer carries the data — splitting it out of the component (same as Task 1.1 split item-trash) keeps `DeletedListsScreen.svelte` focused on layout and makes the state testable directly through the screen tests.
 
