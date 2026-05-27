@@ -11,10 +11,16 @@
 
 ## Phase 1 — Settings Recovery row
 
-### [ ] 1.1 Add Recovery → Deleted lists nav row to `SettingsScreen.svelte`
+### [x] 1.1 Add Recovery → Deleted lists nav row to `SettingsScreen.svelte`
 
 **Created:** 2026-05-27T10:49:39Z
-**Completed:**
+**Completed:** 2026-05-27T11:50:52Z
+
+**Notes:** Icons use `currentColor` (`Icon.svelte` line 18), so the
+trailing chevron's `var(--stone-lt)` colour required a small extra CSS
+rule (`.nav-row > :global(svg:last-of-type) { color: var(--stone-lt); }`)
+not enumerated in the task's Decisions block. The leading icon inherits
+`var(--stone)` from `.nav-row { color: var(--stone) }`.
 
 **Why:** The deleted-lists screen at `/(app)/settings/deleted-lists/`
 already exists (shipped in 0602), but nothing in the live UI links to
