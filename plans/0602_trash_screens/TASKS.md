@@ -58,10 +58,13 @@ matches (one in `ui.md`, one in `data-model.md`).
 
 ## Phase 1 — Item trash screen
 
-### [ ] 1.1 Add `fetchDisplayNames` helper, `item-trash` model + state
+### [x] 1.1 Add `fetchDisplayNames` helper, `item-trash` model + state
 
 **Created:** 2026-05-27T08:27:35Z
-**Completed:**
+**Completed:** 2026-05-27T09:44:35Z
+
+**Notes:**
+- Deviated from the task's "Mock `pgGet` via `vi.mock(...)`" direction in the test files; used MSW handler overrides instead, matching the convention used by every other model-layer test in the repo (e.g. `item.test.ts`, `items.test.ts`). The behavioural coverage in Decisions/Steps is preserved — empty-input no-fetch, dedup, reject propagation, missing-uid fallback, slim `select=`, list-name `null`-on-empty — just exercised through the MSW boundary rather than a module mock.
 
 **Why:** The item trash screen needs (a) a way to resolve `deleted_by` UUIDs to human-readable names via a batched profiles fetch, since PostgREST embedding isn't available for `deleted_by` (FK points into `auth`, not `public`), and (b) a `loadTrash(listId)` action backed by a rune store so the screen component itself stays focused on layout. Both pieces are pure data plumbing — they belong below the component tier and ship in the same commit as a tested unit.
 
