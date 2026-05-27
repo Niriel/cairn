@@ -312,11 +312,15 @@ the overflow sheet, the trash screens, and the
   `modified_by === TOMBSTONE_UID`) in the Svelte template; apply
   `font-style: italic; color: var(--stone-lt); font-family: var(--serif)` to
   the name span. See `design/cairn-screens.jsx` screen 17 for the exact visual.
-- Playwright tombstone e2e: updating `created_by` to the tombstone UUID via
-  PostgREST is blocked by the `tg_set_attribution_items` trigger (it freezes
-  `created_by`). Seed a tombstone-attributed item via psql during the e2e
-  setup, or mark the tombstone Playwright test as unrunnable and document why,
-  per the Playwright memory (Playwright cannot run on this machine).
+- Playwright tombstone e2e: deferred to Phase 4 verification. The
+  practical reason is the Playwright memory (Playwright cannot run on
+  this machine). The `tg_set_attribution_items` trigger does *not*
+  block tombstone PATCHes — its freeze gate is `if new.created_by is
+  distinct from '00000000-…'`, so a client can deliberately PATCH
+  `created_by` to the tombstone UID and have it stick (see
+  `docs/data-model.md:632, 636`, where the doc calls this "vandalism,
+  not privilege escalation"). A future Playwright spec could seed
+  via that path.
 - The 0603 sub-plan must read `design/cairn-screens.jsx` screen 13
   (SettingsScreen V2) before writing tasks, and record the Recovery section's
   visual spec (icon, title, subtitle, chevron, section header style) in the

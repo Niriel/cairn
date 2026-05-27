@@ -208,7 +208,7 @@ A small non-blocking panel sits _above_ the destructive button: _"Want a copy of
 
 After tapping the destructive button: a brief loading state, then a confirmation screen ("Your account has been deleted") with a single button back to the sign-in screen. The session cookie is cleared (the server's `DELETE /auth/session` endpoint sets `Max-Age=0` on the `cairn_session` cookie); the app is fully logged out.
 
-The "Deleted user" tombstone gets a specific visual treatment wherever an avatar would normally render: a flat gray disc, no initials, the display name "Deleted user" in muted italic. This appears on item attribution lines on the accordion, on members lists (rare — the tombstone is never an active member), and on the bin screen for any item the deleted user originally added.
+The "Deleted user" tombstone gets a specific visual treatment wherever an avatar would normally render: a flat gray disc, no initials. The muted-italic display-name treatment is scoped to the **Items accordion** in v1 — it appears on item attribution lines there, and a future revisit may extend it to the members list (rare — the tombstone is never an active member) and to bin-screen "deleted by …" attribution. The bin screens currently render the literal display name "Deleted user" in the standard `var(--stone-lt)` colour, same as any other deleted-by attribution.
 
 For the data model behind all of this, see `account-deletion.md`.
 
