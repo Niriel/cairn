@@ -279,10 +279,21 @@ are deleted yet).
 
 ## Phase 3 — 0603: Settings Recovery + tombstone
 
-### [ ] 3.1 Plan and implement sub-step 0603 (Settings Recovery section + tombstone visual)
+### [x] 3.1 Plan and implement sub-step 0603 (Settings Recovery section + tombstone visual)
 
 **Created:** 2026-05-26T00:00:00Z
-**Completed:**
+**Completed:** 2026-05-27T12:38:47Z
+
+**Notes:** `./scripts/check.sh --e2e` does not pass on this machine —
+but the failure is a pre-existing ESM/CJS bug in
+`web/e2e/avatar.spec.ts:12` (top-level `__dirname` reference in an
+ES module), unrelated to 0603 and not short-circuitable by
+`SKIP_E2E=1` because the error fires at module load. The non-e2e
+gauntlet (sqlfluff, shellcheck, shfmt, svelte-check, pg_prove,
+vitest, sidecar vitest, prettier, eslint) is green on the merged
+branch. Per the Playwright-unrunnable memory the deferred tombstone
+Playwright spec is unaffected; the `__dirname` bug should be filed
+separately.
 
 **Why:** The Recovery section in Settings makes the deleted-lists screen
 discoverable. The tombstone Avatar and attribution styling close the step-6
