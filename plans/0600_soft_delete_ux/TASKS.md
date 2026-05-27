@@ -225,10 +225,10 @@ the browser.
 
 ## Phase 2 — 0602: Trash screens
 
-### [ ] 2.1 Plan and implement sub-step 0602 (item trash + deleted-lists screens)
+### [x] 2.1 Plan and implement sub-step 0602 (item trash + deleted-lists screens)
 
 **Created:** 2026-05-26T00:00:00Z
-**Completed:**
+**Completed:** 2026-05-27T10:32:06Z
 
 **Why:** The item trash screen and the account-level deleted-lists screen are
 the recovery surfaces that make soft-delete useful. 0602 fills in the trash
