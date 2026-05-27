@@ -165,6 +165,7 @@
 				uid={profile.uid ?? ''}
 				avatarVersion={profile.avatarVersion}
 				size={112}
+				data-test="profile-avatar"
 			/>
 			<div class="avatar-actions">
 				<button

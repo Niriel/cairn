@@ -72,7 +72,7 @@ test.describe.serial('avatar flow', () => {
 		await page.locator('button', { hasText: 'Done' }).click();
 
 		// Avatar is now an <img> element with a versioned src.
-		const avatarImg = page.locator('.profile-avatar img');
+		const avatarImg = page.locator('img[data-test="profile-avatar"]');
 		await expect(avatarImg).toBeVisible();
 		const src = await avatarImg.getAttribute('src');
 		expect(src).toMatch(/\.webp\?v=\d+/);
@@ -89,7 +89,7 @@ test.describe.serial('avatar flow', () => {
 		await page.locator('[data-test="remove-avatar"]').click();
 
 		// Avatar reverts to initials (no <img>).
-		await expect(page.locator('.profile-avatar img')).not.toBeVisible();
+		await expect(page.locator('img[data-test="profile-avatar"]')).not.toBeVisible();
 		await expect(page.locator('[data-test="remove-avatar"]')).not.toBeVisible();
 	});
 

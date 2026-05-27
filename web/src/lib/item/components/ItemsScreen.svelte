@@ -49,8 +49,10 @@
 			.catch(() => {});
 	});
 
+	const isOpen = $derived(openId !== null);
+
 	$effect(() => {
-		if (openId === null) return;
+		if (!isOpen) return;
 		return pushHistoryGuard(() => {
 			openId = null;
 		});
@@ -164,7 +166,10 @@
 								<button
 									class="panel-btn destructive"
 									data-test="panel-delete-{item.id}"
-									onclick={() => (deleteSheetItem = item)}
+									onclick={() => {
+										deleteSheetItem = item;
+										openId = null;
+									}}
 								>
 									<Icon name="trash" size={14} />
 									Delete
@@ -172,7 +177,10 @@
 								<button
 									class="panel-btn"
 									data-test="panel-edit-{item.id}"
-									onclick={() => (editSheetItem = item)}
+									onclick={() => {
+										editSheetItem = item;
+										openId = null;
+									}}
 								>
 									<Icon name="pencil" size={14} />
 									Edit

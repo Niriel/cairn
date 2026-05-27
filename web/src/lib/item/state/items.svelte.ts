@@ -18,13 +18,20 @@ export const items = $state<{
 	pendingDelete: { item: Item; timerId: ReturnType<typeof setTimeout> } | null;
 }>({ rows: [], loading: false, error: null, listId: null, pendingDelete: null });
 
+function sortRows(rows: Item[]): Item[] {
+	return [...rows].sort((a, b) => {
+		if (b.score !== a.score) return b.score - a.score;
+		return a.created_at.localeCompare(b.created_at);
+	});
+}
+
 export async function loadItems(listId: string): Promise<void> {
 	const s = session.current;
 	if (s.status !== 'signed-in') return;
 	items.loading = true;
 	items.error = null;
 	try {
-		items.rows = await fetchItems(listId, s.user.id);
+		items.rows = sortRows(await fetchItems(listId, s.user.id));
 		items.listId = listId;
 	} catch (err) {
 		items.error = err instanceof Error ? err.message : 'Failed to load items';
@@ -88,10 +95,7 @@ export async function undoDelete(): Promise<void> {
 	clearTimeout(timerId);
 	try {
 		await apiRestore(item.id);
-		items.rows = [item, ...items.rows].sort((a, b) => {
-			if (b.score !== a.score) return b.score - a.score;
-			return a.created_at.localeCompare(b.created_at);
-		});
+		items.rows = sortRows([item, ...items.rows]);
 		items.pendingDelete = null;
 	} catch (err) {
 		items.error = err instanceof Error ? err.message : 'Failed to restore item';

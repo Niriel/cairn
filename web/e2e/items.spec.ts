@@ -157,8 +157,8 @@ test.describe.serial('items flow', () => {
 
 	// (g) Tapping UNDO restores the item.
 	test('(g) tapping UNDO restores the item', async () => {
-		await expect(page.locator('[data-test="undo-btn"]')).toBeVisible();
-		await page.locator('[data-test="undo-btn"]').click();
+		await expect(page.locator('[data-test="undo-snackbar-action"]')).toBeVisible();
+		await page.locator('[data-test="undo-snackbar-action"]').click();
 
 		// Snackbar gone and Beta is back.
 		await expect(page.locator('[data-test="undo-snackbar"]')).not.toBeVisible();
