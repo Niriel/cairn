@@ -14,5 +14,6 @@ export const lists = $state<{
 });
 
 export const refreshLists = vi.fn((): void => {});
+export const adjustItemCount = vi.fn((_listId: string, _delta: number): void => {});
 export const deleteList = vi.fn(async (_listId: string): Promise<void> => {});
 export const undoDeleteList = vi.fn(async (): Promise<void> => {});

@@ -1,4 +1,5 @@
 import { session } from '$lib/shared/state/session.svelte';
+import { adjustItemCount } from '$lib/list/state/lists.svelte';
 import {
 	fetchItems,
 	addItem as apiAddItem,
@@ -82,6 +83,7 @@ export async function softDeleteItem(itemId: string): Promise<void> {
 	items.pendingDelete = { item, timerId };
 	try {
 		await apiSoftDelete(itemId);
+		adjustItemCount(item.list_id, -1);
 	} catch {
 		clearTimeout(timerId);
 		items.rows = [...items.rows.slice(0, idx), item, ...items.rows.slice(idx)];
@@ -97,6 +99,7 @@ export async function undoDelete(): Promise<void> {
 		await apiRestore(item.id);
 		items.rows = sortRows([item, ...items.rows]);
 		items.pendingDelete = null;
+		adjustItemCount(item.list_id, +1);
 	} catch (err) {
 		items.error = err instanceof Error ? err.message : 'Failed to restore item';
 		const fallbackTimer = setTimeout(() => {
@@ -111,6 +114,7 @@ export async function addItem(listId: string, name: string, notes?: string): Pro
 	try {
 		await apiAddItem(listId, name, notes);
 		await loadItems(listId);
+		adjustItemCount(listId, +1);
 	} catch (err) {
 		items.error = err instanceof Error ? err.message : 'Failed to add item';
 	}

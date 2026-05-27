@@ -20,6 +20,11 @@ export function refreshLists(): void {
 	refreshSignal++;
 }
 
+export function adjustItemCount(listId: string, delta: number): void {
+	const entry = lists.items.find((l) => l.id === listId);
+	if (entry) entry.item_count += delta;
+}
+
 export async function deleteList(listId: string): Promise<void> {
 	if (lists.pendingDelete) clearTimeout(lists.pendingDelete.timerId);
 	const idx = lists.items.findIndex((l) => l.id === listId);

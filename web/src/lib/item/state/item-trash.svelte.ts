@@ -1,5 +1,6 @@
 import { fetchDeletedItems, fetchListName, type DeletedItem } from '$lib/item/model/item-trash';
 import { restoreItem } from '$lib/item/model/item';
+import { adjustItemCount } from '$lib/list/state/lists.svelte';
 
 export const itemTrash = $state<{
 	rows: DeletedItem[];
@@ -58,6 +59,7 @@ export async function restoreOne(itemId: string): Promise<void> {
 		if (idx !== -1) {
 			itemTrash.rows = [...itemTrash.rows.slice(0, idx), ...itemTrash.rows.slice(idx + 1)];
 		}
+		if (itemTrash.listId) adjustItemCount(itemTrash.listId, +1);
 	} catch {
 		itemTrash.error = "Couldn't restore — try again.";
 		scheduleErrorClear();

@@ -1,4 +1,5 @@
 import { fetchDeletedLists, restoreList, type DeletedList } from '$lib/list/model/list-trash';
+import { refreshLists } from '$lib/list/state/lists.svelte';
 
 export const listTrash = $state<{
 	rows: DeletedList[];
@@ -46,6 +47,7 @@ export async function restoreOne(listId: string): Promise<void> {
 		if (idx !== -1) {
 			listTrash.rows = [...listTrash.rows.slice(0, idx), ...listTrash.rows.slice(idx + 1)];
 		}
+		refreshLists();
 	} catch {
 		listTrash.error = "Couldn't restore — try again.";
 		scheduleErrorClear();
