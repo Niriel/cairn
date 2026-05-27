@@ -123,10 +123,10 @@ will type-check.
 
 ## Phase 2 — Tombstone visuals
 
-### [ ] 2.1 Create `TOMBSTONE_UID` constant and add tombstone branch to `Avatar.svelte`
+### [x] 2.1 Create `TOMBSTONE_UID` constant and add tombstone branch to `Avatar.svelte`
 
 **Created:** 2026-05-27T10:49:39Z
-**Completed:**
+**Completed:** 2026-05-27T11:58:43Z
 
 **Why:** Parent R10 requires `<Avatar uid={TOMBSTONE_UID}>` to render
 a flat gray disc with no initials. The constant is the shared

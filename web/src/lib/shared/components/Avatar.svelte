@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { TOMBSTONE_UID } from '$lib/shared/model/constants';
+
 	type Props = {
 		displayName: string;
 		size?: number;
@@ -27,6 +29,7 @@
 	const text = $derived(initials(displayName));
 	const bg = $derived(`oklch(70% 0.10 ${hue(displayName)}deg)`);
 	const showPhoto = $derived(avatarVersion > 0 && uid.length > 0);
+	const isTombstone = $derived(uid === TOMBSTONE_UID);
 	const sharedStyle = $derived(`
 		display: inline-flex;
 		align-items: center;
@@ -37,7 +40,13 @@
 	`);
 </script>
 
-{#if showPhoto}
+{#if isTombstone}
+	<span
+		data-test={rest['data-test']}
+		data-tombstone="true"
+		style="{sharedStyle} background: oklch(78% 0.01 80);"
+	></span>
+{:else if showPhoto}
 	<img
 		data-test={rest['data-test']}
 		src="/avatars/{uid}.webp?v={avatarVersion}"
