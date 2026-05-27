@@ -8,9 +8,12 @@
 		'data-test'?: string;
 	};
 
-	let { open, children, ...rest }: Props = $props();
+	let { open, onclose, children, ...rest }: Props = $props();
 </script>
 
 {#if open}
-	<div data-test={rest['data-test']}>{@render children?.()}</div>
+	<div data-test={rest['data-test']}>
+		<button data-test="sheet-close" aria-label="close" onclick={onclose}></button>
+		{@render children?.()}
+	</div>
 {/if}

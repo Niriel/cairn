@@ -9,8 +9,12 @@ import ListsScreen from './ListsScreen.svelte';
 
 vi.mock('$lib/shared/components/TopBar.svelte');
 vi.mock('$lib/basic/components/Fab.svelte');
+vi.mock('$lib/basic/components/IconButton.svelte');
 vi.mock('$lib/list/components/CreateListSheet.svelte');
+vi.mock('$lib/list/components/ListOverflowSheet.svelte');
 vi.mock('$lib/list/state/lists.svelte');
+vi.mock('$lib/shared/components/MoreButton.svelte');
+vi.mock('$lib/shared/components/UndoSnackbar.svelte');
 vi.mock('$lib/shared/state/profile.svelte');
 vi.mock('$app/navigation', () => ({ goto: vi.fn(() => Promise.resolve()) }));
 
@@ -19,6 +23,7 @@ afterEach(() => {
 	lists.items = [];
 	lists.loading = false;
 	lists.error = null;
+	lists.pendingDelete = null;
 });
 
 const LIST_A = {
@@ -121,5 +126,28 @@ describe('ListsScreen', () => {
 		const { getByDataTest } = render(ListsScreen);
 		const row = getByDataTest(`list-row-${LIST_B.id}`);
 		expect(row.textContent).toContain('3 items');
+	});
+
+	test('(new-b) clicking overflow button renders ListOverflowSheet', async () => {
+		lists.items = [LIST_A];
+		const { getByDataTest, queryByDataTest } = render(ListsScreen);
+		expect(queryByDataTest('list-overflow-sheet-stub')).toBeNull();
+		await fireEvent.click(getByDataTest(`list-overflow-${LIST_A.id}`));
+		await tick();
+		expect(queryByDataTest('list-overflow-sheet-stub')).not.toBeNull();
+	});
+
+	test('(new-c) when lists.pendingDelete is set, UndoSnackbar is present', () => {
+		lists.items = [LIST_A];
+		lists.pendingDelete = { list: LIST_A, timerId: setTimeout(() => {}, 0) };
+		const { queryByDataTest } = render(ListsScreen);
+		expect(queryByDataTest('list-undo-snackbar')).not.toBeNull();
+	});
+
+	test('(new-d) when lists.pendingDelete is set, Fab is absent', () => {
+		lists.items = [LIST_A];
+		lists.pendingDelete = { list: LIST_A, timerId: setTimeout(() => {}, 0) };
+		const { queryByDataTest } = render(ListsScreen);
+		expect(queryByDataTest('lists-fab')).toBeNull();
 	});
 });

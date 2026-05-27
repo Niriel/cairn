@@ -39,6 +39,18 @@
    after `scripts/sweep-avatars.sh`: pure shell + psql, `DATABASE_URL` env var,
    ShellCheck + shfmt clean, with a matching entry in `crontab.example`.
 
+6. [ ] **Migrate inline `icon-btn` buttons to `IconButton` / `MoreButton`** —
+   several files duplicate the `.icon-btn` CSS block instead of using the
+   `IconButton` (and `MoreButton`) components introduced in step 0601. Refactor
+   after 0601 merges; no behaviour change needed.
+   - `TopBar.svelte:28` — back-chevron button (highest leverage: every screen)
+   - `profile/+page.svelte:140` — back button in the TopBar slot
+   - `profile/+page.svelte:227` — disabled pencil icon (avatar, not yet implemented)
+   - `profile/+page.svelte:231` — pencil icon to enter edit mode
+   - `AvatarCropScreen.svelte:145` — cancel button during avatar crop
+   - `ListsScreen.svelte:47` — Settings gear (covered by task 4.1 of plan 0601)
+   - `ItemsScreen.svelte:71` — `⋮` button in TopBar (covered by task 4.2 of plan 0601)
+
 5. [ ] **Font size setting must scale the whole app, not just the container
    width** — the Settings font-size preference (XS/S/M/L/XL, stored in
    `localStorage`) currently only affects `--app-max-w`. All pixel values in
