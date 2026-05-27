@@ -183,4 +183,44 @@ describe('ItemsScreen', () => {
 		expect(snackbar?.textContent).toContain('Undo failed');
 		expect(queryByDataTest('undo-btn')).toBeNull();
 	});
+
+	test('(new-b) tombstone created_by renders italic class on creator name', async () => {
+		items.rows = [
+			{
+				...ITEM_1,
+				created_by: '00000000-0000-0000-0000-000000000000',
+				created_by_name: 'Deleted user'
+			}
+		];
+		const { getByDataTest } = render(ItemsScreen, { listId: 'test-list-id' });
+		await tick();
+		await fireEvent.click(getByDataTest(`row-${ITEM_1.id}`));
+		await tick();
+		expect(getByDataTest(`attribution-creator-${ITEM_1.id}`).classList.contains('tombstone')).toBe(
+			true
+		);
+	});
+
+	test('(new-c) live creator + tombstone editor renders italic on editor only', async () => {
+		items.rows = [
+			{
+				...ITEM_1,
+				created_by: 'user-1',
+				created_by_name: 'Alice',
+				modified_by: '00000000-0000-0000-0000-000000000000',
+				modified_by_name: 'Deleted user',
+				modified_at: '2026-02-01T00:00:00Z'
+			}
+		];
+		const { getByDataTest } = render(ItemsScreen, { listId: 'test-list-id' });
+		await tick();
+		await fireEvent.click(getByDataTest(`row-${ITEM_1.id}`));
+		await tick();
+		expect(getByDataTest(`attribution-creator-${ITEM_1.id}`).classList.contains('tombstone')).toBe(
+			false
+		);
+		expect(getByDataTest(`attribution-editor-${ITEM_1.id}`).classList.contains('tombstone')).toBe(
+			true
+		);
+	});
 });

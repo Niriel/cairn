@@ -54,4 +54,34 @@ describe('Avatar', () => {
 		expect(container.querySelector('img')).toBeNull();
 		expect(container.textContent?.trim()).toBe('A');
 	});
+
+	test('(i) tombstone uid renders empty gray disc', () => {
+		const { container } = render(Avatar, {
+			displayName: 'Anything',
+			uid: '00000000-0000-0000-0000-000000000000'
+		});
+		const el = container.firstElementChild as HTMLElement;
+		expect(el.getAttribute('data-tombstone')).toBe('true');
+		expect(container.textContent?.trim()).toBe('');
+		expect(container.querySelector('img')).toBeNull();
+	});
+
+	test('(j) tombstone takes precedence over positive avatarVersion', () => {
+		const { container } = render(Avatar, {
+			displayName: 'Anything',
+			uid: '00000000-0000-0000-0000-000000000000',
+			avatarVersion: 5
+		});
+		const el = container.firstElementChild as HTMLElement;
+		expect(container.querySelector('img')).toBeNull();
+		expect(el.getAttribute('data-tombstone')).toBe('true');
+	});
+
+	test('(k) tombstone takes precedence over non-empty displayName', () => {
+		const { container } = render(Avatar, {
+			displayName: 'Alice',
+			uid: '00000000-0000-0000-0000-000000000000'
+		});
+		expect(container.textContent?.trim()).toBe('');
+	});
 });

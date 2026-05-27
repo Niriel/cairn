@@ -102,6 +102,22 @@
 			</div>
 		</section>
 
+		<section class="preference-group">
+			<h2>Recovery</h2>
+			<button
+				class="nav-row"
+				data-test="settings-deleted-lists"
+				onclick={() => goto(resolve('/settings/deleted-lists'))}
+			>
+				<Icon name="trash-2" size={20} />
+				<span class="nav-row-text">
+					<span class="nav-row-title">Deleted lists</span>
+					<span class="nav-row-sub">Restore lists you've deleted</span>
+				</span>
+				<Icon name="chevron-right" size={18} />
+			</button>
+		</section>
+
 		<section class="signout-section">
 			<Button variant="ghost" data-test="signout" onclick={signOut}>Sign out</Button>
 		</section>
@@ -284,7 +300,41 @@
 	}
 
 	.signout-section {
-		margin-top: auto;
 		padding: 0 18px 24px;
+	}
+
+	.nav-row {
+		display: flex;
+		align-items: center;
+		gap: 12px;
+		padding: 12px 18px;
+		width: 100%;
+		background: transparent;
+		border: none;
+		cursor: pointer;
+		color: var(--stone);
+		text-align: left;
+	}
+
+	.nav-row-text {
+		flex: 1;
+		display: flex;
+		flex-direction: column;
+	}
+
+	.nav-row-title {
+		font-size: 15px;
+		font-weight: 600;
+		color: var(--ink);
+	}
+
+	.nav-row-sub {
+		font-size: 12px;
+		color: var(--stone);
+		margin-top: 2px;
+	}
+
+	.nav-row > :global(svg:last-of-type) {
+		color: var(--stone-lt);
 	}
 </style>

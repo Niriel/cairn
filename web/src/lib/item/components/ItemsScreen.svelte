@@ -13,6 +13,7 @@
 	} from '$lib/item/state/items.svelte';
 	import type { Item } from '$lib/item/model/item';
 	import { timeAgo } from '$lib/shared/model/time-ago';
+	import { TOMBSTONE_UID } from '$lib/shared/model/constants';
 
 	import TopBar from '$lib/shared/components/TopBar.svelte';
 	import MoreButton from '$lib/shared/components/MoreButton.svelte';
@@ -145,10 +146,17 @@
 								</div>
 							{/if}
 							<div class="attribution">
-								Added by <strong>{item.created_by_name}</strong>
+								Added by <strong
+									data-test="attribution-creator-{item.id}"
+									class:tombstone={item.created_by === TOMBSTONE_UID}>{item.created_by_name}</strong
+								>
 								{timeAgo(item.created_at)}.
 								{#if item.modified_by_name}
-									Last edited by <strong>{item.modified_by_name}</strong>
+									Last edited by <strong
+										data-test="attribution-editor-{item.id}"
+										class:tombstone={item.modified_by === TOMBSTONE_UID}
+										>{item.modified_by_name}</strong
+									>
 									{timeAgo(item.modified_at)}.
 								{/if}
 							</div>
@@ -455,6 +463,13 @@
 	.attribution strong {
 		color: var(--ink-soft);
 		font-weight: 600;
+	}
+
+	.attribution strong.tombstone {
+		font-style: italic;
+		font-weight: normal;
+		color: var(--stone-lt);
+		font-family: 'Newsreader Variable', Georgia, serif;
 	}
 
 	.panel-actions {
