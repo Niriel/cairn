@@ -4,6 +4,7 @@
 
 	import TopBar from '$lib/shared/components/TopBar.svelte';
 	import Icon from '$lib/basic/components/Icon.svelte';
+	import IconButton from '$lib/basic/components/IconButton.svelte';
 
 	type Props = { listId: string };
 	let { listId }: Props = $props();
@@ -14,7 +15,19 @@
 </script>
 
 <div class="screen">
-	<TopBar showBack={true} sub={itemTrash.listName ?? undefined}>Bin</TopBar>
+	<TopBar showBack={true} sub={itemTrash.listName ?? undefined}>
+		Bin
+		{#snippet right()}
+			<IconButton
+				aria-label="Refresh"
+				data-test="trash-refresh"
+				disabled={itemTrash.loading}
+				onclick={() => void loadTrash(listId)}
+			>
+				<Icon name="rotate-ccw" size={22} />
+			</IconButton>
+		{/snippet}
+	</TopBar>
 
 	<div class="description">
 		<div>Items you delete from this list land here. Tap Restore to bring one back.</div>

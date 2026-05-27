@@ -2,7 +2,7 @@ import { fireEvent } from '@testing-library/svelte';
 import { tick } from 'svelte';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
-import { itemTrash, restoreOne } from '$lib/item/state/item-trash.svelte';
+import { itemTrash, loadTrash, restoreOne } from '$lib/item/state/item-trash.svelte';
 import { render } from '$lib/test/render';
 import type { DeletedItem } from '$lib/item/model/item-trash';
 
@@ -80,5 +80,30 @@ describe('TrashScreen', () => {
 		const err = queryByDataTest('trash-error');
 		expect(err).not.toBeNull();
 		expect(err!.textContent).toContain("Couldn't restore");
+	});
+});
+
+describe('Refresh button', () => {
+	test('(refresh-a) renders with data-test="trash-refresh" and aria-label="Refresh"', () => {
+		const { queryByDataTest } = render(TrashScreen, { listId: LIST_ID });
+		const btn = queryByDataTest('trash-refresh');
+		expect(btn).not.toBeNull();
+		expect(btn?.getAttribute('aria-label')).toBe('Refresh');
+	});
+
+	test('(refresh-b) clicking it calls loadTrash with the listId prop', async () => {
+		const { getByDataTest } = render(TrashScreen, { listId: LIST_ID });
+		await tick();
+		vi.mocked(loadTrash).mockClear();
+		await fireEvent.click(getByDataTest('trash-refresh'));
+		expect(vi.mocked(loadTrash)).toHaveBeenCalledTimes(1);
+		expect(vi.mocked(loadTrash)).toHaveBeenCalledWith(LIST_ID);
+	});
+
+	test('(refresh-c) is disabled when itemTrash.loading is true', () => {
+		itemTrash.loading = true;
+		const { queryByDataTest } = render(TrashScreen, { listId: LIST_ID });
+		const btn = queryByDataTest('trash-refresh') as HTMLButtonElement | null;
+		expect(btn?.disabled).toBe(true);
 	});
 });

@@ -99,10 +99,10 @@
 
 ## Phase 3 — Trash screen Refresh buttons
 
-### [ ] 3.1 Add Refresh button to TrashScreen and DeletedListsScreen and test them
+### [x] 3.1 Add Refresh button to TrashScreen and DeletedListsScreen and test them
 
 **Created:** 2026-05-27T17:52:00Z
-**Completed:**
+**Completed:** 2026-05-27T18:21:42Z
 
 **Why:** Users won't see items/lists restored by others until they leave and re-enter the screen. Refresh buttons let them re-fetch explicitly.
 

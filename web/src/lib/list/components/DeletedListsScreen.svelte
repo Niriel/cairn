@@ -4,6 +4,7 @@
 
 	import AppTopBar from '$lib/shared/components/AppTopBar.svelte';
 	import Icon from '$lib/basic/components/Icon.svelte';
+	import IconButton from '$lib/basic/components/IconButton.svelte';
 
 	$effect(() => {
 		void loadDeletedLists();
@@ -11,7 +12,19 @@
 </script>
 
 <div class="screen">
-	<AppTopBar showBack={true}>Deleted lists</AppTopBar>
+	<AppTopBar showBack={true}>
+		Deleted lists
+		{#snippet right()}
+			<IconButton
+				aria-label="Refresh"
+				data-test="deleted-lists-refresh"
+				disabled={listTrash.loading}
+				onclick={() => void loadDeletedLists()}
+			>
+				<Icon name="rotate-ccw" size={22} />
+			</IconButton>
+		{/snippet}
+	</AppTopBar>
 
 	{#if listTrash.loading}
 		<div class="loading" data-test="deleted-lists-loading">Loading…</div>
