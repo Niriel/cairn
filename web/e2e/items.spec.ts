@@ -25,7 +25,7 @@ test.describe.serial('items flow', () => {
 		await expect(page).toHaveURL(/\/auth\/check$/);
 		const { link } = await waitForMagicLink(email);
 		await page.goto(link);
-		await expect(page).toHaveURL(/\/$/);
+		await expect(page).toHaveURL(/\/lists$/);
 
 		// Create a list.
 		await page.locator('[data-test="lists-fab"]').click();
@@ -67,7 +67,7 @@ test.describe.serial('items flow', () => {
 
 		// Navigate back to /lists so test (a) starts from there.
 		await page.locator('[data-test="topbar-back"]').click();
-		await expect(page).toHaveURL(/\/$/);
+		await expect(page).toHaveURL(/\/lists$/);
 	});
 
 	test.afterAll(async () => {
@@ -168,7 +168,7 @@ test.describe.serial('items flow', () => {
 	// (h) Back button returns to /lists.
 	test('(h) back button returns to /lists', async () => {
 		await page.locator('[data-test="topbar-back"]').click();
-		await expect(page).toHaveURL(/\/$/);
+		await expect(page).toHaveURL(/\/lists$/);
 	});
 
 	// (i) An empty list shows the "Nothing here yet" empty state.

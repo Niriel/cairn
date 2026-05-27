@@ -26,9 +26,10 @@ test('magic-link happy path and sign-out', async ({ page, context }) => {
 	expect(/\b\d{6}\b/.test(text)).toBe(false);
 
 	// Playwright follows the GoTrue /verify → 302 → /auth/callback#… chain
-	// automatically; the callback page strips the hash and JS-navigates to /.
+	// automatically; the callback page strips the hash and JS-navigates to
+	// /, which then redirects to /lists.
 	await page.goto(link);
-	await expect(page).toHaveURL(/\/$/);
+	await expect(page).toHaveURL(/\/lists$/);
 
 	const session = (await context.cookies()).find((c) => c.name === 'cairn_session');
 	expect(session).toBeDefined();
