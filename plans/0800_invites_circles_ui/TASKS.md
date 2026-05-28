@@ -25,10 +25,12 @@
 
 ## Phase 0 — Doc reconciliation
 
-### [ ] 0.1 Reconcile `docs/invites.md`, `docs/data-model.md`, and `docs/ui.md` with step-8 decisions
+### [x] 0.1 Reconcile `docs/invites.md`, `docs/data-model.md`, and `docs/ui.md` with step-8 decisions
 
 **Created:** 2026-05-28T12:02:33Z
-**Completed:**
+**Completed:** 2026-05-28T17:20:04Z
+
+**Notes:** All five doc edits were applied in commit `dde0887` (`plan(privacy-ui): add plan for privacy, circle, and blocked screens`) rather than as a separate dedicated commit. The content matches the task spec; the step-6 commit message was never issued separately. The diff vs main shows the expected five edits plus two extra gender-neutral copy fixes in `docs/ui.md` ("What is a circle?" → "What's this?"; "Bob doesn't exist" / "Bob blocked you" → they/them).
 
 **Why:** Four step-8 design choices are at odds with the current
 docs: (a) the R12 FIFO cap deliberately exempts `target_email`-only
