@@ -173,6 +173,8 @@ After accepting, Bob optionally gets a one-time prompt: *"You accepted Alice's i
 
 A user has a soft cap of **20 pending invites** at any one time. Reaching the cap doesn't block the inviter — the oldest pending invite to that user is auto-declined to make room (FIFO). 20 is tunable; the right number is "high enough that no normal user ever notices."
 
+The cap applies to `target_user_id`-keyed pending invitations only; `target_email`-only rows (addressed to not-yet-registered users) are uncapped and convert to user-keyed rows at sign-up. Capping the email-keyed surface would let an attacker who knows an e-mail address evict that address's already-pending sign-up nudges by flooding adjacent typos.
+
 **Policy-change cascade (deferred).** When a user changes `invite_policy` from `everybody` to `circle` or `nobody`, existing non-matching pending invites should be auto-declined. This behaviour is documented above but its DB-level enforcement is deferred to step 8; the step-7 DB layer leaves it to the client or a future trigger.
 
 ## Schema additions
@@ -270,6 +272,8 @@ create policy invitations_select on public.invitations
 The `relationships_update` policy lets a user flip a row's `status` (e.g., from `circle` to `blocked`) without the round-trip of delete-then-insert. Both `using` and `with check` are gated on `user_id = public.uid()`.
 
 Insert and delete on `invitations`, and the email-add path for `relationships` (which writes a row in *the other user's* direction), go through stored procedures: `send_invitation`, `accept_invitation`, `decline_invitation`, `add_circle_by_email`, `add_circle_by_id`. These run as `security definer` functions because they need privileges to read other users' `invite_policy` and `relationships` rows for the policy/block checks, and to write the symmetric `relationships` row on the other user's behalf during email-add. The web app calls them via PostgREST RPCs; it doesn't touch the tables directly for these operations.
+
+The one exception is the inviter's own *cancel pending invite* action, which is a direct `DELETE /invitations?id=eq.<uuid>` gated by the `invitations_delete` policy (`USING (created_by = public.uid())`); accept and decline by the invitee still go through the `accept_invitation` / `decline_invitation` RPCs.
 
 The pattern matches `delete_account` from `account-deletion.md`: when the logic involves cross-user state, it lives in a function, not in a policy.
 
