@@ -174,8 +174,9 @@ GRANT EXECUTE to `authenticated`. Set `search_path = public`.
 New test file `db/tests/relationships.sql`. Tests must cover:
 
 - **Schema shape** (updates to `schema_shape.sql`): `has_table('relationships')`,
-  `has_column` for all six columns, `has_function` for `add_circle_by_email`
-  and `add_circle_by_id`.
+  `has_column` for all five columns (`user_id, other_user_id, status,
+  created_at, modified_at` — no `id` column; PK is composite),
+  `has_function` for `add_circle_by_email` and `add_circle_by_id`.
 - **Grants** (updates to `grants.sql`): `SELECT, INSERT, UPDATE, DELETE` on
   `public.relationships` granted to `authenticated` (positive assertions; also
   lock in the absence of INSERT and DELETE for `anon`); `EXECUTE` granted to

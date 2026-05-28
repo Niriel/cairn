@@ -314,19 +314,30 @@ $$;
 
 The `ON CONFLICT … DO UPDATE … WHERE status <> 'blocked'` shape is what enforces "block always wins" at write time: an existing `blocked` row is preserved, while an existing `circle` row stays `circle` (the no-op merge keeps `modified_at` honest if the trigger uses `OF (status)`).
 
+**Why `add_circle_by_email` is allowed to raise on an unregistered address.** Unlike `send_invitation`, which silently swallows every failure mode behind the same "Couldn't send invite" string to defeat enumeration, `add_circle_by_email` raises `'no such user'` when the e-mail doesn't match an `auth.users` row. The functions sit on opposite sides of a deliberate trade-off: `send_invitation` is reachable from every "Invite by e-mail" field in the app and is the only path that could ever feed an attacker's enumeration script, so it has to look the same for every failure. `add_circle_by_email` is buried two levels deeper in Settings → Privacy → Your circle → Add by e-mail, the caller is performing a high-friction action on an e-mail they already know belongs to a real person, and the error is the helpful UX signal *"this address isn't on Cairn — invite them instead."* Hiding it behind a silent no-op would leave the user staring at a settings screen that did nothing. The block check inside the function still runs the same anti-enumeration pattern: if the target exists and has blocked the caller, the caller's row is created and the symmetric row is silently skipped, with no way for the caller to tell that a block exists.
+
 ## The `add_circle_by_id` function (sketch)
 
 ```sql
 create or replace function public.add_circle_by_id(p_user_id uuid)
 returns void
 language plpgsql security definer
-set search_path = public
+set search_path = public, auth
 as $$
 declare
-  me uuid := public.uid();
+  me     uuid := public.uid();
+  target uuid;
 begin
   if p_user_id = me then
     raise exception 'cannot add yourself';
+  end if;
+
+  -- Explicit existence check (matches add_circle_by_email), so a stale
+  -- profile id surfaces as 'no such user' rather than the cryptic raw
+  -- FK 23503 the upsert would otherwise produce.
+  select id into target from auth.users where id = p_user_id;
+  if target is null then
+    raise exception 'no such user';
   end if;
 
   -- One-sided: Alice -> Bob only. Bob is not notified and does not
