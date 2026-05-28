@@ -524,10 +524,10 @@ sees" for the `relationships` endpoint shape and the PostgREST
 
 **Verify:** `pnpm lint` · `pnpm check` · `pnpm test`
 
-### [ ] 2.3 Add `user-settings.svelte.ts` state module
+### [x] 2.3 Add `user-settings.svelte.ts` state module
 
 **Created:** 2026-05-28T13:30:00Z
-**Completed:**
+**Completed:** 2026-05-28T15:35:39Z
 
 **Why:** R10 (new). PrivacyScreen (R1) needs a reactive
 `invitePolicy` and a single `setInvitePolicy(next)` action that
