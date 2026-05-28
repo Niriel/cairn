@@ -42,7 +42,7 @@
 <div class="screen">
 	<AppTopBar showBack={false}>
 		{#snippet left()}
-			<CairnGlyph size={26} color="var(--accent)" />
+			<CairnGlyph size={40} color="var(--accent)" />
 		{/snippet}
 		Cairn
 		{#snippet right()}

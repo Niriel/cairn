@@ -173,7 +173,7 @@ in-flight branch for no gain.
    renders with `avatar_version = 0` (gray disc, no initials), so the
    tombstone visual lands here once avatars are in place.
 
-7. [ ] **Invites + circles + blocks: DB layer.** Tier 3 from data-model:
+7. [x] **Invites + circles + blocks: DB layer.** Tier 3 from data-model:
    create `relationships` (the merged circle/blocklist — one row per
    directed pair, with `status` enum `'circle' | 'blocked'`) and
    `invitations`. The `invite_policy` column already ships on
