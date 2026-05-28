@@ -107,7 +107,7 @@ An invitation is a pending offer of list membership. It has three terminal state
 When Alice taps "Invite Bob" (whether by email, by tapping a circle member, or by tapping a co-member of another list), the server runs this sequence:
 
 1. **Self-check.** If the invitee resolves to Alice herself: clear error, *"You're already on this list"* or *"You can't invite yourself."* (No privacy concern; honesty wins.)
-2. **Existing membership.** If Bob is already a member of this list (live or soft-deleted): no-op for live; un-deletes the membership for soft-deleted, and Alice sees *"Bob is already on this list"* or *"Bob is back on this list."*
+2. **Existing membership.** If Bob is already a *live* member of this list: no-op; Alice sees *"Bob is already on this list."* A previously-removed (soft-deleted) membership row is treated as non-membership — the invite proceeds, and Bob's membership is restored by `accept_invitation` on his `ON CONFLICT DO UPDATE` upsert when he accepts.
 3. **Existing pending invitation.** If Bob already has a pending invite to this list from anyone: no-op; Alice sees a generic success message.
 4. **Block check.** If Bob has Alice on his blocklist: invite fails with the generic error.
 5. **Policy check.** If Bob's `invite_policy` is `nobody`: invite fails. If `circle`: check whether Alice is in Bob's circle; if not, fail. If `everybody`: pass.
@@ -327,10 +327,11 @@ language plpgsql security definer
 set search_path = public, auth
 as $$
 declare
-  inviter uuid := public.uid();
-  target  uuid;
-  policy  text;
-  in_circle boolean;
+  inviter       uuid := public.uid();
+  target        uuid;
+  policy        text;
+  in_circle     boolean;
+  invitation_id uuid;
 begin
   -- Resolve target (email or user_id)
   if p_user_id is not null then

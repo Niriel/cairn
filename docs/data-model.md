@@ -667,8 +667,8 @@ To translate the schema into the API the web app actually consumes, here are the
 - `GET /lists_deleted` — the per-user list trash (lists you were a member of that have been soft-deleted)
 - `GET /relationships?status=eq.circle` — your circle (RLS limits visibility to rows where you are `user_id`)
 - `GET /relationships?status=eq.blocked` — your blocklist (same RLS scope)
-- `POST /relationships` — add a row in your own direction (a one-sided circle add or a block; `user_id` must be your uid, `status` is `'circle'` or `'blocked'`)
-- `PATCH /relationships?user_id=eq.<my-uid>&other_user_id=eq.<uuid>` — flip an existing row's `status` (e.g., circle → blocked)
+- `POST /relationships` — add a block when no relationship row exists yet; `user_id` must be your uid, `status` must be `'blocked'` (one-sided circle adds go through `/rpc/add_circle_by_id`)
+- `PATCH /relationships?user_id=eq.<my-uid>&other_user_id=eq.<uuid>` — flip an existing row's `status` (e.g., circle → blocked, or blocked → circle). The "unblock = delete" convention is enforced at the UI layer only; the DB permits both directions of the flip.
 - `DELETE /relationships?user_id=eq.<my-uid>&other_user_id=eq.<uuid>` — remove a row (unblock, or remove from circle)
 - `GET /invitations?target_user_id=eq.<my-uid>` — your inbox (pending invites you've received)
 - `GET /invitations?created_by=eq.<my-uid>` — invitations you've sent
