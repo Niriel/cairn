@@ -876,10 +876,10 @@ screen" for the (now-Phase-0-reconciled) quiet Remove copy.
 
 ## Phase 6 — Privacy screen
 
-### [ ] 6.1 Add `<PrivacyScreen>` + `/settings/privacy` route
+### [x] 6.1 Add `<PrivacyScreen>` + `/settings/privacy` route
 
 **Created:** 2026-05-28T12:48:43Z
-**Completed:**
+**Completed:** 2026-05-28T16:41:49Z
 
 **Why:** R1. Lands after Blocked (Phase 4) and Circle (Phase 5)
 because its NavRows resolve to `/settings/circles` and
