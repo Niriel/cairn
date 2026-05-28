@@ -25,7 +25,7 @@
 
 BEGIN;
 
-SELECT plan(83);
+SELECT plan(84);
 
 -- ===================================================================
 -- A. Positive matrix for `authenticated`
@@ -195,6 +195,10 @@ SELECT ok(
 SELECT ok(
   has_table_privilege('authenticated', 'public.invitations', 'SELECT'),
   'authenticated has SELECT on public.invitations'
+);
+SELECT ok(
+  has_table_privilege('authenticated', 'public.invitations', 'DELETE'),
+  'authenticated has DELETE on public.invitations'
 );
 SELECT ok(
   has_function_privilege(

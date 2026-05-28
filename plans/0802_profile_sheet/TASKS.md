@@ -45,10 +45,10 @@ Phase 3's new `profile/` folder has an accurate reference.
 
 ## Phase 1 — DB: `invitations_delete` policy + grant
 
-### [ ] 1.1 Add `invitations_delete` RLS policy, DELETE grant, and pgTAP coverage
+### [x] 1.1 Add `invitations_delete` RLS policy, DELETE grant, and pgTAP coverage
 
 **Created:** 2026-05-28T17:27:36Z
-**Completed:**
+**Completed:** 2026-05-28T17:59:46Z
 
 **Why:** The profile sheet's *Cancel pending invite* action is a direct
 `DELETE /invitations?id=eq.<uuid>`. Migration 0009 granted only `SELECT` on
