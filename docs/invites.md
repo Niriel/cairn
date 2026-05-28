@@ -445,8 +445,10 @@ begin
   end if;
 
   -- Restore soft-deleted membership or create fresh; handles concurrent accepts.
-  insert into public.list_members (list_id, user_id, created_by)
-  values (inv.list_id, public.uid(), public.uid())
+  -- created_by is stamped by tg_set_attribution_list_members: public.uid() on
+  -- fresh INSERT, preserved on restore via tombstone-gated freeze.
+  insert into public.list_members (list_id, user_id)
+  values (inv.list_id, public.uid())
   on conflict (list_id, user_id) do update
     set deleted_at = null, deleted_by = null;
 
