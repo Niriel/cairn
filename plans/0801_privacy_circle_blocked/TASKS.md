@@ -607,10 +607,12 @@ side-by-side in `web/src/lib/privacy/state/`.
 
 ## Phase 3 — Circle explainer sheet
 
-### [ ] 3.1 Add `<CircleExplainerSheet>` component
+### [x] 3.1 Add `<CircleExplainerSheet>` component
 
 **Created:** 2026-05-28T12:48:43Z
-**Completed:**
+**Completed:** 2026-05-28T15:47:04Z
+
+**Notes:** Tests were originally written to assert verbatim text content (tautological — both component and test could have the same typo and pass). Rewrote to three behavioral assertions: renders content when open, renders nothing when closed, Got it calls onclose. The "To stop someone inviting you" phrasing is correct British English (no "from") matching the design canvas.
 
 **Why:** R4. The explainer is consumed by PrivacyScreen (R1) and
 CircleScreen (R2). Building it first means both screens can import
