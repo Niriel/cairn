@@ -31,8 +31,8 @@ inward but never sideways at the leaf tier.
   utility. Anything in here may import from `basic/` but not from a
   per-domain folder.
 - **Per-domain folders** — `auth/`, `list/`, `avatar/`, `settings/`,
-  `invites/`, `circles/`, and so on. Each owns one slice of the
-  product. A domain folder may import from `basic/` and `shared/`,
+  `invite/`, `circles/`, `profile/`, and so on. Each owns one slice of
+  the product. A domain folder may import from `basic/` and `shared/`,
   but **never from a sibling domain**. If two domains need the same
   thing, it gets promoted to `shared/` (or `basic/` if it has no
   Cairn-specific knowledge); it does not get reached for across the
