@@ -11,10 +11,10 @@
 
 ## Phase 1 — Schema, policies, RPCs, tests
 
-### [ ] 1.1 Write pgTAP and implement migration 0008_relationships.sql
+### [x] 1.1 Write pgTAP and implement migration 0008_relationships.sql
 
 **Created:** 2026-05-28T06:30:43Z
-**Completed:**
+**Completed:** 2026-05-28T09:00:51Z
 
 **Why:** TDD in a single commit. Per `.claude/skills/writing-tasks.md`,
 RED and GREEN for the same logic live in the same task — a commit at the

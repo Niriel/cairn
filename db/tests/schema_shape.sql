@@ -14,7 +14,7 @@
 
 BEGIN;
 
-SELECT plan(56);
+SELECT plan(64);
 
 -- ---------------------------------------------------------------------
 -- Tables (6) — every new table introduced by 0004 must exist.
@@ -223,6 +223,45 @@ SELECT has_function(
 SELECT has_function(
   'public', 'set_display_name', ARRAY['text'],
   'public.set_display_name(text) exists'
+);
+
+-- ---------------------------------------------------------------------
+-- relationships table (1) + columns (5) + circle RPCs (2) — added by 0008.
+-- ---------------------------------------------------------------------
+SELECT has_table(
+  'public', 'relationships', 'relationships table exists'
+);
+SELECT has_column(
+  'public', 'relationships', 'user_id', 'relationships.user_id exists'
+);
+SELECT has_column(
+  'public',
+  'relationships',
+  'other_user_id',
+  'relationships.other_user_id exists'
+);
+SELECT has_column(
+  'public', 'relationships', 'status', 'relationships.status exists'
+);
+SELECT has_column(
+  'public',
+  'relationships',
+  'created_at',
+  'relationships.created_at exists'
+);
+SELECT has_column(
+  'public',
+  'relationships',
+  'modified_at',
+  'relationships.modified_at exists'
+);
+SELECT has_function(
+  'public', 'add_circle_by_email', ARRAY['text'],
+  'public.add_circle_by_email(text) exists'
+);
+SELECT has_function(
+  'public', 'add_circle_by_id', ARRAY['uuid'],
+  'public.add_circle_by_id(uuid) exists'
 );
 
 -- ---------------------------------------------------------------------
