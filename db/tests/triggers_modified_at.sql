@@ -29,7 +29,7 @@
 
 BEGIN;
 
-SELECT plan(11);
+SELECT plan(12);
 
 \i /db/tests/fixtures/list_shared_alice_bob.sql
 
@@ -204,6 +204,41 @@ SELECT cmp_ok(
   '>',
   (SELECT b.modified_at FROM _b_profiles_av AS b),
   'profiles: UPDATE avatar_version via bump_avatar_version() bumps modified_at'
+);
+
+-- 7b. relationships.status -------------------------------------------
+-- Seed a circle row under Alice's claims (already set above) so the
+-- attribution-free row exists, then flip its status. t20 on
+-- relationships is BEFORE UPDATE OF status; the bump must fire.
+INSERT INTO public.relationships (user_id, other_user_id, status) VALUES
+(
+  'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+  'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
+  'circle'
+);
+CREATE TEMPORARY TABLE _b_relationships AS
+SELECT modified_at FROM public.relationships
+WHERE
+  user_id = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'
+  AND other_user_id = 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb';
+
+SELECT pg_sleep(0.001);
+UPDATE public.relationships
+SET status = 'blocked'
+WHERE
+  user_id = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'
+  AND other_user_id = 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb';
+
+SELECT cmp_ok(
+  (
+    SELECT modified_at FROM public.relationships
+    WHERE
+      user_id = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'
+      AND other_user_id = 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb'
+  ),
+  '>',
+  (SELECT b.modified_at FROM _b_relationships AS b),
+  'relationships: UPDATE status bumps modified_at'
 );
 
 -- ===================================================================

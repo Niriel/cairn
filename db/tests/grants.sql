@@ -25,7 +25,7 @@
 
 BEGIN;
 
-SELECT plan(60);
+SELECT plan(72);
 
 -- ===================================================================
 -- A. Positive matrix for `authenticated`
@@ -103,6 +103,24 @@ SELECT ok(
   'authenticated has DELETE on public.votes'
 );
 
+-- relationships: SELECT, INSERT, UPDATE, DELETE
+SELECT ok(
+  has_table_privilege('authenticated', 'public.relationships', 'SELECT'),
+  'authenticated has SELECT on public.relationships'
+);
+SELECT ok(
+  has_table_privilege('authenticated', 'public.relationships', 'INSERT'),
+  'authenticated has INSERT on public.relationships'
+);
+SELECT ok(
+  has_table_privilege('authenticated', 'public.relationships', 'UPDATE'),
+  'authenticated has UPDATE on public.relationships'
+);
+SELECT ok(
+  has_table_privilege('authenticated', 'public.relationships', 'DELETE'),
+  'authenticated has DELETE on public.relationships'
+);
+
 -- ===================================================================
 -- B. Views (SELECT) + Functions (EXECUTE) positive for authenticated
 -- ===================================================================
@@ -159,6 +177,18 @@ SELECT ok(
     'authenticated', 'public.set_display_name(text)', 'EXECUTE'
   ),
   'authenticated has EXECUTE on public.set_display_name(text)'
+);
+SELECT ok(
+  has_function_privilege(
+    'authenticated', 'public.add_circle_by_email(text)', 'EXECUTE'
+  ),
+  'authenticated has EXECUTE on public.add_circle_by_email(text)'
+);
+SELECT ok(
+  has_function_privilege(
+    'authenticated', 'public.add_circle_by_id(uuid)', 'EXECUTE'
+  ),
+  'authenticated has EXECUTE on public.add_circle_by_id(uuid)'
 );
 
 -- ===================================================================
@@ -300,6 +330,24 @@ SELECT ok(
   'anon has no DELETE on votes'
 );
 
+-- relationships ×4
+SELECT ok(
+  NOT has_table_privilege('anon', 'public.relationships', 'SELECT'),
+  'anon has no SELECT on relationships'
+);
+SELECT ok(
+  NOT has_table_privilege('anon', 'public.relationships', 'INSERT'),
+  'anon has no INSERT on relationships'
+);
+SELECT ok(
+  NOT has_table_privilege('anon', 'public.relationships', 'UPDATE'),
+  'anon has no UPDATE on relationships'
+);
+SELECT ok(
+  NOT has_table_privilege('anon', 'public.relationships', 'DELETE'),
+  'anon has no DELETE on relationships'
+);
+
 -- Function EXECUTE negatives for anon.
 SELECT ok(
   NOT has_function_privilege('anon', 'public.uid()', 'EXECUTE'),
@@ -341,6 +389,18 @@ SELECT ok(
     'anon', 'public.set_display_name(text)', 'EXECUTE'
   ),
   'anon has no EXECUTE on public.set_display_name(text)'
+);
+SELECT ok(
+  NOT has_function_privilege(
+    'anon', 'public.add_circle_by_email(text)', 'EXECUTE'
+  ),
+  'anon has no EXECUTE on public.add_circle_by_email(text)'
+);
+SELECT ok(
+  NOT has_function_privilege(
+    'anon', 'public.add_circle_by_id(uuid)', 'EXECUTE'
+  ),
+  'anon has no EXECUTE on public.add_circle_by_id(uuid)'
 );
 
 SELECT finish();

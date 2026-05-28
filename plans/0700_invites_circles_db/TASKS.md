@@ -13,9 +13,10 @@
 
 ## Phase 0 — Reconcile docs
 
-### [ ] 0.1 Update `docs/circles.md` to reflect `add_circle_by_id` RPC
+### [x] 0.1 Update `docs/circles.md` to reflect `add_circle_by_id` RPC
 
 **Created:** 2026-05-27T00:00:00Z
+**Completed:** 2026-05-28T06:00:01Z
 
 **Why:** `circles.md` says "direct insert, no stored procedure needed" for the
 one-sided tap-add. The master plan and `data-model.md`'s endpoint list both
@@ -52,9 +53,10 @@ ambiguity from entering the sub-plan.
 
 ---
 
-### [ ] 0.2 Add missing function sketches to `docs/invites.md`
+### [x] 0.2 Add missing function sketches to `docs/invites.md`
 
 **Created:** 2026-05-27T00:00:00Z
+**Completed:** 2026-05-28T06:04:17Z
 
 **Why:** `invites.md` provides full sketches for `add_circle_by_email` and
 `send_invitation` but mentions `accept_invitation`, `decline_invitation`, and
@@ -189,9 +191,11 @@ updates.
   do not redefine them, just add the `CREATE TRIGGER` bindings.
 - The `tg_set_modified_at` binding uses `BEFORE UPDATE OF status ON
   relationships` matching the `OF (cols)` pattern from every other table.
-- Name the bindings `t05_set_timestamps_on_relationships` and
-  `t20_set_modified_at_on_relationships`, following the `t05_` / `t20_` prefix
-  convention from `data-model.md` → "Triggers".
+- Name the bindings `t05_set_timestamps` and `t20_set_modified_at`
+  (unsuffixed — Postgres scopes trigger names per-table, and every other
+  timestamped table in `0004_domain_schema.sql:514–576` and
+  `0007_avatars.sql:70` reuses the same binding name; following the
+  `t05_` / `t20_` prefix convention from `data-model.md` → "Triggers").
 - pgTAP positive and negative cases for all four RLS policies; all edge cases
   for both RPCs listed in R8. Before writing 0701 tasks, read `docs/invites.md`
   → "The `add_circle_by_email` function" and the updated `add_circle_by_id`
