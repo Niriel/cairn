@@ -117,10 +117,10 @@ demo-character pronouns.
 
 ## Phase 1 — 0801: Privacy, Circle, Blocked + DB triggers
 
-### [ ] 1.1 Plan and implement sub-step 0801 (privacy + circle + blocked + cascade & FIFO triggers)
+### [x] 1.1 Plan and implement sub-step 0801 (privacy + circle + blocked + cascade & FIFO triggers)
 
 **Created:** 2026-05-28T12:02:33Z
-**Completed:**
+**Completed:** 2026-05-28T17:15:51Z
 
 **Why:** The settings-side surfaces are the natural foundation of the
 step-8 UI — they introduce the `relationships.svelte.ts` state module
