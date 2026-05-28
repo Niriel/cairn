@@ -125,10 +125,10 @@ documents this carve-out (landed in task 0.1).
 
 ## Phase 2 — State: `invitations.svelte.ts` sent shape
 
-### [ ] 2.1 Create `invitations.svelte.ts` with sent slice and Vitest
+### [x] 2.1 Create `invitations.svelte.ts` with sent slice and Vitest
 
 **Created:** 2026-05-28T17:27:36Z
-**Completed:**
+**Completed:** 2026-05-28T18:10:34Z
 
 **Why:** The profile sheet's *Cancel pending invite* row needs to know the
 pending invitation id for a given `(listId, userId)` pair (derived from the
