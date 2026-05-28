@@ -15,10 +15,10 @@
 
 ## Phase 1 — Invitations state module (inbox + actions)
 
-### [ ] 1.1 Extend invitations.svelte.ts with inbox channel and action functions
+### [x] 1.1 Extend invitations.svelte.ts with inbox channel and action functions
 
 **Created:** 2026-05-28T18:50:57Z
-**Completed:**
+**Completed:** 2026-05-28T19:41:22Z
 
 **Why:** The `invitations.svelte.ts` module (introduced in 0802) currently carries only the `sent` / `pendingInviteFor` / `cancelInvitation` surface. Every screen in this plan — banner, inbox, picker — needs the inbox channel and the send/accept/decline actions. Landing them first means later tasks can import a tested, stable API.
 
