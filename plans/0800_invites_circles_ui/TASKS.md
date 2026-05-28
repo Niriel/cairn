@@ -303,10 +303,10 @@ from Circle (both open the same sheet).
 
 ## Phase 2 — 0802: Profile sheet + cancel-invite RLS
 
-### [ ] 2.1 Plan and implement sub-step 0802 (profile sheet + state-driven actions)
+### [x] 2.1 Plan and implement sub-step 0802 (profile sheet + state-driven actions)
 
 **Created:** 2026-05-28T12:02:33Z
-**Completed:**
+**Completed:** 2026-05-28T18:39:08Z
 
 **Why:** The profile sheet is a shared primitive — it opens from
 member avatars (already on the lists overview today), from inbox row
