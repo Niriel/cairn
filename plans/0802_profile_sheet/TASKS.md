@@ -204,10 +204,14 @@ at runtime, but Vitest mocks the HTTP layer so it doesn't affect the test.
 
 ## Phase 3 — Component: `<ProfileSheet>`
 
-### [ ] 3.1 Create `ProfileSheet.svelte` with Vitest coverage for all state variants
+### [x] 3.1 Create `ProfileSheet.svelte` with Vitest coverage for all state variants
 
 **Created:** 2026-05-28T17:27:36Z
-**Completed:**
+**Completed:** 2026-05-28T18:23:56Z
+
+**Notes:**
+- The `mockImplementation` override for `resolve` in `beforeEach` was removed: `$app/paths`'s `resolve` has a strict union return type, so `(path: string) => path` fails type-check. The factory mock `vi.fn((path: string) => path)` suffices, and `resolve` wasn't needed as an import in assertions.
+- `x-circle` icon not yet in `icon-paths.ts`; used `x` for the cancel-invite row instead (close enough visually).
 
 **Why:** The profile sheet is the central per-user interaction surface for
 step 8. Landing it as a stand-alone tested component means 0803 can drop it
