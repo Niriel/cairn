@@ -693,10 +693,10 @@ a tested component rather than co-introducing it.
 
 ## Phase 4 — Blocked screen
 
-### [ ] 4.1 Add `<BlockedScreen>` + `/settings/blocked` route
+### [x] 4.1 Add `<BlockedScreen>` + `/settings/blocked` route
 
 **Created:** 2026-05-28T12:48:43Z
-**Completed:**
+**Completed:** 2026-05-28T15:54:22Z
 
 **Why:** R3. Lands first among the three Privacy-domain screens
 because it has no outgoing NavRows to other Privacy-domain routes —
