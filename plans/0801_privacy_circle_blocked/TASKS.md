@@ -1023,10 +1023,10 @@ for verbatim option copy and visual structure; `docs/ui.md` §
 
 ## Phase 7 — Settings *People* section
 
-### [ ] 7.1 Add *People* section to `SettingsScreen.svelte`
+### [x] 7.1 Add *People* section to `SettingsScreen.svelte`
 
 **Created:** 2026-05-28T12:48:43Z
-**Completed:**
+**Completed:** 2026-05-28T17:06:48Z
 
 **Why:** R5. Without the *People* section, Privacy/Circle/Blocked
 have no entry point from the Settings hub. The section is also
