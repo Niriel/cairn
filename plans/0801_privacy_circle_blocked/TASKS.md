@@ -775,10 +775,12 @@ section for visual structure and verbatim copy; `docs/ui.md` §
 
 ## Phase 5 — Circle screen
 
-### [ ] 5.1 Add `<CircleScreen>` + `/settings/circles` route
+### [x] 5.1 Add `<CircleScreen>` + `/settings/circles` route
 
 **Created:** 2026-05-28T12:48:43Z
-**Completed:**
+**Completed:** 2026-05-28T16:23:02Z
+
+**Notes:** The add-by-email input was initially styled as a bare transparent input matching the design canvas layout; user asked for a proper labeled input field matching the project's standard input style (border, background, `font-size: 16px`). Redesigned the card to use `<label>` + bordered input + Add button row, consistent with `LoginRequest.svelte` and `CreateListSheet.svelte`. Created `__mocks__/CircleExplainerSheet.svelte` as a sentinel mock so the loading/open state can be tested by presence of `data-test="circle-explainer-sheet"`.
 
 **Why:** R2. Lands second because it imports `<CircleExplainerSheet>`
 (from Phase 3) but has no outgoing route NavRows to other
