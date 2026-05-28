@@ -245,10 +245,10 @@ parallel `t40_*` binding on `relationships`.
 
 **Verify:** `./scripts/test-db.sh`
 
-### [ ] 1.2 Add 20-invite FIFO cap trigger `t30_enforce_fifo_cap`
+### [x] 1.2 Add 20-invite FIFO cap trigger `t30_enforce_fifo_cap`
 
 **Created:** 2026-05-28T12:48:43Z
-**Completed:**
+**Completed:** 2026-05-28T13:58:01Z
 
 **Why:** R8. Without a cap, an attacker (or a noisy power user)
 could flood a target's inbox with hundreds of pending invitations,

@@ -63,4 +63,47 @@ FOR EACH ROW
 WHEN (new.invite_policy IS DISTINCT FROM old.invite_policy)
 EXECUTE FUNCTION public.tg_apply_invite_policy_cascade();
 
+-- ---------------------------------------------------------------------
+-- 2. tg_enforce_fifo_cap_invitations — BEFORE INSERT on invitations.
+-- ---------------------------------------------------------------------
+-- Caps a user's inbox at 20 pending user-keyed rows. When the 21st
+-- arrives, the oldest pending row for the same target is evicted
+-- (FIFO). target_email-only rows (target_user_id IS NULL) are
+-- uncapped via the trigger's WHEN clause — capping the email-keyed
+-- surface would let an attacker flood adjacent typos to evict an
+-- address's already-pending sign-up nudges (docs/invites.md →
+-- "Pending-invite cap").
+--
+-- SECURITY DEFINER because the evicted row's created_by may differ
+-- from the current inserter; an authenticated-role DELETE would hit
+-- the absence of a DELETE policy on invitations (the table grants
+-- SELECT only). Same posture as tg_apply_invite_policy_cascade and
+-- tg_block_declines_invitations.
+CREATE OR REPLACE FUNCTION public.tg_enforce_fifo_cap_invitations()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  IF (
+    SELECT count(*) FROM public.invitations
+    WHERE target_user_id = new.target_user_id
+  ) >= 20 THEN
+    DELETE FROM public.invitations WHERE id = (
+      SELECT id FROM public.invitations
+      WHERE target_user_id = new.target_user_id
+      ORDER BY created_at LIMIT 1
+    );
+  END IF;
+  RETURN new;
+END;
+$$;
+
+CREATE TRIGGER t30_enforce_fifo_cap
+BEFORE INSERT ON public.invitations
+FOR EACH ROW
+WHEN (new.target_user_id IS NOT NULL)
+EXECUTE FUNCTION public.tg_enforce_fifo_cap_invitations();
+
 COMMIT;
