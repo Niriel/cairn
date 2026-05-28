@@ -38,10 +38,19 @@
 
 ## Phase 0 — Doc reconciliation (absorbed from parent plan)
 
-### [ ] 0.1 Absorb parent plan's Phase 0 doc edits
+### [x] 0.1 Absorb parent plan's Phase 0 doc edits
 
 **Created:** 2026-05-28T13:30:00Z
-**Completed:**
+**Completed:** 2026-05-28T13:44:50Z
+
+**Notes:** All seven paragraph edits were already on the branch when
+this task was picked up — they were bundled into the plan-write
+commit `dde0887` ("plan(privacy-ui): …") rather than landing as a
+separate `docs(invites):` commit. `git diff main -- docs/` matches
+the task's Verify expectation exactly: 2 lines added in
+`docs/invites.md`, 1 bullet added in `docs/data-model.md`, 4 copy
+strings changed in `docs/ui.md`. No further changes required;
+ticking the box to record reality.
 
 **Why:** The parent plan (`plans/0800_invites_circles_ui/`) TASKS 0.1
 specified five paragraph edits across `docs/invites.md`,
@@ -126,10 +135,18 @@ four in `docs/ui.md`). `./scripts/check.sh` is unaffected.
 
 ## Phase 1 — DB triggers
 
-### [ ] 1.1 Add policy-change cascade trigger `t40_apply_invite_policy_cascade`
+### [x] 1.1 Add policy-change cascade trigger `t40_apply_invite_policy_cascade`
 
 **Created:** 2026-05-28T12:48:43Z
-**Completed:**
+**Completed:** 2026-05-28T13:51:52Z
+
+**Notes:** Added a second list (`33333333-…`) inline at the top of
+`db/tests/invite_cascades.sql` so two different inviters could both
+have a pending invitation targeting Bob — `invitations_target_user_uniq`
+is on `(list_id, target_user_id)`, so the (Alice→Bob, Carol→Bob)
+pair from scenarios A and B needs two distinct lists. Not a
+deviation from the trigger's behaviour, just a fixture-side detail
+the task block didn't pre-specify.
 
 **Why:** R7. The Privacy screen lets the user tighten their
 `invite_policy` (e.g. `everybody → circle` or `… → nobody`). Step
