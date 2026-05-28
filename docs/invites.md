@@ -79,10 +79,7 @@ When a user changes `invite_policy` from `everybody` to `circle` or `nobody`, **
 
 ### "Block always wins"
 
-The blocklist is checked *after* the policy. So:
-
-- Even if Alice's policy is `everybody`, she can still individually block Bob, and his invites fail.
-- Even if Alice's policy is `circle` and Bob is in her circle, if Alice has *also* blocked Bob (an unusual but valid state), Bob's invites fail.
+With the combined `relationships` table (`status` is either `'circle'` or `'blocked'`, never both), 'block always wins' manifests in two places: (1) in `send_invitation`, the block check (step 6 above) tests for a row with `status = 'blocked'` *before* the policy check; (2) in `add_circle_by_id` and `add_circle_by_email`, the `ON CONFLICT DO UPDATE WHERE status <> 'blocked'` clause silently skips the circle-add if a blocked row already exists, leaving the blocked row unchanged. Either path preserves the block.
 
 The block is the strongest possible signal and overrides every other path. Blocking someone who was already in your circle overwrites the `relationships` row's `status` from `circle` to `blocked` (the row stays, just changes status). Unblocking deletes the row — the prior `circle` state is *not* restored automatically. If you want them back in your circle, re-add them deliberately. The simpler "absence = neither" semantic is worth more than preserving the prior state across a block/unblock cycle.
 
@@ -106,13 +103,14 @@ An invitation is a pending offer of list membership. It has three terminal state
 
 When Alice taps "Invite Bob" (whether by email, by tapping a circle member, or by tapping a co-member of another list), the server runs this sequence:
 
-1. **Self-check.** If the invitee resolves to Alice herself: clear error, *"You're already on this list"* or *"You can't invite yourself."* (No privacy concern; honesty wins.)
-2. **Existing membership.** If Bob is already a *live* member of this list: no-op; Alice sees *"Bob is already on this list."* A previously-removed (soft-deleted) membership row is treated as non-membership — the invite proceeds, and Bob's membership is restored by `accept_invitation` on his `ON CONFLICT DO UPDATE` upsert when he accepts.
-3. **Existing pending invitation.** If Bob already has a pending invite to this list from anyone: no-op; Alice sees a generic success message.
-4. **Block check.** If Bob has Alice on his blocklist: invite fails with the generic error.
-5. **Policy check.** If Bob's `invite_policy` is `nobody`: invite fails. If `circle`: check whether Alice is in Bob's circle; if not, fail. If `everybody`: pass.
-6. **Existence check.** If `bob@example.com` doesn't resolve to a Cairn account: pass (the invite goes to the email-link path; see below).
-7. **Success.** Insert an `invitations` row.
+1. **Inviter-membership check.** If the caller is not a live member of the list: raise — cannot invite to a list you're not on. (`send_invitation` is `SECURITY DEFINER` and bypasses RLS, so this must be an explicit guard.)
+2. **Resolve target.** Look up `p_email` in `auth.users` (or use `p_user_id` directly). If email-keyed and no Cairn account matches, proceed directly to the insert step — all policy, block, and membership checks are skipped for unregistered addresses.
+3. **Self-check.** If the invitee resolves to Alice herself: clear error, *"You're already on this list"* or *"You can't invite yourself."* (No privacy concern; honesty wins.)
+4. **Existing membership.** If Bob is already a *live* member of this list: no-op; Alice sees *"Bob is already on this list."* A previously-removed (soft-deleted) membership row is treated as non-membership.
+5. **Existing pending invitation.** If Bob already has a pending invite to this list from anyone: no-op; Alice sees a generic success message.
+6. **Block check.** If Bob has Alice on his blocklist: invite fails with the generic error.
+7. **Policy check.** If Bob's `invite_policy` is `nobody`: invite fails. If `circle`: check whether Alice is in Bob's circle; if not, fail. If `everybody`: pass.
+8. **Success.** Insert an `invitations` row.
 
 ### What blocked invites look like to the sender
 
@@ -174,6 +172,8 @@ After accepting, Bob optionally gets a one-time prompt: *"You accepted Alice's i
 ## Pending-invite cap
 
 A user has a soft cap of **20 pending invites** at any one time. Reaching the cap doesn't block the inviter — the oldest pending invite to that user is auto-declined to make room (FIFO). 20 is tunable; the right number is "high enough that no normal user ever notices."
+
+**Policy-change cascade (deferred).** When a user changes `invite_policy` from `everybody` to `circle` or `nobody`, existing non-matching pending invites should be auto-declined. This behaviour is documented above but its DB-level enforcement is deferred to step 8; the step-7 DB layer leaves it to the client or a future trigger.
 
 ## Schema additions
 
@@ -312,7 +312,34 @@ end;
 $$;
 ```
 
-The `ON CONFLICT … DO UPDATE … WHERE status <> 'blocked'` shape is what enforces "block always wins" at write time: an existing `blocked` row is preserved, while an existing `circle` row stays `circle` (the no-op merge keeps `modified_at` honest if the trigger uses `OF (status)`). The `tap_add` (one-sided) path is a direct insert from the client — no stored procedure needed, since Alice is only writing her own row and the standard RLS policy permits it; the same `ON CONFLICT` shape applies if she taps a user she has already blocked (the block stands).
+The `ON CONFLICT … DO UPDATE … WHERE status <> 'blocked'` shape is what enforces "block always wins" at write time: an existing `blocked` row is preserved, while an existing `circle` row stays `circle` (the no-op merge keeps `modified_at` honest if the trigger uses `OF (status)`).
+
+## The `add_circle_by_id` function (sketch)
+
+```sql
+create or replace function public.add_circle_by_id(p_user_id uuid)
+returns void
+language plpgsql security definer
+set search_path = public
+as $$
+declare
+  me uuid := public.uid();
+begin
+  if p_user_id = me then
+    raise exception 'cannot add yourself';
+  end if;
+
+  -- One-sided: Alice -> Bob only. Bob is not notified and does not
+  -- gain Alice in his circle. If Alice has already blocked Bob, the
+  -- existing 'blocked' row is preserved unchanged.
+  insert into public.relationships (user_id, other_user_id, status)
+  values (me, p_user_id, 'circle')
+  on conflict (user_id, other_user_id) do update
+    set status = 'circle'
+    where public.relationships.status <> 'blocked';
+end;
+$$;
+```
 
 ## The `send_invitation` function (sketch)
 
@@ -333,6 +360,9 @@ declare
   in_circle     boolean;
   invitation_id uuid;
 begin
+  -- Step 1: raise if caller is not a live member of p_list_id
+  --   (inviter-membership check — see check sequence above; elided here).
+
   -- Resolve target (email or user_id)
   if p_user_id is not null then
     target := p_user_id;
@@ -380,6 +410,67 @@ $$;
 ```
 
 Returns `null` on silent fail, a uuid on success. The web app interprets `null` as "couldn't send" and shows the generic toast.
+
+## The `accept_invitation` function (sketch)
+
+```sql
+create or replace function public.accept_invitation(p_invitation_id uuid)
+returns void
+language plpgsql security definer
+set search_path = public
+as $$
+declare
+  inv public.invitations%rowtype;
+begin
+  select * into inv from public.invitations where id = p_invitation_id;
+  if not found then
+    raise exception 'invitation not found';
+  end if;
+
+  -- IS DISTINCT FROM, not <>,
+  -- so NULL target_user_id (email-keyed) correctly raises.
+  if inv.target_user_id is distinct from public.uid() then
+    raise exception 'not your invitation';
+  end if;
+
+  -- Restore soft-deleted membership or create fresh; handles concurrent accepts.
+  insert into public.list_members (list_id, user_id, created_by)
+  values (inv.list_id, public.uid(), public.uid())
+  on conflict (list_id, user_id) do update
+    set deleted_at = null, deleted_by = null;
+
+  -- Hard-delete the invitation.
+  delete from public.invitations where id = p_invitation_id;
+end;
+$$;
+```
+
+## The `decline_invitation` function (sketch)
+
+```sql
+create or replace function public.decline_invitation(p_invitation_id uuid)
+returns void
+language plpgsql security definer
+set search_path = public
+as $$
+declare
+  inv public.invitations%rowtype;
+begin
+  select * into inv from public.invitations where id = p_invitation_id;
+  if not found then
+    raise exception 'invitation not found';
+  end if;
+
+  -- IS DISTINCT FROM, not <>,
+  -- so NULL target_user_id (email-keyed) correctly raises.
+  if inv.target_user_id is distinct from public.uid() then
+    raise exception 'not your invitation';
+  end if;
+
+  delete from public.invitations where id = p_invitation_id;
+end;
+$$;
+```
 
 ## Cascade behavior on account deletion
 

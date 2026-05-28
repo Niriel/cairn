@@ -13,9 +13,10 @@
 
 ## Phase 0 — Reconcile docs
 
-### [ ] 0.1 Update `docs/circles.md` to reflect `add_circle_by_id` RPC
+### [x] 0.1 Update `docs/circles.md` to reflect `add_circle_by_id` RPC
 
 **Created:** 2026-05-27T00:00:00Z
+**Completed:** 2026-05-28T06:00:01Z
 
 **Why:** `circles.md` says "direct insert, no stored procedure needed" for the
 one-sided tap-add. The master plan and `data-model.md`'s endpoint list both
@@ -52,9 +53,10 @@ ambiguity from entering the sub-plan.
 
 ---
 
-### [ ] 0.2 Add missing function sketches to `docs/invites.md`
+### [x] 0.2 Add missing function sketches to `docs/invites.md`
 
 **Created:** 2026-05-27T00:00:00Z
+**Completed:** 2026-05-28T06:04:17Z
 
 **Why:** `invites.md` provides full sketches for `add_circle_by_email` and
 `send_invitation` but mentions `accept_invitation`, `decline_invitation`, and

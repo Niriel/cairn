@@ -96,7 +96,7 @@ create policy relationships_delete on public.relationships
   for delete using (user_id = public.uid());
 ```
 
-Only the owner of the row can read, change, or remove it. The `other_user_id` does not get to see anything. The email-add path writes a row in the *other* direction via a `security definer` function (`add_circle_by_email`), bypassing RLS as needed but performing the block-check first. See `data-model.md` and `invites.md` for the function bodies.
+Only the owner of the row can read, change, or remove it. The `other_user_id` does not get to see anything. The email-add path writes a row in the *other* direction via a `security definer` function (`add_circle_by_email`), bypassing RLS as needed but performing the block-check first. The one-sided tap-add path goes through the `add_circle_by_id` RPC — a thin `security definer` function that performs the same `ON CONFLICT DO UPDATE WHERE status <> 'blocked'` upsert, so trying to circle-add a user you have blocked leaves the blocked row unchanged. See `data-model.md` and `invites.md` for the function bodies.
 
 Blocking someone who's already in your circle overwrites the row's `status` from `circle` to `blocked`; unblocking deletes the row. The prior `circle` state is **not** restored across a block/unblock cycle — re-adding requires a deliberate action. Earlier drafts of this doc described "unblock restores the prior state"; collapsing the previous separate `circle_members` and `blocks` tables into one `relationships` row-per-pair makes the simpler "absence = neither" semantic worth more than preserving that low-frequency edge case.
 
