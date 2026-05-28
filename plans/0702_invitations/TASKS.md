@@ -92,10 +92,10 @@ which is fine).
 
 ## Phase 1 — Migration, RPCs, trigger, tests
 
-### [ ] 1.1 Write pgTAP and implement migration 0009_invitations.sql
+### [x] 1.1 Write pgTAP and implement migration 0009_invitations.sql
 
 **Created:** 2026-05-28T09:11:38Z
-**Completed:**
+**Completed:** 2026-05-28T11:08:12Z
 
 **Why:** TDD in a single commit. Per `.claude/skills/writing-tasks.md`,
 RED and GREEN for the same logic live in the same task — a commit at the
@@ -606,3 +606,30 @@ migration relies on).
    ```
 
 **Verify:** `./scripts/test-db.sh` all green · `./scripts/check.sh` all green.
+
+**Notes:**
+
+- Side work in `scripts/test-db.sh`: extended the plan-declaration
+  guard regex from `SELECT\s+plan\(` to
+  `SELECT\s+(no_)?plan\(`. The task required `SELECT no_plan();`
+  at the top of `invitations.sql`, but the guard rejected it as a
+  missing plan, failing the run before pg_prove could start.
+  Updated the regex and the surrounding comment in one line.
+- pgTAP temp-table cross-role access: the
+  `INSERT INTO public.invitations … RETURNING id` raw setup runs
+  as `cairn` (no INSERT grant for `authenticated`), but several
+  scenarios then `SET LOCAL ROLE authenticated` to call the RPC
+  and need to read or update the captured id. A temp table created
+  under `cairn` is not visible to `authenticated` (`permission
+  denied for table _x`), so each `CREATE TEMPORARY TABLE _x …` is
+  followed by `GRANT ALL ON _x TO authenticated;` to bridge the
+  role boundary. Also dropped the trailing `DROP TABLE _x;` lines
+  — DROP requires ownership which GRANT doesn't confer, and the
+  file-end `ROLLBACK` cleans them up anyway.
+- The raw INSERT pattern in the original task draft was
+  `INSERT INTO _t (id) SELECT id FROM (INSERT … RETURNING id) AS
+  inserted;`, which Postgres rejects — `INSERT` can't appear as a
+  subselect, only as a top-level WITH-CTE. Rewrote the eight
+  occurrences as
+  `WITH ins AS (INSERT … RETURNING id) INSERT INTO _t (id)
+  SELECT id FROM ins;`.

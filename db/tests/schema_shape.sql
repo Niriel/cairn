@@ -14,7 +14,7 @@
 
 BEGIN;
 
-SELECT plan(64);
+SELECT plan(75);
 
 -- ---------------------------------------------------------------------
 -- Tables (6) — every new table introduced by 0004 must exist.
@@ -262,6 +262,61 @@ SELECT has_function(
 SELECT has_function(
   'public', 'add_circle_by_id', ARRAY['uuid'],
   'public.add_circle_by_id(uuid) exists'
+);
+
+-- ---------------------------------------------------------------------
+-- invitations table (1) + columns (7) + invite RPCs (3) — added by 0009.
+-- ---------------------------------------------------------------------
+SELECT has_table(
+  'public', 'invitations', 'invitations table exists'
+);
+SELECT has_column(
+  'public', 'invitations', 'id', 'invitations.id exists'
+);
+SELECT has_column(
+  'public', 'invitations', 'list_id', 'invitations.list_id exists'
+);
+SELECT has_column(
+  'public',
+  'invitations',
+  'created_by',
+  'invitations.created_by exists'
+);
+SELECT has_column(
+  'public',
+  'invitations',
+  'target_user_id',
+  'invitations.target_user_id exists'
+);
+SELECT has_column(
+  'public',
+  'invitations',
+  'target_email',
+  'invitations.target_email exists'
+);
+SELECT has_column(
+  'public',
+  'invitations',
+  'created_at',
+  'invitations.created_at exists'
+);
+SELECT has_column(
+  'public',
+  'invitations',
+  'modified_at',
+  'invitations.modified_at exists'
+);
+SELECT has_function(
+  'public', 'send_invitation', ARRAY['uuid', 'text', 'uuid'],
+  'public.send_invitation(uuid, text, uuid) exists'
+);
+SELECT has_function(
+  'public', 'accept_invitation', ARRAY['uuid'],
+  'public.accept_invitation(uuid) exists'
+);
+SELECT has_function(
+  'public', 'decline_invitation', ARRAY['uuid'],
+  'public.decline_invitation(uuid) exists'
 );
 
 -- ---------------------------------------------------------------------

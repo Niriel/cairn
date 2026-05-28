@@ -25,7 +25,7 @@
 
 BEGIN;
 
-SELECT plan(72);
+SELECT plan(83);
 
 -- ===================================================================
 -- A. Positive matrix for `authenticated`
@@ -189,6 +189,32 @@ SELECT ok(
     'authenticated', 'public.add_circle_by_id(uuid)', 'EXECUTE'
   ),
   'authenticated has EXECUTE on public.add_circle_by_id(uuid)'
+);
+
+-- invitations table + the three invite RPCs (added by 0009).
+SELECT ok(
+  has_table_privilege('authenticated', 'public.invitations', 'SELECT'),
+  'authenticated has SELECT on public.invitations'
+);
+SELECT ok(
+  has_function_privilege(
+    'authenticated',
+    'public.send_invitation(uuid, text, uuid)',
+    'EXECUTE'
+  ),
+  'authenticated has EXECUTE on public.send_invitation(uuid, text, uuid)'
+);
+SELECT ok(
+  has_function_privilege(
+    'authenticated', 'public.accept_invitation(uuid)', 'EXECUTE'
+  ),
+  'authenticated has EXECUTE on public.accept_invitation(uuid)'
+);
+SELECT ok(
+  has_function_privilege(
+    'authenticated', 'public.decline_invitation(uuid)', 'EXECUTE'
+  ),
+  'authenticated has EXECUTE on public.decline_invitation(uuid)'
 );
 
 -- ===================================================================
@@ -401,6 +427,42 @@ SELECT ok(
     'anon', 'public.add_circle_by_id(uuid)', 'EXECUTE'
   ),
   'anon has no EXECUTE on public.add_circle_by_id(uuid)'
+);
+
+-- invitations ×4 + 3 RPC EXECUTE negatives for anon.
+SELECT ok(
+  NOT has_table_privilege('anon', 'public.invitations', 'SELECT'),
+  'anon has no SELECT on invitations'
+);
+SELECT ok(
+  NOT has_table_privilege('anon', 'public.invitations', 'INSERT'),
+  'anon has no INSERT on invitations'
+);
+SELECT ok(
+  NOT has_table_privilege('anon', 'public.invitations', 'UPDATE'),
+  'anon has no UPDATE on invitations'
+);
+SELECT ok(
+  NOT has_table_privilege('anon', 'public.invitations', 'DELETE'),
+  'anon has no DELETE on invitations'
+);
+SELECT ok(
+  NOT has_function_privilege(
+    'anon', 'public.send_invitation(uuid, text, uuid)', 'EXECUTE'
+  ),
+  'anon has no EXECUTE on public.send_invitation(uuid, text, uuid)'
+);
+SELECT ok(
+  NOT has_function_privilege(
+    'anon', 'public.accept_invitation(uuid)', 'EXECUTE'
+  ),
+  'anon has no EXECUTE on public.accept_invitation(uuid)'
+);
+SELECT ok(
+  NOT has_function_privilege(
+    'anon', 'public.decline_invitation(uuid)', 'EXECUTE'
+  ),
+  'anon has no EXECUTE on public.decline_invitation(uuid)'
 );
 
 SELECT finish();
