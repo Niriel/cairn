@@ -291,7 +291,7 @@ Contents:
 
 The profile screen never shows whether _the other person_ has the viewer in their circle. That's their private setting on themselves; not the viewer's business. (See `circles.md`.)
 
-Add to circle and Remove from circle are quiet — no confirmation, no animation drama. Block and Unblock prompt for confirmation (_"Block {Name}? They won't be able to invite you to any list."_). Cancel pending invite is also quiet.
+Add to circle, Remove from circle, and Unblock are quiet — no confirmation, no animation drama. Block prompts for confirmation (_"Block {Name}? They won't be able to invite you to any list."_). Cancel pending invite is also quiet.
 
 Tapping your **own** avatar bounces to Settings rather than opening a profile sheet. There is no "my profile" screen in v1.
 
