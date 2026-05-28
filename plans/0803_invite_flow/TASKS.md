@@ -114,10 +114,10 @@
 
 **Verify:** `cd web && pnpm lint` · `pnpm check` · `pnpm test -- InvitesBanner` · `pnpm test -- ListsScreen`
 
-### [ ] 2.2 Create PostAcceptPromptSheet and wire into app layout
+### [x] 2.2 Create PostAcceptPromptSheet and wire into app layout
 
 **Created:** 2026-05-28T18:50:57Z
-**Completed:**
+**Completed:** 2026-05-28T20:15:46Z
 
 **Why:** After accepting an invite, the user navigates to the list. The post-accept circle prompt must appear on whatever screen they land on — a global overlay in `(app)/+layout.svelte` is the only way to ensure it shows regardless of the target route.
 
