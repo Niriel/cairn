@@ -12,10 +12,10 @@
 
 ## Phase 0 — Reconcile docs
 
-### [ ] 0.1 Reconcile trigger chart and `accept_invitation` sketch in `docs/`
+### [x] 0.1 Reconcile trigger chart and `accept_invitation` sketch in `docs/`
 
 **Created:** 2026-05-28T00:00:00Z
-**Completed:**
+**Completed:** 2026-05-28T10:48:26Z
 
 **Why:** Two related doc gaps that Phase 1 will otherwise diverge
 from. (a) `docs/data-model.md`'s "Triggers" paragraph (around line
