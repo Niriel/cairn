@@ -397,10 +397,12 @@ YYYY` format rule.
 
 **Verify:** `pnpm lint` · `pnpm check` · `pnpm test`
 
-### [ ] 2.2 Add `relationships.svelte.ts` state module
+### [x] 2.2 Add `relationships.svelte.ts` state module
 
 **Created:** 2026-05-28T12:48:43Z
-**Completed:**
+**Completed:** 2026-05-28T15:28:04Z
+
+**Notes:** The task's Decisions listed the `addCircleById` body parameter as `p_other_user_id`, but the DB function signature in `db/migrations/0008_relationships.sql:171` is `add_circle_by_id(p_user_id uuid)`. Used `p_user_id` (matches the DB) and called it out here. Used MSW (Mock Service Worker) for HTTP mocking consistent with the rest of the test suite, rather than `vi.mock` on postgrest.ts directly — both approaches satisfy the task's intent, and MSW is the established pattern. The `__mocks__/relationships.svelte.ts` exports all six methods as `vi.fn()` stubs ready for sibling screen tests.
 
 **Why:** R6. Every Privacy-domain screen reads or writes
 relationships: PrivacyScreen reads `circle.length` and
