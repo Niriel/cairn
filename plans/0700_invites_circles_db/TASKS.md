@@ -304,9 +304,10 @@ transaction.
 
 ## Phase 3 — Wrap up
 
-### [ ] 3.1 Final verification and merge to main
+### [x] 3.1 Final verification and merge to main
 
 **Created:** 2026-05-27T00:00:00Z
+**Completed:** 2026-05-28T11:30:49Z
 
 **Why:** Confirms the full step-7 DB layer is coherent end-to-end — both tables,
 all RLS policies, all five RPCs, and pgTAP coverage — before it lands on `main`.
