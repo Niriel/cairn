@@ -222,9 +222,10 @@ updates.
 
 ## Phase 2 — 0702: Invitations layer
 
-### [ ] 2.1 Plan and implement sub-step 0702 (invitations table + invite RPCs)
+### [x] 2.1 Plan and implement sub-step 0702 (invitations table + invite RPCs)
 
 **Created:** 2026-05-27T00:00:00Z
+**Completed:** 2026-05-28T11:22:49Z
 
 **Why:** The `invitations` table and the three invite RPCs complete the Tier 3
 data model. `send_invitation` reads `relationships` rows (for block and circle
