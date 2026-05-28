@@ -16,6 +16,7 @@
 	import { timeAgo } from '$lib/shared/model/time-ago';
 	import type { List } from '$lib/list/model/list';
 
+	import InvitesBanner from '$lib/invite/components/InvitesBanner.svelte';
 	import CreateListSheet from './CreateListSheet.svelte';
 	import ListOverflowSheet from './ListOverflowSheet.svelte';
 
@@ -63,6 +64,8 @@
 			</IconButton>
 		{/snippet}
 	</AppTopBar>
+
+	<InvitesBanner />
 
 	{#if lists.loading}
 		<div class="content" data-test="lists-loading">Loading…</div>

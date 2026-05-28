@@ -61,10 +61,10 @@
 
 ## Phase 2 — InvitesBanner + post-accept prompt + ListsScreen wiring
 
-### [ ] 2.1 Create InvitesBanner and wire into ListsScreen
+### [x] 2.1 Create InvitesBanner and wire into ListsScreen
 
 **Created:** 2026-05-28T18:50:57Z
-**Completed:**
+**Completed:** 2026-05-28T19:59:34Z
 
 **Why:** The ListsScreen needs a banner that shows pending invites. Three states driven by `invitations.inbox.length`: nothing (0), single-invite card with Decline/Accept (1), collapsed count-row with chevron (2+). Landing the component and wiring first gives the inbox and picker screens a visible entry point to test against.
 
