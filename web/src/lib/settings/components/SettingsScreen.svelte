@@ -59,6 +59,29 @@
 		</section>
 
 		<section class="preference-group">
+			<h2>People</h2>
+			<div class="nav-row" data-test="settings-invites" style="cursor: default;">
+				<Icon name="inbox" size={20} />
+				<span class="nav-row-text">
+					<span class="nav-row-title">Invites</span>
+					<span class="nav-row-sub">No pending invites</span>
+				</span>
+			</div>
+			<button
+				class="nav-row"
+				data-test="settings-privacy"
+				onclick={() => goto(resolve('/settings/privacy'))}
+			>
+				<Icon name="shield" size={20} />
+				<span class="nav-row-text">
+					<span class="nav-row-title">Privacy</span>
+					<span class="nav-row-sub">Who can invite you · circle · blocked</span>
+				</span>
+				<Icon name="chevron-right" size={18} />
+			</button>
+		</section>
+
+		<section class="preference-group">
 			<h2>Appearance</h2>
 			<div class="theme-grid">
 				{#each themes as t (t.value)}

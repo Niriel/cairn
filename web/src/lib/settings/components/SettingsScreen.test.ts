@@ -88,6 +88,50 @@ describe('SettingsScreen', () => {
 		expect(vi.mocked(goto)).toHaveBeenCalledWith(vi.mocked(resolve)('/profile'));
 	});
 
+	test('(j-1) People section is first preference-group, before Appearance', () => {
+		const { container } = render(SettingsScreen);
+		const groups = container.querySelectorAll('section.preference-group');
+		expect(groups[0]?.textContent).toContain('People');
+		expect(groups[1]?.textContent).toContain('Appearance');
+	});
+
+	test('(j-2) People section heading is "People"', () => {
+		const { container } = render(SettingsScreen);
+		const groups = container.querySelectorAll('section.preference-group');
+		expect(groups[0]?.querySelector('h2')?.textContent).toBe('People');
+	});
+
+	test('(j-3) Invites row renders with "No pending invites" sub-line', () => {
+		const { getByDataTest } = render(SettingsScreen);
+		expect(getByDataTest('settings-invites').textContent).toContain('No pending invites');
+	});
+
+	test('(j-4) Invites row is a <div>, not a <button> or <a>', () => {
+		const { getByDataTest } = render(SettingsScreen);
+		expect(getByDataTest('settings-invites').tagName).toBe('DIV');
+	});
+
+	test('(j-5) Invites row has no chevron-right (only one SVG: the inbox icon)', () => {
+		const { getByDataTest } = render(SettingsScreen);
+		expect(getByDataTest('settings-invites').querySelectorAll('svg').length).toBe(1);
+	});
+
+	test('(j-6) Privacy row renders with correct sub-line', () => {
+		const { getByDataTest } = render(SettingsScreen);
+		expect(getByDataTest('settings-privacy').textContent).toContain(
+			'Who can invite you · circle · blocked'
+		);
+	});
+
+	test('(j-7) clicking Privacy row navigates to /settings/privacy', async () => {
+		const { goto } = await import('$app/navigation');
+		const { resolve } = await import('$app/paths');
+		const { getByDataTest } = render(SettingsScreen);
+		await fireEvent.click(getByDataTest('settings-privacy'));
+		expect(vi.mocked(goto)).toHaveBeenCalledOnce();
+		expect(vi.mocked(goto)).toHaveBeenCalledWith(vi.mocked(resolve)('/settings/privacy'));
+	});
+
 	test('(j) Recovery row renders', () => {
 		const { queryByDataTest } = render(SettingsScreen);
 		const row = queryByDataTest('settings-deleted-lists');

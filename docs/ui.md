@@ -256,13 +256,13 @@ The subtitle below the segmented control changes based on the selected value, ex
 
 ### Circle screen
 
-Reachable from Settings → Privacy → Your circle. A single list of **People in your circle** — those you've added. Each row: avatar, display name, a small action affordance to remove (with confirmation: _"Stop accepting invites from Bob?"_).
+Reachable from Settings → Privacy → Your circle. A single list of **People in your circle** — those you've added. Each row: avatar, display name, a small action affordance to remove.
 
 The screen does _not_ show "people who have you in their circle." Each user's circle is their own private permission setting on themselves — surfacing it to the people listed in it would turn a private setting into a quasi-social signal, which is the opposite of the intent. See `circles.md`.
 
-At the top of the list, a small _"What is a circle?"_ link opens a brief explainer sheet (one paragraph; same content as the top of `circles.md`). The link is always present — a circle is subtle enough that even returning users may want to re-check.
+At the top of the list, a small _"What's this?"_ link opens a brief explainer sheet (one paragraph; same content as the top of `circles.md`). The link is always present — a circle is subtle enough that even returning users may want to re-check.
 
-At the bottom, an **Add by email** field. Typing an email and confirming triggers the mutual email-add path (see `invites.md`). The success toast is generic — same on success, on "Bob doesn't exist," on "Bob blocked you" — to preserve Bob's privacy.
+At the bottom, an **Add by email** field. Typing an email and confirming triggers the mutual email-add path (see `invites.md`). The success toast is generic — same on success, on "they don't exist," on "they've blocked you" — to preserve their privacy.
 
 The screen is empty-state-friendly: a new user sees the brief explainer above the empty add-by-email field. No graphical empty state.
 
@@ -291,7 +291,7 @@ Contents:
 
 The profile screen never shows whether _the other person_ has the viewer in their circle. That's their private setting on themselves; not the viewer's business. (See `circles.md`.)
 
-Add to circle and Remove from circle are quiet — no confirmation, no animation drama. Block and Unblock prompt for confirmation (_"Block Bob? He won't be able to invite you to any list."_). Cancel pending invite is also quiet.
+Add to circle and Remove from circle are quiet — no confirmation, no animation drama. Block and Unblock prompt for confirmation (_"Block {Name}? They won't be able to invite you to any list."_). Cancel pending invite is also quiet.
 
 Tapping your **own** avatar bounces to Settings rather than opening a profile sheet. There is no "my profile" screen in v1.
 

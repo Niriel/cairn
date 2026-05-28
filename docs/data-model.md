@@ -672,6 +672,7 @@ To translate the schema into the API the web app actually consumes, here are the
 - `DELETE /relationships?user_id=eq.<my-uid>&other_user_id=eq.<uuid>` — remove a row (unblock, or remove from circle)
 - `GET /invitations?target_user_id=eq.<my-uid>` — your inbox (pending invites you've received)
 - `GET /invitations?created_by=eq.<my-uid>` — invitations you've sent
+- `DELETE /invitations?id=eq.<uuid>` — cancel a pending invite you created (inviter only; the `invitations_delete` RLS policy scopes the delete to your own rows). Lands alongside the profile-sheet *Cancel pending invite* action in step 8.
 
 Cross-user writes (anything that touches another user's circle, blocks, invitations, or account) go through stored procedures rather than direct table writes, so the policy and block checks can run server-side under `security definer`. List creation also goes through an RPC, not a direct `POST /lists`, so the matching `list_members` row for the creator can be inserted in the same transaction as the list itself — without that, a successful insert into `lists` could leave an orphan list invisible to its creator forever. Invoke each via PostgREST RPC (`POST /rpc/<name>` with a JSON body):
 

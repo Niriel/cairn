@@ -1,0 +1,276 @@
+<script lang="ts">
+	import AppTopBar from '$lib/shared/components/AppTopBar.svelte';
+	import Avatar from '$lib/shared/components/Avatar.svelte';
+	import Snackbar from '$lib/shared/components/Snackbar.svelte';
+	import {
+		relationships,
+		loadRelationships,
+		addCircleByEmail,
+		removeFromCircle
+	} from '$lib/privacy/state/relationships.svelte';
+	import { addedAtLabel } from '$lib/privacy/model/relationship';
+	import CircleExplainerSheet from './CircleExplainerSheet.svelte';
+
+	let explainerOpen = $state(false);
+	let emailInput = $state('');
+	let addError = $state<string | null>(null);
+	let snackbarOpen = $state(false);
+
+	$effect(() => {
+		if (!relationships.loaded) void loadRelationships();
+	});
+
+	async function handleAdd() {
+		addError = null;
+		snackbarOpen = false;
+		const result = await addCircleByEmail(emailInput);
+		if (result.ok) {
+			emailInput = '';
+		} else if (result.reason === 'no-such-user') {
+			addError = "This e-mail isn't on Cairn — invite them to a list instead.";
+		} else if (result.reason === 'self') {
+			addError = "That's your own e-mail address.";
+		} else {
+			snackbarOpen = true;
+		}
+	}
+</script>
+
+<div class="screen" data-test="circle-screen">
+	<AppTopBar>Your circle</AppTopBar>
+
+	<div class="intro">
+		<p class="intro-text">
+			When your privacy is set to <em>Your circle</em>, these are the only people who can invite you
+			to a list.
+		</p>
+		<button class="whats-this" data-test="whats-this" onclick={() => (explainerOpen = true)}>
+			What's this?
+		</button>
+	</div>
+
+	{#if relationships.loaded}
+		<div class="section-header" data-test="circle-list">
+			People in your circle · {relationships.circle.length}
+		</div>
+		{#if relationships.circle.length > 0}
+			<ul class="circle-list">
+				{#each relationships.circle as entry (entry.otherUserId)}
+					<li class="row" data-test="circle-row-{entry.otherUserId}">
+						<Avatar
+							displayName={entry.displayName}
+							uid={entry.otherUserId}
+							avatarVersion={entry.avatarVersion}
+							size={36}
+						/>
+						<div class="row-text">
+							<span class="display-name">{entry.displayName}</span>
+							<span class="sub">{addedAtLabel(entry.createdAt)}</span>
+						</div>
+						<button
+							class="remove-btn"
+							data-test="remove-{entry.otherUserId}"
+							onclick={() => void removeFromCircle(entry.otherUserId)}
+						>
+							Remove
+						</button>
+					</li>
+				{/each}
+			</ul>
+		{/if}
+	{/if}
+
+	<div class="add-card">
+		<label class="add-label" for="circle-add-input">E-mail address</label>
+		<div class="add-input-row">
+			<input
+				id="circle-add-input"
+				class="add-input"
+				data-test="circle-add-input"
+				type="email"
+				autocomplete="email"
+				inputmode="email"
+				placeholder="friend@example.net"
+				bind:value={emailInput}
+			/>
+			<button class="add-btn" data-test="circle-add-btn" onclick={handleAdd}>Add</button>
+		</div>
+		{#if addError}
+			<p class="add-error" data-test="circle-add-error">{addError}</p>
+		{/if}
+		<p class="add-hint">
+			They'll be added to your circle. If they have you blocked, the add still succeeds on your side
+			— but their side stays untouched.
+		</p>
+	</div>
+</div>
+
+<Snackbar
+	open={snackbarOpen}
+	message="Couldn't add to circle"
+	data-test="circle-snackbar"
+	onclose={() => (snackbarOpen = false)}
+/>
+
+<CircleExplainerSheet open={explainerOpen} onclose={() => (explainerOpen = false)} />
+
+<style>
+	.screen {
+		display: flex;
+		flex-direction: column;
+		min-height: 100%;
+	}
+
+	.intro {
+		padding: 0.875rem 1.125rem 0.375rem;
+		display: flex;
+		align-items: flex-start;
+		gap: 0.875rem;
+	}
+
+	.intro-text {
+		flex: 1;
+		font-size: 0.78rem;
+		color: var(--stone);
+		line-height: 1.5;
+		margin: 0;
+	}
+
+	.whats-this {
+		flex-shrink: 0;
+		background: transparent;
+		border: none;
+		padding: 0;
+		color: var(--accent);
+		font-size: 0.78rem;
+		font-weight: 600;
+		cursor: pointer;
+		font-family: inherit;
+		text-decoration: underline dotted;
+		text-underline-offset: 3px;
+		margin-top: 1px;
+	}
+
+	.section-header {
+		padding: 0.5rem 1.125rem;
+		font-size: 0.75rem;
+		font-weight: 600;
+		color: var(--stone);
+		text-transform: uppercase;
+		letter-spacing: 0.04em;
+	}
+
+	.circle-list {
+		list-style: none;
+		margin: 0;
+		padding: 0;
+	}
+
+	.row {
+		display: flex;
+		align-items: center;
+		gap: 0.75rem;
+		padding: 0.875rem 1.125rem;
+		border-bottom: 1px solid var(--rule);
+	}
+
+	.row:first-child {
+		border-top: 1px solid var(--rule);
+	}
+
+	.row-text {
+		flex: 1;
+		min-width: 0;
+		display: flex;
+		flex-direction: column;
+	}
+
+	.display-name {
+		font-size: 0.9375rem;
+		font-weight: 600;
+		color: var(--ink);
+	}
+
+	.sub {
+		font-size: 0.72rem;
+		color: var(--stone-lt);
+		margin-top: 0.125rem;
+		font-family: var(--mono);
+	}
+
+	.remove-btn {
+		padding: 0.4375rem 0.75rem;
+		border: 1px solid var(--rule);
+		border-radius: 999px;
+		background: transparent;
+		color: var(--stone);
+		font-size: 0.78rem;
+		font-weight: 600;
+		cursor: pointer;
+		font-family: inherit;
+	}
+
+	.add-card {
+		margin: 0.875rem 1.125rem 1.5rem;
+		padding: 0.875rem;
+		border: 1px dashed var(--stone-lt);
+		border-radius: 0.75rem;
+		background: var(--paper-alt);
+	}
+
+	.add-label {
+		display: block;
+		font-size: 13px;
+		font-weight: 500;
+		color: var(--stone);
+		margin-bottom: 0.5rem;
+	}
+
+	.add-input-row {
+		display: flex;
+		gap: 0.5rem;
+		align-items: center;
+	}
+
+	.add-input {
+		flex: 1;
+		padding: 12px 14px;
+		border: 1px solid var(--rule);
+		border-radius: 12px;
+		background: var(--paper);
+		color: var(--ink);
+		font: inherit;
+		font-size: 16px;
+	}
+
+	.add-input::placeholder {
+		color: var(--stone);
+	}
+
+	.add-btn {
+		padding: 0.75rem 1rem;
+		border: none;
+		border-radius: 12px;
+		background: var(--ink);
+		color: var(--paper);
+		font: inherit;
+		font-size: 15px;
+		font-weight: 600;
+		cursor: pointer;
+	}
+
+	.add-error {
+		margin-top: 0.5rem;
+		margin-bottom: 0;
+		font-size: 0.75rem;
+		color: var(--ember);
+	}
+
+	.add-hint {
+		margin-top: 0.625rem;
+		margin-bottom: 0;
+		font-size: 0.75rem;
+		color: var(--stone);
+		line-height: 1.5;
+	}
+</style>
