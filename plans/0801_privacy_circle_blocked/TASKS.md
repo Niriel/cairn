@@ -340,10 +340,10 @@ reservation.
 
 ## Phase 2 — Relationships state module
 
-### [ ] 2.1 Add `relationship.ts` model (types + date-format helpers)
+### [x] 2.1 Add `relationship.ts` model (types + date-format helpers)
 
 **Created:** 2026-05-28T12:48:43Z
-**Completed:**
+**Completed:** 2026-05-28T14:57:16Z
 
 **Why:** Both `CircleScreen` and `BlockedScreen` need to render
 *"added DD MMM"* / *"blocked DD MMM"* sub-lines (R2, R3) with the
