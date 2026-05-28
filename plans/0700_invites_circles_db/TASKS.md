@@ -165,9 +165,10 @@ returns no match.
 
 ## Phase 1 — 0701: Relationships layer
 
-### [ ] 1.1 Plan and implement sub-step 0701 (relationships table + circle RPCs)
+### [x] 1.1 Plan and implement sub-step 0701 (relationships table + circle RPCs)
 
 **Created:** 2026-05-27T00:00:00Z
+**Completed:** 2026-05-28T09:06:50Z
 
 **Why:** The `relationships` table and circle RPCs are the foundation for the
 entire invite model. `send_invitation` (0702) reads `relationships` rows for its
