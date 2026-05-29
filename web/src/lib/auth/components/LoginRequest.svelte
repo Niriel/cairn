@@ -85,7 +85,8 @@
 		<div class="submit-row">
 			<Button
 				type="submit"
-				variant="primary"
+				variant="rect"
+				tone="primary"
 				disabled={!emailValid || sending}
 				data-test="login-submit"
 			>
