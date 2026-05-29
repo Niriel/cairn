@@ -54,7 +54,10 @@
 		void reloadMeta();
 	}
 
+	let loadedFor: string | undefined;
 	$effect(() => {
+		if (loadedFor === listId) return;
+		loadedFor = listId;
 		void loadItems(listId);
 		void reloadMeta();
 	});

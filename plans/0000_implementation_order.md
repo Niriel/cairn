@@ -188,7 +188,7 @@ in-flight branch for no gain.
    circle screen, blocked screen, circle explainer sheet, invites
    inbox (with banner on lists screen), invite picker sheet, profile
    sheet (state-driven actions), members screen, list overflow menu
-   (rename/edit/leave/delete/view-trash).
+   (Rename / Edit description / Manage members / View bin / Leave list / Delete list).
 
 9. [ ] **Account deletion.** Tombstone user/profile insert, the
    `delete_account()` RPC, deletion confirmation screen with typed

@@ -99,6 +99,21 @@ once the screen inventory is stable.
    as `<Icon name="rotate-ccw" color="var(--stone)" />` without an
    intermediate `<span>`.
 
+10. [ ] **Replace ad-hoc `<div class="…">` scaffolding with semantic HTML**
+    — many screens stack divs for what is structurally a header, section,
+    heading, or list. The egregious case is
+    `web/src/lib/invite/components/InvitePickerSheet.svelte`, whose sheet
+    header, section labels, and per-row blocks are all div-with-class
+    instead of `<header>`, `<section>`, `<h2>` / `<h3>`, and `<ul> / <li>`.
+    Per-screen CSS then re-implements typography rules (`.section-label`,
+    `.name`, `.sub`, …) that should live once at the top level keyed off
+    the semantic tag — or in a small set of dedicated components. Plan:
+    sweep every screen under `web/src/lib/**/components/*.svelte`, record
+    the intended semantics of each `<div>` cluster, and replace with
+    semantic tags + top-level CSS (or extract a shared component where the
+    same pattern recurs). Accessibility benefit is real too — landmarks,
+    heading hierarchy, and list semantics all become free.
+
 ---
 
 5. [ ] **Font size setting must scale the whole app, not just the container

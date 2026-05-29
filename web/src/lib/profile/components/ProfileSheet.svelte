@@ -7,6 +7,7 @@
 	import {
 		addCircleById,
 		block as blockUser,
+		loadRelationships,
 		relationships,
 		removeFromCircle,
 		unblock as unblockUser
@@ -46,6 +47,10 @@
 			void goto(resolve('/settings'));
 			onclose();
 		}
+	});
+
+	$effect(() => {
+		if (!relationships.loaded) void loadRelationships();
 	});
 </script>
 

@@ -16,13 +16,14 @@
 	import { timeAgo } from '$lib/shared/model/time-ago';
 	import type { List } from '$lib/list/model/list';
 
+	import InvitesBanner from '$lib/invite/components/InvitesBanner.svelte';
 	import CreateListSheet from './CreateListSheet.svelte';
 	import ListOverflowSheet from './ListOverflowSheet.svelte';
 
 	let createSheetOpen = $state(false);
 	let overflowList = $state<List | null>(null);
 	const expandedIds = new SvelteSet<string>();
-	let descTextEls: Record<string, HTMLElement> = {};
+	const descTextEls = $state<Record<string, HTMLElement>>({});
 	const truncatedIds = new SvelteSet<string>();
 
 	$effect(() => {
@@ -63,6 +64,8 @@
 			</IconButton>
 		{/snippet}
 	</AppTopBar>
+
+	<InvitesBanner />
 
 	{#if lists.loading}
 		<div class="content" data-test="lists-loading">Loading…</div>
