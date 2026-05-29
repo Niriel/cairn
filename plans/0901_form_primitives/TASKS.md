@@ -319,10 +319,10 @@ sub-section.
 
 **Verify:** `pnpm lint` · `pnpm check` · `pnpm test`
 
-### [ ] 2.3 Create `<Textarea>` primitive
+### [x] 2.3 Create `<Textarea>` primitive
 
 **Created:** 2026-05-29T13:21:24Z
-**Completed:**
+**Completed:** 2026-05-29T19:58:55Z
 
 **Why:** Multi-line text input primitive consumed by Phase 4
 input-migration tasks (CreateListSheet description,
