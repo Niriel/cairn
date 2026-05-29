@@ -405,10 +405,10 @@
 
 ## Phase 8 — Implementation order update
 
-### [ ] 8.1 Update plans/0000_implementation_order.md step 8 parenthetical
+### [x] 8.1 Update plans/0000_implementation_order.md step 8 parenthetical
 
 **Created:** 2026-05-28T18:50:57Z
-**Completed:**
+**Completed:** 2026-05-29T09:36:57Z
 
 **Why:** The step 8 parenthetical currently lists the overflow rows from a pre-0803 draft. Now that all six rows are shipped, update it to match the actual order.
 
