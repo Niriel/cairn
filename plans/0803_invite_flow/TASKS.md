@@ -327,10 +327,13 @@
 
 ## Phase 6 — ListOverflowSheet extensions
 
-### [ ] 6.1 Add Manage members and Leave list rows to ListOverflowSheet
+### [x] 6.1 Add Manage members and Leave list rows to ListOverflowSheet
 
 **Created:** 2026-05-28T18:50:57Z
-**Completed:**
+**Completed:** 2026-05-29T07:58:22Z
+
+**Notes:**
+- User redirected the (b) test to assert via `data-test` attributes rather than UI label text — checking that the label string `"Delete list"` appears in `textContent` is tautological and would break under i18n. The new (b) checks the ordered list of `data-test` attributes; the same principle was added to `docs/testing.md` under "Don't assert on UI label text".
 
 **Why:** Completes the six-row overflow shape specified in R10. The Manage members row navigates to `/lists/{listId}/members` — that route exists now (Phase 5), so the typed-routes pass is satisfied.
 

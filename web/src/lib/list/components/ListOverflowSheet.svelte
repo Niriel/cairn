@@ -1,7 +1,12 @@
 <script lang="ts">
+	import { goto } from '$app/navigation';
+	import { resolve } from '$app/paths';
 	import Sheet from '$lib/basic/components/Sheet.svelte';
 	import Icon from '$lib/basic/components/Icon.svelte';
+	import ButtonPair from '$lib/shared/components/ButtonPair.svelte';
 	import { deleteList } from '$lib/list/state/lists.svelte';
+	import { pgPatch } from '$lib/shared/http/postgrest';
+	import { profile } from '$lib/shared/state/profile.svelte';
 	import RenameListSheet from './RenameListSheet.svelte';
 	import EditDescriptionSheet from './EditDescriptionSheet.svelte';
 
@@ -29,11 +34,28 @@
 
 	let showRename = $state(false);
 	let showEditDescription = $state(false);
+	let confirmingLeave = $state(false);
 
 	async function handleDelete() {
 		await deleteList(listId);
 		history.back();
 		onDelete();
+	}
+
+	function goManageMembers() {
+		void goto(resolve(`/lists/${listId}/members`));
+		onclose();
+	}
+
+	async function handleLeave() {
+		const me = profile.uid;
+		if (!me) return;
+		const now = new Date().toISOString();
+		await pgPatch<void>(`/list_members?list_id=eq.${listId}&user_id=eq.${me}`, {
+			deleted_at: now
+		});
+		await goto(resolve('/lists'));
+		onclose();
 	}
 
 	const meta = $derived(
@@ -59,10 +81,38 @@
 		<Icon name="feather" size={18} />
 		<span class="label">Edit description</span>
 	</button>
+	<button class="row" data-test="list-overflow-manage-members" onclick={goManageMembers}>
+		<Icon name="users" size={18} />
+		<span class="label">Manage members</span>
+	</button>
 	<button class="row" data-test="list-overflow-view-trash" onclick={onviewtrash}>
 		<Icon name="trash-2" size={18} />
 		<span class="label">View bin</span>
 	</button>
+	{#if confirmingLeave}
+		<div class="confirm">
+			<p class="confirm-copy">
+				Leave {listName}? You'll have to be re-invited to rejoin.
+			</p>
+			<ButtonPair>
+				{#snippet left()}
+					<button class="confirm-cancel" onclick={() => (confirmingLeave = false)}>Cancel</button>
+				{/snippet}
+				{#snippet right()}
+					<button
+						class="confirm-leave"
+						data-test="list-overflow-leave-confirm"
+						onclick={() => void handleLeave()}>Leave</button
+					>
+				{/snippet}
+			</ButtonPair>
+		</div>
+	{:else}
+		<button class="row" data-test="list-overflow-leave" onclick={() => (confirmingLeave = true)}>
+			<Icon name="log-out" size={18} />
+			<span class="label">Leave list</span>
+		</button>
+	{/if}
 	<button
 		class="row row-delete"
 		data-test="list-overflow-delete"
@@ -140,5 +190,39 @@
 	.label {
 		font-size: 15px;
 		font-weight: 500;
+	}
+
+	.confirm {
+		padding: 14px 22px;
+		border-bottom: 1px solid var(--rule);
+	}
+
+	.confirm-copy {
+		margin: 0 0 10px;
+		font-size: 13.5px;
+		color: var(--ink);
+		line-height: 1.4;
+	}
+
+	.confirm-cancel,
+	.confirm-leave {
+		padding: 8px 14px;
+		border-radius: 999px;
+		font-size: 13px;
+		font-weight: 600;
+		font-family: inherit;
+		cursor: pointer;
+	}
+
+	.confirm-cancel {
+		border: 1px solid var(--rule);
+		background: transparent;
+		color: var(--stone);
+	}
+
+	.confirm-leave {
+		border: none;
+		background: var(--ember);
+		color: #fff;
 	}
 </style>

@@ -42,6 +42,20 @@
 		sharedCount: number;
 	};
 
+	const hasTappableRows = $derived(
+		relationships.circle.some(
+			(c) => c.otherUserId !== profile.uid && !currentMemberIds.has(c.otherUserId)
+		) ||
+			lists.items.some((l) =>
+				l.list_members.some(
+					(m) =>
+						m.user_id !== profile.uid &&
+						!currentMemberIds.has(m.user_id) &&
+						!relationships.circle.some((c) => c.otherUserId === m.user_id)
+				)
+			)
+	);
+
 	const coMemberRows = $derived.by<CoMember[]>(() => {
 		const circleIds = new Set(relationships.circle.map((c) => c.otherUserId));
 		// Local Map inside a $derived; no cross-frame reactivity needed.
@@ -96,7 +110,13 @@
 <Sheet open={true} {onclose} data-test="invite-picker">
 	<div class="header">
 		<div class="title">Add someone</div>
-		<div class="subtitle">Tap to invite, or type an e-mail below</div>
+		<div class="subtitle">
+			{#if hasTappableRows}
+				Tap to invite, or type an e-mail below
+			{:else}
+				Invite someone by e-mail
+			{/if}
+		</div>
 	</div>
 
 	<div class="body">
@@ -164,11 +184,14 @@
 	</div>
 
 	<div class="email-section">
-		<div class="section-label email-label">By e-mail</div>
+		<label class="section-label email-label" for="invite-picker-email-input">By e-mail</label>
 		<div class="email-row">
-			<Icon name="mail" size={18} />
 			<input
+				id="invite-picker-email-input"
+				class="email-input"
 				type="email"
+				inputmode="email"
+				autocomplete="email"
 				placeholder="friend@example.net"
 				data-test="invite-picker-email-input"
 				bind:value={email}
@@ -285,28 +308,37 @@
 
 	.email-row {
 		display: flex;
-		gap: 10px;
+		gap: 0.5rem;
 		align-items: center;
 	}
 
-	.email-row input {
+	.email-input {
 		flex: 1;
-		font-size: 14px;
-		font-family: inherit;
-		padding: 6px 0;
-		border: none;
-		background: transparent;
+		padding: 12px 14px;
+		border: 1px solid var(--rule);
+		border-radius: 12px;
+		background: var(--paper);
 		color: var(--ink);
+		font: inherit;
+		font-size: 16px;
 		outline: none;
 	}
 
+	.email-input::placeholder {
+		color: var(--stone);
+	}
+
+	.email-input:focus {
+		border-color: var(--ink);
+	}
+
 	.send-btn {
-		padding: 7px 14px;
+		padding: 0.75rem 1rem;
 		border: none;
-		border-radius: 10px;
+		border-radius: 12px;
 		background: var(--ink);
 		color: var(--paper);
-		font-size: 13px;
+		font-size: 14px;
 		font-weight: 600;
 		font-family: inherit;
 		cursor: pointer;
