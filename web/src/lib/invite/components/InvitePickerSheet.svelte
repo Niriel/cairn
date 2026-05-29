@@ -8,32 +8,19 @@
 	import { relationships } from '$lib/privacy/state/relationships.svelte';
 	import { lists } from '$lib/list/state/lists.svelte';
 	import { profile } from '$lib/shared/state/profile.svelte';
-	import { pgGet } from '$lib/shared/http/postgrest';
 
-	type Props = { listId: string; onclose: () => void };
-	let { listId, onclose }: Props = $props();
+	type Props = { listId: string; currentMemberIds: string[]; onclose: () => void };
+	let { listId, currentMemberIds, onclose }: Props = $props();
 
-	const currentMemberIds = new SvelteSet<string>();
+	const memberIdSet = $derived(new Set(currentMemberIds));
 	const invitedIds = new SvelteSet<string>();
 	let email = $state('');
 	let toastOpen = $state(false);
 	let toastMessage = $state('');
-	let loaded = $state(false);
-
-	$effect(() => {
-		void (async () => {
-			const rows = await pgGet<{ user_id: string }[]>(
-				`/list_members?list_id=eq.${listId}&deleted_at=is.null&select=user_id`
-			);
-			currentMemberIds.clear();
-			for (const r of rows) currentMemberIds.add(r.user_id);
-			loaded = true;
-		})();
-	});
 
 	const circleRows = $derived(
 		relationships.circle.filter(
-			(c) => c.otherUserId !== profile.uid && !currentMemberIds.has(c.otherUserId)
+			(c) => c.otherUserId !== profile.uid && !memberIdSet.has(c.otherUserId)
 		)
 	);
 
@@ -46,13 +33,13 @@
 
 	const hasTappableRows = $derived(
 		relationships.circle.some(
-			(c) => c.otherUserId !== profile.uid && !currentMemberIds.has(c.otherUserId)
+			(c) => c.otherUserId !== profile.uid && !memberIdSet.has(c.otherUserId)
 		) ||
 			lists.items.some((l) =>
 				l.list_members.some(
 					(m) =>
 						m.user_id !== profile.uid &&
-						!currentMemberIds.has(m.user_id) &&
+						!memberIdSet.has(m.user_id) &&
 						!relationships.circle.some((c) => c.otherUserId === m.user_id)
 				)
 			)
@@ -66,7 +53,7 @@
 		for (const list of lists.items) {
 			for (const m of list.list_members) {
 				if (m.user_id === profile.uid) continue;
-				if (currentMemberIds.has(m.user_id)) continue;
+				if (memberIdSet.has(m.user_id)) continue;
 				if (circleIds.has(m.user_id)) continue;
 				const existing = byUser.get(m.user_id);
 				if (existing) {
@@ -119,7 +106,7 @@
 	<div class="header">
 		<div class="title">Add someone</div>
 		<div class="subtitle">
-			{#if loaded && hasTappableRows}
+			{#if hasTappableRows}
 				Tap to invite, or type an e-mail below
 			{:else}
 				Invite someone by e-mail
@@ -128,68 +115,66 @@
 	</div>
 
 	<div class="body">
-		{#if loaded}
-			{#if circleRows.length > 0}
-				<div class="section-label">Your circle</div>
-				<div class="rows">
-					{#each circleRows as row (row.otherUserId)}
-						<div class="row" data-test="invite-picker-circle-row-{row.otherUserId}">
-							<Avatar
-								displayName={row.displayName}
-								size={32}
-								uid={row.otherUserId}
-								avatarVersion={row.avatarVersion}
-							/>
-							<div class="info">
-								<div class="name">{row.displayName}</div>
-								<div class="sub">In your circle</div>
-							</div>
-							{#if invitedIds.has(row.otherUserId)}
-								<span class="invited" data-test="invite-picker-invited-{row.otherUserId}">
-									<Icon name="check" size={18} />
-								</span>
-							{:else}
-								<button
-									class="invite-btn"
-									data-test="invite-picker-invite-{row.otherUserId}"
-									onclick={() => void inviteUser(row.otherUserId)}>Invite</button
-								>
-							{/if}
+		{#if circleRows.length > 0}
+			<div class="section-label">Your circle</div>
+			<div class="rows">
+				{#each circleRows as row (row.otherUserId)}
+					<div class="row" data-test="invite-picker-circle-row-{row.otherUserId}">
+						<Avatar
+							displayName={row.displayName}
+							size={32}
+							uid={row.otherUserId}
+							avatarVersion={row.avatarVersion}
+						/>
+						<div class="info">
+							<div class="name">{row.displayName}</div>
+							<div class="sub">In your circle</div>
 						</div>
-					{/each}
-				</div>
-			{/if}
+						{#if invitedIds.has(row.otherUserId)}
+							<span class="invited" data-test="invite-picker-invited-{row.otherUserId}">
+								<Icon name="check" size={18} />
+							</span>
+						{:else}
+							<button
+								class="invite-btn"
+								data-test="invite-picker-invite-{row.otherUserId}"
+								onclick={() => void inviteUser(row.otherUserId)}>Invite</button
+							>
+						{/if}
+					</div>
+				{/each}
+			</div>
+		{/if}
 
-			{#if coMemberRows.length > 0}
-				<div class="section-label">People you share other lists with</div>
-				<div class="rows">
-					{#each coMemberRows as row (row.userId)}
-						<div class="row" data-test="invite-picker-comember-row-{row.userId}">
-							<Avatar
-								displayName={row.displayName}
-								size={32}
-								uid={row.userId}
-								avatarVersion={row.avatarVersion}
-							/>
-							<div class="info">
-								<div class="name">{row.displayName}</div>
-								<div class="sub">On {row.sharedCount} of your other lists</div>
-							</div>
-							{#if invitedIds.has(row.userId)}
-								<span class="invited" data-test="invite-picker-invited-{row.userId}">
-									<Icon name="check" size={18} />
-								</span>
-							{:else}
-								<button
-									class="invite-btn"
-									data-test="invite-picker-invite-{row.userId}"
-									onclick={() => void inviteUser(row.userId)}>Invite</button
-								>
-							{/if}
+		{#if coMemberRows.length > 0}
+			<div class="section-label">People you share other lists with</div>
+			<div class="rows">
+				{#each coMemberRows as row (row.userId)}
+					<div class="row" data-test="invite-picker-comember-row-{row.userId}">
+						<Avatar
+							displayName={row.displayName}
+							size={32}
+							uid={row.userId}
+							avatarVersion={row.avatarVersion}
+						/>
+						<div class="info">
+							<div class="name">{row.displayName}</div>
+							<div class="sub">On {row.sharedCount} of your other lists</div>
 						</div>
-					{/each}
-				</div>
-			{/if}
+						{#if invitedIds.has(row.userId)}
+							<span class="invited" data-test="invite-picker-invited-{row.userId}">
+								<Icon name="check" size={18} />
+							</span>
+						{:else}
+							<button
+								class="invite-btn"
+								data-test="invite-picker-invite-{row.userId}"
+								onclick={() => void inviteUser(row.userId)}>Invite</button
+							>
+						{/if}
+					</div>
+				{/each}
+			</div>
 		{/if}
 	</div>
 

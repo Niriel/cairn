@@ -44,13 +44,16 @@
 	}
 
 	async function goManageMembers() {
+		// Snapshot listId — onclose() nulls the parent's overflowList, after
+		// which the listId prop getter would throw on null.id.
+		const id = listId;
 		onclose(); // unmounts sheet → Sheet.$effect cleanup → history.back()
 		await tick();
 		// Sheet always calls pushHistoryGuard on mount, so unmounting it always
 		// fires popstate. Wait for it before navigating forward, otherwise
 		// SvelteKit sees the backward pop after the forward push and undoes it.
 		await new Promise<void>((r) => window.addEventListener('popstate', () => r(), { once: true }));
-		await goto(resolve(`/lists/${listId}/members`));
+		await goto(resolve(`/lists/${id}/members`));
 	}
 
 	async function handleLeave() {

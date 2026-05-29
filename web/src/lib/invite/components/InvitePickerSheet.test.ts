@@ -12,9 +12,7 @@ vi.mock('$lib/invite/state/invitations.svelte');
 vi.mock('$lib/privacy/state/relationships.svelte');
 vi.mock('$lib/list/state/lists.svelte');
 vi.mock('$lib/shared/state/profile.svelte');
-vi.mock('$lib/shared/http/postgrest');
 
-import * as pgMod from '$lib/shared/http/postgrest';
 import { sendInvitation } from '$lib/invite/state/invitations.svelte';
 import { relationships } from '$lib/privacy/state/relationships.svelte';
 import { lists } from '$lib/list/state/lists.svelte';
@@ -43,15 +41,18 @@ beforeEach(() => {
 	lists.items = [];
 	lists.loading = false;
 	lists.error = null;
-	vi.mocked(pgMod.pgGet).mockResolvedValue([]);
 });
 
 afterEach(() => {
 	vi.clearAllMocks();
 });
 
-async function renderSheet() {
-	const result = render(InvitePickerSheet, { listId: LIST_ID, onclose: vi.fn() });
+async function renderSheet(currentMemberIds: string[] = []) {
+	const result = render(InvitePickerSheet, {
+		listId: LIST_ID,
+		currentMemberIds,
+		onclose: vi.fn()
+	});
 	await tick();
 	await tick();
 	return result;
@@ -66,8 +67,7 @@ describe('InvitePickerSheet', () => {
 
 	test('(b) circle section omits a user who is already a member of the target list', async () => {
 		relationships.circle = [BOB_CIRCLE];
-		vi.mocked(pgMod.pgGet).mockResolvedValue([{ user_id: BOB_UID }]);
-		const { queryByDataTest } = await renderSheet();
+		const { queryByDataTest } = await renderSheet([BOB_UID]);
 		expect(queryByDataTest(`invite-picker-circle-row-${BOB_UID}`)).toBeNull();
 	});
 

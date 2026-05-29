@@ -125,7 +125,11 @@
 {/if}
 
 {#if pickerOpen}
-	<InvitePickerSheet {listId} onclose={() => (pickerOpen = false)} />
+	<InvitePickerSheet
+		{listId}
+		currentMemberIds={rows.map((m) => m.user_id)}
+		onclose={() => (pickerOpen = false)}
+	/>
 {/if}
 
 <style>
