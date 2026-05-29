@@ -64,58 +64,6 @@
    `visualViewport` to keep them above the keyboard. Whatever the approach,
    apply it uniformly to every sheet that contains a focusable text field.
 
-## Factor out repeating CSS into components
-
-The same handful of CSS blocks keep getting copy-pasted across screens
-because the existing components don't cover the shapes the design needs.
-The result is that visual consistency lives in `git grep`, not in code —
-one screen tweaks a colour or a padding and the others quietly drift.
-Audit each item below, identify the recurring shapes from the audit (not
-from guesswork), define a **limited** set of variants and a small parameter
-surface, and migrate. Aim is to minimise repetition without exploding the
-API; if a shape only appears once, keep it inline rather than minting a
-variant for it. Out of scope while screens are still being built; revisit
-once the screen inventory is stable.
-
-8. [ ] **Consolidate raw `<button>` elements behind a small set of button
-   components** — many screens render raw `<button>` with inline-styled
-   variants (outlined pills, chip-shaped panel actions, empty-state CTAs, the
-   row-level Restore on `TrashScreen`, `.panel-btn` and `.empty-cta` in
-   `ItemsScreen`, etc). The existing `Button` component covers only `primary` /
-   `ghost` / `destructive` filled-rectangle shapes, which is why screens keep
-   reaching past it. Rough hypothesis for the variant set (audit will refine):
-   filled-rect, outlined-pill, ghost-text, icon-only. Parameters likely needed:
-   size, leading icon, destructive tone.
-
-9. [ ] **Give `Icon` a `color` prop (or an idiomatic wrapper) so screens
-   stop copy-pasting `.row-icon { display: inline-flex; color: … }` spans**
-   — `Icon.svelte` strokes with `currentColor`, so any non-default colour
-   today requires a parent element with `display: inline-flex; color: …`.
-   That wrapper span is reappearing across screens (`TrashScreen.svelte`'s
-   `.row-icon`, the empty-state circles in `ItemsScreen` / `TrashScreen`,
-   etc.). Either accept a `color` prop on `Icon` and apply it inline on the
-   `<svg>`, or introduce a tiny `<ColoredIcon>` wrapper that owns the
-   `inline-flex` + `color` rule once. Pick whichever lets call sites read
-   as `<Icon name="rotate-ccw" color="var(--stone)" />` without an
-   intermediate `<span>`.
-
-10. [ ] **Replace ad-hoc `<div class="…">` scaffolding with semantic HTML**
-    — many screens stack divs for what is structurally a header, section,
-    heading, or list. The egregious case is
-    `web/src/lib/invite/components/InvitePickerSheet.svelte`, whose sheet
-    header, section labels, and per-row blocks are all div-with-class
-    instead of `<header>`, `<section>`, `<h2>` / `<h3>`, and `<ul> / <li>`.
-    Per-screen CSS then re-implements typography rules (`.section-label`,
-    `.name`, `.sub`, …) that should live once at the top level keyed off
-    the semantic tag — or in a small set of dedicated components. Plan:
-    sweep every screen under `web/src/lib/**/components/*.svelte`, record
-    the intended semantics of each `<div>` cluster, and replace with
-    semantic tags + top-level CSS (or extract a shared component where the
-    same pattern recurs). Accessibility benefit is real too — landmarks,
-    heading hierarchy, and list semantics all become free.
-
----
-
 5. [ ] **Font size setting must scale the whole app, not just the container
    width** — the Settings font-size preference (XS/S/M/L/XL, stored in
    `localStorage`) currently only affects `--app-max-w`. All pixel values in
