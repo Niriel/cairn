@@ -243,6 +243,11 @@ style documented in `docs/ui.md` "Illustrated empty state"
 | `.empty-cta` | `ItemsScreen`, `ListsScreen`, `InvitesInboxScreen` | `rect` | `ink` | `md` | `plus` |
 | `.row-nav` (list-row navigation) | `ListsScreen` | `text` | `ink` | `md` | — |
 | `.restore` | `TrashScreen` | `pill` | `ink` | `sm` | — |
+| `.restore` | `DeletedListsScreen` | `pill` | `ink` | `sm` | — |
+| "Not now" (left) | `PostAcceptPromptSheet` | `rect` | `ink` | `md` | — |
+| "Add to circle" (right) | `PostAcceptPromptSheet` | `rect` | `primary` | `md` | — |
+| "Got it" | `CircleExplainerSheet` | `rect` | `ink` | `md` | — |
+| `.resend` | `LoginCheck` | `text` | `primary` | `sm` | — |
 
 **Carve-outs (stay raw `<button>`):** `VoteControl.svelte` thumb;
 `Accordion.svelte` header; `(see more)/(see less)` expander in

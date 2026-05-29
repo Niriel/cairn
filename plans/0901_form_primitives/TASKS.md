@@ -180,10 +180,10 @@ records a clearly-rationalised alternative.
 
 ## Phase 2 — Primitives
 
-### [ ] 2.1 Extend `<Button>` with variant + tone + size + leadingIcon
+### [x] 2.1 Extend `<Button>` with variant + tone + size + leadingIcon
 
 **Created:** 2026-05-29T13:21:24Z
-**Completed:**
+**Completed:** 2026-05-29T17:28:33Z
 
 **Why:** Every Phase 3 migration task consumes the new `<Button>`
 API. Landing the extension (and its test rewrite) first means the
@@ -567,12 +567,19 @@ and confirmation actions all in one domain.
   - `InvitePickerSheet.svelte`: `.send-btn` (inline e-mail
     submit) → mapped per table; `.invite-btn` (second shape,
     distinct from inline-link) → mapped per table; `.row`
-    actions → `<Button variant="text" tone="<neutral>"
-    size="md">`.
+    actions → `<Button variant="text" tone="ink" size="md">`.
   - `CircleScreen.svelte`: `.remove-btn` → mapped per table.
   - `InvitesBanner.svelte`: `.multi-row` (full-row tap target)
     → mapped per table.
   - `BlockedScreen.svelte`: `.unblock-btn` → mapped per table.
+  - `PostAcceptPromptSheet.svelte`: "Not now" (left) →
+    `<Button variant="rect" tone="ink" size="md">`; "Add to
+    circle" (right) → `<Button variant="rect" tone="primary"
+    size="md">`. Both are bare unstyled `<button>` inside
+    `<ButtonPair>` snippets — no class names, no CSS to drop.
+  - `CircleExplainerSheet.svelte`: "Got it" → `<Button
+    variant="rect" tone="ink" size="md">`. Drop the scoped
+    `button` rule from the file's `<style>` block.
 - Carve-outs: none in these files (the `EmptyState` for
   `BlockedScreen` stays as raw markup in this sub-plan — its
   refactor to `<EmptyState>` is 0902's concern).
@@ -593,10 +600,18 @@ invite/circle files.
   (modify)
 - `web/src/lib/invite/components/InvitesBanner.svelte` (modify)
 - `web/src/lib/invite/components/InvitesBanner.test.ts` (modify)
+- `web/src/lib/invite/components/PostAcceptPromptSheet.svelte`
+  (modify)
+- `web/src/lib/invite/components/PostAcceptPromptSheet.test.ts`
+  (modify)
 - `web/src/lib/privacy/components/CircleScreen.svelte` (modify)
 - `web/src/lib/privacy/components/CircleScreen.test.ts` (modify)
 - `web/src/lib/privacy/components/BlockedScreen.svelte` (modify)
 - `web/src/lib/privacy/components/BlockedScreen.test.ts` (modify)
+- `web/src/lib/privacy/components/CircleExplainerSheet.svelte`
+  (modify)
+- `web/src/lib/privacy/components/CircleExplainerSheet.test.ts`
+  (modify)
 - `web/src/lib/invite/components/__mocks__/*.svelte` and
   `web/src/lib/privacy/components/__mocks__/*.svelte` — modify
   only the mocks whose source's markup hooks change; check the
@@ -766,8 +781,11 @@ test of the new `<Button>` API.
     `.nav-row` (if any) → `<Button variant="text"
     tone="<neutral>" size="md">`.
   - `TrashScreen.svelte`: `.restore` → `<Button variant="pill"
-    tone="<neutral>" size="sm">`. **Note:** `TrashScreen` lives
+    tone="ink" size="sm">`. **Note:** `TrashScreen` lives
     in `web/src/lib/item/components/`, not `list/components/`.
+  - `DeletedListsScreen.svelte`: `.restore` → `<Button
+    variant="pill" tone="ink" size="sm">`. Same shape as
+    `TrashScreen`. Lives in `web/src/lib/list/components/`.
 - Carve-outs: the `(see more) / (see less)` expander in
   `ListsScreen.svelte` stays raw. The `.row-icon` colour
   wrapper in `TrashScreen` is 0902's concern (not touched
@@ -790,6 +808,10 @@ screen-level CTAs.
   `TrashScreen` is in `item/`, not `list/`.
 - `web/src/lib/item/components/TrashScreen.test.ts` (modify if
   present; otherwise add coverage)
+- `web/src/lib/list/components/DeletedListsScreen.svelte`
+  (modify)
+- `web/src/lib/list/components/DeletedListsScreen.test.ts`
+  (modify)
 - `web/src/lib/item/components/__mocks__/*.svelte`,
   `web/src/lib/list/components/__mocks__/*.svelte`,
   `web/src/lib/invite/components/__mocks__/*.svelte` — modify
@@ -813,45 +835,54 @@ screen-level CTAs.
 **Created:** 2026-05-29T13:21:24Z
 **Completed:**
 
-**Why:** Auth flow's submit button is the last raw `<button>`
-left after the per-domain sweep. Migrating it before the input
-migration (Task 4.2) keeps the button-vs-input separation in
-the parent plan.
+**Why:** Auth flow buttons — `LoginRequest` submit and
+`LoginCheck` resend — are the last raw `<button>` elements
+in the auth domain. Migrating them before the input migration
+(Task 4.2) keeps the button-vs-input separation in the parent
+plan.
 
 **Prerequisites:** Task 2.1 — `<Button>` extension landed.
 
 **Decisions:**
 - Mapping per amended PLAN.md "Button migration table":
-  `LoginRequest.svelte` submit button → mapped cell from
-  table (expected shape: `<Button variant="rect"
-  tone="primary" size="md">`).
+  `LoginRequest.svelte` submit button → `<Button variant="rect"
+  tone="primary" size="md">`. (Already partially migrated
+  in Task 2.1 side work — `variant="primary"` was updated to
+  `variant="rect" tone="primary"`. Confirm the CSS block is
+  dropped in this task.)
+- `LoginCheck.svelte` `.resend` ("Send again") → `<Button
+  variant="text" tone="primary" size="sm">`. The current
+  `.resend` rule (`background: none; border: none; color:
+  var(--accent)`) maps cleanly to `text / primary / sm`.
+  Drop the `.resend` CSS rule from the file's `<style>` block.
 - The email input is **not** migrated here — that's Task 4.2.
-- Test rewrites: any assertion in `LoginRequest.test.ts` that
-  queries the submit button by class becomes a role/text/
-  `data-test`-based query.
+- Test rewrites: any assertion in `LoginRequest.test.ts` or
+  `LoginCheck.test.ts` that queries by class becomes a
+  role/text/`data-test`-based query.
 
-**Reference:** Amended PLAN.md "Button migration table" row for
-`LoginRequest`.
+**Reference:** Amended PLAN.md "Button migration table" rows for
+`LoginRequest` and `LoginCheck`.
 
 **Files:**
 - `web/src/lib/auth/components/LoginRequest.svelte` (modify)
 - `web/src/lib/auth/components/LoginRequest.test.ts` (modify)
-
-(Verify exact path during the task.)
+- `web/src/lib/auth/components/LoginCheck.svelte` (modify)
+- `web/src/lib/auth/components/LoginCheck.test.ts` (modify)
 
 **Steps:**
-1. Replace the raw submit `<button>` with the mapped
-   `<Button>`. Preserve `type="submit"`, `disabled`,
-   `onclick`, `data-test`.
-2. Drop the now-dead button CSS from the file's `<style>`
-   block.
-3. Update `LoginRequest.test.ts` if it queries the submit
-   button by class.
-4. Run `pnpm test --run web/src/lib/auth/components/
-   LoginRequest.test.ts`.
+1. In `LoginRequest.svelte`: confirm `variant="rect"
+   tone="primary"` is in place (done in Task 2.1); drop any
+   remaining button CSS from the `<style>` block that is now
+   owned by `<Button>`.
+2. In `LoginCheck.svelte`: replace the raw `.resend` `<button>`
+   with `<Button variant="text" tone="primary" size="sm">`.
+   Preserve `type="button"`, `disabled`, `data-test`, `onclick`.
+   Drop the `.resend` CSS rule.
+3. Update `LoginRequest.test.ts` and `LoginCheck.test.ts` if
+   they query buttons by class.
+4. Run `pnpm test --run web/src/lib/auth/components/`.
 5. Run `pnpm check`.
-6. Commit `refactor(auth): migrate LoginRequest submit to
-   <Button>`.
+6. Commit `refactor(auth): migrate auth buttons to <Button>`.
 
 **Verify:** `pnpm lint` · `pnpm check` · `pnpm test`
 
