@@ -218,10 +218,15 @@
 
 ## Phase 4 — InvitePickerSheet
 
-### [ ] 4.1 Create InvitePickerSheet
+### [x] 4.1 Create InvitePickerSheet
 
 **Created:** 2026-05-28T18:50:57Z
-**Completed:**
+**Completed:** 2026-05-29T07:31:47Z
+
+**Notes:**
+- The `lists.svelte.ts` and `profile.svelte.ts` modules also needed mocking in the test — added alongside the modules listed in the task's mock plan.
+- Used `SvelteSet` directly (not wrapped in `$state`) for `currentMemberIds` and `invitedIds` — `SvelteSet` is already reactive, so the wrapper was an ESLint violation under `svelte/prefer-svelte-reactivity`.
+- Inside the `$derived.by` co-members aggregation, a transient `Map` is used and tripped the same lint rule; suppressed with a single-line `eslint-disable-next-line` because the map is fully local to the derivation (no cross-frame reactivity).
 
 **Why:** The picker is an independent component — it doesn't need the Members screen to exist before it can be built and tested. Landing it now means Phase 5 (MembersScreen) can import a tested component.
 
