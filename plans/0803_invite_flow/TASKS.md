@@ -269,10 +269,14 @@
 
 ## Phase 5 — /lists/[list_id]/members route + MembersScreen
 
-### [ ] 5.1 Create MembersScreen and route
+### [x] 5.1 Create MembersScreen and route
 
 **Created:** 2026-05-28T18:50:57Z
-**Completed:**
+**Completed:** 2026-05-29T07:39:10Z
+
+**Notes:**
+- The task said to read `page.params.list_id` from `$app/state` in the route; the route uses `PageProps` instead, matching the established pattern in `lists/[list_id]/+page.svelte` (no other route in the repo uses `$app/state`). Result is identical — `params.list_id` is passed to `<MembersScreen listId={...} />`.
+- Created `web/src/lib/profile/components/__mocks__/ProfileSheet.svelte` (didn't exist). The Files list didn't mention it but the test needs it to assert the profile-sheet stub appears on row tap.
 
 **Why:** The Members screen is where ProfileSheet and InvitePickerSheet are surfaced from in the live app. Landing the route now also unblocks Phase 6 (ListOverflowSheet Manage members row, which navigates here).
 
