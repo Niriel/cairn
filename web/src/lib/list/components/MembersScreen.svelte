@@ -54,7 +54,9 @@
 			{#each rows as m (m.user_id)}
 				<button
 					class="row"
+					class:is-self={m.user_id === profile.uid}
 					data-test="member-row-{m.user_id}"
+					disabled={m.user_id === profile.uid}
 					onclick={() => {
 						if (m.user_id !== profile.uid) openProfile = m;
 					}}
@@ -70,7 +72,7 @@
 						<div class="sub">{subLine(m)}</div>
 					</div>
 					{#if m.user_id !== profile.uid}
-						<Icon name="more-horizontal" size={18} />
+						<Icon name="more-vertical" size={18} />
 					{/if}
 				</button>
 			{/each}
@@ -144,6 +146,10 @@
 
 	.row:last-of-type {
 		border-bottom: none;
+	}
+
+	.row.is-self {
+		cursor: default;
 	}
 
 	.info {
