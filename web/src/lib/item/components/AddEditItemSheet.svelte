@@ -1,4 +1,5 @@
 <script lang="ts">
+	import Button from '$lib/basic/components/Button.svelte';
 	import Sheet from '$lib/basic/components/Sheet.svelte';
 	import { addItem, editItem } from '$lib/item/state/items.svelte';
 	import type { Item } from '$lib/item/model/item';
@@ -94,11 +95,10 @@
 		></textarea>
 
 		<div class="actions">
-			<button type="button" class="btn-cancel" data-test="add-edit-cancel" onclick={oncancel}
-				>Cancel</button
+			<Button type="button" tone="ink" data-test="add-edit-cancel" onclick={oncancel}>Cancel</Button
 			>
-			<button type="submit" class="btn-submit" data-test="add-edit-submit" disabled={submitting}
-				>{mode === 'add' ? 'Add' : 'Save'}</button
+			<Button type="submit" tone="primary" data-test="add-edit-submit" disabled={submitting}
+				>{mode === 'add' ? 'Add' : 'Save'}</Button
 			>
 		</div>
 	</form>
@@ -188,32 +188,7 @@
 		margin-top: 18px;
 	}
 
-	.btn-cancel,
-	.btn-submit {
+	.actions :global(button) {
 		flex: 1;
-		padding: 12px;
-		border-radius: 12px;
-		font: inherit;
-		font-size: 14px;
-		font-weight: 500;
-		cursor: pointer;
-	}
-
-	.btn-cancel {
-		border: 1px solid var(--rule);
-		background: var(--paper);
-		color: var(--ink);
-	}
-
-	.btn-submit {
-		border: none;
-		background: var(--ink);
-		color: var(--paper);
-		font-weight: 600;
-	}
-
-	.btn-submit:disabled {
-		opacity: 0.5;
-		cursor: default;
 	}
 </style>

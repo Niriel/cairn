@@ -229,6 +229,13 @@ in-flight branch for no gain.
      top-level CSS (or extract a shared component where the same
      pattern recurs). Accessibility benefit is real too — landmarks,
      heading hierarchy, and list semantics all become free.
+   - **Replace `border-bottom`-as-separator with `<hr>`.** The app
+     uses `border-bottom` on row elements (buttons, list items, sheet
+     rows) as visual separators throughout. The separator belongs to
+     the document flow, not the element's box — `<hr>` is the right
+     element. A global `hr` reset rule is already in place; the sweep
+     removes each `border-bottom` separator rule and inserts `<hr>`
+     between the affected sibling elements.
 
    Aim is to minimise repetition without exploding the API; if a shape
    only appears once, keep it inline rather than minting a variant for

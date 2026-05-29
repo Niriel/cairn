@@ -1,8 +1,9 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
-	import AppTopBar from '$lib/shared/components/AppTopBar.svelte';
+	import Button from '$lib/basic/components/Button.svelte';
 	import Icon from '$lib/basic/components/Icon.svelte';
+	import AppTopBar from '$lib/shared/components/AppTopBar.svelte';
 	import Snackbar from '$lib/shared/components/Snackbar.svelte';
 	import { relationships, loadRelationships } from '$lib/privacy/state/relationships.svelte';
 	import {
@@ -94,22 +95,24 @@
 			{/if}
 
 			{#if userSettings.invitePolicy === 'circle'}
-				<button
-					class="whats-a-circle"
-					data-test="whats-a-circle"
-					onclick={() => (explainerOpen = true)}
-				>
-					<span class="info-icon"><Icon name="info" size={16} /></span>
-					What's a circle?
-				</button>
+				<div class="whats-a-circle">
+					<Button
+						variant="link"
+						leadingIcon="info"
+						data-test="whats-a-circle"
+						onclick={() => (explainerOpen = true)}>What's a circle?</Button
+					>
+				</div>
 			{/if}
 		</section>
 
 		<section class="section">
 			<h2 class="section-label">People</h2>
 			<div class="nav-rows">
-				<button
-					class="nav-row"
+				<Button
+					variant="text"
+					tone="ink"
+					size="md"
 					data-test="nav-circle"
 					onclick={() => void goto(resolve('/settings/circles'))}
 				>
@@ -122,9 +125,12 @@
 						<span class="badge" data-test="circle-count">{relationships.circle.length}</span>
 					{/if}
 					<Icon name="chevron-right" size={18} />
-				</button>
-				<button
-					class="nav-row"
+				</Button>
+				<hr />
+				<Button
+					variant="text"
+					tone="ink"
+					size="md"
 					data-test="nav-blocked"
 					onclick={() => void goto(resolve('/settings/blocked'))}
 				>
@@ -137,7 +143,7 @@
 						<span class="badge" data-test="blocked-count">{relationships.blocked.length}</span>
 					{/if}
 					<Icon name="chevron-right" size={18} />
-				</button>
+				</Button>
 			</div>
 		</section>
 
@@ -269,49 +275,15 @@
 		line-height: 1.5;
 	}
 
-	.info-icon {
-		display: inline-flex;
-		position: relative;
-		top: -2px;
-	}
-
 	.whats-a-circle {
 		margin: 0.75rem 1.125rem 0;
-		display: inline-flex;
-		align-items: center;
-		gap: 0.375rem;
-		background: transparent;
-		border: none;
-		padding: 0;
-		color: var(--accent);
 		font-size: 0.9375rem;
-		font-weight: 600;
-		cursor: pointer;
-		font-family: inherit;
-		text-decoration: none;
-		text-align: left;
 	}
 
 	.nav-rows {
 		margin: 0;
-	}
-
-	.nav-row {
-		display: flex;
-		align-items: center;
-		gap: 0.75rem;
-		padding: 0.875rem;
-		width: 100%;
-		background: transparent;
-		border: none;
-		border-bottom: 1px solid var(--rule);
-		cursor: pointer;
-		font-family: inherit;
-		text-align: left;
-	}
-
-	.nav-row:first-child {
 		border-top: 1px solid var(--rule);
+		border-bottom: 1px solid var(--rule);
 	}
 
 	.nav-row-text {

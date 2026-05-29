@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { untrack } from 'svelte';
+	import Button from '$lib/basic/components/Button.svelte';
 	import Sheet from '$lib/basic/components/Sheet.svelte';
 	import { pgPatch } from '$lib/shared/http/postgrest';
 	import { refreshLists } from '$lib/list/state/lists.svelte';
@@ -53,15 +54,15 @@
 		<p data-test="edit-description-error">{error}</p>
 	{/if}
 	<div class="actions">
-		<button type="button" class="btn-cancel" data-test="edit-description-cancel" onclick={onclose}
-			>Cancel</button
+		<Button type="button" tone="ink" data-test="edit-description-cancel" onclick={onclose}
+			>Cancel</Button
 		>
-		<button
+		<Button
 			type="button"
-			class="btn-save"
+			tone="primary"
 			data-test="edit-description-save"
 			disabled={submitting}
-			onclick={() => void handleSave()}>Save</button
+			onclick={() => void handleSave()}>Save</Button
 		>
 	</div>
 </Sheet>
@@ -96,32 +97,7 @@
 		margin-top: 12px;
 	}
 
-	.btn-cancel,
-	.btn-save {
+	.actions :global(button) {
 		flex: 1;
-		padding: 12px;
-		border-radius: 12px;
-		font: inherit;
-		font-size: 14px;
-		font-weight: 500;
-		cursor: pointer;
-	}
-
-	.btn-cancel {
-		border: 1px solid var(--rule);
-		background: var(--paper);
-		color: var(--ink);
-	}
-
-	.btn-save {
-		border: none;
-		background: var(--accent);
-		color: var(--paper);
-		font-weight: 600;
-	}
-
-	.btn-save:disabled {
-		opacity: 0.5;
-		cursor: default;
 	}
 </style>

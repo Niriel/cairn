@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
+	import Button from '$lib/basic/components/Button.svelte';
 	import Icon from '$lib/basic/components/Icon.svelte';
 	import Avatar from '$lib/shared/components/Avatar.svelte';
 	import {
@@ -55,15 +56,17 @@
 	</div>
 {:else if invitations.inbox.length > 1}
 	<div class="banner" data-test="invites-banner">
-		<button
-			class="multi-row"
+		<Button
+			variant="text"
+			tone="ink"
+			size="md"
 			data-test="invites-banner-multi"
 			onclick={() => void goto(resolve('/settings/invites'))}
 		>
 			<span class="count-badge">{invitations.inbox.length}</span>
 			<span class="multi-text">{invitations.inbox.length} pending invites</span>
 			<Icon name="chevron-right" size={18} />
-		</button>
+		</Button>
 	</div>
 {/if}
 
@@ -125,19 +128,6 @@
 		border: none;
 		background: var(--sage);
 		color: #fff;
-	}
-
-	.multi-row {
-		display: flex;
-		align-items: center;
-		gap: 12px;
-		width: 100%;
-		background: none;
-		border: none;
-		padding: 0;
-		cursor: pointer;
-		font-family: inherit;
-		text-align: left;
 	}
 
 	.count-badge {

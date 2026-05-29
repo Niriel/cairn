@@ -1,4 +1,5 @@
 <script lang="ts">
+	import Button from '$lib/basic/components/Button.svelte';
 	import Sheet from '$lib/basic/components/Sheet.svelte';
 	import ButtonPair from '$lib/shared/components/ButtonPair.svelte';
 	import { createList } from '$lib/list/model/list';
@@ -71,10 +72,14 @@
 		{/if}
 		<ButtonPair>
 			{#snippet left()}
-				<button type="button" data-test="create-list-cancel" onclick={onclose}>Cancel</button>
+				<Button type="button" tone="ink" data-test="create-list-cancel" onclick={onclose}
+					>Cancel</Button
+				>
 			{/snippet}
 			{#snippet right()}
-				<button type="submit" data-test="create-list-submit" disabled={submitting}>Create</button>
+				<Button type="submit" tone="primary" data-test="create-list-submit" disabled={submitting}
+					>Create</Button
+				>
 			{/snippet}
 		</ButtonPair>
 	</form>
@@ -113,30 +118,5 @@
 		margin: 0;
 		font-size: 13px;
 		color: var(--ember);
-	}
-
-	button {
-		padding: 12px 20px;
-		border: none;
-		border-radius: 12px;
-		font: inherit;
-		font-size: 15px;
-		font-weight: 600;
-		cursor: pointer;
-	}
-
-	button[type='button'] {
-		background: transparent;
-		color: var(--ink-soft);
-	}
-
-	button[type='submit'] {
-		background: var(--accent);
-		color: var(--paper);
-	}
-
-	button:disabled {
-		opacity: 0.5;
-		cursor: default;
 	}
 </style>

@@ -4,6 +4,7 @@
 	import Avatar from '$lib/shared/components/Avatar.svelte';
 	import AppTopBar from '$lib/shared/components/AppTopBar.svelte';
 	import Snackbar from '$lib/shared/components/Snackbar.svelte';
+	import Button from '$lib/basic/components/Button.svelte';
 	import Icon from '$lib/basic/components/Icon.svelte';
 	import AvatarSourceSheet from '$lib/avatar/components/AvatarSourceSheet.svelte';
 	import AvatarCropScreen from '$lib/avatar/components/AvatarCropScreen.svelte';
@@ -142,7 +143,9 @@
 			</button>
 		{/snippet}
 		{#snippet right()}
-			<button class="save-btn" data-test="save-profile" onclick={saveName}>Save</button>
+			<Button variant="rect" tone="ink" size="sm" data-test="save-profile" onclick={saveName}
+				>Save</Button
+			>
 		{/snippet}
 		Edit profile
 	</AppTopBar>
@@ -168,20 +171,24 @@
 				data-test="profile-avatar"
 			/>
 			<div class="avatar-actions">
-				<button
-					class="pill-btn ink"
+				<Button
+					variant="pill"
+					tone="ink"
+					size="sm"
+					leadingIcon="pencil"
 					data-test="change-picture"
 					onclick={() => (showSourceSheet = true)}
 				>
-					<Icon name="pencil" size={13} />
 					{profile.avatarVersion > 0 ? 'Change picture' : 'Add a picture'}
-				</button>
+				</Button>
 				{#if profile.avatarVersion > 0}
-					<button
-						class="pill-btn ember"
+					<Button
+						variant="pill"
+						tone="destructive"
+						size="sm"
 						data-test="remove-avatar"
 						onclick={removeAvatar}
-						disabled={removing}>Remove</button
+						disabled={removing}>Remove</Button
 					>
 				{/if}
 			</div>
@@ -257,9 +264,9 @@
 			</div>
 			<div class="upload-title">{UPLOAD_TITLE[isUploadState]}</div>
 			<div class="upload-sub">{UPLOAD_SUB[isUploadState]}</div>
-			<button class="upload-action-btn" onclick={handleUploadAction}>
+			<Button variant="rect" tone="ink" size="md" onclick={handleUploadAction}>
 				{UPLOAD_ACTION_LABEL[isUploadState]}
-			</button>
+			</Button>
 		</div>
 	</div>
 {/if}
@@ -279,30 +286,6 @@
 	.avatar-actions {
 		display: flex;
 		gap: 8px;
-	}
-
-	.pill-btn {
-		padding: 8px 14px;
-		border-radius: 99px;
-		font-size: 13px;
-		font-weight: 600;
-		cursor: pointer;
-		font-family: inherit;
-		display: inline-flex;
-		align-items: center;
-		gap: 6px;
-	}
-
-	.pill-btn.ink {
-		border: 1px solid var(--ink);
-		background: var(--paper);
-		color: var(--ink);
-	}
-
-	.pill-btn.ember {
-		border: 1px solid var(--rule);
-		background: var(--paper);
-		color: var(--ember);
 	}
 
 	.field-label {
@@ -364,18 +347,6 @@
 		justify-content: center;
 	}
 
-	.save-btn {
-		padding: 8px 14px;
-		border: none;
-		border-radius: 10px;
-		background: var(--ink);
-		color: var(--paper);
-		font-size: 13px;
-		font-weight: 600;
-		cursor: pointer;
-		font-family: inherit;
-	}
-
 	.upload-body {
 		flex: 1;
 		display: flex;
@@ -428,16 +399,7 @@
 		max-width: 280px;
 	}
 
-	.upload-action-btn {
+	.upload-body :global(button) {
 		margin-top: 28px;
-		padding: 11px 22px;
-		border: none;
-		border-radius: 12px;
-		background: var(--ink);
-		color: var(--paper);
-		font-size: 14px;
-		font-weight: 600;
-		cursor: pointer;
-		font-family: inherit;
 	}
 </style>

@@ -89,6 +89,7 @@
 				tone="primary"
 				disabled={!emailValid || sending}
 				data-test="login-submit"
+				style="flex: 1"
 			>
 				Send me a magic link
 			</Button>
@@ -182,14 +183,6 @@
 	.submit-row {
 		margin-top: 16px;
 		display: flex;
-	}
-
-	.submit-row :global(button) {
-		flex: 1;
-		padding: 14px;
-		border-radius: 12px;
-		font-size: 15px;
-		font-weight: 600;
 	}
 
 	.hint {

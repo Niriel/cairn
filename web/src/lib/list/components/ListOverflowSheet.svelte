@@ -2,8 +2,9 @@
 	import { tick } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
-	import Sheet from '$lib/basic/components/Sheet.svelte';
+	import Button from '$lib/basic/components/Button.svelte';
 	import Icon from '$lib/basic/components/Icon.svelte';
+	import Sheet from '$lib/basic/components/Sheet.svelte';
 	import ButtonPair from '$lib/shared/components/ButtonPair.svelte';
 	import { deleteList, refreshLists } from '$lib/list/state/lists.svelte';
 	import { pgPatch } from '$lib/shared/http/postgrest';
@@ -81,58 +82,97 @@
 		<div class="list-name">{listName}</div>
 		<div class="meta">{meta}</div>
 	</div>
-	<button class="row" data-test="list-overflow-rename" onclick={() => (showRename = true)}>
-		<Icon name="pencil" size={18} />
-		<span class="label">Rename list</span>
-	</button>
-	<button
-		class="row"
-		data-test="list-overflow-edit-description"
-		onclick={() => (showEditDescription = true)}
-	>
-		<Icon name="feather" size={18} />
-		<span class="label">Edit description</span>
-	</button>
-	<button class="row" data-test="list-overflow-manage-members" onclick={goManageMembers}>
-		<Icon name="users" size={18} />
-		<span class="label">Manage members</span>
-	</button>
-	<button class="row" data-test="list-overflow-view-trash" onclick={onviewtrash}>
-		<Icon name="trash-2" size={18} />
-		<span class="label">View bin</span>
-	</button>
-	{#if confirmingLeave}
-		<div class="confirm">
-			<p class="confirm-copy">
-				Leave {listName}? You'll have to be re-invited to rejoin.
-			</p>
-			<ButtonPair>
-				{#snippet left()}
-					<button class="confirm-cancel" onclick={() => (confirmingLeave = false)}>Cancel</button>
-				{/snippet}
-				{#snippet right()}
-					<button
-						class="confirm-leave"
-						data-test="list-overflow-leave-confirm"
-						onclick={() => void handleLeave()}>Leave</button
-					>
-				{/snippet}
-			</ButtonPair>
-		</div>
-	{:else}
-		<button class="row" data-test="list-overflow-leave" onclick={() => (confirmingLeave = true)}>
-			<Icon name="log-out" size={18} />
-			<span class="label">Leave list</span>
-		</button>
-	{/if}
-	<button
-		class="row row-delete"
-		data-test="list-overflow-delete"
-		onclick={() => void handleDelete()}
-	>
-		<Icon name="trash" size={18} />
-		<span class="label">Delete list</span>
-	</button>
+	<div class="rows">
+		<Button
+			variant="text"
+			tone="ink"
+			size="md"
+			data-test="list-overflow-rename"
+			onclick={() => (showRename = true)}
+		>
+			<Icon name="pencil" size={18} />
+			<span class="label">Rename list</span>
+		</Button>
+		<hr />
+		<Button
+			variant="text"
+			tone="ink"
+			size="md"
+			data-test="list-overflow-edit-description"
+			onclick={() => (showEditDescription = true)}
+		>
+			<Icon name="feather" size={18} />
+			<span class="label">Edit description</span>
+		</Button>
+		<hr />
+		<Button
+			variant="text"
+			tone="ink"
+			size="md"
+			data-test="list-overflow-manage-members"
+			onclick={goManageMembers}
+		>
+			<Icon name="users" size={18} />
+			<span class="label">Manage members</span>
+		</Button>
+		<hr />
+		<Button
+			variant="text"
+			tone="ink"
+			size="md"
+			data-test="list-overflow-view-trash"
+			onclick={onviewtrash}
+		>
+			<Icon name="trash-2" size={18} />
+			<span class="label">View bin</span>
+		</Button>
+		<hr />
+		{#if confirmingLeave}
+			<div class="confirm">
+				<p class="confirm-copy">
+					Leave {listName}? You'll have to be re-invited to rejoin.
+				</p>
+				<ButtonPair>
+					{#snippet left()}
+						<Button variant="rect" tone="ink" size="md" onclick={() => (confirmingLeave = false)}
+							>Cancel</Button
+						>
+					{/snippet}
+					{#snippet right()}
+						<Button
+							variant="rect"
+							tone="destructive"
+							size="sm"
+							data-test="list-overflow-leave-confirm"
+							onclick={() => void handleLeave()}>Leave</Button
+						>
+					{/snippet}
+				</ButtonPair>
+			</div>
+		{:else}
+			<Button
+				variant="text"
+				tone="ink"
+				size="md"
+				data-test="list-overflow-leave"
+				onclick={() => (confirmingLeave = true)}
+			>
+				<Icon name="log-out" size={18} />
+				<span class="label">Leave list</span>
+			</Button>
+		{/if}
+		<hr />
+		<Button
+			variant="text"
+			tone="destructive"
+			size="md"
+			data-test="list-overflow-delete"
+			onclick={() => void handleDelete()}
+		>
+			<Icon name="trash" size={18} />
+			<span class="label">Delete list</span>
+		</Button>
+	</div>
 </Sheet>
 
 {#if showRename}
@@ -174,29 +214,9 @@
 		margin-top: 2px;
 	}
 
-	.row {
-		display: flex;
-		align-items: center;
-		gap: 14px;
+	.rows :global(button) {
 		padding: 14px 22px;
-		border-bottom: 1px solid var(--rule);
-		width: 100%;
-		background: none;
-		border-left: none;
-		border-right: none;
-		border-top: none;
-		text-align: left;
-		cursor: pointer;
-		color: var(--ink);
-		font: inherit;
-	}
-
-	.row:last-of-type {
-		border-bottom: none;
-	}
-
-	.row-delete {
-		color: var(--ember);
+		gap: 14px;
 	}
 
 	.label {
@@ -206,7 +226,6 @@
 
 	.confirm {
 		padding: 14px 22px;
-		border-bottom: 1px solid var(--rule);
 	}
 
 	.confirm-copy {
@@ -214,27 +233,5 @@
 		font-size: 13.5px;
 		color: var(--ink);
 		line-height: 1.4;
-	}
-
-	.confirm-cancel,
-	.confirm-leave {
-		padding: 8px 14px;
-		border-radius: 999px;
-		font-size: 13px;
-		font-weight: 600;
-		font-family: inherit;
-		cursor: pointer;
-	}
-
-	.confirm-cancel {
-		border: 1px solid var(--rule);
-		background: transparent;
-		color: var(--stone);
-	}
-
-	.confirm-leave {
-		border: none;
-		background: var(--ember);
-		color: #fff;
 	}
 </style>

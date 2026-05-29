@@ -33,6 +33,15 @@ describe('Button', () => {
 		expect(getByDataTest('x')).toHaveClass('tone-destructive');
 	});
 
+	test('applies the link class for variant="link"', () => {
+		const { getByDataTest } = render(Button, {
+			variant: 'link',
+			'data-test': 'x',
+			children: label('X')
+		});
+		expect(getByDataTest('x')).toHaveClass('link');
+	});
+
 	test('disabled prevents onclick', async () => {
 		const onclick = vi.fn();
 		const { getByDataTest } = render(Button, {

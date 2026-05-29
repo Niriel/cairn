@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { SvelteSet } from 'svelte/reactivity';
+	import Button from '$lib/basic/components/Button.svelte';
 	import Icon from '$lib/basic/components/Icon.svelte';
 	import Sheet from '$lib/basic/components/Sheet.svelte';
 	import Avatar from '$lib/shared/components/Avatar.svelte';
@@ -135,10 +136,12 @@
 								<Icon name="check" size={18} />
 							</span>
 						{:else}
-							<button
-								class="invite-btn"
+							<Button
+								variant="pill"
+								tone="ink"
+								size="sm"
 								data-test="invite-picker-invite-{row.otherUserId}"
-								onclick={() => void inviteUser(row.otherUserId)}>Invite</button
+								onclick={() => void inviteUser(row.otherUserId)}>Invite</Button
 							>
 						{/if}
 					</div>
@@ -197,7 +200,9 @@
 				data-test="invite-picker-email-input"
 				bind:value={email}
 			/>
-			<button class="send-btn" type="submit" data-test="invite-picker-email-send">Send</button>
+			<Button variant="rect" tone="ink" type="submit" data-test="invite-picker-email-send"
+				>Send</Button
+			>
 		</form>
 	</div>
 </Sheet>
@@ -275,18 +280,6 @@
 		margin-top: 2px;
 	}
 
-	.invite-btn {
-		padding: 7px 14px;
-		border: 1px solid var(--ink);
-		border-radius: 999px;
-		background: transparent;
-		color: var(--ink);
-		font-size: 12.5px;
-		font-weight: 600;
-		font-family: inherit;
-		cursor: pointer;
-	}
-
 	.invited {
 		display: inline-flex;
 		align-items: center;
@@ -328,17 +321,5 @@
 
 	.email-input:focus {
 		border-color: var(--ink);
-	}
-
-	.send-btn {
-		padding: 0.75rem 1rem;
-		border: none;
-		border-radius: 12px;
-		background: var(--ink);
-		color: var(--paper);
-		font-size: 14px;
-		font-weight: 600;
-		font-family: inherit;
-		cursor: pointer;
 	}
 </style>

@@ -426,10 +426,10 @@ sub-section.
 
 ## Phase 3 — Button migration sweep
 
-### [ ] 3.1 Migrate item sheets to `<Button>`
+### [x] 3.1 Migrate item sheets to `<Button>`
 
 **Created:** 2026-05-29T13:21:24Z
-**Completed:**
+**Completed:** 2026-05-29T20:20:34Z
 
 **Why:** Item-related sheets (`AddEditItemSheet`,
 `DeleteItemSheet`) are the natural first migration target — both
@@ -492,10 +492,16 @@ tone × size` mappings from the table.
 **Verify:** `pnpm lint` · `pnpm check` · `pnpm test --run web/
 src/lib/item/components/`
 
-### [ ] 3.2 Migrate list-related sheets to `<Button>`
+### [x] 3.2 Migrate list-related sheets to `<Button>`
 
 **Created:** 2026-05-29T13:21:24Z
-**Completed:**
+**Completed:** 2026-05-29T20:31:49Z
+
+**Notes:** `ListOverflowSheet` row buttons (`<button class="row">`) had no outer
+wrapper, so the row layout CSS (border-bottom, padding, gap) couldn't be
+preserved with Svelte scoped selectors alone. Added a `<div class="rows">`
+wrapper and migrated the CSS to `.rows :global(button)`. The `<div>` will be
+converted to `<ul>` in task 0902.
 
 **Why:** List-related sheets (`CreateListSheet`,
 `RenameListSheet`, `EditDescriptionSheet`, `ListOverflowSheet`)
@@ -556,10 +562,19 @@ list-related sheets.
 **Verify:** `pnpm lint` · `pnpm check` · `pnpm test --run web/
 src/lib/list/components/`
 
-### [ ] 3.3 Migrate invite / circle UI buttons to `<Button>`
+### [x] 3.3 Migrate invite / circle UI buttons to `<Button>`
 
 **Created:** 2026-05-29T13:21:24Z
-**Completed:**
+**Completed:** 2026-05-29T20:40:27Z
+
+**Notes:**
+- `InvitesBanner` single-invite `.btn-decline` and `.btn-accept` are not in the
+  migration table and were left as raw buttons.
+- `CircleScreen` `.add-btn` and `.whats-this` are not in the migration table and
+  were left as raw buttons.
+- `Button.svelte` fix: added `justify-content: flex-start` to the `.text` variant
+  — the user flagged that text-variant row buttons were centre-aligned, which is
+  wrong for full-width nav rows.
 
 **Why:** Invite / circle UI carries the densest button mix —
 sheet-header buttons, full-row actions, inline-link buttons,
@@ -634,10 +649,10 @@ invite/circle files.
 
 **Verify:** `pnpm lint` · `pnpm check` · `pnpm test`
 
-### [ ] 3.4 Migrate profile + avatar buttons to `<Button>`
+### [x] 3.4 Migrate profile + avatar buttons to `<Button>`
 
 **Created:** 2026-05-29T13:21:24Z
-**Completed:**
+**Completed:** 2026-05-29T21:05:06Z
 
 **Why:** Profile / avatar surfaces include the profile route
 page's pill buttons, the profile sheet's full-row actions, and
@@ -683,6 +698,13 @@ profile / avatar files.
 - `web/src/lib/avatar/components/__mocks__/*.svelte` (modify only
   the mocks whose source's markup hooks change)
 
+**Notes:**
+- `ProfileSheet` action rows had border+border-radius decorating each card row. Preserved with `.action-card` wrapper divs (border, radius, overflow:hidden) and a `.actions` container (margin-top: 18px, flex column, gap: 8px); dropped the old `.action-row` / `.action-row:first-of-type` / `.block-action` CSS.
+- Block action button uses `tone="destructive"` (not `tone="ink"`) to preserve the ember colour — the migration table lists a single `.row actions` → `ink` row but the block action is clearly destructive and a visual regression without it.
+- `AvatarSourceSheet` cancel row loses its muted stone colour (was `.cancel { color: var(--stone) }`) — migration table says `text | ink | md` for all rows.
+- `profile/+page.svelte` `.upload-action-btn` had `margin-top: 28px`; preserved via `style="margin-top: 28px"` passed through Button's `{...rest}` spread. Added `style?: string` to Button's Props type to avoid svelte-check errors.
+- No test rewrites needed — all tests already used `data-test` / text queries, no class-based queries.
+
 **Steps:**
 1. For each `.svelte` file: replace raw `<button>` with the
    mapped `<Button>`. Preserve attribute pass-through.
@@ -698,10 +720,18 @@ profile / avatar files.
 
 **Verify:** `pnpm lint` · `pnpm check` · `pnpm test`
 
-### [ ] 3.5 Migrate settings / privacy nav-row + profile-chip buttons to `<Button>`
+### [x] 3.5 Migrate settings / privacy nav-row + profile-chip buttons to `<Button>`
 
 **Created:** 2026-05-29T13:21:24Z
-**Completed:**
+**Completed:** 2026-05-29T21:23:04Z
+
+**Notes:**
+- Updated `__mocks__/Button.svelte` Props type to match the current API (`variant: 'rect'|'pill'|'text'|'link'`, `tone`, `size`, `leadingIcon`) — the mock was still using the pre-2.1 `'primary'|'ghost'|'destructive'` variant type.
+- `SettingsScreen` `.profile-chip` loses its `padding: 16px 18px` (now `12px 18px` from text|md). Slightly less vertical breathing room around the 44px avatar.
+- `SettingsScreen` `.nav-row > :global(svg:last-of-type)` chevron-right colour rule (`var(--stone-lt)`) is dropped — no clean way to scope it once `.nav-row` class is gone from the button element. Chevron inherits `var(--ink)` from the Button.
+- `PrivacyScreen` `.nav-row` borders (top on first child, bottom on each row) preserved via `.nav-rows :global(button.text)` and `.nav-rows :global(button.text:first-child)` — higher specificity than Button's own `.text { border: none }` rule.
+- `PrivacyScreen` nav-row padding changes from `0.875rem` (14px all sides) to `12px 18px` (Button text|md default).
+- No test rewrites required — all existing tests already used `data-test` / text queries.
 
 **Why:** Settings / Privacy nav rows are full-width tap-target
 rows that migrate to `<Button variant="text" tone="<neutral>"
@@ -755,10 +785,17 @@ the same files are carve-outs and stay raw.
 
 **Verify:** `pnpm lint` · `pnpm check` · `pnpm test`
 
-### [ ] 3.6 Migrate screen-level CTAs to `<Button>`
+### [x] 3.6 Migrate screen-level CTAs to `<Button>`
 
 **Created:** 2026-05-29T13:21:24Z
-**Completed:**
+**Completed:** 2026-05-29T21:44:21Z
+
+**Notes:**
+- `InvitesInboxScreen` has no `.empty-cta` or `.nav-row` buttons — the empty state is illustration + text only, and the invite-row accept/decline buttons are carve-outs from task 3.3. Nothing to migrate in that file.
+- Added `style?: string` to Button.svelte's Props type (needed for `flex: 1` on panel buttons and `flex: 1; min-width: 0; padding: 0` on the row-nav — both rely on the style passing through `{...rest}` without svelte-check errors).
+- `ItemsScreen` panel buttons use `style="flex: 1"` to preserve equal-width layout inside `.panel-actions { display: flex; gap: 8px }`.
+- `ListsScreen` row-nav uses `style="flex: 1; min-width: 0; padding: 0"` to preserve flex-grow behaviour and suppress Button's default `padding: 12px 18px` (row padding comes from the `.row` container).
+- No test rewrites needed — all existing tests use `data-test` queries.
 
 **Why:** Screen-level CTAs — `.panel-btn` and `.empty-cta` on
 items/lists/invites-inbox screens, plus `.restore` on trash —
@@ -835,10 +872,10 @@ screen-level CTAs.
 
 **Verify:** `pnpm lint` · `pnpm check` · `pnpm test`
 
-### [ ] 3.7 Migrate `LoginRequest` submit button to `<Button>`
+### [x] 3.7 Migrate `LoginRequest` submit button to `<Button>`
 
 **Created:** 2026-05-29T13:21:24Z
-**Completed:**
+**Completed:** 2026-05-29T21:47:49Z
 
 **Why:** Auth flow buttons — `LoginRequest` submit and
 `LoginCheck` resend — are the last raw `<button>` elements

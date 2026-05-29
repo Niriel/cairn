@@ -1,4 +1,5 @@
 <script lang="ts">
+	import Button from '$lib/basic/components/Button.svelte';
 	import Sheet from '$lib/basic/components/Sheet.svelte';
 	import ButtonPair from '$lib/shared/components/ButtonPair.svelte';
 	import { addCircleById, relationships } from '$lib/privacy/state/relationships.svelte';
@@ -33,11 +34,17 @@
 	<p>You accepted {entry?.inviterName}'s invite. Add {entry?.inviterName} to your circle?</p>
 	<ButtonPair>
 		{#snippet left()}
-			<button data-test="post-accept-not-now" onclick={dismiss}>Not now</button>
+			<Button variant="rect" tone="ink" size="md" data-test="post-accept-not-now" onclick={dismiss}
+				>Not now</Button
+			>
 		{/snippet}
 		{#snippet right()}
-			<button data-test="post-accept-add-to-circle" onclick={() => void addToCircle()}
-				>Add to circle</button
+			<Button
+				variant="rect"
+				tone="primary"
+				size="md"
+				data-test="post-accept-add-to-circle"
+				onclick={() => void addToCircle()}>Add to circle</Button
 			>
 		{/snippet}
 	</ButtonPair>

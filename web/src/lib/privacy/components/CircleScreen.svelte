@@ -1,4 +1,5 @@
 <script lang="ts">
+	import Button from '$lib/basic/components/Button.svelte';
 	import AppTopBar from '$lib/shared/components/AppTopBar.svelte';
 	import Avatar from '$lib/shared/components/Avatar.svelte';
 	import Snackbar from '$lib/shared/components/Snackbar.svelte';
@@ -44,9 +45,11 @@
 			When your privacy is set to <em>Your circle</em>, these are the only people who can invite you
 			to a list.
 		</p>
-		<button class="whats-this" data-test="whats-this" onclick={() => (explainerOpen = true)}>
-			What's this?
-		</button>
+		<div class="whats-this">
+			<Button variant="link" data-test="whats-this" onclick={() => (explainerOpen = true)}
+				>What's this?</Button
+			>
+		</div>
 	</div>
 
 	{#if relationships.loaded}
@@ -67,13 +70,13 @@
 							<span class="display-name">{entry.displayName}</span>
 							<span class="sub">{addedAtLabel(entry.createdAt)}</span>
 						</div>
-						<button
-							class="remove-btn"
+						<Button
+							variant="pill"
+							tone="destructive"
+							size="sm"
 							data-test="remove-{entry.otherUserId}"
-							onclick={() => void removeFromCircle(entry.otherUserId)}
+							onclick={() => void removeFromCircle(entry.otherUserId)}>Remove</Button
 						>
-							Remove
-						</button>
 					</li>
 				{/each}
 			</ul>
@@ -93,7 +96,7 @@
 				placeholder="friend@example.net"
 				bind:value={emailInput}
 			/>
-			<button class="add-btn" data-test="circle-add-btn" onclick={handleAdd}>Add</button>
+			<Button variant="rect" tone="ink" data-test="circle-add-btn" onclick={handleAdd}>Add</Button>
 		</div>
 		{#if addError}
 			<p class="add-error" data-test="circle-add-error">{addError}</p>
@@ -138,17 +141,8 @@
 
 	.whats-this {
 		flex-shrink: 0;
-		background: transparent;
-		border: none;
-		padding: 0;
-		color: var(--accent);
-		font-size: 0.78rem;
-		font-weight: 600;
-		cursor: pointer;
-		font-family: inherit;
-		text-decoration: underline dotted;
-		text-underline-offset: 3px;
 		margin-top: 1px;
+		font-size: 0.78rem;
 	}
 
 	.section-header {
@@ -198,18 +192,6 @@
 		font-family: var(--mono);
 	}
 
-	.remove-btn {
-		padding: 0.4375rem 0.75rem;
-		border: 1px solid var(--rule);
-		border-radius: 999px;
-		background: transparent;
-		color: var(--stone);
-		font-size: 0.78rem;
-		font-weight: 600;
-		cursor: pointer;
-		font-family: inherit;
-	}
-
 	.add-card {
 		margin: 0.875rem 1.125rem 1.5rem;
 		padding: 0.875rem;
@@ -245,18 +227,6 @@
 
 	.add-input::placeholder {
 		color: var(--stone);
-	}
-
-	.add-btn {
-		padding: 0.75rem 1rem;
-		border: none;
-		border-radius: 12px;
-		background: var(--ink);
-		color: var(--paper);
-		font: inherit;
-		font-size: 15px;
-		font-weight: 600;
-		cursor: pointer;
 	}
 
 	.add-error {

@@ -4,7 +4,7 @@
 	import type { IconName } from '../model/icon-paths';
 	import Icon from './Icon.svelte';
 
-	type Variant = 'rect' | 'pill' | 'text';
+	type Variant = 'rect' | 'pill' | 'text' | 'link';
 	type Tone = 'primary' | 'ink' | 'destructive';
 	type Size = 'sm' | 'md';
 
@@ -19,6 +19,7 @@
 		children?: Snippet;
 		'data-test'?: string;
 		'aria-pressed'?: boolean;
+		style?: string;
 	};
 
 	let {
@@ -45,6 +46,7 @@
 	class:rect={variant === 'rect'}
 	class:pill={variant === 'pill'}
 	class:text={variant === 'text'}
+	class:link={variant === 'link'}
 	class:tone-primary={tone === 'primary'}
 	class:tone-ink={tone === 'ink'}
 	class:tone-destructive={tone === 'destructive'}
@@ -151,6 +153,7 @@
 	.text {
 		background: transparent;
 		border: none;
+		justify-content: flex-start;
 	}
 
 	.text.tone-primary {
@@ -177,6 +180,16 @@
 	.text.size-sm {
 		padding: 4px 8px;
 		font-size: 13px;
+		gap: 6px;
+	}
+
+	/* link variant — inherits font-size from context */
+	.link {
+		background: transparent;
+		border: none;
+		padding: 0;
+		color: var(--accent);
+		font-weight: 600;
 		gap: 6px;
 	}
 </style>

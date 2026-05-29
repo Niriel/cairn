@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { sendMagicLink } from '$lib/auth/model/auth-client';
+	import Button from '$lib/basic/components/Button.svelte';
 	import Icon from '$lib/basic/components/Icon.svelte';
 
 	type Props = { email: string };
@@ -43,15 +44,17 @@
 
 	<div class="resend-row">
 		<span>Didn't get it? </span>
-		<button
+		<Button
+			variant="text"
+			tone="primary"
+			size="sm"
 			type="button"
-			class="resend"
 			disabled={sending}
 			data-test="login-check-resend"
 			onclick={onSendAgain}
 		>
 			Send again
-		</button>
+		</Button>
 		{#if confirmation}
 			<span class="confirmation" data-test="login-check-resend-confirmation">Sent again.</span>
 		{/if}
@@ -106,21 +109,6 @@
 		margin-top: 28px;
 		font-size: 13px;
 		color: var(--stone);
-	}
-
-	.resend {
-		background: none;
-		border: none;
-		padding: 0;
-		font: inherit;
-		font-weight: 600;
-		color: var(--accent);
-		cursor: pointer;
-	}
-
-	.resend:disabled {
-		opacity: 0.6;
-		cursor: default;
 	}
 
 	.confirmation {
