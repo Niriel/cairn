@@ -52,6 +52,9 @@
 		left: max(0px, calc(50% - var(--app-max-w) / 2));
 		right: max(0px, calc(50% - var(--app-max-w) / 2));
 		bottom: 0;
+		max-height: calc(100vh - 2rem - env(safe-area-inset-top));
+		display: flex;
+		flex-direction: column;
 		background: var(--paper);
 		padding: 1rem calc(1rem + env(safe-area-inset-right)) calc(1rem + env(safe-area-inset-bottom))
 			calc(1rem + env(safe-area-inset-left));
