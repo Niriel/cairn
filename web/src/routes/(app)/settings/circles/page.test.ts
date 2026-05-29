@@ -1,0 +1,19 @@
+import { describe, expect, test, vi } from 'vitest';
+
+import { render } from '$lib/test/render';
+
+import Page from './+page.svelte';
+
+vi.mock('$lib/privacy/components/CircleExplainerSheet.svelte');
+vi.mock('$lib/privacy/state/relationships.svelte');
+vi.mock('$lib/shared/components/Avatar.svelte');
+vi.mock('$lib/shared/components/Snackbar.svelte');
+vi.mock('$lib/shared/components/TopBar.svelte');
+vi.mock('$lib/shared/state/profile.svelte');
+
+describe('/settings/circles page', () => {
+	test('renders CircleScreen', () => {
+		const { queryByDataTest } = render(Page);
+		expect(queryByDataTest('circle-screen')).not.toBeNull();
+	});
+});

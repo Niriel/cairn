@@ -86,6 +86,8 @@ alter table public.profiles enable row level security;
 
 The table is deliberately tiny. Anything renderable to other users (an avatar URL, a public bio if we ever add one) goes here. `avatar_version` is an integer cache-buster for the file at `/avatars/{id}.webp?v={avatar_version}` — `0` means "no picture, render initials"; any positive value means "a file exists, fetch with this version in the URL." See `avatars.md` for the storage decision, the upload sidecar, and the file lifecycle. Anything private to the owner that follows them across devices — invite policy, notification preferences, defaults — goes in `user_settings` below. Device-scoped settings (theme, font size) live client-side in `localStorage` and don't appear in this schema.
 
+**The secondary-FK-to-`profiles` pattern.** Every column that references a user *and* whose row gets embedded with the user's display name through PostgREST carries a *second* FK — directly to `public.profiles(id)` — alongside its FK to `auth.users(id)`. PostgREST's schema cache resolves an embed (`select=…,profiles!<column>(…)`) by following an FK to the embedded table, and the FK to `auth.users(id)` doesn't qualify because the embedded table is `public.profiles`, not `auth.users`. Without the secondary FK, the embed comes back as `PGRST200 "Could not find a relationship…"`. The auth.users FK still carries the identity relationship (and the `on delete` action that matters for cascade behaviour); the profiles FK is purely there so PostgREST can find the join. The pattern applies to `list_members.user_id`, `items.created_by` / `items.modified_by`, `votes.user_id`, `invitations.created_by`, and `relationships.user_id` / `relationships.other_user_id`. The DDL blocks below show both FKs inline.
+
 ### `user_settings`
 
 Owner-only personal preferences. One row per `auth.users` row, also created by the on-signup trigger. The whole table is gated by a single owner-only RLS policy (`using (id = public.uid())`), so privacy is structural: every column here is private by virtue of living in this table, no per-column grant matrix.
@@ -142,7 +144,9 @@ The join table that determines who can see and edit a list. One row per (list, u
 ```sql
 create table public.list_members (
   list_id     uuid not null references public.lists(id) on delete cascade,
-  user_id     uuid not null references auth.users(id) on delete cascade,
+  user_id     uuid not null
+                references auth.users(id) on delete cascade
+                references public.profiles(id) on delete cascade,
   created_by  uuid not null default '00000000-0000-0000-0000-000000000000'
                 references auth.users(id) on delete set default,
   deleted_by  uuid default '00000000-0000-0000-0000-000000000000'
@@ -173,9 +177,11 @@ create table public.items (
   name        text not null check (length(name) between 1 and 500),
   notes       text,
   created_by  uuid not null default '00000000-0000-0000-0000-000000000000'
-                references auth.users(id) on delete set default,
+                references auth.users(id) on delete set default
+                references public.profiles(id) on delete set default,
   modified_by uuid not null default '00000000-0000-0000-0000-000000000000'
-                references auth.users(id) on delete set default,
+                references auth.users(id) on delete set default
+                references public.profiles(id) on delete set default,
   deleted_by  uuid default '00000000-0000-0000-0000-000000000000'
                 references auth.users(id) on delete set default,
   created_at  timestamptz not null default now(),
@@ -203,7 +209,9 @@ Per-user vote on an item, on a seven-step scale from −3 to +3 with no zero. On
 ```sql
 create table public.votes (
   item_id     uuid not null references public.items(id) on delete cascade,
-  user_id     uuid not null references auth.users(id) on delete cascade,
+  user_id     uuid not null
+                references auth.users(id) on delete cascade
+                references public.profiles(id) on delete cascade,
   value       smallint not null check (value between -3 and 3 and value <> 0),
   created_at  timestamptz not null default now(),
   modified_at timestamptz not null default now(),
@@ -225,8 +233,12 @@ A user's one-sided directed relationships with other users — either *circle* (
 
 ```sql
 create table public.relationships (
-  user_id       uuid not null references auth.users(id) on delete cascade,
-  other_user_id uuid not null references auth.users(id) on delete cascade,
+  user_id       uuid not null
+                  references auth.users(id) on delete cascade
+                  references public.profiles(id) on delete cascade,
+  other_user_id uuid not null
+                  references auth.users(id) on delete cascade
+                  references public.profiles(id) on delete cascade,
   status        text not null
                   check (status in ('circle', 'blocked')),
   created_at    timestamptz not null default now(),
@@ -248,7 +260,9 @@ Pending offers of list membership. An invitation has three terminal states: acce
 create table public.invitations (
   id             uuid primary key default gen_random_uuid(),
   list_id        uuid not null references public.lists(id) on delete cascade,
-  created_by     uuid not null references auth.users(id) on delete cascade,
+  created_by     uuid not null
+                   references auth.users(id) on delete cascade
+                   references public.profiles(id) on delete cascade,
   target_user_id uuid          references auth.users(id) on delete cascade,
   target_email   text,
   created_at     timestamptz not null default now(),
@@ -423,7 +437,14 @@ This is what `votes_select` (below) calls, and it is genuinely load-bearing: an 
 -- through the lists_deleted view below, which has its own membership check.
 create policy lists_select on public.lists
   for select using (
-    public.is_list_member(id)
+    (
+      public.is_list_member(id)
+      or exists (
+        select 1 from public.invitations
+        where invitations.list_id = lists.id
+          and invitations.target_user_id = public.uid()
+      )
+    )
     and (deleted_at is null or deleted_by = public.uid())
   );
 
@@ -432,6 +453,8 @@ create policy lists_update on public.lists
   for update using (public.is_list_member(id))
   with check (public.is_list_member(id));
 ```
+
+The invitee disjunct (`or exists (select 1 from public.invitations …)`) lets an invitee read the row of a list they have a pending user-keyed invitation for, even before they're a member — without it, the banner / inbox `lists(name)` PostgREST embed returns null and the UI can't render *which list* the invitation is for. Email-keyed pending rows (`target_user_id is null`) are deliberately excluded: the matching `auth.users.id` is stamped onto the invitation at sign-up, so until then there is no caller `uid()` to match. The outer `(deleted_at is null or deleted_by = public.uid())` half of the predicate still applies, so a soft-deleted list stays hidden from invitees.
 
 The composite `(deleted_at is null or deleted_by = public.uid())` clause on `lists_select` is load-bearing in two halves. The `deleted_at is null` half is what makes soft-deleted rows invisible through the base-table API path (`GET /lists`, and `GET /items_ranked` which inherits the caller's RLS) for everyone *other* than the soft-deleter; without it, soft-deleted content would silently leak through the base tables. The `or deleted_by = public.uid()` half is what makes PATCH-based soft-delete actually work at all: Postgres applies SELECT policies as WITH CHECK against the *new* row of an UPDATE when the caller has SELECT privilege on the table, so a `lists_select` USING that only admitted live rows would reject every soft-delete UPDATE — the new row (`deleted_at` non-null) wouldn't satisfy the policy. The disjunct lets the deleter's own transition pass while still hiding the row from every other member through the base table. Cascade-driven repointing of `deleted_by` to the tombstone (`on delete set default` from `auth.users`) drops abandoned soft-deletes back to "trash-view only" for everyone, since no live caller's `public.uid()` ever equals the tombstone. Soft-deleted content is reachable for everyone-but-the-deleter only through the `lists_deleted` / `items_deleted` views, which run with `security_invoker = false` and gate access with their own explicit `is_list_member()` filter. Don't "simplify" either half of the disjunct away.
 
@@ -672,6 +695,7 @@ To translate the schema into the API the web app actually consumes, here are the
 - `DELETE /relationships?user_id=eq.<my-uid>&other_user_id=eq.<uuid>` — remove a row (unblock, or remove from circle)
 - `GET /invitations?target_user_id=eq.<my-uid>` — your inbox (pending invites you've received)
 - `GET /invitations?created_by=eq.<my-uid>` — invitations you've sent
+- `DELETE /invitations?id=eq.<uuid>` — cancel a pending invite you created (inviter only; the `invitations_delete` RLS policy scopes the delete to your own rows). Lands alongside the profile-sheet *Cancel pending invite* action in step 8.
 
 Cross-user writes (anything that touches another user's circle, blocks, invitations, or account) go through stored procedures rather than direct table writes, so the policy and block checks can run server-side under `security definer`. List creation also goes through an RPC, not a direct `POST /lists`, so the matching `list_members` row for the creator can be inserted in the same transaction as the list itself — without that, a successful insert into `lists` could leave an orphan list invisible to its creator forever. Invoke each via PostgREST RPC (`POST /rpc/<name>` with a JSON body):
 

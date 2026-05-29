@@ -184,11 +184,11 @@ in-flight branch for no gain.
    the user-facing "circle" vocabulary even though the bodies write
    `relationships` rows. RLS + pgTAP.
 
-8. [ ] **Invites + circles + blocks: UI layer.** Privacy settings screen,
+8. [x] **Invites + circles + blocks: UI layer.** Privacy settings screen,
    circle screen, blocked screen, circle explainer sheet, invites
    inbox (with banner on lists screen), invite picker sheet, profile
    sheet (state-driven actions), members screen, list overflow menu
-   (rename/edit/leave/delete/view-trash).
+   (Rename / Edit description / Manage members / View bin / Leave list / Delete list).
 
 9. [ ] **Account deletion.** Tombstone user/profile insert, the
    `delete_account()` RPC, deletion confirmation screen with typed

@@ -145,6 +145,22 @@ Component tests assert *behaviour visible to a user*, not implementation details
 
 They are not for asserting that a particular CSS class is present, or that a child component received a particular prop. Those tests break on every refactor and verify nothing a user cares about.
 
+#### Don't assert on UI label text
+
+A test that says `expect(container.textContent).toContain('Delete list')` against a row whose label is literally the string `Delete list` is tautological — it copies the source into the test and checks the copy matches. It also locks the test to the current language, so the day we add internationalisation, every such assertion breaks for reasons that have nothing to do with the behaviour under test.
+
+Assert via `data-test` attributes (or roles, ARIA labels, structural relationships) instead:
+
+```ts
+// ❌ tautological + i18n-fragile
+expect(container.textContent).toContain('Delete list');
+
+// ✅ checks the row is present, regardless of its label string
+expect(getByDataTest('list-overflow-delete')).not.toBeNull();
+```
+
+The exception is *data* that flows in as a prop or from a fixture (a list name, a user's display name, a timestamp) — that's not a UI label, it's the variable content the component is rendering, and asserting on it is a real check that the data reached the DOM.
+
 ### Mocking the API
 
 Component tests use [MSW](https://mswjs.io/) (Mock Service Worker) to intercept `fetch` and return canned PostgREST responses. The mocks live in `web/src/lib/test/handlers.ts` and are imported by `vitest.setup.ts`. Each test can override individual handlers for the scenario it cares about.

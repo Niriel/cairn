@@ -10,6 +10,7 @@ import ListsScreen from './ListsScreen.svelte';
 vi.mock('$lib/shared/components/TopBar.svelte');
 vi.mock('$lib/basic/components/Fab.svelte');
 vi.mock('$lib/basic/components/IconButton.svelte');
+vi.mock('$lib/invite/components/InvitesBanner.svelte');
 vi.mock('$lib/list/components/CreateListSheet.svelte');
 vi.mock('$lib/list/components/ListOverflowSheet.svelte');
 vi.mock('$lib/list/state/lists.svelte');
@@ -54,6 +55,11 @@ const LIST_C = {
 };
 
 describe('ListsScreen', () => {
+	test('(z) InvitesBanner stub is mounted', () => {
+		const { queryByDataTest } = render(ListsScreen);
+		expect(queryByDataTest('invites-banner-stub')).not.toBeNull();
+	});
+
 	test('(a) shows loading indicator when lists.loading is true', () => {
 		lists.loading = true;
 		const { queryByDataTest } = render(ListsScreen);

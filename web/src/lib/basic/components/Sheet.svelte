@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { Snippet } from 'svelte';
+	import { untrack, type Snippet } from 'svelte';
 
 	import { pushHistoryGuard } from '$lib/shared/state/back-stack.svelte';
 
@@ -14,7 +14,20 @@
 
 	$effect(() => {
 		if (!open) return;
-		return pushHistoryGuard(() => onclose());
+		// untrack: pushHistoryGuard → pushState reads SvelteKit's internal
+		// history state, which would otherwise re-track this effect and
+		// tear it down on every subsequent navigation (e.g. a goto from
+		// the parent), spuriously firing the back-stack guard.
+		return untrack(() => pushHistoryGuard(() => onclose()));
+	});
+
+	$effect(() => {
+		if (!open) return;
+		const onKey = (e: KeyboardEvent) => {
+			if (e.key === 'Escape') onclose();
+		};
+		window.addEventListener('keydown', onKey);
+		return () => window.removeEventListener('keydown', onKey);
 	});
 </script>
 
@@ -39,6 +52,9 @@
 		left: max(0px, calc(50% - var(--app-max-w) / 2));
 		right: max(0px, calc(50% - var(--app-max-w) / 2));
 		bottom: 0;
+		max-height: calc(100vh - 2rem - env(safe-area-inset-top));
+		display: flex;
+		flex-direction: column;
 		background: var(--paper);
 		padding: 1rem calc(1rem + env(safe-area-inset-right)) calc(1rem + env(safe-area-inset-bottom))
 			calc(1rem + env(safe-area-inset-left));
