@@ -366,10 +366,10 @@
 
 ## Phase 7 — Playwright e2e specs
 
-### [ ] 7.1 Write Playwright specs for invite, block, and privacy flows
+### [x] 7.1 Write Playwright specs for invite, block, and privacy flows
 
 **Created:** 2026-05-28T18:50:57Z
-**Completed:**
+**Completed:** 2026-05-29T09:33:28Z
 
 **Why:** Step 8 ships the first invite/block/privacy Playwright coverage. The specs cannot run in this environment (Playwright is not installed), but writing them now means they're ready for manual verification at deploy time and for CI once the environment is set up.
 
@@ -395,6 +395,11 @@
 4. Run `cd web && pnpm check` (Playwright spec files are TypeScript — the type-check must pass even if the tests don't run). Confirm no TS errors.
 
 **Verify:** `cd web && pnpm lint` · `pnpm check` (Playwright specs typecheck; tests not run — reported as untested per project convention)
+
+**Notes:**
+- Specs were not executed — Playwright is not installed/runnable in this environment. `pnpm lint` and `pnpm check` both pass against the new spec files (TS types are sound, ESLint clean).
+- The picker is opened in each spec by navigating directly to `/lists/{id}/members` and tapping `members-add` rather than via the ItemsScreen overflow sheet — `MoreButton` does not expose a `data-test`, and direct navigation makes the specs more robust to header changes.
+- The block spec's post-block assertion is "toast appears without echoing Alice's e-mail" rather than the exact `"Couldn't send invite"` text the plan suggested. The picker uses the anti-enumeration message uniformly (it can't distinguish a silent-decline from a happy path), so asserting absence-of-e-mail is the property that actually matters and matches the picker's real behaviour.
 
 ---
 
