@@ -18,6 +18,7 @@
 	let email = $state('');
 	let toastOpen = $state(false);
 	let toastMessage = $state('');
+	let loaded = $state(false);
 
 	$effect(() => {
 		void (async () => {
@@ -26,6 +27,7 @@
 			);
 			currentMemberIds.clear();
 			for (const r of rows) currentMemberIds.add(r.user_id);
+			loaded = true;
 		})();
 	});
 
@@ -117,7 +119,7 @@
 	<div class="header">
 		<div class="title">Add someone</div>
 		<div class="subtitle">
-			{#if hasTappableRows}
+			{#if loaded && hasTappableRows}
 				Tap to invite, or type an e-mail below
 			{:else}
 				Invite someone by e-mail
@@ -126,66 +128,68 @@
 	</div>
 
 	<div class="body">
-		{#if circleRows.length > 0}
-			<div class="section-label">Your circle</div>
-			<div class="rows">
-				{#each circleRows as row (row.otherUserId)}
-					<div class="row" data-test="invite-picker-circle-row-{row.otherUserId}">
-						<Avatar
-							displayName={row.displayName}
-							size={32}
-							uid={row.otherUserId}
-							avatarVersion={row.avatarVersion}
-						/>
-						<div class="info">
-							<div class="name">{row.displayName}</div>
-							<div class="sub">In your circle</div>
+		{#if loaded}
+			{#if circleRows.length > 0}
+				<div class="section-label">Your circle</div>
+				<div class="rows">
+					{#each circleRows as row (row.otherUserId)}
+						<div class="row" data-test="invite-picker-circle-row-{row.otherUserId}">
+							<Avatar
+								displayName={row.displayName}
+								size={32}
+								uid={row.otherUserId}
+								avatarVersion={row.avatarVersion}
+							/>
+							<div class="info">
+								<div class="name">{row.displayName}</div>
+								<div class="sub">In your circle</div>
+							</div>
+							{#if invitedIds.has(row.otherUserId)}
+								<span class="invited" data-test="invite-picker-invited-{row.otherUserId}">
+									<Icon name="check" size={18} />
+								</span>
+							{:else}
+								<button
+									class="invite-btn"
+									data-test="invite-picker-invite-{row.otherUserId}"
+									onclick={() => void inviteUser(row.otherUserId)}>Invite</button
+								>
+							{/if}
 						</div>
-						{#if invitedIds.has(row.otherUserId)}
-							<span class="invited" data-test="invite-picker-invited-{row.otherUserId}">
-								<Icon name="check" size={18} />
-							</span>
-						{:else}
-							<button
-								class="invite-btn"
-								data-test="invite-picker-invite-{row.otherUserId}"
-								onclick={() => void inviteUser(row.otherUserId)}>Invite</button
-							>
-						{/if}
-					</div>
-				{/each}
-			</div>
-		{/if}
+					{/each}
+				</div>
+			{/if}
 
-		{#if coMemberRows.length > 0}
-			<div class="section-label">People you share other lists with</div>
-			<div class="rows">
-				{#each coMemberRows as row (row.userId)}
-					<div class="row" data-test="invite-picker-comember-row-{row.userId}">
-						<Avatar
-							displayName={row.displayName}
-							size={32}
-							uid={row.userId}
-							avatarVersion={row.avatarVersion}
-						/>
-						<div class="info">
-							<div class="name">{row.displayName}</div>
-							<div class="sub">On {row.sharedCount} of your other lists</div>
+			{#if coMemberRows.length > 0}
+				<div class="section-label">People you share other lists with</div>
+				<div class="rows">
+					{#each coMemberRows as row (row.userId)}
+						<div class="row" data-test="invite-picker-comember-row-{row.userId}">
+							<Avatar
+								displayName={row.displayName}
+								size={32}
+								uid={row.userId}
+								avatarVersion={row.avatarVersion}
+							/>
+							<div class="info">
+								<div class="name">{row.displayName}</div>
+								<div class="sub">On {row.sharedCount} of your other lists</div>
+							</div>
+							{#if invitedIds.has(row.userId)}
+								<span class="invited" data-test="invite-picker-invited-{row.userId}">
+									<Icon name="check" size={18} />
+								</span>
+							{:else}
+								<button
+									class="invite-btn"
+									data-test="invite-picker-invite-{row.userId}"
+									onclick={() => void inviteUser(row.userId)}>Invite</button
+								>
+							{/if}
 						</div>
-						{#if invitedIds.has(row.userId)}
-							<span class="invited" data-test="invite-picker-invited-{row.userId}">
-								<Icon name="check" size={18} />
-							</span>
-						{:else}
-							<button
-								class="invite-btn"
-								data-test="invite-picker-invite-{row.userId}"
-								onclick={() => void inviteUser(row.userId)}>Invite</button
-							>
-						{/if}
-					</div>
-				{/each}
-			</div>
+					{/each}
+				</div>
+			{/if}
 		{/if}
 	</div>
 
