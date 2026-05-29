@@ -73,12 +73,10 @@ test.describe.serial('block flow', () => {
 		const bobRow = bob.locator('[data-test^="list-nav-"]').first();
 		bobListId = (await bobRow.getAttribute('data-test'))!.replace('list-nav-', '');
 
-		// Capture Bob's uid from the shared list's members page.
+		// Capture Bob's uid from the shared list's members page (skip Alice's
+		// own row, which renders as a disabled button — see MembersScreen).
 		await alice.goto(`/lists/${sharedListId}/members`);
-		const bobMemberRow = alice
-			.locator('[data-test^="member-row-"]')
-			.filter({ hasNot: alice.locator('[disabled]') })
-			.first();
+		const bobMemberRow = alice.locator('[data-test^="member-row-"]:not([disabled])').first();
 		bobUid = (await bobMemberRow.getAttribute('data-test'))!.replace('member-row-', '');
 	});
 

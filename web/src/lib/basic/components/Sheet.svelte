@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { Snippet } from 'svelte';
+	import { untrack, type Snippet } from 'svelte';
 
 	import { pushHistoryGuard } from '$lib/shared/state/back-stack.svelte';
 
@@ -14,7 +14,11 @@
 
 	$effect(() => {
 		if (!open) return;
-		return pushHistoryGuard(() => onclose());
+		// untrack: pushHistoryGuard → pushState reads SvelteKit's internal
+		// history state, which would otherwise re-track this effect and
+		// tear it down on every subsequent navigation (e.g. a goto from
+		// the parent), spuriously firing the back-stack guard.
+		return untrack(() => pushHistoryGuard(() => onclose()));
 	});
 
 	$effect(() => {
