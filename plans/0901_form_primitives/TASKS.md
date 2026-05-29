@@ -26,10 +26,10 @@
 
 ## Phase 1 — Exploration
 
-### [ ] 1.1 Lock down API decisions and record them in PLAN.md
+### [x] 1.1 Lock down API decisions and record them in PLAN.md
 
 **Created:** 2026-05-29T13:21:24Z
-**Completed:**
+**Completed:** 2026-05-29T16:53:11Z
 
 **Why:** Five API-shape decisions are deliberately deferred from
 the parent plan to this sub-plan's first task: the `<Button>`
