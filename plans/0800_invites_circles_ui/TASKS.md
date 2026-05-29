@@ -424,10 +424,23 @@ the action rows render as specified).
 
 ## Phase 3 — 0803: Invite flow, members, overflow
 
-### [ ] 3.1 Plan and implement sub-step 0803 (invites banner + inbox + picker + members + overflow rows)
+### [x] 3.1 Plan and implement sub-step 0803 (invites banner + inbox + picker + members + overflow rows)
 
 **Created:** 2026-05-28T12:02:33Z
-**Completed:**
+**Completed:** 2026-05-29T12:00:00Z
+
+**Notes:** Sub-plan implemented and merged. The Playwright pass surfaced
+a Sheet/back-stack bug: `pushHistoryGuard` -> `pushState` reads
+SvelteKit's history-state signals, so the Sheet's `$effect` re-tracked
+on every navigation, fired its cleanup (`history.back()`), and bounced
+the post-accept navigation. Fixed by wrapping the guard call in
+`untrack` (commit `2619446`). `ProfileSheet` now also loads
+relationships on mount so action rows render when opened from
+`MembersScreen`, and `block.spec.ts` was updated to find Bob's row
+with `:not([disabled])` instead of a `hasNot` filter. Webkit e2e
+failures on this machine are environmental (missing system libs); the
+chromium and firefox runs are clean.
+
 
 **Why:** Completes the step-8 UI loop — sending invites, receiving
 them, accepting/declining, and the affordances around list membership
