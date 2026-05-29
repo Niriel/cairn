@@ -132,4 +132,14 @@ describe('MembersScreen', () => {
 		await renderWith([row(ALICE_UID, 'Alice', '2026-05-01T10:00:00Z', ALICE_UID)]);
 		expect(loadSent).toHaveBeenCalled();
 	});
+
+	test('(h) refresh button re-fetches the member list', async () => {
+		const { getByDataTest } = await renderWith([
+			row(ALICE_UID, 'Alice', '2026-05-01T10:00:00Z', ALICE_UID)
+		]);
+		const callsBefore = vi.mocked(pgMod.pgGet).mock.calls.length;
+		await fireEvent.click(getByDataTest('members-refresh'));
+		await tick();
+		expect(vi.mocked(pgMod.pgGet).mock.calls.length).toBe(callsBefore + 1);
+	});
 });

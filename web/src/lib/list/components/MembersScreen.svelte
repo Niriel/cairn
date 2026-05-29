@@ -1,5 +1,7 @@
 <script lang="ts">
+	import Button from '$lib/basic/components/Button.svelte';
 	import Icon from '$lib/basic/components/Icon.svelte';
+	import RefreshButton from '$lib/basic/components/RefreshButton.svelte';
 	import Avatar from '$lib/shared/components/Avatar.svelte';
 	import AppTopBar from '$lib/shared/components/AppTopBar.svelte';
 	import ProfileSheet from '$lib/profile/components/ProfileSheet.svelte';
@@ -20,6 +22,7 @@
 	let { listId }: Props = $props();
 
 	let rows = $state<MemberRow[]>([]);
+	let loading = $state(false);
 	let openProfile = $state<MemberRow | null>(null);
 	let pickerOpen = $state(false);
 
@@ -35,55 +38,75 @@
 		return `Joined ${timeAgo(m.created_at)}`;
 	}
 
+	async function loadMembers(): Promise<void> {
+		loading = true;
+		try {
+			rows = await pgGet<MemberRow[]>(
+				`/list_members?list_id=eq.${listId}&deleted_at=is.null&select=user_id,created_at,lists(created_by,name),profiles!user_id(display_name,avatar_version)`
+			);
+		} finally {
+			loading = false;
+		}
+	}
+
 	$effect(() => {
 		void loadSent();
-		void pgGet<MemberRow[]>(
-			`/list_members?list_id=eq.${listId}&deleted_at=is.null&select=user_id,created_at,lists(created_by,name),profiles!user_id(display_name,avatar_version)`
-		).then((result) => {
-			rows = result;
-		});
+		void loadMembers();
 	});
 </script>
 
 <div class="screen" data-test="members-screen">
-	<AppTopBar sub={listName}>Members</AppTopBar>
+	<AppTopBar sub={listName}>
+		Members
+		{#snippet right()}
+			<RefreshButton
+				data-test="members-refresh"
+				spinning={loading}
+				onclick={() => void loadMembers()}
+			/>
+		{/snippet}
+	</AppTopBar>
 
 	<div class="content">
-		<div class="section-label">{countLabel}</div>
-		<div class="rows">
-			{#each rows as m (m.user_id)}
-				<button
-					class="row"
-					class:is-self={m.user_id === profile.uid}
-					data-test="member-row-{m.user_id}"
-					disabled={m.user_id === profile.uid}
-					onclick={() => {
-						if (m.user_id !== profile.uid) openProfile = m;
-					}}
-				>
-					<Avatar
-						displayName={m.profiles.display_name}
-						size={36}
-						uid={m.user_id}
-						avatarVersion={m.profiles.avatar_version}
-					/>
-					<div class="info">
-						<div class="name">{m.profiles.display_name}</div>
-						<div class="sub">{subLine(m)}</div>
-					</div>
-					{#if m.user_id !== profile.uid}
-						<Icon name="more-vertical" size={18} />
-					{/if}
-				</button>
-			{/each}
-		</div>
+		{#if loading}
+			<div class="loading" data-test="members-loading">Loading…</div>
+		{:else}
+			<div class="section-label">{countLabel}</div>
+			<div class="rows">
+				{#each rows as m (m.user_id)}
+					<button
+						class="row"
+						class:is-self={m.user_id === profile.uid}
+						data-test="member-row-{m.user_id}"
+						disabled={m.user_id === profile.uid}
+						onclick={() => {
+							if (m.user_id !== profile.uid) openProfile = m;
+						}}
+					>
+						<Avatar
+							displayName={m.profiles.display_name}
+							size={36}
+							uid={m.user_id}
+							avatarVersion={m.profiles.avatar_version}
+						/>
+						<div class="info">
+							<div class="name">{m.profiles.display_name}</div>
+							<div class="sub">{subLine(m)}</div>
+						</div>
+						{#if m.user_id !== profile.uid}
+							<Icon name="more-vertical" size={18} />
+						{/if}
+					</button>
+				{/each}
+			</div>
 
-		<div class="add-wrap">
-			<button class="add-btn" data-test="members-add" onclick={() => (pickerOpen = true)}>
-				<Icon name="user-plus" size={16} />
-				<span>Add member</span>
-			</button>
-		</div>
+			<div class="add-wrap">
+				<Button variant="primary" data-test="members-add" onclick={() => (pickerOpen = true)}>
+					<Icon name="user-plus" size={16} />
+					<span class="add-label">Add member</span>
+				</Button>
+			</div>
+		{/if}
 	</div>
 </div>
 
@@ -112,6 +135,11 @@
 	.content {
 		flex: 1;
 		overflow-y: auto;
+	}
+
+	.loading {
+		padding: 16px 18px;
+		color: var(--stone);
 	}
 
 	.section-label {
@@ -171,22 +199,11 @@
 
 	.add-wrap {
 		padding: 24px 18px 18px;
+		display: flex;
+		justify-content: center;
 	}
 
-	.add-btn {
-		width: 100%;
-		padding: 12px 14px;
-		border: 1px dashed var(--stone-lt);
-		border-radius: 12px;
-		background: var(--paper-alt);
-		color: var(--ink-soft);
-		font-size: 14px;
-		font-weight: 600;
-		font-family: inherit;
-		cursor: pointer;
-		display: inline-flex;
-		align-items: center;
-		justify-content: center;
-		gap: 8px;
+	.add-label {
+		margin-left: 8px;
 	}
 </style>
