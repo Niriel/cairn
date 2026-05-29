@@ -257,10 +257,10 @@ final `<Button>` prop names, defaults, and CSS values per
 
 **Verify:** `pnpm lint` · `pnpm check` · `pnpm test`
 
-### [ ] 2.2 Create `<TextInput>` primitive
+### [x] 2.2 Create `<TextInput>` primitive
 
 **Created:** 2026-05-29T13:21:24Z
-**Completed:**
+**Completed:** 2026-05-29T17:57:40Z
 
 **Why:** Single-line text input primitive consumed by Phase 4
 input-migration tasks. Lands before any migration task touches
