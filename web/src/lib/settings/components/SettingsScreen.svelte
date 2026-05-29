@@ -9,6 +9,7 @@
 	import { signOut } from '$lib/shared/state/session.svelte';
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
+	import { invitations } from '$lib/invite/state/invitations.svelte';
 
 	const themes: { value: Theme; label: string; icon: IconName }[] = [
 		{ value: 'light', label: 'Light', icon: 'sun' },
@@ -60,13 +61,25 @@
 
 		<section class="preference-group">
 			<h2>People</h2>
-			<div class="nav-row" data-test="settings-invites" style="cursor: default;">
+			<button
+				class="nav-row"
+				data-test="settings-invites"
+				onclick={() => goto(resolve('/settings/invites'))}
+			>
 				<Icon name="inbox" size={20} />
 				<span class="nav-row-text">
 					<span class="nav-row-title">Invites</span>
-					<span class="nav-row-sub">No pending invites</span>
+					<span class="nav-row-sub"
+						>{invitations.inbox.length > 0
+							? invitations.inbox.length + ' pending'
+							: 'No pending invites'}</span
+					>
 				</span>
-			</div>
+				{#if invitations.inbox.length > 0}
+					<span class="nav-row-count">{invitations.inbox.length}</span>
+				{/if}
+				<Icon name="chevron-right" size={18} />
+			</button>
 			<button
 				class="nav-row"
 				data-test="settings-privacy"
@@ -361,5 +374,13 @@
 
 	.nav-row > :global(svg:last-of-type) {
 		color: var(--stone-lt);
+	}
+
+	.nav-row-count {
+		font-size: 12px;
+		color: var(--stone);
+		font-weight: 600;
+		font-family: monospace;
+		margin-right: 4px;
 	}
 </style>

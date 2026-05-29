@@ -118,6 +118,23 @@ describe('loadInbox', () => {
 		expect(entry.inviterAvatarVersion).toBe(2);
 		expect(entry.createdAt).toBe('2026-05-10T10:00:00Z');
 	});
+
+	test('(f2) inboxLoading is true during fetch and false after', async () => {
+		let loadingDuring = false;
+		vi.mocked(pgMod.pgGet).mockImplementation(() => {
+			loadingDuring = invMod.invitations.inboxLoading;
+			return Promise.resolve([RAW_INBOX_ROW]);
+		});
+		await invMod.loadInbox();
+		expect(loadingDuring).toBe(true);
+		expect(invMod.invitations.inboxLoading).toBe(false);
+	});
+
+	test('(f3) inboxLoading is false after fetch error', async () => {
+		vi.mocked(pgMod.pgGet).mockRejectedValue(new Error('network error'));
+		await expect(invMod.loadInbox()).rejects.toThrow();
+		expect(invMod.invitations.inboxLoading).toBe(false);
+	});
 });
 
 describe('acceptInvitation', () => {

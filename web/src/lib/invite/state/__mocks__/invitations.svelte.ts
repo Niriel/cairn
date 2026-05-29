@@ -5,8 +5,9 @@ import type { InboxEntry, SentEntry } from '../invitations.svelte';
 export const invitations = $state<{
 	sent: SentEntry[];
 	inbox: InboxEntry[];
+	inboxLoading: boolean;
 	postAcceptPrompts: SvelteSet<{ inviterUid: string; inviterName: string }>;
-}>({ sent: [], inbox: [], postAcceptPrompts: new SvelteSet() });
+}>({ sent: [], inbox: [], inboxLoading: false, postAcceptPrompts: new SvelteSet() });
 
 export const loadSent = vi.fn(async (): Promise<void> => {});
 export const pendingInviteFor = vi.fn((_listId: string, _userId: string): string | null => null);

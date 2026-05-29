@@ -4,6 +4,7 @@ import { afterEach, describe, expect, test, vi } from 'vitest';
 import { preferences } from '$lib/shared/state/preferences.svelte';
 import { profile } from '$lib/shared/state/profile.svelte';
 import { signOut } from '$lib/shared/state/session.svelte';
+import { invitations } from '$lib/invite/state/invitations.svelte';
 import { render } from '$lib/test/render';
 
 import SettingsScreen from './SettingsScreen.svelte';
@@ -14,6 +15,7 @@ vi.mock('$lib/shared/state/profile.svelte');
 vi.mock('$lib/shared/state/preferences.svelte');
 vi.mock('$lib/shared/state/session.svelte');
 vi.mock('$lib/basic/components/Button.svelte');
+vi.mock('$lib/invite/state/invitations.svelte');
 vi.mock('$app/navigation');
 vi.mock('$app/paths');
 
@@ -22,6 +24,7 @@ afterEach(() => {
 	preferences.theme = 'system';
 	preferences.fontSize = 'm';
 	profile.displayName = null;
+	invitations.inbox = [];
 });
 
 describe('SettingsScreen', () => {
@@ -106,14 +109,58 @@ describe('SettingsScreen', () => {
 		expect(getByDataTest('settings-invites').textContent).toContain('No pending invites');
 	});
 
-	test('(j-4) Invites row is a <div>, not a <button> or <a>', () => {
+	test('(j-4) Invites row is a <button>', () => {
 		const { getByDataTest } = render(SettingsScreen);
-		expect(getByDataTest('settings-invites').tagName).toBe('DIV');
+		expect(getByDataTest('settings-invites').tagName).toBe('BUTTON');
 	});
 
-	test('(j-5) Invites row has no chevron-right (only one SVG: the inbox icon)', () => {
+	test('(j-5) clicking Invites row navigates to /settings/invites', async () => {
+		const { goto } = await import('$app/navigation');
+		const { resolve } = await import('$app/paths');
 		const { getByDataTest } = render(SettingsScreen);
-		expect(getByDataTest('settings-invites').querySelectorAll('svg').length).toBe(1);
+		await fireEvent.click(getByDataTest('settings-invites'));
+		expect(vi.mocked(goto)).toHaveBeenCalledOnce();
+		expect(vi.mocked(goto)).toHaveBeenCalledWith(vi.mocked(resolve)('/settings/invites'));
+	});
+
+	test('(j-5b) when inbox has 3 entries, sub-line shows "3 pending"', () => {
+		invitations.inbox = [
+			{
+				id: '1',
+				listId: 'l1',
+				listName: 'L1',
+				inviterUid: 'u1',
+				inviterName: 'A',
+				inviterAvatarVersion: 0,
+				createdAt: ''
+			},
+			{
+				id: '2',
+				listId: 'l2',
+				listName: 'L2',
+				inviterUid: 'u2',
+				inviterName: 'B',
+				inviterAvatarVersion: 0,
+				createdAt: ''
+			},
+			{
+				id: '3',
+				listId: 'l3',
+				listName: 'L3',
+				inviterUid: 'u3',
+				inviterName: 'C',
+				inviterAvatarVersion: 0,
+				createdAt: ''
+			}
+		];
+		const { getByDataTest } = render(SettingsScreen);
+		expect(getByDataTest('settings-invites').textContent).toContain('3 pending');
+	});
+
+	test('(j-5c) when inbox is empty, sub-line shows "No pending invites"', () => {
+		invitations.inbox = [];
+		const { getByDataTest } = render(SettingsScreen);
+		expect(getByDataTest('settings-invites').textContent).toContain('No pending invites');
 	});
 
 	test('(j-6) Privacy row renders with correct sub-line', () => {

@@ -156,10 +156,10 @@
 
 ## Phase 3 — /settings/invites route + InvitesInboxScreen + SettingsScreen swap
 
-### [ ] 3.1 Create InvitesInboxScreen and activate SettingsScreen Invites row
+### [x] 3.1 Create InvitesInboxScreen and activate SettingsScreen Invites row
 
 **Created:** 2026-05-28T18:50:57Z
-**Completed:**
+**Completed:** 2026-05-29T06:17:38Z
 
 **Why:** The SettingsScreen Invites row is currently a non-interactive `<div>` — a placeholder that 0801 left until this route exists. Creating the route and screen together, and swapping the div to a real nav button in the same commit, avoids a typed-routes failure where `goto(resolve('/settings/invites'))` would be rejected until the route file exists.
 

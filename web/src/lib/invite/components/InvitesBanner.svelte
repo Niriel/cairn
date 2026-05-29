@@ -58,10 +58,7 @@
 		<button
 			class="multi-row"
 			data-test="invites-banner-multi"
-			onclick={() => {
-				// eslint-disable-next-line svelte/no-navigation-without-resolve
-				void goto('/settings/invites'); // TODO task 3.1: remove disable, upgrade to goto(resolve('/settings/invites'))
-			}}
+			onclick={() => void goto(resolve('/settings/invites'))}
 		>
 			<span class="count-badge">{invitations.inbox.length}</span>
 			<span class="multi-text">{invitations.inbox.length} pending invites</span>

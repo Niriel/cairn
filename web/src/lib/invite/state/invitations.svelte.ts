@@ -40,8 +40,9 @@ type RawInboxRow = {
 export const invitations = $state<{
 	sent: SentEntry[];
 	inbox: InboxEntry[];
+	inboxLoading: boolean;
 	postAcceptPrompts: SvelteSet<{ inviterUid: string; inviterName: string }>;
-}>({ sent: [], inbox: [], postAcceptPrompts: new SvelteSet() });
+}>({ sent: [], inbox: [], inboxLoading: false, postAcceptPrompts: new SvelteSet() });
 
 export async function loadSent(): Promise<void> {
 	const me = profile.uid;
@@ -68,18 +69,23 @@ export async function cancelInvitation(id: string): Promise<void> {
 export async function loadInbox(): Promise<void> {
 	const me = profile.uid;
 	if (!me) return;
-	const rows = await pgGet<RawInboxRow[]>(
-		`/invitations?target_user_id=eq.${me}&select=id,list_id,created_by,created_at,lists(name),profiles!created_by(display_name,avatar_version)`
-	);
-	invitations.inbox = rows.map((r) => ({
-		id: r.id,
-		listId: r.list_id,
-		listName: r.lists.name,
-		inviterUid: r.created_by,
-		inviterName: r.profiles.display_name,
-		inviterAvatarVersion: r.profiles.avatar_version,
-		createdAt: r.created_at
-	}));
+	invitations.inboxLoading = true;
+	try {
+		const rows = await pgGet<RawInboxRow[]>(
+			`/invitations?target_user_id=eq.${me}&select=id,list_id,created_by,created_at,lists(name),profiles!created_by(display_name,avatar_version)`
+		);
+		invitations.inbox = rows.map((r) => ({
+			id: r.id,
+			listId: r.list_id,
+			listName: r.lists.name,
+			inviterUid: r.created_by,
+			inviterName: r.profiles.display_name,
+			inviterAvatarVersion: r.profiles.avatar_version,
+			createdAt: r.created_at
+		}));
+	} finally {
+		invitations.inboxLoading = false;
+	}
 }
 
 export async function acceptInvitation(
