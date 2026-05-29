@@ -371,10 +371,15 @@ sub-section.
 
 **Verify:** `pnpm lint` · `pnpm check` · `pnpm test`
 
-### [ ] 2.4 Create `<Label>` primitive
+### [x] 2.4 Create `<Label>` primitive
 
 **Created:** 2026-05-29T13:21:24Z
-**Completed:**
+**Completed:** 2026-05-29T20:10:16Z
+
+**Notes:** Dropped the `uppercase` prop entirely — all labels use one
+canonical style (12px, stone, weight 600, letter-spacing 0.06em,
+uppercase). The plan's two-style design was superseded by the user's
+direction that the distinction isn't needed.
 
 **Why:** Form label primitive consumed by Phase 4 input-
 migration tasks. Composes either by `for`-id pointer or by
