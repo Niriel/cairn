@@ -106,6 +106,13 @@ describe('ListOverflowSheet', () => {
 	test('(h) Manage members navigates to /lists/<id>/members', async () => {
 		const { getByDataTest } = render(ListOverflowSheet, PROPS);
 		await fireEvent.click(getByDataTest('list-overflow-manage-members'));
+		// goManageMembers closes the sheet first then waits for the resulting
+		// popstate before navigating (avoids SvelteKit reversing the goto
+		// when the Sheet's history-guard back() lands after the forward push).
+		// Simulate the popstate so the awaited navigation completes.
+		dispatchEvent(new PopStateEvent('popstate', { state: null }));
+		await Promise.resolve();
+		await Promise.resolve();
 		expect(goto).toHaveBeenCalledWith('/lists/list-1/members');
 	});
 

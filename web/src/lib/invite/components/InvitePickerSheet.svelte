@@ -86,6 +86,8 @@
 		try {
 			await sendInvitation(listId, { userId });
 			invitedIds.add(userId);
+			toastMessage = 'Invite sent';
+			toastOpen = true;
 		} catch (err) {
 			toastMessage = err instanceof Error ? err.message : "Couldn't send invite";
 			toastOpen = true;
@@ -98,7 +100,11 @@
 		try {
 			await sendInvitation(listId, { email: value });
 			email = '';
-			toastMessage = 'Invite sent';
+			// Anti-enumeration: the inviter must not be able to tell whether
+			// the address has a Cairn account (see docs/invites.md). Same
+			// hedge regardless of whether the row was user-keyed or
+			// email-keyed under the hood.
+			toastMessage = 'If they have a Cairn account, the invite was sent.';
 			toastOpen = true;
 		} catch (err) {
 			toastMessage = err instanceof Error ? err.message : "Couldn't send invite";
@@ -185,7 +191,13 @@
 
 	<div class="email-section">
 		<label class="section-label email-label" for="invite-picker-email-input">By e-mail</label>
-		<div class="email-row">
+		<form
+			class="email-row"
+			onsubmit={(e) => {
+				e.preventDefault();
+				void sendByEmail();
+			}}
+		>
 			<input
 				id="invite-picker-email-input"
 				class="email-input"
@@ -196,12 +208,8 @@
 				data-test="invite-picker-email-input"
 				bind:value={email}
 			/>
-			<button
-				class="send-btn"
-				data-test="invite-picker-email-send"
-				onclick={() => void sendByEmail()}>Send</button
-			>
-		</div>
+			<button class="send-btn" type="submit" data-test="invite-picker-email-send">Send</button>
+		</form>
 	</div>
 </Sheet>
 

@@ -18,9 +18,14 @@
 	}
 
 	async function addToCircle() {
-		if (!entry) return;
-		await addCircleById(entry.inviterUid);
-		invitations.postAcceptPrompts.delete(entry);
+		// Snapshot the derived before awaiting: addCircleById's relationship
+		// write triggers the cleanup $effect above, which deletes the entry
+		// and tears down this component. Reading `entry` after the await would
+		// touch a derived belonging to a destroyed effect (derived_inert).
+		const current = entry;
+		if (!current) return;
+		await addCircleById(current.inviterUid);
+		invitations.postAcceptPrompts.delete(current);
 	}
 </script>
 

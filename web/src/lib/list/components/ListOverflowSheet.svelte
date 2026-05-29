@@ -1,10 +1,11 @@
 <script lang="ts">
+	import { tick } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import Sheet from '$lib/basic/components/Sheet.svelte';
 	import Icon from '$lib/basic/components/Icon.svelte';
 	import ButtonPair from '$lib/shared/components/ButtonPair.svelte';
-	import { deleteList } from '$lib/list/state/lists.svelte';
+	import { deleteList, refreshLists } from '$lib/list/state/lists.svelte';
 	import { pgPatch } from '$lib/shared/http/postgrest';
 	import { profile } from '$lib/shared/state/profile.svelte';
 	import RenameListSheet from './RenameListSheet.svelte';
@@ -42,9 +43,14 @@
 		onDelete();
 	}
 
-	function goManageMembers() {
-		void goto(resolve(`/lists/${listId}/members`));
-		onclose();
+	async function goManageMembers() {
+		onclose(); // unmounts sheet → Sheet.$effect cleanup → history.back()
+		await tick();
+		// Sheet always calls pushHistoryGuard on mount, so unmounting it always
+		// fires popstate. Wait for it before navigating forward, otherwise
+		// SvelteKit sees the backward pop after the forward push and undoes it.
+		await new Promise<void>((r) => window.addEventListener('popstate', () => r(), { once: true }));
+		await goto(resolve(`/lists/${listId}/members`));
 	}
 
 	async function handleLeave() {
@@ -54,6 +60,9 @@
 		await pgPatch<void>(`/list_members?list_id=eq.${listId}&user_id=eq.${me}`, {
 			deleted_at: now
 		});
+		// Drop the just-left list from the cached lists.items so /lists
+		// doesn't keep showing it after navigation.
+		refreshLists();
 		await goto(resolve('/lists'));
 		onclose();
 	}

@@ -16,6 +16,15 @@
 		if (!open) return;
 		return pushHistoryGuard(() => onclose());
 	});
+
+	$effect(() => {
+		if (!open) return;
+		const onKey = (e: KeyboardEvent) => {
+			if (e.key === 'Escape') onclose();
+		};
+		window.addEventListener('keydown', onKey);
+		return () => window.removeEventListener('keydown', onKey);
+	});
 </script>
 
 {#if open}

@@ -23,7 +23,7 @@
 	let createSheetOpen = $state(false);
 	let overflowList = $state<List | null>(null);
 	const expandedIds = new SvelteSet<string>();
-	let descTextEls: Record<string, HTMLElement> = {};
+	const descTextEls = $state<Record<string, HTMLElement>>({});
 	const truncatedIds = new SvelteSet<string>();
 
 	$effect(() => {

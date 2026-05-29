@@ -67,7 +67,7 @@
 							<div class="row-info">
 								<div class="row-inviter">
 									<span class="inviter-name">{entry.inviterName}</span>
-									<span class="invited-label"> invited you to</span>
+									<span class="invited-label">invited you to</span>
 								</div>
 								<div class="list-name">{entry.listName}</div>
 							</div>

@@ -1,20 +1,24 @@
 import { afterEach, beforeEach, describe, expect, test, vi, type MockInstance } from 'vitest';
 
+import { pushState } from '$app/navigation';
+
 import { pushHistoryGuard, _resetForTesting } from './back-stack.svelte';
 
+vi.mock('$app/navigation', () => ({
+	pushState: vi.fn()
+}));
+
 describe('pushHistoryGuard', () => {
-	let pushStateSpy: MockInstance<typeof history.pushState>;
 	let backSpy: MockInstance<typeof history.back>;
 
 	beforeEach(() => {
-		pushStateSpy = vi.spyOn(history, 'pushState');
+		vi.mocked(pushState).mockClear();
 		backSpy = vi.spyOn(history, 'back').mockImplementation(() => {
 			// Don't actually navigate during tests; just observe the call.
 		});
 	});
 
 	afterEach(() => {
-		pushStateSpy.mockRestore();
 		backSpy.mockRestore();
 		_resetForTesting();
 	});
@@ -23,18 +27,17 @@ describe('pushHistoryGuard', () => {
 		const onPop = vi.fn();
 		pushHistoryGuard(onPop);
 
-		expect(pushStateSpy).toHaveBeenCalledTimes(1);
-		const state = pushStateSpy.mock.calls[0][0] as { cairnGuard: unknown; id: unknown };
+		expect(pushState).toHaveBeenCalledTimes(1);
+		const [url, state] = vi.mocked(pushState).mock.calls[0];
+		expect(url).toBe('');
 		expect(state.cairnGuard).toBe(true);
-		expect(typeof state.id).toBe('string');
+		expect(typeof state.cairnGuardId).toBe('string');
 	});
 
 	test('(b) popstate fires onPop exactly once', () => {
 		const onPop = vi.fn();
 		pushHistoryGuard(onPop);
 
-		// Simulate the marker being popped: post-popstate state is null
-		// (parent route), no longer this guard's id.
 		dispatchEvent(new PopStateEvent('popstate', { state: null }));
 		dispatchEvent(new PopStateEvent('popstate', { state: null }));
 
@@ -63,6 +66,25 @@ describe('pushHistoryGuard', () => {
 		expect(backSpy).not.toHaveBeenCalled();
 	});
 
+	test('(e) stacked guards: only the top-most guard fires per back press', () => {
+		const onPopA = vi.fn();
+		const onPopB = vi.fn();
+
+		pushHistoryGuard(onPopA);
+		pushHistoryGuard(onPopB);
+
+		// First popstate pops B (top of stack).
+		dispatchEvent(new PopStateEvent('popstate', { state: null }));
+		expect(onPopB).toHaveBeenCalledTimes(1);
+		expect(onPopA).not.toHaveBeenCalled();
+
+		// Second popstate pops A (now top of stack).
+		dispatchEvent(new PopStateEvent('popstate', { state: null }));
+		expect(onPopA).toHaveBeenCalledTimes(1);
+		// B must not fire again.
+		expect(onPopB).toHaveBeenCalledTimes(1);
+	});
+
 	test('(f) programmatic cleanup of guard B does not fire a concurrently-installed guard A', () => {
 		const onPopB = vi.fn();
 		const cleanupB = pushHistoryGuard(onPopB);
@@ -77,26 +99,5 @@ describe('pushHistoryGuard', () => {
 
 		expect(onPopA).not.toHaveBeenCalled();
 		expect(onPopB).not.toHaveBeenCalled();
-	});
-
-	test('(e) stacked guards: only the top-most guard fires per back press', () => {
-		const onPopA = vi.fn();
-		const onPopB = vi.fn();
-
-		pushHistoryGuard(onPopA);
-		const aState = pushStateSpy.mock.calls[0][0] as { cairnGuard: true; id: string };
-
-		pushHistoryGuard(onPopB);
-
-		// B's marker is popped — post-popstate state is A's marker.
-		dispatchEvent(new PopStateEvent('popstate', { state: aState }));
-		expect(onPopB).toHaveBeenCalledTimes(1);
-		expect(onPopA).not.toHaveBeenCalled();
-
-		// A's marker is popped — post-popstate state is the parent route (null).
-		dispatchEvent(new PopStateEvent('popstate', { state: null }));
-		expect(onPopA).toHaveBeenCalledTimes(1);
-		// B must not fire again.
-		expect(onPopB).toHaveBeenCalledTimes(1);
 	});
 });

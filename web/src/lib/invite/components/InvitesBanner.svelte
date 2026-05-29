@@ -35,9 +35,9 @@
 				avatarVersion={entry.inviterAvatarVersion}
 			/>
 			<div class="copy">
-				<span class="bold">{entry.inviterName}</span><span class="grey"> invited you to </span><span
-					class="bold">{entry.listName}</span
-				>
+				<span class="bold">{entry.inviterName}</span>
+				<span class="grey">invited you to</span>
+				<span class="bold">{entry.listName}</span>
 			</div>
 		</div>
 		<div class="buttons">
