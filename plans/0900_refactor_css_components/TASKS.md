@@ -24,10 +24,10 @@
 
 ## Phase 1 — 0901: Form primitives (buttons + inputs)
 
-### [ ] 1.1 Plan and implement sub-step 0901 (Button extensions + TextInput / Textarea / Label + migration)
+### [x] 1.1 Plan and implement sub-step 0901 (Button extensions + TextInput / Textarea / Label + migration)
 
 **Created:** 2026-05-29T13:00:09Z
-**Completed:**
+**Completed:** 2026-05-30T07:44:05Z
 
 **Why:** Form primitives are the larger of the two refactor halves
 — ~25 raw `<button>` sites and ~11 raw `<input>` / `<textarea>`
