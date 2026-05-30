@@ -64,6 +64,13 @@
    `visualViewport` to keep them above the keyboard. Whatever the approach,
    apply it uniformly to every sheet that contains a focusable text field.
 
+8. [ ] **Show "set your name" banner when display name is "New User"** — when a
+   user's `display_name` is `"New User"` (the GoTrue default for unverified
+   accounts), show a dismissable banner — similar in style to the pending-invite
+   banner — prompting them to set a display name and linking to the Profile
+   screen. The banner should appear on the main lists screen and disappear once
+   the name is changed.
+
 5. [ ] **Font size setting must scale the whole app, not just the container
    width** — the Settings font-size preference (XS/S/M/L/XL, stored in
    `localStorage`) currently only affects `--app-max-w`. All pixel values in

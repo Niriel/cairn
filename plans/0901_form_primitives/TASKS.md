@@ -976,10 +976,10 @@ REQUIREMENTS R5.
 
 **Verify:** `pnpm lint` · `pnpm check`
 
-### [ ] 4.2 Migrate `LoginRequest` email input to `<TextInput>`
+### [x] 4.2 Migrate `LoginRequest` email input to `<TextInput>`
 
 **Created:** 2026-05-29T13:21:24Z
-**Completed:**
+**Completed:** 2026-05-30T06:01:30Z
 
 **Why:** Auth flow's email input is the canonical input
 migration — the one deliberate user-visible cosmetic change
@@ -1059,10 +1059,10 @@ REQUIREMENTS R8, R14.
 
 **Verify:** `pnpm lint` · `pnpm check` · `pnpm test`
 
-### [ ] 4.3 Migrate list-related sheet inputs to `<TextInput>` / `<Textarea>`
+### [x] 4.3 Migrate list-related sheet inputs to `<TextInput>` / `<Textarea>`
 
 **Created:** 2026-05-29T13:21:24Z
-**Completed:**
+**Completed:** 2026-05-30T06:16:12Z
 
 **Why:** List-related sheets (`RenameListSheet`,
 `CreateListSheet`, `EditDescriptionSheet`) share the name +
@@ -1115,10 +1115,10 @@ commit.
 **Verify:** `pnpm lint` · `pnpm check` · `pnpm test --run web/
 src/lib/list/components/`
 
-### [ ] 4.4 Migrate `AddEditItemSheet` name + notes to `<TextInput>` / `<Textarea>`
+### [x] 4.4 Migrate `AddEditItemSheet` name + notes to `<TextInput>` / `<Textarea>`
 
 **Created:** 2026-05-29T13:21:24Z
-**Completed:**
+**Completed:** 2026-05-30T06:22:14Z
 
 **Why:** `AddEditItemSheet` carries the one outlier —
 the notes textarea renders in the Newsreader serif at 14 px.
@@ -1171,10 +1171,10 @@ the rendered `<textarea>` (not a `<Textarea>` variant).
 
 **Verify:** `pnpm lint` · `pnpm check` · `pnpm test`
 
-### [ ] 4.5 Migrate `InvitePickerSheet` and `CircleScreen` email inputs to `<TextInput>`
+### [x] 4.5 Migrate `InvitePickerSheet` and `CircleScreen` email inputs to `<TextInput>`
 
 **Created:** 2026-05-29T13:21:24Z
-**Completed:**
+**Completed:** 2026-05-30T06:31:26Z
 
 **Why:** Both screens accept an e-mail address — invite picker
 inline-with-submit, circle add-by-email card. Both migrate to
@@ -1229,10 +1229,10 @@ already migrated).
 
 **Verify:** `pnpm lint` · `pnpm check` · `pnpm test`
 
-### [ ] 4.6 Migrate profile display-name input to `<TextInput>`
+### [x] 4.6 Migrate profile display-name input to `<TextInput>`
 
 **Created:** 2026-05-29T13:21:24Z
-**Completed:**
+**Completed:** 2026-05-30T07:18:44Z
 
 **Why:** The display-name input on the profile route
 (`<input id="display-name" class="name-input" …>` at line 191
@@ -1291,6 +1291,65 @@ REQUIREMENTS R8.
    <TextInput>`.
 
 **Verify:** `pnpm lint` · `pnpm check` · `pnpm test`
+
+### [ ] 4.7 Lift `.disclaimer` rule into `typography.css` and sweep call sites
+
+**Created:** 2026-05-30T06:00:00Z
+**Completed:**
+
+**Why:** Two components use scoped CSS for the same "small muted centred
+footer copy" pattern — `LoginRequest.svelte` (`.disclaimer`, introduced in
+task 4.2) and `AvatarCropScreen.svelte` (`.hint`, distinct from the
+input-rail `.hint` in `typography.css`). Lifting the shared shape to a
+global rule and renaming the `AvatarCropScreen` class to `.disclaimer`
+gives the app one canonical home for this pattern, the same way task 4.1
+did for `.hint` / `.hint-error`.
+
+**Not in scope:** `PrivacyScreen` `.privacy-note` — it's a card with a
+`var(--paper-alt)` background, icon, and border-radius, a different
+visual pattern. Leave it alone.
+
+**Prerequisites:** Tasks 4.1 (`.hint` rule landed), 4.2 (`LoginRequest`
+`.disclaimer` class introduced).
+
+**Decisions:**
+- Append to `web/src/lib/shared/styles/typography.css`:
+  `.disclaimer` — `font-size: 12px; color: var(--stone); text-align:
+  center; line-height: 1.5; margin-top: 0; margin-bottom: 0`. Callers
+  that need vertical spacing add it via a wrapper or a `margin-top` on
+  the element itself (LoginRequest's `margin-top: 18px` and
+  AvatarCropScreen's `margin-top: 18px` stay as scoped rules or inline
+  so each site can control its own spacing).
+- `LoginRequest.svelte`: drop the scoped `.disclaimer { … }` CSS block
+  (typography is now global); keep `margin-top: 18px` as a scoped
+  rule on `.disclaimer` in this file since it controls layout, not
+  typography.
+- `AvatarCropScreen.svelte`: rename the scoped `.hint` class to
+  `.disclaimer` in both markup and `<style>`. Drop the duplicated
+  typography properties (font-size, color, text-align, line-height)
+  from the scoped rule; keep any layout-only values (margin-top).
+- No Vitest test for this task — CSS-only changes with no logic.
+
+**Files:**
+- `web/src/lib/shared/styles/typography.css` (modify)
+- `web/src/lib/auth/components/LoginRequest.svelte` (modify — drop
+  scoped typography from `.disclaimer`)
+- `web/src/lib/avatar/components/AvatarCropScreen.svelte` (modify —
+  rename `.hint` → `.disclaimer`, drop duplicated typography CSS)
+
+**Steps:**
+1. Append the `.disclaimer` rule to `typography.css` per Decisions.
+2. In `LoginRequest.svelte`: drop `font-size`, `color`, `text-align`,
+   `line-height` from the scoped `.disclaimer` block, keeping only
+   `margin-top: 18px`.
+3. In `AvatarCropScreen.svelte`: rename `.hint` → `.disclaimer` in
+   markup. In the `<style>` block rename `.hint` → `.disclaimer` and
+   drop the typography properties, keeping only layout values.
+4. Run `pnpm check` and confirm clean.
+5. Commit `feat(css): lift .disclaimer to typography.css and sweep
+   call sites`.
+
+**Verify:** `pnpm lint` · `pnpm check`
 
 ## Phase 5 — Wrap up
 

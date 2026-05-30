@@ -1,5 +1,7 @@
 <script lang="ts">
 	import Button from '$lib/basic/components/Button.svelte';
+	import Label from '$lib/basic/components/Label.svelte';
+	import TextInput from '$lib/basic/components/TextInput.svelte';
 	import AppTopBar from '$lib/shared/components/AppTopBar.svelte';
 	import Avatar from '$lib/shared/components/Avatar.svelte';
 	import Snackbar from '$lib/shared/components/Snackbar.svelte';
@@ -84,24 +86,28 @@
 	{/if}
 
 	<div class="add-card">
-		<label class="add-label" for="circle-add-input">E-mail address</label>
-		<div class="add-input-row">
-			<input
-				id="circle-add-input"
-				class="add-input"
-				data-test="circle-add-input"
-				type="email"
-				autocomplete="email"
-				inputmode="email"
-				placeholder="friend@example.net"
-				bind:value={emailInput}
-			/>
-			<Button variant="rect" tone="ink" data-test="circle-add-btn" onclick={handleAdd}>Add</Button>
+		<div class="field">
+			<Label for="circle-add-input">E-mail address</Label>
+			<div class="add-input-row">
+				<div class="add-input-wrap">
+					<TextInput
+						id="circle-add-input"
+						data-test="circle-add-input"
+						type="email"
+						autocomplete="email"
+						inputmode="email"
+						placeholder="friend@example.net"
+						bind:value={emailInput}
+					/>
+				</div>
+				<Button variant="rect" tone="ink" data-test="circle-add-btn" onclick={handleAdd}>Add</Button
+				>
+			</div>
 		</div>
 		{#if addError}
-			<p class="add-error" data-test="circle-add-error">{addError}</p>
+			<p class="hint hint-error" data-test="circle-add-error">{addError}</p>
 		{/if}
-		<p class="add-hint">
+		<p class="hint add-hint">
 			They'll be added to your circle. If they have you blocked, the add still succeeds on your side
 			— but their side stays untouched.
 		</p>
@@ -200,12 +206,10 @@
 		background: var(--paper-alt);
 	}
 
-	.add-label {
-		display: block;
-		font-size: 13px;
-		font-weight: 500;
-		color: var(--stone);
-		margin-bottom: 0.5rem;
+	.field {
+		display: flex;
+		flex-direction: column;
+		gap: 8px;
 	}
 
 	.add-input-row {
@@ -214,33 +218,12 @@
 		align-items: center;
 	}
 
-	.add-input {
+	.add-input-wrap {
 		flex: 1;
-		padding: 12px 14px;
-		border: 1px solid var(--rule);
-		border-radius: 12px;
-		background: var(--paper);
-		color: var(--ink);
-		font: inherit;
-		font-size: 16px;
-	}
-
-	.add-input::placeholder {
-		color: var(--stone);
-	}
-
-	.add-error {
-		margin-top: 0.5rem;
-		margin-bottom: 0;
-		font-size: 0.75rem;
-		color: var(--ember);
 	}
 
 	.add-hint {
 		margin-top: 0.625rem;
 		margin-bottom: 0;
-		font-size: 0.75rem;
-		color: var(--stone);
-		line-height: 1.5;
 	}
 </style>

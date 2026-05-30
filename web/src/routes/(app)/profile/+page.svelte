@@ -6,6 +6,8 @@
 	import Snackbar from '$lib/shared/components/Snackbar.svelte';
 	import Button from '$lib/basic/components/Button.svelte';
 	import Icon from '$lib/basic/components/Icon.svelte';
+	import Label from '$lib/basic/components/Label.svelte';
+	import TextInput from '$lib/basic/components/TextInput.svelte';
 	import AvatarSourceSheet from '$lib/avatar/components/AvatarSourceSheet.svelte';
 	import AvatarCropScreen from '$lib/avatar/components/AvatarCropScreen.svelte';
 	import type { IconName } from '$lib/basic/model/icon-paths';
@@ -194,22 +196,23 @@
 			</div>
 		</div>
 
-		<label class="field-label" for="display-name">Display name</label>
-		<input
-			id="display-name"
-			class="name-input"
-			data-test="display-name-input"
-			bind:value={nameValue}
-			onkeydown={(e) => {
-				if (e.key === 'Enter') {
-					e.preventDefault();
-					void saveName();
-				} else if (e.key === 'Escape') {
-					e.preventDefault();
-					history.back();
-				}
-			}}
-		/>
+		<div class="field">
+			<Label for="display-name">Display name</Label>
+			<TextInput
+				id="display-name"
+				data-test="display-name-input"
+				bind:value={nameValue}
+				onkeydown={(e: KeyboardEvent) => {
+					if (e.key === 'Enter') {
+						e.preventDefault();
+						void saveName();
+					} else if (e.key === 'Escape') {
+						e.preventDefault();
+						history.back();
+					}
+				}}
+			/>
+		</div>
 		{#if nameError}
 			<p class="field-error">{nameError}</p>
 		{/if}
@@ -288,28 +291,11 @@
 		gap: 8px;
 	}
 
-	.field-label {
-		display: block;
+	.field {
+		display: flex;
+		flex-direction: column;
+		gap: 8px;
 		margin-top: 28px;
-		font-size: 11.5px;
-		color: var(--stone);
-		font-weight: 600;
-		letter-spacing: 0.06em;
-		text-transform: uppercase;
-	}
-
-	.name-input {
-		display: block;
-		width: 100%;
-		margin-top: 6px;
-		padding: 12px 14px;
-		border: 1px solid var(--ink);
-		border-radius: 12px;
-		background: var(--paper);
-		font-size: 16px;
-		color: var(--ink);
-		font-family: inherit;
-		box-sizing: border-box;
 	}
 
 	.field-error {

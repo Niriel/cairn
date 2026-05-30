@@ -1,7 +1,9 @@
 <script lang="ts">
 	import { untrack } from 'svelte';
 	import Button from '$lib/basic/components/Button.svelte';
+	import Label from '$lib/basic/components/Label.svelte';
 	import Sheet from '$lib/basic/components/Sheet.svelte';
+	import TextInput from '$lib/basic/components/TextInput.svelte';
 	import { pgPatch } from '$lib/shared/http/postgrest';
 	import { refreshLists } from '$lib/list/state/lists.svelte';
 
@@ -42,23 +44,26 @@
 </script>
 
 <Sheet open={true} {onclose}>
-	<input
-		data-test="rename-list-name"
-		type="text"
-		bind:value={name}
-		placeholder="List name"
-		onkeydown={(e) => {
-			if (e.key === 'Enter' && !submitting) {
-				e.preventDefault();
-				void handleSave();
-			} else if (e.key === 'Escape') {
-				e.preventDefault();
-				onclose();
-			}
-		}}
-	/>
+	<div class="field">
+		<Label for="rename-list-name">Name</Label>
+		<TextInput
+			id="rename-list-name"
+			data-test="rename-list-name"
+			bind:value={name}
+			placeholder="List name"
+			onkeydown={(e: KeyboardEvent) => {
+				if (e.key === 'Enter' && !submitting) {
+					e.preventDefault();
+					void handleSave();
+				} else if (e.key === 'Escape') {
+					e.preventDefault();
+					onclose();
+				}
+			}}
+		/>
+	</div>
 	{#if error}
-		<p data-test="rename-list-error">{error}</p>
+		<p class="hint hint-error" data-test="rename-list-error">{error}</p>
 	{/if}
 	<div class="actions">
 		<Button type="button" tone="ink" data-test="rename-list-cancel" onclick={onclose}>Cancel</Button
@@ -74,25 +79,10 @@
 </Sheet>
 
 <style>
-	input {
-		width: 100%;
-		padding: 12px 14px;
-		border: 1px solid var(--rule);
-		border-radius: 12px;
-		background: var(--paper);
-		color: var(--ink);
-		font: inherit;
-		font-size: 16px;
-	}
-
-	input::placeholder {
-		color: var(--stone);
-	}
-
-	p {
-		margin: 0;
-		font-size: 13px;
-		color: var(--ember);
+	.field {
+		display: flex;
+		flex-direction: column;
+		gap: 8px;
 	}
 
 	.actions {

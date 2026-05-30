@@ -1,6 +1,9 @@
 <script lang="ts">
 	import Button from '$lib/basic/components/Button.svelte';
+	import Label from '$lib/basic/components/Label.svelte';
 	import Sheet from '$lib/basic/components/Sheet.svelte';
+	import Textarea from '$lib/basic/components/Textarea.svelte';
+	import TextInput from '$lib/basic/components/TextInput.svelte';
 	import ButtonPair from '$lib/shared/components/ButtonPair.svelte';
 	import { createList } from '$lib/list/model/list';
 	import type { List } from '$lib/list/model/list';
@@ -40,35 +43,43 @@
 			void handleSubmit();
 		}}
 	>
-		<input
-			data-test="create-list-name"
-			type="text"
-			bind:value={name}
-			required
-			placeholder="List name"
-			onkeydown={(e) => {
-				if (e.key === 'Escape') {
-					e.preventDefault();
-					onclose();
-				}
-			}}
-		/>
-		<textarea
-			data-test="create-list-description"
-			bind:value={description}
-			placeholder="Description (optional)"
-			onkeydown={(e) => {
-				if (e.key === 'Enter' && !e.shiftKey && !submitting) {
-					e.preventDefault();
-					void handleSubmit();
-				} else if (e.key === 'Escape') {
-					e.preventDefault();
-					onclose();
-				}
-			}}
-		></textarea>
+		<div class="field">
+			<Label for="create-list-name">Name</Label>
+			<TextInput
+				id="create-list-name"
+				data-test="create-list-name"
+				bind:value={name}
+				required
+				placeholder="List name"
+				onkeydown={(e: KeyboardEvent) => {
+					if (e.key === 'Escape') {
+						e.preventDefault();
+						onclose();
+					}
+				}}
+			/>
+		</div>
+		<div class="field">
+			<Label for="create-list-description">Description</Label>
+			<Textarea
+				id="create-list-description"
+				data-test="create-list-description"
+				bind:value={description}
+				minHeight="4rem"
+				placeholder="Optional"
+				onkeydown={(e: KeyboardEvent) => {
+					if (e.key === 'Enter' && !e.shiftKey && !submitting) {
+						e.preventDefault();
+						void handleSubmit();
+					} else if (e.key === 'Escape') {
+						e.preventDefault();
+						onclose();
+					}
+				}}
+			/>
+		</div>
 		{#if error}
-			<p data-test="create-list-error">{error}</p>
+			<p class="hint hint-error" data-test="create-list-error">{error}</p>
 		{/if}
 		<ButtonPair>
 			{#snippet left()}
@@ -92,31 +103,9 @@
 		gap: 0.75rem;
 	}
 
-	input,
-	textarea {
-		width: 100%;
-		padding: 12px 14px;
-		border: 1px solid var(--rule);
-		border-radius: 12px;
-		background: var(--paper);
-		color: var(--ink);
-		font: inherit;
-		font-size: 16px;
-		resize: none;
-	}
-
-	input::placeholder,
-	textarea::placeholder {
-		color: var(--stone);
-	}
-
-	textarea {
-		min-height: 4rem;
-	}
-
-	p {
-		margin: 0;
-		font-size: 13px;
-		color: var(--ember);
+	.field {
+		display: flex;
+		flex-direction: column;
+		gap: 8px;
 	}
 </style>

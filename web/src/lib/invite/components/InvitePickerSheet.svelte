@@ -3,6 +3,7 @@
 	import Button from '$lib/basic/components/Button.svelte';
 	import Icon from '$lib/basic/components/Icon.svelte';
 	import Sheet from '$lib/basic/components/Sheet.svelte';
+	import TextInput from '$lib/basic/components/TextInput.svelte';
 	import Avatar from '$lib/shared/components/Avatar.svelte';
 	import Snackbar from '$lib/shared/components/Snackbar.svelte';
 	import { sendInvitation } from '$lib/invite/state/invitations.svelte';
@@ -190,16 +191,17 @@
 				void sendByEmail();
 			}}
 		>
-			<input
-				id="invite-picker-email-input"
-				class="email-input"
-				type="email"
-				inputmode="email"
-				autocomplete="email"
-				placeholder="friend@example.net"
-				data-test="invite-picker-email-input"
-				bind:value={email}
-			/>
+			<div class="email-input-wrap">
+				<TextInput
+					id="invite-picker-email-input"
+					type="email"
+					inputmode="email"
+					autocomplete="email"
+					placeholder="friend@example.net"
+					data-test="invite-picker-email-input"
+					bind:value={email}
+				/>
+			</div>
 			<Button variant="rect" tone="ink" type="submit" data-test="invite-picker-email-send"
 				>Send</Button
 			>
@@ -303,23 +305,7 @@
 		align-items: center;
 	}
 
-	.email-input {
+	.email-input-wrap {
 		flex: 1;
-		padding: 12px 14px;
-		border: 1px solid var(--rule);
-		border-radius: 12px;
-		background: var(--paper);
-		color: var(--ink);
-		font: inherit;
-		font-size: 16px;
-		outline: none;
-	}
-
-	.email-input::placeholder {
-		color: var(--stone);
-	}
-
-	.email-input:focus {
-		border-color: var(--ink);
 	}
 </style>

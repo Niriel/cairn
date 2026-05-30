@@ -1,6 +1,9 @@
 <script lang="ts">
 	import Button from '$lib/basic/components/Button.svelte';
+	import Label from '$lib/basic/components/Label.svelte';
 	import Sheet from '$lib/basic/components/Sheet.svelte';
+	import Textarea from '$lib/basic/components/Textarea.svelte';
+	import TextInput from '$lib/basic/components/TextInput.svelte';
 	import { addItem, editItem } from '$lib/item/state/items.svelte';
 	import type { Item } from '$lib/item/model/item';
 
@@ -59,40 +62,44 @@
 			void handleSubmit();
 		}}
 	>
-		<label class="field-label" for="add-edit-name-input">Name</label>
-		<input
-			id="add-edit-name-input"
-			data-test="add-edit-name"
-			type="text"
-			bind:value={name}
-			required
-			placeholder="Name"
-			onkeydown={(e) => {
-				if (e.key === 'Escape') {
-					e.preventDefault();
-					oncancel();
-				}
-			}}
-		/>
+		<div class="field">
+			<Label for="add-edit-name-input">Name</Label>
+			<TextInput
+				id="add-edit-name-input"
+				data-test="add-edit-name"
+				bind:value={name}
+				required
+				placeholder="Name"
+				onkeydown={(e: KeyboardEvent) => {
+					if (e.key === 'Escape') {
+						e.preventDefault();
+						oncancel();
+					}
+				}}
+			/>
+		</div>
 
-		<label class="field-label" for="add-edit-notes-input">
-			Notes <span class="optional">· optional</span>
-		</label>
-		<textarea
-			id="add-edit-notes-input"
-			data-test="add-edit-notes"
-			bind:value={notes}
-			placeholder="Notes (optional)"
-			onkeydown={(e) => {
-				if (e.key === 'Enter' && !e.shiftKey && !submitting) {
-					e.preventDefault();
-					void handleSubmit();
-				} else if (e.key === 'Escape') {
-					e.preventDefault();
-					oncancel();
-				}
-			}}
-		></textarea>
+		<div class="field notes-field">
+			<Label for="add-edit-notes-input">
+				Notes <span class="optional">· optional</span>
+			</Label>
+			<Textarea
+				id="add-edit-notes-input"
+				data-test="add-edit-notes"
+				bind:value={notes}
+				minHeight="88px"
+				placeholder="Notes (optional)"
+				onkeydown={(e: KeyboardEvent) => {
+					if (e.key === 'Enter' && !e.shiftKey && !submitting) {
+						e.preventDefault();
+						void handleSubmit();
+					} else if (e.key === 'Escape') {
+						e.preventDefault();
+						oncancel();
+					}
+				}}
+			/>
+		</div>
 
 		<div class="actions">
 			<Button type="button" tone="ink" data-test="add-edit-cancel" onclick={oncancel}>Cancel</Button
@@ -138,48 +145,24 @@
 	form {
 		display: flex;
 		flex-direction: column;
-		gap: 6px;
+		gap: 18px;
 	}
 
-	.field-label {
-		font-size: 12px;
-		font-weight: 600;
-		color: var(--stone);
-		letter-spacing: 0.04em;
-		text-transform: uppercase;
-		margin-top: 12px;
+	.field {
+		display: flex;
+		flex-direction: column;
+		gap: 8px;
+	}
+
+	.notes-field :global(textarea) {
+		font-family: 'Newsreader Variable', Georgia, serif;
+		font-size: 14px;
 	}
 
 	.optional {
 		font-weight: 400;
 		text-transform: none;
 		color: var(--stone-lt, var(--stone));
-	}
-
-	input,
-	textarea {
-		width: 100%;
-		padding: 12px 14px;
-		border: 1px solid var(--rule);
-		border-radius: 12px;
-		background: var(--paper);
-		color: var(--ink);
-		font: inherit;
-		font-size: 16px;
-		box-sizing: border-box;
-	}
-
-	textarea {
-		min-height: 88px;
-		resize: none;
-		font-family: 'Newsreader Variable', Georgia, serif;
-		font-size: 14px;
-	}
-
-	input:focus,
-	textarea:focus {
-		outline: none;
-		border-color: var(--ink);
 	}
 
 	.actions {

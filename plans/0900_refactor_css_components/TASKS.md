@@ -173,6 +173,59 @@ the empty-state CTAs.
 
 ---
 
+## Phase 1b — Labels sweep (added during 0901 execution)
+
+### [ ] 1.2 Audit every form and ensure all inputs have a `<Label>`
+
+**Created:** 2026-05-30T06:16:12Z
+**Completed:**
+
+**Why:** During 0901 input migration it became clear that placeholder-only
+forms are the norm across the codebase (list sheets, auth, profile, invites)
+but the design direction is labels everywhere. Every `<TextInput>`,
+`<Textarea>`, and raw `<input>` / `<textarea>` that 0901 migrates or leaves
+in place should have a visible `<Label>` above it. This task audits the
+post-0901 state and adds the missing labels in a single sweep.
+
+**Prerequisites:** Task 1.1 (0901 merged) — all input primitives exist and
+the migration sweep is done; this task only adds `<Label>` wrappers to
+the remaining label-less inputs.
+
+**Decisions:**
+- Every input that lacks a `<Label>` in a user-facing form gets one. Use
+  `<Label for="…">` + an `id` on the input. Wrap the pair in
+  `<div class="field">` with `display: flex; flex-direction: column; gap: 8px`
+  (the pattern established in LoginRequest task 4.2 and the list sheets
+  task 4.3).
+- Label text: short noun phrase matching the field's purpose. If there's
+  already a placeholder, the label can be that word without the "(optional)"
+  suffix — move "optional" to a `<p class="hint">` below the field if needed.
+- Carve-outs: `InvitePickerSheet` email row (inline with submit — no space
+  for a label; placeholder "E-mail address" suffices); any search/filter
+  input that is purely icon-decorated. Document these explicitly.
+- `onkeydown` handlers passed to `<TextInput>` / `<Textarea>` must be
+  annotated as `(e: KeyboardEvent) =>` in call sites (ESLint
+  `no-unsafe-member-access` fires otherwise — discovered in task 4.3).
+
+**Files:** (audit first, then list — roughly)
+- All files touched by 0901 tasks 4.2–4.6 that still lack a `<Label>`
+- Any remaining `<input>` / `<textarea>` outside 0901's scope
+
+**Steps:**
+1. `grep -rn '<input\|<textarea\|<TextInput\|<Textarea' web/src --include='*.svelte'`
+   and for each hit confirm a sibling `<Label>` exists. Build a list of
+   label-less fields.
+2. For each label-less field: add `<Label for="…">` + `id` on the input,
+   wrap in `.field`, add scoped `.field` CSS if not already present.
+3. Annotate any bare `(e) =>` `onkeydown` handlers in the changed files
+   as `(e: KeyboardEvent) =>`.
+4. Run `pnpm lint` · `pnpm check` · `pnpm test` — must be green.
+5. Commit `feat(forms): add missing labels to all form inputs`.
+
+**Verify:** `pnpm lint` · `pnpm check` · `pnpm test`
+
+---
+
 ## Phase 2 — 0902: Icon colour prop + semantic HTML + `<EmptyState>`
 
 ### [ ] 2.1 Plan and implement sub-step 0902 (Icon `color` prop + global typography + semantic-HTML sweep + `<EmptyState>`)
