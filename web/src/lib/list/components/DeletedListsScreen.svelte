@@ -3,6 +3,7 @@
 	import { timeAgo } from '$lib/shared/model/time-ago';
 
 	import AppTopBar from '$lib/shared/components/AppTopBar.svelte';
+	import Button from '$lib/basic/components/Button.svelte';
 	import Icon from '$lib/basic/components/Icon.svelte';
 	import IconButton from '$lib/basic/components/IconButton.svelte';
 
@@ -45,13 +46,13 @@
 							>deleted by {row.deleted_by_name} · {timeAgo(row.deleted_at)}</span
 						>
 					</div>
-					<button
-						class="restore"
+					<Button
+						variant="pill"
+						tone="ink"
+						size="sm"
 						data-test="deleted-list-restore-{row.id}"
-						onclick={() => void restoreOne(row.id)}
+						onclick={() => void restoreOne(row.id)}>Restore</Button
 					>
-						Restore
-					</button>
 				</div>
 			{/each}
 		</div>
@@ -138,18 +139,6 @@
 		font-size: 12px;
 		color: var(--stone);
 		margin-top: 2px;
-	}
-
-	.restore {
-		padding: 7px 12px;
-		border: 1px solid var(--ink);
-		border-radius: 999px;
-		background: transparent;
-		color: var(--ink);
-		font-size: 12.5px;
-		font-weight: 600;
-		cursor: pointer;
-		font-family: inherit;
 	}
 
 	.error {

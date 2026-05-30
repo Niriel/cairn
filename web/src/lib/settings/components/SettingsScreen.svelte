@@ -1,6 +1,7 @@
 <script lang="ts">
 	import Avatar from '$lib/shared/components/Avatar.svelte';
 	import AppTopBar from '$lib/shared/components/AppTopBar.svelte';
+	import Button from '$lib/basic/components/Button.svelte';
 	import Icon from '$lib/basic/components/Icon.svelte';
 	import type { IconName } from '$lib/basic/model/icon-paths';
 	import { profile } from '$lib/shared/state/profile.svelte';
@@ -41,8 +42,10 @@
 					<div class="skeleton-name"></div>
 				</div>
 			{:else}
-				<button
-					class="profile-chip"
+				<Button
+					variant="text"
+					tone="ink"
+					size="md"
 					data-test="profile-chip"
 					onclick={() => goto(resolve('/profile'))}
 				>
@@ -55,14 +58,16 @@
 					/>
 					<span class="display-name">{profile.displayName}</span>
 					<Icon name="chevron-right" size={18} />
-				</button>
+				</Button>
 			{/if}
 		</section>
 
 		<section class="preference-group">
 			<h2>People</h2>
-			<button
-				class="nav-row"
+			<Button
+				variant="text"
+				tone="ink"
+				size="md"
 				data-test="settings-invites"
 				onclick={() => goto(resolve('/settings/invites'))}
 			>
@@ -79,9 +84,11 @@
 					<span class="nav-row-count">{invitations.inbox.length}</span>
 				{/if}
 				<Icon name="chevron-right" size={18} />
-			</button>
-			<button
-				class="nav-row"
+			</Button>
+			<Button
+				variant="text"
+				tone="ink"
+				size="md"
 				data-test="settings-privacy"
 				onclick={() => goto(resolve('/settings/privacy'))}
 			>
@@ -91,7 +98,7 @@
 					<span class="nav-row-sub">Who can invite you · circle · blocked</span>
 				</span>
 				<Icon name="chevron-right" size={18} />
-			</button>
+			</Button>
 		</section>
 
 		<section class="preference-group">
@@ -139,8 +146,10 @@
 
 		<section class="preference-group">
 			<h2>Recovery</h2>
-			<button
-				class="nav-row"
+			<Button
+				variant="text"
+				tone="ink"
+				size="md"
 				data-test="settings-deleted-lists"
 				onclick={() => goto(resolve('/settings/deleted-lists'))}
 			>
@@ -150,18 +159,18 @@
 					<span class="nav-row-sub">Restore lists you've deleted</span>
 				</span>
 				<Icon name="chevron-right" size={18} />
-			</button>
+			</Button>
 		</section>
 
 		<section class="preference-group">
 			<h2>Account</h2>
-			<button class="nav-row" data-test="signout" onclick={signOut}>
+			<Button variant="text" tone="ink" size="md" data-test="signout" onclick={signOut}>
 				<Icon name="log-out" size={20} />
 				<span class="nav-row-text">
 					<span class="nav-row-title">Sign out</span>
 				</span>
 				<Icon name="chevron-right" size={18} />
-			</button>
+			</Button>
 		</section>
 	</div>
 </div>
@@ -182,18 +191,6 @@
 
 	.profile-chip-section {
 		border-bottom: 1px solid var(--rule);
-	}
-
-	.profile-chip {
-		display: flex;
-		align-items: center;
-		gap: 12px;
-		padding: 16px 18px;
-		width: 100%;
-		background: transparent;
-		border: none;
-		cursor: pointer;
-		color: var(--ink);
 	}
 
 	.display-name {
@@ -341,19 +338,6 @@
 		line-height: 1.45;
 	}
 
-	.nav-row {
-		display: flex;
-		align-items: center;
-		gap: 12px;
-		padding: 12px 18px;
-		width: 100%;
-		background: transparent;
-		border: none;
-		cursor: pointer;
-		color: var(--stone);
-		text-align: left;
-	}
-
 	.nav-row-text {
 		flex: 1;
 		display: flex;
@@ -370,10 +354,6 @@
 		font-size: 12px;
 		color: var(--stone);
 		margin-top: 2px;
-	}
-
-	.nav-row > :global(svg:last-of-type) {
-		color: var(--stone-lt);
 	}
 
 	.nav-row-count {

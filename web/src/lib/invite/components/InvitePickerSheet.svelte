@@ -1,7 +1,9 @@
 <script lang="ts">
 	import { SvelteSet } from 'svelte/reactivity';
+	import Button from '$lib/basic/components/Button.svelte';
 	import Icon from '$lib/basic/components/Icon.svelte';
 	import Sheet from '$lib/basic/components/Sheet.svelte';
+	import TextInput from '$lib/basic/components/TextInput.svelte';
 	import Avatar from '$lib/shared/components/Avatar.svelte';
 	import Snackbar from '$lib/shared/components/Snackbar.svelte';
 	import { sendInvitation } from '$lib/invite/state/invitations.svelte';
@@ -105,7 +107,7 @@
 <Sheet open={true} {onclose} data-test="invite-picker">
 	<div class="header">
 		<div class="title">Add someone</div>
-		<div class="subtitle">
+		<div class="explainer subtitle">
 			{#if hasTappableRows}
 				Tap to invite, or type an e-mail below
 			{:else}
@@ -135,10 +137,12 @@
 								<Icon name="check" size={18} />
 							</span>
 						{:else}
-							<button
-								class="invite-btn"
+							<Button
+								variant="pill"
+								tone="ink"
+								size="sm"
 								data-test="invite-picker-invite-{row.otherUserId}"
-								onclick={() => void inviteUser(row.otherUserId)}>Invite</button
+								onclick={() => void inviteUser(row.otherUserId)}>Invite</Button
 							>
 						{/if}
 					</div>
@@ -187,17 +191,20 @@
 				void sendByEmail();
 			}}
 		>
-			<input
-				id="invite-picker-email-input"
-				class="email-input"
-				type="email"
-				inputmode="email"
-				autocomplete="email"
-				placeholder="friend@example.net"
-				data-test="invite-picker-email-input"
-				bind:value={email}
-			/>
-			<button class="send-btn" type="submit" data-test="invite-picker-email-send">Send</button>
+			<div class="email-input-wrap">
+				<TextInput
+					id="invite-picker-email-input"
+					type="email"
+					inputmode="email"
+					autocomplete="email"
+					placeholder="friend@example.net"
+					data-test="invite-picker-email-input"
+					bind:value={email}
+				/>
+			</div>
+			<Button variant="rect" tone="ink" type="submit" data-test="invite-picker-email-send"
+				>Send</Button
+			>
 		</form>
 	</div>
 </Sheet>
@@ -221,8 +228,6 @@
 	}
 
 	.subtitle {
-		font-size: 12.5px;
-		color: var(--stone);
 		margin-top: 2px;
 	}
 
@@ -275,18 +280,6 @@
 		margin-top: 2px;
 	}
 
-	.invite-btn {
-		padding: 7px 14px;
-		border: 1px solid var(--ink);
-		border-radius: 999px;
-		background: transparent;
-		color: var(--ink);
-		font-size: 12.5px;
-		font-weight: 600;
-		font-family: inherit;
-		cursor: pointer;
-	}
-
 	.invited {
 		display: inline-flex;
 		align-items: center;
@@ -310,35 +303,7 @@
 		align-items: center;
 	}
 
-	.email-input {
+	.email-input-wrap {
 		flex: 1;
-		padding: 12px 14px;
-		border: 1px solid var(--rule);
-		border-radius: 12px;
-		background: var(--paper);
-		color: var(--ink);
-		font: inherit;
-		font-size: 16px;
-		outline: none;
-	}
-
-	.email-input::placeholder {
-		color: var(--stone);
-	}
-
-	.email-input:focus {
-		border-color: var(--ink);
-	}
-
-	.send-btn {
-		padding: 0.75rem 1rem;
-		border: none;
-		border-radius: 12px;
-		background: var(--ink);
-		color: var(--paper);
-		font-size: 14px;
-		font-weight: 600;
-		font-family: inherit;
-		cursor: pointer;
 	}
 </style>

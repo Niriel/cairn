@@ -50,7 +50,7 @@ numbered step gets its own detailed plan, slotted into this directory
 as a three-file directory: `plans/<NNNN>_<slug>/{REQUIREMENTS,PLAN,TASKS}.md`
 (see `.claude/commands/write-plan.md`). Master-plan steps are
 numbered in **hundreds** — step 2 → `0200`, step 3 → `0300`, …,
-step 14 → `1400` — leaving 99 free slots between adjacent steps for
+step 15 → `1500` — leaving 99 free slots between adjacent steps for
 the small fixes and refinements big features generate (e.g. `0210`,
 `0250`). Step 1 is the one-off exception: `plans/0010_db_foundation/`
 keeps its `0010` prefix from before the hundreds convention because
@@ -94,7 +94,7 @@ in-flight branch for no gain.
      and load it via a literal `if (import.meta.env.DEV)` dynamic
      import so the module and its transitive imports drop from the
      prod graph entirely; verify by re-grepping the post-build
-     bundle for `alice@example.test`. Must land before step 14's
+     bundle for `alice@example.test`. Must land before step 15's
      deploy. Background and the three deploy-time watch items live at
      `docs/deployment.md` → "Auth surface: pre-deploy checklist";
      the general convention this implements is at
@@ -117,7 +117,7 @@ in-flight branch for no gain.
      the Svelte didn't follow). Update the Vitest tests in
      `LoginRequest.test.ts` and the Playwright `auth.spec.ts` to
      assert the new shape, including a non-2xx branch that still
-     lands on `LoginCheck`. Must land before step 14's deploy so
+     lands on `LoginCheck`. Must land before step 15's deploy so
      the contract is honoured on day 1 of production. Background:
      `docs/admin.md` § "What the web app shows…" and the *"02b ·
      One screen, five outcomes"* artboard in the design canvas.
@@ -133,11 +133,11 @@ in-flight branch for no gain.
      *"if you didn't request this, ignore it"* note. Same for the
      plaintext fallback. Land the template file under
      `gotrue/templates/magic_link.html`, wire it into
-     `docker-compose.yml` (and the prod compose at step 14) as a
+     `docker-compose.yml` (and the prod compose at step 15) as a
      read-only bind mount, and add a Playwright assertion that
      Mailpit's captured email contains the link **and does not
      contain a six-digit numeric token**. Must land before step
-     14's deploy so prod's first email is link-only.
+     15's deploy so prod's first email is link-only.
 
 4. [x] **MVP product surface (single-user happy path).** Lists overview,
    create list, items list with one-at-a-time accordion, add/edit
@@ -190,7 +190,60 @@ in-flight branch for no gain.
    sheet (state-driven actions), members screen, list overflow menu
    (Rename / Edit description / Manage members / View bin / Leave list / Delete list).
 
-9. [ ] **Account deletion.** Tombstone user/profile insert, the
+9. [ ] **Refactoring pass: factor out repeating CSS into components.**
+   Audit-driven cleanup once the screen inventory from steps 4–8 is
+   stable. The same handful of CSS blocks (outlined-pill buttons,
+   chip-shaped panel actions, empty-state CTAs, `.row-icon`
+   `inline-flex; color:…` wrappers, `.section-label` typography rules,
+   ad-hoc `<div class="…">` scaffolding for what is structurally a
+   header / section / heading / list) keep getting copy-pasted across
+   screens because the existing primitives don't cover the shapes the
+   design needs. Visual consistency lives in `git grep`, not in code —
+   one screen tweaks a colour and the others quietly drift. Three
+   parts:
+   - **Consolidate raw `<button>` elements behind a small set of button
+     components.** `Button` today covers only `primary` / `ghost` /
+     `destructive` filled-rectangle shapes; screens reach past it for
+     outlined pills, chip-shaped panel actions, empty-state CTAs, the
+     row-level Restore on `TrashScreen`, `.panel-btn` and `.empty-cta`
+     in `ItemsScreen`, and so on. Audit first, then define a limited
+     variant set (rough hypothesis: filled-rect, outlined-pill,
+     ghost-text, icon-only) with a small parameter surface (size,
+     leading icon, destructive tone) and migrate.
+   - **Give `Icon` a `color` prop (or an idiomatic wrapper) so screens
+     stop copy-pasting `.row-icon { display: inline-flex; color: … }`
+     spans.** `Icon` strokes with `currentColor`, so any non-default
+     colour today requires a parent `inline-flex; color: …` span. Pick
+     whichever approach lets call sites read as
+     `<Icon name="rotate-ccw" color="var(--stone)" />` without an
+     intermediate `<span>`.
+   - **Replace ad-hoc `<div class="…">` scaffolding with semantic
+     HTML.** Egregious case: `InvitePickerSheet.svelte`, whose sheet
+     header, section labels, and per-row blocks are all div-with-class
+     instead of `<header>`, `<section>`, `<h2>` / `<h3>`, `<ul> / <li>`.
+     Per-screen CSS then re-implements typography rules (`.section-label`,
+     `.name`, `.sub`, …) that should live once at the top level keyed
+     off the semantic tag — or in a small set of dedicated components.
+     Sweep every screen under `web/src/lib/**/components/*.svelte`,
+     record the intended semantics, and replace with semantic tags +
+     top-level CSS (or extract a shared component where the same
+     pattern recurs). Accessibility benefit is real too — landmarks,
+     heading hierarchy, and list semantics all become free.
+   - **Replace `border-bottom`-as-separator with `<hr>`.** The app
+     uses `border-bottom` on row elements (buttons, list items, sheet
+     rows) as visual separators throughout. The separator belongs to
+     the document flow, not the element's box — `<hr>` is the right
+     element. A global `hr` reset rule is already in place; the sweep
+     removes each `border-bottom` separator rule and inserts `<hr>`
+     between the affected sibling elements.
+
+   Aim is to minimise repetition without exploding the API; if a shape
+   only appears once, keep it inline rather than minting a variant for
+   it. No behaviour change in the user-visible product; every existing
+   Vitest / Playwright test must still pass without touching the
+   assertions.
+
+10. [ ] **Account deletion.** Tombstone user/profile insert, the
    `delete_account()` RPC, deletion confirmation screen with typed
    "delete" gate, and tombstone attribution UI ("Deleted user" muted
    italic, gray-disc avatar). FK semantics already in place from step
@@ -199,7 +252,7 @@ in-flight branch for no gain.
    sidecar is already running from step 5). See
    `docs/account-deletion.md`.
 
-10. [ ] **Admin: schema, audit table, RPCs, CLI.** Land
+11. [ ] **Admin: schema, audit table, RPCs, CLI.** Land
     `db/migrations/0006_admin.sql` (numbering pending — slot it after
     whatever the deletion migration takes) creating the `admin`
     schema, the `admin.actions` audit table, and the eight RPCs
@@ -216,15 +269,15 @@ in-flight branch for no gain.
     `db/tests/admin_*.sql`: the reason-empty CHECK rejects, the
     audit row writes atomically, `purge_*` cascades correctly,
     `delete_account_as` produces the same end-state as the
-    user-initiated `delete_account()` from step 9. Plus the
+    user-initiated `delete_account()` from step 10. Plus the
     `scripts/cairn-admin` shell (Python; SET ROLE discipline; no
     `--yes` flag without a `--reason`). No web-app changes — admin
     is operator-over-SSH only; see `docs/admin.md` § "Why no admin
     UI". Depends on step 1 (`auth.users` exists, the data model is
-    settled) and step 9 (the `delete_account()` shape and tombstone
+    settled) and step 10 (the `delete_account()` shape and tombstone
     semantics that `delete_account_as` mirrors).
 
-11. [ ] **Data export (GDPR portability).** `export_my_data()`
+12. [ ] **Data export (GDPR portability).** `export_my_data()`
     security-definer RPC returning per-user JSONB (see
     `docs/data-export.md` → "How the export is produced"). Settings →
     Privacy & data → **Download my data** row, hub, packaging,
@@ -235,12 +288,12 @@ in-flight branch for no gain.
     pgTAP coverage on per-user filtering and on the rejection of
     `uid = tombstone`.
 
-12. [ ] **PWA shell.** `manifest.webmanifest`, icons, install prompts, and
+13. [ ] **PWA shell.** `manifest.webmanifest`, icons, install prompts, and
     a minimal service worker for the read-only offline behaviour
     described in `docs/architecture.md` (offline-first conflict
     resolution is explicitly *not* a v1 goal).
 
-13. [ ] **Legal & About surface.** About hub (L1), Privacy policy (L2 —
+14. [ ] **Legal & About surface.** About hub (L1), Privacy policy (L2 —
     references `docs/logging.md`), Terms of service (L3), Imprint
     (L4 — every legally-required field must be filled in by launch;
     needs a German-speaking lawyer's pass — see
@@ -248,7 +301,7 @@ in-flight branch for no gain.
     (L6), Cairn license (L7). Mostly static content; no DB work. See
     `design/cairn-legal-screens.jsx`.
 
-14. [ ] **Production rollout.** Add the missing `caddy/Caddyfile.prod`,
+15. [ ] **Production rollout.** Add the missing `caddy/Caddyfile.prod`,
     `.env.prod` template, Restic backup script, the avatar sidecar
     container in `docker-compose.prod.yml`, the
     `/srv/cairn/avatars/` directory + permissions, and walk through
@@ -264,7 +317,7 @@ in-flight branch for no gain.
     /auth/signup` cannot create unsolicited accounts. Cairn is
     invite-only per `docs/invites.md`, so signup-disabled is the
     correct default; this line exists as a checklist item so the
-    step-13 owner can't miss it. See also the same forward-note
+    step-15 owner can't miss it. See also the same forward-note
     in `docs/development.md` under "Seed data".
 
 ## Sequencing rationale
@@ -285,32 +338,39 @@ in-flight branch for no gain.
 - Soft-delete UX (step 6) before invites: it's a small refinement of
   step 4 and surfaces the trash/undo patterns that the invite flows
   also rely on.
-- Account deletion (step 9) after invites because the tombstone has
+- **Refactoring pass (step 9) between invites UI and account deletion**
+  because the screen inventory is stable enough by step 8 to see which
+  CSS blocks are genuinely recurring vs. one-offs, and doing the
+  consolidation before steps 10–14 add more screens means those later
+  screens are built on the consolidated primitives rather than
+  retrofitting them. Out of scope while screens are still being built;
+  the placement here is the "stable enough" mark.
+- Account deletion (step 10) after invites because the tombstone has
   to re-point attribution on shared content created during sharing
   flows.
-- **Admin (step 10) after account deletion (step 9)** because
+- **Admin (step 11) after account deletion (step 10)** because
   `admin.delete_account_as` mirrors the user-initiated
   `delete_account()` shape — building the user path first means the
   admin path can copy it rather than the two diverging. Admin also
   needs the full data model settled (items, lists, soft-delete,
   tombstone) so `moderate_*` and `purge_*` have their targets in
-  place. Lands before step 14 so the operator has a banhammer and
+  place. Lands before step 15 so the operator has a banhammer and
   an audit trail on day 1 of production.
-- **Data export (step 11) after account deletion (step 9)** because
+- **Data export (step 12) after account deletion (step 10)** because
   the export hub integrates with the Delete account screen via the
   *"Want a copy first?"* panel — building both in adjacent plans means
   the integration is one plan's responsibility, not a cross-plan
-  handoff. Slotted after admin (step 10) but doesn't depend on it;
+  handoff. Slotted after admin (step 11) but doesn't depend on it;
   the order is data-shape stability, not a hard dependency.
-- PWA shell (step 12) before legal/about (step 13) so the install
+- PWA shell (step 13) before legal/about (step 14) so the install
   experience is in place when we start surfacing the privacy /
   imprint / OSS attribution screens that a careful user will look
   for around installation.
-- **Legal & About (step 13) before production rollout (step 14)**
+- **Legal & About (step 14) before production rollout (step 15)**
   because the imprint is a launch-blocker under German law (operating
   out of a Hetzner DE box) — the page must exist and must carry real
   fields, not placeholders, on the day the box goes public.
-- Production rollout (step 14) last: deployable and installable is
+- Production rollout (step 15) last: deployable and installable is
   the polish layer once the product works.
 
 ## Verification

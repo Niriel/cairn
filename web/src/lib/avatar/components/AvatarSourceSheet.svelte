@@ -1,4 +1,5 @@
 <script lang="ts">
+	import Button from '$lib/basic/components/Button.svelte';
 	import Icon from '$lib/basic/components/Icon.svelte';
 	import Sheet from '$lib/basic/components/Sheet.svelte';
 
@@ -22,7 +23,7 @@
 	<div class="handle"></div>
 	<div class="header">
 		<div class="title">Profile picture</div>
-		<div class="subtitle">
+		<div class="explainer subtitle">
 			A photo, doodle, or anything else · JPG, PNG, WebP, or HEIC · up to 8 MB
 		</div>
 	</div>
@@ -41,20 +42,20 @@
 		onchange={handleFile}
 		class="sr-only"
 	/>
-	<button class="row" onclick={() => cameraInput.click()}>
+	<Button variant="text" tone="ink" size="md" onclick={() => cameraInput.click()}>
 		<Icon name="camera" size={18} />
 		<span>Take photo</span>
-	</button>
+	</Button>
 	<div class="divider"></div>
-	<button class="row" onclick={() => libraryInput.click()}>
+	<Button variant="text" tone="ink" size="md" onclick={() => libraryInput.click()}>
 		<Icon name="image" size={18} />
 		<span>Choose from library</span>
-	</button>
+	</Button>
 	<div class="divider"></div>
-	<button class="row cancel" onclick={oncancel}>
+	<Button variant="text" tone="ink" size="md" onclick={oncancel}>
 		<Icon name="x" size={18} />
 		<span>Cancel</span>
-	</button>
+	</Button>
 </Sheet>
 
 <style>
@@ -87,29 +88,7 @@
 	}
 
 	.subtitle {
-		font-size: 12px;
-		color: var(--stone);
 		margin-top: 2px;
-	}
-
-	.row {
-		display: flex;
-		align-items: center;
-		gap: 14px;
-		padding: 14px 22px;
-		width: 100%;
-		background: transparent;
-		border: none;
-		cursor: pointer;
-		font-size: 15px;
-		font-weight: 500;
-		color: var(--ink);
-		font-family: inherit;
-		text-align: left;
-	}
-
-	.cancel {
-		color: var(--stone);
 	}
 
 	.divider {

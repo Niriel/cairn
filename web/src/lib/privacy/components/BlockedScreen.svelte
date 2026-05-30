@@ -1,4 +1,5 @@
 <script lang="ts">
+	import Button from '$lib/basic/components/Button.svelte';
 	import AppTopBar from '$lib/shared/components/AppTopBar.svelte';
 	import Avatar from '$lib/shared/components/Avatar.svelte';
 	import Icon from '$lib/basic/components/Icon.svelte';
@@ -42,13 +43,13 @@
 							<span class="display-name">{entry.displayName}</span>
 							<span class="sub">{blockedAtLabel(entry.createdAt)}</span>
 						</div>
-						<button
-							class="unblock-btn"
+						<Button
+							variant="pill"
+							tone="ink"
+							size="sm"
 							data-test="unblock-{entry.otherUserId}"
-							onclick={() => void unblock(entry.otherUserId)}
+							onclick={() => void unblock(entry.otherUserId)}>Unblock</Button
 						>
-							Unblock
-						</button>
 					</li>
 				{/each}
 			</ul>
@@ -122,17 +123,5 @@
 		color: var(--stone-lt);
 		margin-top: 0.125rem;
 		font-family: var(--mono);
-	}
-
-	.unblock-btn {
-		padding: 0.4375rem 0.75rem;
-		border: 1px solid var(--rule);
-		border-radius: 999px;
-		background: transparent;
-		color: var(--stone);
-		font-size: 0.78rem;
-		font-weight: 600;
-		cursor: pointer;
-		font-family: inherit;
 	}
 </style>

@@ -1,4 +1,7 @@
 <script lang="ts">
+	import Button from '$lib/basic/components/Button.svelte';
+	import Label from '$lib/basic/components/Label.svelte';
+	import TextInput from '$lib/basic/components/TextInput.svelte';
 	import AppTopBar from '$lib/shared/components/AppTopBar.svelte';
 	import Avatar from '$lib/shared/components/Avatar.svelte';
 	import Snackbar from '$lib/shared/components/Snackbar.svelte';
@@ -40,13 +43,15 @@
 	<AppTopBar>Your circle</AppTopBar>
 
 	<div class="intro">
-		<p class="intro-text">
+		<p class="explainer intro-text">
 			When your privacy is set to <em>Your circle</em>, these are the only people who can invite you
 			to a list.
 		</p>
-		<button class="whats-this" data-test="whats-this" onclick={() => (explainerOpen = true)}>
-			What's this?
-		</button>
+		<div class="whats-this">
+			<Button variant="link" data-test="whats-this" onclick={() => (explainerOpen = true)}
+				>What's this?</Button
+			>
+		</div>
 	</div>
 
 	{#if relationships.loaded}
@@ -67,13 +72,13 @@
 							<span class="display-name">{entry.displayName}</span>
 							<span class="sub">{addedAtLabel(entry.createdAt)}</span>
 						</div>
-						<button
-							class="remove-btn"
+						<Button
+							variant="pill"
+							tone="destructive"
+							size="sm"
 							data-test="remove-{entry.otherUserId}"
-							onclick={() => void removeFromCircle(entry.otherUserId)}
+							onclick={() => void removeFromCircle(entry.otherUserId)}>Remove</Button
 						>
-							Remove
-						</button>
 					</li>
 				{/each}
 			</ul>
@@ -81,24 +86,28 @@
 	{/if}
 
 	<div class="add-card">
-		<label class="add-label" for="circle-add-input">E-mail address</label>
-		<div class="add-input-row">
-			<input
-				id="circle-add-input"
-				class="add-input"
-				data-test="circle-add-input"
-				type="email"
-				autocomplete="email"
-				inputmode="email"
-				placeholder="friend@example.net"
-				bind:value={emailInput}
-			/>
-			<button class="add-btn" data-test="circle-add-btn" onclick={handleAdd}>Add</button>
+		<div class="field">
+			<Label for="circle-add-input">E-mail address</Label>
+			<div class="add-input-row">
+				<div class="add-input-wrap">
+					<TextInput
+						id="circle-add-input"
+						data-test="circle-add-input"
+						type="email"
+						autocomplete="email"
+						inputmode="email"
+						placeholder="friend@example.net"
+						bind:value={emailInput}
+					/>
+				</div>
+				<Button variant="rect" tone="ink" data-test="circle-add-btn" onclick={handleAdd}>Add</Button
+				>
+			</div>
 		</div>
 		{#if addError}
-			<p class="add-error" data-test="circle-add-error">{addError}</p>
+			<p class="hint hint-error" data-test="circle-add-error">{addError}</p>
 		{/if}
-		<p class="add-hint">
+		<p class="explainer add-hint">
 			They'll be added to your circle. If they have you blocked, the add still succeeds on your side
 			— but their side stays untouched.
 		</p>
@@ -130,25 +139,13 @@
 
 	.intro-text {
 		flex: 1;
-		font-size: 0.78rem;
-		color: var(--stone);
-		line-height: 1.5;
 		margin: 0;
 	}
 
 	.whats-this {
 		flex-shrink: 0;
-		background: transparent;
-		border: none;
-		padding: 0;
-		color: var(--accent);
-		font-size: 0.78rem;
-		font-weight: 600;
-		cursor: pointer;
-		font-family: inherit;
-		text-decoration: underline dotted;
-		text-underline-offset: 3px;
 		margin-top: 1px;
+		font-size: 0.78rem;
 	}
 
 	.section-header {
@@ -198,18 +195,6 @@
 		font-family: var(--mono);
 	}
 
-	.remove-btn {
-		padding: 0.4375rem 0.75rem;
-		border: 1px solid var(--rule);
-		border-radius: 999px;
-		background: transparent;
-		color: var(--stone);
-		font-size: 0.78rem;
-		font-weight: 600;
-		cursor: pointer;
-		font-family: inherit;
-	}
-
 	.add-card {
 		margin: 0.875rem 1.125rem 1.5rem;
 		padding: 0.875rem;
@@ -218,12 +203,10 @@
 		background: var(--paper-alt);
 	}
 
-	.add-label {
-		display: block;
-		font-size: 13px;
-		font-weight: 500;
-		color: var(--stone);
-		margin-bottom: 0.5rem;
+	.field {
+		display: flex;
+		flex-direction: column;
+		gap: 8px;
 	}
 
 	.add-input-row {
@@ -232,45 +215,12 @@
 		align-items: center;
 	}
 
-	.add-input {
+	.add-input-wrap {
 		flex: 1;
-		padding: 12px 14px;
-		border: 1px solid var(--rule);
-		border-radius: 12px;
-		background: var(--paper);
-		color: var(--ink);
-		font: inherit;
-		font-size: 16px;
-	}
-
-	.add-input::placeholder {
-		color: var(--stone);
-	}
-
-	.add-btn {
-		padding: 0.75rem 1rem;
-		border: none;
-		border-radius: 12px;
-		background: var(--ink);
-		color: var(--paper);
-		font: inherit;
-		font-size: 15px;
-		font-weight: 600;
-		cursor: pointer;
-	}
-
-	.add-error {
-		margin-top: 0.5rem;
-		margin-bottom: 0;
-		font-size: 0.75rem;
-		color: var(--ember);
 	}
 
 	.add-hint {
 		margin-top: 0.625rem;
 		margin-bottom: 0;
-		font-size: 0.75rem;
-		color: var(--stone);
-		line-height: 1.5;
 	}
 </style>

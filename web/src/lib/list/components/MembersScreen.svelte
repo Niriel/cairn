@@ -104,7 +104,12 @@
 			</div>
 
 			<div class="add-wrap">
-				<Button variant="primary" data-test="members-add" onclick={() => (pickerOpen = true)}>
+				<Button
+					variant="rect"
+					tone="primary"
+					data-test="members-add"
+					onclick={() => (pickerOpen = true)}
+				>
 					<Icon name="user-plus" size={16} />
 					<span class="add-label">Add member</span>
 				</Button>

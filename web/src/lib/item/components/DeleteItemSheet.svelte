@@ -1,6 +1,7 @@
 <script lang="ts">
-	import Sheet from '$lib/basic/components/Sheet.svelte';
+	import Button from '$lib/basic/components/Button.svelte';
 	import Icon from '$lib/basic/components/Icon.svelte';
+	import Sheet from '$lib/basic/components/Sheet.svelte';
 	import { softDeleteItem } from '$lib/item/state/items.svelte';
 	import type { Item } from '$lib/item/model/item';
 
@@ -43,15 +44,13 @@
 		</div>
 	</div>
 	<div class="actions">
-		<button type="button" class="btn-cancel" data-test="delete-cancel" onclick={oncancel}
-			>Cancel</button
-		>
-		<button
+		<Button type="button" tone="ink" data-test="delete-cancel" onclick={oncancel}>Cancel</Button>
+		<Button
 			type="button"
-			class="btn-delete"
+			tone="destructive"
 			data-test="delete-confirm"
 			disabled={deleting}
-			onclick={() => void handleDelete()}>Delete</button
+			onclick={() => void handleDelete()}>Delete</Button
 		>
 	</div>
 </Sheet>
@@ -96,32 +95,7 @@
 		gap: 10px;
 	}
 
-	.btn-cancel,
-	.btn-delete {
+	.actions :global(button) {
 		flex: 1;
-		padding: 12px;
-		border-radius: 12px;
-		font: inherit;
-		font-size: 14px;
-		font-weight: 500;
-		cursor: pointer;
-	}
-
-	.btn-cancel {
-		border: 1px solid var(--rule);
-		background: var(--paper);
-		color: var(--ink);
-	}
-
-	.btn-delete {
-		border: none;
-		background: var(--ember);
-		color: #fff;
-		font-weight: 600;
-	}
-
-	.btn-delete:disabled {
-		opacity: 0.5;
-		cursor: default;
 	}
 </style>

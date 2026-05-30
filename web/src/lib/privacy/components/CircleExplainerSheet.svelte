@@ -1,4 +1,5 @@
 <script lang="ts">
+	import Button from '$lib/basic/components/Button.svelte';
 	import Sheet from '$lib/basic/components/Sheet.svelte';
 
 	type Props = {
@@ -54,7 +55,9 @@
 		one who sees it.
 	</p>
 
-	<button onclick={onclose}>Got it</button>
+	<div class="got-it-wrap">
+		<Button variant="rect" tone="ink" size="md" onclick={onclose}>Got it</Button>
+	</div>
 </Sheet>
 
 <style>
@@ -96,17 +99,11 @@
 		margin-top: 1.125rem;
 	}
 
-	button {
+	.got-it-wrap {
 		margin-top: 1.125rem;
+	}
+
+	.got-it-wrap :global(button) {
 		width: 100%;
-		padding: 0.75rem;
-		border: none;
-		border-radius: 0.75rem;
-		background: var(--ink);
-		color: var(--paper);
-		font-size: 0.9rem;
-		font-weight: 600;
-		font-family: inherit;
-		cursor: pointer;
 	}
 </style>

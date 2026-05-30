@@ -16,6 +16,7 @@
 	import { TOMBSTONE_UID } from '$lib/shared/model/constants';
 
 	import TopBar from '$lib/shared/components/TopBar.svelte';
+	import Button from '$lib/basic/components/Button.svelte';
 	import IconButton from '$lib/basic/components/IconButton.svelte';
 	import MoreButton from '$lib/shared/components/MoreButton.svelte';
 	import UndoSnackbar from '$lib/shared/components/UndoSnackbar.svelte';
@@ -114,10 +115,15 @@
 			<p class="empty-body">
 				Drop the first stone — add an item with a name and (optionally) a note.
 			</p>
-			<button class="empty-cta" onclick={() => (addSheetOpen = true)}>
-				<Icon name="plus" size={15} />
+			<Button
+				variant="rect"
+				tone="ink"
+				size="md"
+				leadingIcon="plus"
+				onclick={() => (addSheetOpen = true)}
+			>
 				Add the first item
-			</button>
+			</Button>
 		</div>
 	{:else}
 		<div class="rows">
@@ -184,28 +190,30 @@
 								{/if}
 							</div>
 							<div class="panel-actions">
-								<button
-									class="panel-btn destructive"
+								<Button
+									variant="pill"
+									tone="destructive"
+									size="sm"
+									leadingIcon="trash"
 									data-test="panel-delete-{item.id}"
+									style="flex: 1"
 									onclick={() => {
 										deleteSheetItem = item;
 										openId = null;
-									}}
+									}}>Delete</Button
 								>
-									<Icon name="trash" size={14} />
-									Delete
-								</button>
-								<button
-									class="panel-btn"
+								<Button
+									variant="pill"
+									tone="ink"
+									size="sm"
+									leadingIcon="pencil"
 									data-test="panel-edit-{item.id}"
+									style="flex: 1"
 									onclick={() => {
 										editSheetItem = item;
 										openId = null;
-									}}
+									}}>Edit</Button
 								>
-									<Icon name="pencil" size={14} />
-									Edit
-								</button>
 							</div>
 						</div>
 					{/if}
@@ -351,21 +359,6 @@
 		margin-top: 0;
 	}
 
-	.empty-cta {
-		display: inline-flex;
-		align-items: center;
-		gap: 8px;
-		padding: 11px 20px;
-		border: none;
-		border-radius: 12px;
-		background: var(--ink);
-		color: var(--paper);
-		font: inherit;
-		font-size: 14px;
-		font-weight: 600;
-		cursor: pointer;
-	}
-
 	.rows {
 		padding-bottom: 90px;
 	}
@@ -505,27 +498,6 @@
 		margin-top: 14px;
 		display: flex;
 		gap: 8px;
-	}
-
-	.panel-btn {
-		flex: 1;
-		padding: 10px 12px;
-		border: 1px solid var(--rule);
-		border-radius: 10px;
-		background: var(--paper);
-		color: var(--ink);
-		font: inherit;
-		font-size: 13px;
-		font-weight: 500;
-		cursor: pointer;
-		display: inline-flex;
-		align-items: center;
-		justify-content: center;
-		gap: 6px;
-	}
-
-	.panel-btn.destructive {
-		color: var(--ember);
 	}
 
 	.undo-snackbar {

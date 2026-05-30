@@ -6,6 +6,7 @@
 
 	import CairnGlyph from '$lib/shared/components/CairnGlyph.svelte';
 	import Avatar from '$lib/shared/components/Avatar.svelte';
+	import Button from '$lib/basic/components/Button.svelte';
 	import Icon from '$lib/basic/components/Icon.svelte';
 	import IconButton from '$lib/basic/components/IconButton.svelte';
 	import Fab from '$lib/basic/components/Fab.svelte';
@@ -79,31 +80,32 @@
 				A cairn is a small stack of stones hikers leave to mark the way. Make a list of things —
 				movies, books, places — and share it with friends.
 			</p>
-			<button
-				class="empty-cta"
+			<Button
+				variant="rect"
+				tone="ink"
+				size="md"
+				leadingIcon="plus"
 				data-test="lists-empty-cta"
 				onclick={() => {
 					createSheetOpen = true;
-				}}
+				}}>Create your first list</Button
 			>
-				<Icon name="plus" size={16} />
-				Create your first list
-			</button>
 		</div>
 	{:else}
 		<div class="list">
 			{#each lists.items as item, i (item.id)}
 				<div class="row" class:last={i === lists.items.length - 1} data-test="list-row-{item.id}">
 					<div class="row-top">
-						<button
-							class="row-nav"
+						<Button
+							variant="text"
+							tone="ink"
+							size="md"
 							data-test="list-nav-{item.id}"
+							style="flex: 1; min-width: 0; padding: 0;"
 							onclick={() => {
 								void goto(resolve(`/lists/${item.id}`));
-							}}
+							}}><span class="name">{item.name}</span></Button
 						>
-							<span class="name">{item.name}</span>
-						</button>
 						<MoreButton
 							size={18}
 							aria-label="List options"
@@ -242,19 +244,6 @@
 		align-items: center;
 	}
 
-	.row-nav {
-		display: flex;
-		align-items: flex-start;
-		gap: 12px;
-		flex: 1;
-		min-width: 0;
-		background: none;
-		border: none;
-		padding: 0;
-		text-align: left;
-		cursor: pointer;
-	}
-
 	.name {
 		flex: 1;
 		min-width: 0;
@@ -365,20 +354,5 @@
 		line-height: 1.5;
 		margin: 0 0 28px;
 		max-width: 280px;
-	}
-
-	.empty-cta {
-		display: inline-flex;
-		align-items: center;
-		gap: 8px;
-		padding: 12px 22px;
-		border: none;
-		border-radius: 12px;
-		background: var(--ink);
-		color: var(--paper);
-		font-size: 14px;
-		font-weight: 600;
-		font-family: inherit;
-		cursor: pointer;
 	}
 </style>
