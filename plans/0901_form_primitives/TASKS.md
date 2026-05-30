@@ -930,10 +930,10 @@ plan.
 
 ## Phase 4 — Input migration sweep + hint CSS
 
-### [ ] 4.1 Lift `.hint` / `.hint-error` rule into `typography.css`
+### [x] 4.1 Lift `.hint` / `.hint-error` rule into `typography.css`
 
 **Created:** 2026-05-29T13:21:24Z
-**Completed:**
+**Completed:** 2026-05-30T05:52:35Z
 
 **Why:** Migrated `<TextInput>` and `<Textarea>` call sites emit
 `<p class="hint">` and `<p class="hint hint-error">` paragraphs

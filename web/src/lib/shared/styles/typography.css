@@ -5,3 +5,14 @@
 	--font-size-scale: 1;
 	font-size: calc(16px * var(--font-size-scale));
 }
+
+.hint {
+	font-size: 13px;
+	color: var(--stone);
+	margin-top: 0;
+	margin-bottom: 6px;
+}
+
+.hint.hint-error {
+	color: var(--ember);
+}
