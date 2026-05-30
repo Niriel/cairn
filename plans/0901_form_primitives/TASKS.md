@@ -1292,10 +1292,10 @@ REQUIREMENTS R8.
 
 **Verify:** `pnpm lint` · `pnpm check` · `pnpm test`
 
-### [ ] 4.7 Lift `.disclaimer` rule into `typography.css` and sweep call sites
+### [x] 4.7 Lift `.disclaimer` rule into `typography.css` and sweep call sites
 
 **Created:** 2026-05-30T06:00:00Z
-**Completed:**
+**Completed:** 2026-05-30T07:23:35Z
 
 **Why:** Two components use scoped CSS for the same "small muted centred
 footer copy" pattern — `LoginRequest.svelte` (`.disclaimer`, introduced in

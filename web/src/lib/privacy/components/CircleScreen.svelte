@@ -43,7 +43,7 @@
 	<AppTopBar>Your circle</AppTopBar>
 
 	<div class="intro">
-		<p class="intro-text">
+		<p class="explainer intro-text">
 			When your privacy is set to <em>Your circle</em>, these are the only people who can invite you
 			to a list.
 		</p>
@@ -107,7 +107,7 @@
 		{#if addError}
 			<p class="hint hint-error" data-test="circle-add-error">{addError}</p>
 		{/if}
-		<p class="hint add-hint">
+		<p class="explainer add-hint">
 			They'll be added to your circle. If they have you blocked, the add still succeeds on your side
 			— but their side stays untouched.
 		</p>
@@ -139,9 +139,6 @@
 
 	.intro-text {
 		flex: 1;
-		font-size: 0.78rem;
-		color: var(--stone);
-		line-height: 1.5;
 		margin: 0;
 	}
 

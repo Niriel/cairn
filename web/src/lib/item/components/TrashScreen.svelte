@@ -31,7 +31,9 @@
 	</TopBar>
 
 	<div class="description">
-		<div>Items you delete from this list land here. Tap Restore to bring one back.</div>
+		<p class="explainer">
+			Items you delete from this list land here. Tap Restore to bring one back.
+		</p>
 	</div>
 
 	{#if itemTrash.loading}
@@ -82,12 +84,6 @@
 
 	.description {
 		padding: 14px 18px 6px;
-	}
-
-	.description div {
-		font-size: 13.5px;
-		color: var(--ink-soft);
-		line-height: 1.5;
 	}
 
 	.loading {

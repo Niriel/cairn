@@ -179,9 +179,5 @@
 
 	.disclaimer {
 		margin-top: 18px;
-		font-size: 12px;
-		color: var(--stone);
-		text-align: center;
-		line-height: 1.5;
 	}
 </style>

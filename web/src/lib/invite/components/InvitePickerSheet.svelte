@@ -107,7 +107,7 @@
 <Sheet open={true} {onclose} data-test="invite-picker">
 	<div class="header">
 		<div class="title">Add someone</div>
-		<div class="subtitle">
+		<div class="explainer subtitle">
 			{#if hasTappableRows}
 				Tap to invite, or type an e-mail below
 			{:else}
@@ -228,8 +228,6 @@
 	}
 
 	.subtitle {
-		font-size: 12.5px;
-		color: var(--stone);
 		margin-top: 2px;
 	}
 

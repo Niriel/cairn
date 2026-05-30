@@ -171,7 +171,7 @@
 			<span class="corner bottom right"></span>
 		</div>
 
-		<p class="hint">
+		<p class="explainer">
 			Drag to position. Pinch to zoom.<br />
 			We'll save it as a 256 × 256 square — small, fast, and easy to back up.
 		</p>
@@ -257,12 +257,8 @@
 		border-right: 2px solid rgba(255, 255, 255, 0.7);
 	}
 
-	.hint {
+	.explainer {
 		margin-top: 18px;
-		font-size: 13px;
-		color: var(--stone);
-		text-align: center;
-		line-height: 1.5;
 	}
 
 	.preview-row {

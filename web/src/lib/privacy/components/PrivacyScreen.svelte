@@ -149,7 +149,7 @@
 
 		<div class="privacy-note" data-test="privacy-note">
 			<Icon name="lock" size={16} />
-			<span
+			<span class="disclaimer"
 				>Your e-mail address is never shown to other people on Cairn — only your display name and
 				avatar.</span
 			>
@@ -325,9 +325,6 @@
 		padding: 0.875rem;
 		background: var(--paper-alt);
 		border-radius: 0.75rem;
-		font-size: 0.75rem;
-		color: var(--stone);
-		line-height: 1.5;
 		display: flex;
 		align-items: flex-start;
 		gap: 0.625rem;

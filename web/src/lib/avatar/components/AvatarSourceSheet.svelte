@@ -23,7 +23,7 @@
 	<div class="handle"></div>
 	<div class="header">
 		<div class="title">Profile picture</div>
-		<div class="subtitle">
+		<div class="explainer subtitle">
 			A photo, doodle, or anything else · JPG, PNG, WebP, or HEIC · up to 8 MB
 		</div>
 	</div>
@@ -88,8 +88,6 @@
 	}
 
 	.subtitle {
-		font-size: 12px;
-		color: var(--stone);
 		margin-top: 2px;
 	}
 
