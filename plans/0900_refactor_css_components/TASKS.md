@@ -175,10 +175,16 @@ the empty-state CTAs.
 
 ## Phase 1b — Labels sweep (added during 0901 execution)
 
-### [ ] 1.2 Audit every form and ensure all inputs have a `<Label>`
+### [x] 1.2 Audit every form and ensure all inputs have a `<Label>`
 
 **Created:** 2026-05-30T06:16:12Z
-**Completed:**
+**Completed:** 2026-05-30T07:49:16Z
+
+**Notes:** The 0901 sweep had already added `<Label>` + `.field` wrapping to every non-carve-out input. Confirmed audit results:
+- All nine `<TextInput>` / `<Textarea>` call sites have a `<Label>` sibling inside a `.field` div.
+- `AvatarSourceSheet.svelte` — two `sr-only` hidden file inputs triggered by buttons; explicit carve-out, no labels needed.
+- `InvitePickerSheet.svelte` — uses raw `<label class="section-label email-label" for="…">` as section heading; explicit carve-out per task decisions.
+No files were changed; `pnpm lint` · `pnpm check` · `pnpm test` all green.
 
 **Why:** During 0901 input migration it became clear that placeholder-only
 forms are the norm across the codebase (list sheets, auth, profile, invites)
