@@ -1353,10 +1353,12 @@ visual pattern. Leave it alone.
 
 ## Phase 5 — Wrap up
 
-### [ ] 5.1 Final smoke — lint + Vitest + auth e2e happy path
+### [x] 5.1 Final smoke — lint + Vitest + auth e2e happy path
 
 **Created:** 2026-05-29T13:21:24Z
-**Completed:**
+**Completed:** 2026-05-30T07:40:04Z
+
+**Notes:** `./scripts/check.sh` passed green (prettier, eslint, sqlfluff, shellcheck, shfmt, svelte-check, pg_prove, vitest). Auth e2e not run — Playwright can't execute on this Ubuntu version (no compatible browser binaries). Manual walkthrough of the touched flows deferred to the parent plan's task 1.1 Verify step per the task's own Decisions section.
 
 **Why:** Cross-cutting confirmation that every primitive
 extension, every migration commit, and the hint-CSS lift are
