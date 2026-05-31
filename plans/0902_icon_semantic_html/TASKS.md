@@ -14,10 +14,10 @@
 
 ## Phase 1 — Typography lift
 
-### [ ] 1.1 Add global `h2` and `ul / ol` rules to `typography.css`
+### [x] 1.1 Add global `h2` and `ul / ol` rules to `typography.css`
 
 **Created:** 2026-05-30T08:24:10Z
-**Completed:**
+**Completed:** 2026-05-31T03:13:59Z
 
 **Why:** Every `div.section-label → h2` migration in Phase 3 is safe only
 when the global `h2` rule already covers the typography, so the per-file

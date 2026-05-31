@@ -39,3 +39,40 @@
 	margin-top: 0;
 	margin-bottom: 0;
 }
+
+/* Screen titles — the TopBar <h1> is the one canonical page-level heading.
+   Font declarations move here from TopBar's scoped .centre CSS in task 3.10. */
+h1 {
+	font-family: 'Newsreader Variable', Georgia, serif;
+	font-size: 22px;
+	font-weight: 500;
+	letter-spacing: -0.01em;
+	color: var(--ink);
+	margin: 0;
+}
+
+/* Section labels — replaces per-file .section-label rules once
+   div.section-label elements are migrated to <h2> in Phase 3. */
+h2 {
+	font-size: 11.5px;
+	color: var(--stone);
+	font-weight: 600;
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+}
+
+/* Row names. */
+h3 {
+	font-size: 15px;
+	font-weight: 600;
+	color: var(--ink);
+	margin: 0;
+}
+
+/* Cairn lists are flex/grid scaffolds, not bulleted content. */
+ul,
+ol {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+}
