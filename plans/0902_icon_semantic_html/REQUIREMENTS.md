@@ -35,15 +35,14 @@ before any rule is written.
 
 ## R2. `<EmptyState>` extracted
 
-A new `web/src/lib/shared/components/EmptyState.svelte` encapsulates the
-empty-state UI in two variants.
+A new `web/src/lib/shared/components/EmptyState.svelte` encapsulates the one
+empty-state shape used across the whole app. There is **no `variant` prop** —
+a single illustrated look everywhere is a deliberate consistency choice
+(`docs/ui.md` documents one empty-state pattern, not two). A 96 × 96 px circle
+disc (`--paper-alt` background, dashed `--stone-lt` border) contains the icon,
+followed by an optional serif heading, an optional body paragraph, and an
+optional CTA button. Every screen supplies only the parts it needs. Props:
 
-**Illustrated variant** (`variant='illustrated'`, the default): a 96 × 96 px
-circle disc (`--paper-alt` background, dashed `--stone-lt` border) containing
-the icon, a serif heading, a body paragraph, and an optional CTA button.
-Props:
-
-- `variant?: 'illustrated' | 'simple'` — default `'illustrated'`.
 - `icon?: IconName` — icon name, rendered inside the disc. Optional when
   `iconContent` is supplied.
 - `iconContent?: Snippet` — Svelte snippet rendered inside the disc in place of
@@ -52,24 +51,21 @@ Props:
 - `iconSize?: number` — icon size in pixels, default `32`. Use `44` for
   screens whose original markup used a larger icon (TrashScreen,
   DeletedListsScreen). Ignored when `iconContent` is supplied.
-- `title?: string` — heading copy.
-- `body?: string` — body paragraph copy.
+- `title?: string` — heading copy. Omitted renders no heading.
+- `body?: string` — body paragraph copy. Omitted renders no body (TrashScreen,
+  DeletedListsScreen, BlockedScreen have a heading but no body).
 - `ctaLabel?: string` and `onCta?: () => void` — when both are supplied, a
   `<Button variant="rect" tone="ink" size="md" leadingIcon="plus">` CTA
-  is rendered below the body. When omitted, no CTA is rendered. Uses
+  is rendered below the body. When either is omitted, no CTA is rendered. Uses
   `tone="ink"` (dark background) to match the existing screens' CTA style and
   the empty-state spec in `docs/ui.md` ("CTA button: `background: var(--ink)`").
 
-**Simple variant** (`variant='simple'`): a dashed-border box (`--stone-lt`
-border, `--paper-alt` background, `border-radius: 14px`) containing just the
-icon and a muted paragraph. Props: `icon` or `iconContent`, `body`. `title`,
-`ctaLabel`, and `onCta` are ignored when `variant='simple'`.
-
 `data-test` is forwarded to the outermost element.
 
-A co-located `EmptyState.test.ts` covers both variants with Vitest: renders
-with required props, correct element types, CTA fires `onCta`, CTA absent when
-not supplied, simple variant renders the dashed box without a title.
+A co-located `EmptyState.test.ts` covers the component with Vitest: renders
+with required props, the disc is present, `<Icon>` renders from `icon`,
+`iconContent` overrides `icon`, heading / body render when supplied, CTA fires
+`onCta`, and the CTA is absent unless both `ctaLabel` and `onCta` are supplied.
 
 ## R3. Semantic HTML sweep
 

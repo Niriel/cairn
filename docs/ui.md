@@ -464,18 +464,19 @@ When a list row has a primary label and a trailing chevron that both navigate to
 
 ### Empty-state copy and style
 
-Two patterns are used, depending on the screen's design spec.
+One pattern is used everywhere, implemented by the shared `<EmptyState>`
+component (`web/src/lib/shared/components/`). A single empty-state look across
+every screen is a deliberate consistency choice — utility screens (e.g.
+Blocked) use the same illustrated treatment as first-run screens (e.g. Lists),
+just without a CTA. Structure:
 
-**Simple empty state** — for utility screens with no illustration: two short lines, the first stating the fact ("No items yet."), the second giving the action ("Tap [icon] to create one."). Colour: `var(--stone)`. Font size: ≥ 22 px. Inline icon hints (the circular FAB replica) use `background: var(--accent); color: var(--paper)` and `border-radius: 50%`.
-
-**Illustrated empty state** — for screens where the first-run experience warrants more visual weight (e.g. the Lists screen). Structure:
-
-- A centred 96 × 96 px circle: `background: var(--paper-alt); border: 1px dashed var(--stone-lt); border-radius: 99px`. Contains a brand illustration (e.g. `<CairnGlyph size={44} color="var(--stone)" />`).
+- A centred 96 × 96 px circle: `background: var(--paper-alt); border: 1px dashed var(--stone-lt); border-radius: 99px`. Contains an icon (`<Icon>`) or a brand illustration (e.g. `<CairnGlyph size={44} color="var(--stone)" />`).
 - A heading: Newsreader 24 px, weight 500, `var(--ink)`, letter-spacing −0.01 em.
 - Body copy: 14 px, `var(--ink-soft)`, line-height 1.5, max-width 280 px.
-- A CTA button: `background: var(--ink); color: var(--paper)`, border-radius 12 px, padding 12 px 22 px, weight 600, 14 px, with a leading icon.
+- An optional CTA button: `background: var(--ink); color: var(--paper)`, border-radius 12 px, padding 12 px 22 px, weight 600, 14 px, with a leading icon. Rendered only on screens with a primary first-run action (Lists, Items); omitted elsewhere.
 
-Use the pattern specified by the screen's design JSX in `design/cairn-screens.jsx`.
+Heading, body, and CTA are each optional — a screen supplies only the parts it
+needs (e.g. Trash and Blocked render the disc + heading with no CTA).
 
 ## Not decided
 

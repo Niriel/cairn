@@ -324,22 +324,23 @@ plan if wanted).
 The 0902 sub-plan extracts a small `<EmptyState>` component
 under `web/src/lib/shared/components/` (per the tier rules in
 `docs/frontend-layout.md` — empty-state is a shared application
-primitive, not a `basic/` framework primitive). Props:
+primitive, not a `basic/` framework primitive). It has **one
+shape, no `variant` prop** — a single illustrated empty state
+(disc + optional heading / body / CTA) used on every screen, so
+no screen drifts to a one-off look. Props:
 
-- `variant: 'illustrated' | 'simple'` (default
-  `'illustrated'`) — picks between the two patterns.
-- `icon: IconName` — the icon name (rendered inside the
-  `empty-circle` disc for illustrated, plain for simple).
-- `title?: string` — required when `variant='illustrated'`,
-  omitted when `variant='simple'`.
-- `body: string` — the paragraph copy.
-- `ctaLabel?: string`, `onCta?: () => void` (or an optional CTA
-  slot; pick one in 0902's exploration phase) — applies only to
-  `variant='illustrated'`.
+- `icon?: IconName` — icon rendered inside the `empty-circle`
+  disc (or `iconContent?: Snippet` for non-Icon disc content
+  such as `<CairnGlyph>`).
+- `title?: string` — heading copy; omitted renders no heading.
+- `body?: string` — paragraph copy; omitted renders no body.
+- `ctaLabel?: string`, `onCta?: () => void` — when both are
+  supplied, an `<Button>` CTA is rendered below the body.
 
 Each migrated screen replaces its inlined empty-state markup
-with `<EmptyState …>`: the four illustrated cases use the
-default variant; `BlockedScreen` uses `variant="simple"`.
+with `<EmptyState …>`. `BlockedScreen`, which had drifted to a
+one-off dashed box, is brought onto the same illustrated look
+(heading-only, no CTA) — see 0902 task 4.4.
 
 ## R14. No user-visible behaviour change (with two deliberate exceptions)
 

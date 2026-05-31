@@ -4,7 +4,8 @@
 
 - **`docs/frontend-layout.md`** — tier rules (`basic/` vs `shared/`); test
   files next to SvelteKit route files must omit the `+` prefix.
-- **`docs/ui.md`** — empty-state pattern spec (illustrated vs simple variants).
+- **`docs/ui.md`** — empty-state pattern spec (one illustrated pattern, used
+  on every screen).
 - **`docs/testing.md`** — Vitest for component behaviour.
 - **`docs/quality.md`** — lint / format / type-check toolchain.
 - **`design/Cairn - Design Canvas.html`** — visual reference for the
@@ -111,17 +112,19 @@ the base of this branch (`0902_icon_semantic_html`).
 
 ## Phase 2 — `<EmptyState>` extraction
 
-### [ ] 2.1 Extract `<EmptyState>` and write Vitest tests
+### [x] 2.1 Extract `<EmptyState>` and write Vitest tests
 
 **Created:** 2026-05-30T08:24:10Z
-**Completed:**
+**Completed:** 2026-05-31T08:14:28Z
 
-**Why:** Four screens (`ListsScreen`, `ItemsScreen`, `InvitesInboxScreen`,
-`DeletedListsScreen`) copy-paste the same illustrated empty-state block
+**Why:** Six screens (`ListsScreen`, `ItemsScreen`, `InvitesInboxScreen`,
+`DeletedListsScreen`, `TrashScreen`, `BlockedScreen`) each render an
+empty-state block — most copy-paste the same illustrated markup
 (`.empty-circle` icon disc + `.empty-heading` serif title + `.empty-body`
-paragraph + optional CTA button), and `BlockedScreen` has a simpler dashed-box
-variant. Extracting `<EmptyState>` before the migration tasks means each
-screen's Phase 4 task is a three-line replace — no per-screen design decisions.
+paragraph + optional CTA button), and `BlockedScreen` had drifted to a
+one-off dashed-box look. Extracting a single `<EmptyState>` before the
+migration tasks unifies all six on one look and makes each screen's Phase 4
+task a three-line replace — no per-screen design decisions.
 
 **Prerequisites:** Task 1.1 (global `h2` and `ul/ol` rules in place).
 
@@ -136,10 +139,14 @@ screen's Phase 4 task is a three-line replace — no per-screen design decisions
   ("CTA button: `background: var(--ink)`"). When either prop is absent, no CTA
   is rendered. This is simpler than a slot (callers don't manage the Button
   import) and more explicit than a single `cta?: { label; onclick }` object.
+- **No `variant` prop — one look everywhere.** An earlier draft had
+  `variant: 'illustrated' | 'simple'`, where `simple` was a dashed inline box
+  used only by `BlockedScreen`. That reintroduced the inconsistency this plan
+  removes. The component is single-shape (illustrated); `BlockedScreen` uses it
+  like every other screen (task 4.4), and `docs/ui.md` documents one pattern.
 - **Props:**
-  - `variant?: 'illustrated' | 'simple'` — default `'illustrated'`.
-  - `icon?: IconName` — rendered inside the disc (illustrated) or plain
-    (simple). Optional when `iconContent` is supplied.
+  - `icon?: IconName` — rendered inside the disc. Optional when `iconContent`
+    is supplied.
   - `iconContent?: Snippet` — Svelte 5 snippet rendered inside the disc in
     place of `<Icon>`. Use for disc content outside the icon system (e.g.
     `<CairnGlyph>` in `ListsScreen`). Takes priority over `icon`.
@@ -165,11 +172,6 @@ screen's Phase 4 task is a three-line replace — no per-screen design decisions
     margin-bottom: 10px`.
   - Body: `font-size: 14px; color: var(--ink-soft); line-height: 1.5;
     margin: 0 0 28px; max-width: 280px`.
-- **Simple CSS** (matches `BlockedScreen`'s dashed box):
-  - `margin: 1.5rem 1.125rem; padding: 2.25rem 1.125rem; text-align: center;
-    border: 1px dashed var(--stone-lt); border-radius: 0.875rem;
-    background: var(--paper-alt); color: var(--stone)`.
-  - Paragraph: `font-size: 0.875rem; margin-top: 0.625rem; margin-bottom: 0`.
 
 **Reference:** `docs/ui.md` → empty-state pattern for the canonical two-variant
 spec.
@@ -180,25 +182,22 @@ spec.
 
 **Steps:**
 1. RED — Create `EmptyState.test.ts`. Import and render `EmptyState` with
-   Vitest. Assertions to include:
-   - Illustrated (default): outermost element has `data-test`; the disc element
-     is present; `<Icon>` renders when `icon` is supplied; disc renders snippet
-     content when `iconContent` is supplied (and `icon` is ignored); heading
-     text renders when `title` is supplied; body text renders when `body` is
-     supplied; CTA button renders when both `ctaLabel` and `onCta` are supplied;
-     clicking CTA fires `onCta`; CTA is absent when `ctaLabel` / `onCta` are
-     omitted; CTA is absent when only `ctaLabel` is supplied (no `onCta`); CTA
-     is absent when only `onCta` is supplied (no `ctaLabel`).
-   - Simple variant: outermost element present with `data-test`; no disc
-     element; `title` is not rendered even if supplied; body paragraph renders.
+   Vitest. Assertions to include: outermost element has `data-test`; the disc
+   element is present; `<Icon>` renders when `icon` is supplied; disc renders
+   snippet content when `iconContent` is supplied (and `icon` is ignored);
+   heading text renders when `title` is supplied; body text renders when `body`
+   is supplied; CTA button renders when both `ctaLabel` and `onCta` are
+   supplied; clicking CTA fires `onCta`; CTA is absent when `ctaLabel` / `onCta`
+   are omitted; CTA is absent when only `ctaLabel` is supplied (no `onCta`); CTA
+   is absent when only `onCta` is supplied (no `ctaLabel`).
 2. RED — Run `pnpm test` and confirm the new tests fail (component doesn't
    exist yet).
 3. GREEN — Create `EmptyState.svelte`. Import `type Snippet` from `'svelte'`,
    `Button` from `$lib/basic/components/Button.svelte`, and `Icon` from
-   `$lib/basic/components/Icon.svelte`. Implement both variants using an
-   `{#if variant === 'simple'}` branch. In the illustrated disc, use
+   `$lib/basic/components/Icon.svelte`. In the disc, use
    `{#if iconContent}{@render iconContent()}{:else if icon}<Icon name={icon}
-   size={iconSize ?? 32} />{/if}`. Apply the CSS values from Decisions.
+   size={iconSize} />{/if}`, then render the heading, body, and CTA each behind
+   its own `{#if}` guard. Apply the CSS values from Decisions.
 4. GREEN — Run `pnpm test` and confirm all tests pass.
 5. Run `pnpm lint` · `pnpm check` to confirm no lint or type errors.
 
@@ -768,21 +767,26 @@ optional props work — the component renders cleanly without them.
 
 **Verify:** `pnpm lint` · `pnpm check` · `pnpm test`
 
-### [ ] 4.4 BlockedScreen — simple variant
+### [ ] 4.4 BlockedScreen — unify on the illustrated empty state
 
 **Created:** 2026-05-30T08:24:10Z
 **Completed:**
 
-**Why:** `BlockedScreen` has the simple variant (dashed-border box, icon +
-paragraph, no disc, no heading). This is the only `variant="simple"` migration
-and validates the second branch of `EmptyState`.
+**Why:** `BlockedScreen` had drifted to a one-off dashed-box empty state —
+the single screen looking unlike every other. Unifying it on `<EmptyState>`
+(disc + heading, no body, no CTA — the same shape as TrashScreen and
+DeletedListsScreen) is the whole point of this plan: one empty-state look
+everywhere. This is a deliberate visual change to BlockedScreen, not a
+like-for-like port; `docs/ui.md` was updated to document the single pattern.
 
 **Prerequisites:** Task 2.1.
 
 **Decisions:**
-- Replace the `<div class="empty-state">` block with `<EmptyState
-  variant="simple" icon="slash" body="You haven't blocked anyone."
-  data-test="blocked-empty">`.
+- Replace the `<div class="empty-state">` block with `<EmptyState icon="slash"
+  title="You haven't blocked anyone." data-test="blocked-empty"
+  iconSize={44}>` (no `body`, no CTA — matches the heading-only TrashScreen /
+  DeletedListsScreen call sites; `iconSize={44}` matches their disc icon).
+  The copy moves from the body paragraph to the serif `title`.
 - Remove `.empty-state` and `.empty-state p` scoped CSS.
 
 **Files:**

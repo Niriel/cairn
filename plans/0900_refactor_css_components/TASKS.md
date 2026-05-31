@@ -298,17 +298,18 @@ markup-only on top of the migrated buttons / inputs; sequencing
     `web/src/lib/shared/components/EmptyState.svelte` (per the
     PLAN tier-rule decision — empty-state is an application
     primitive, not framework-primitive). Props per REQUIREMENTS
-    R13: `variant: 'illustrated' | 'simple'` (default
-    `'illustrated'`), `icon`, optional `title` (required when
-    illustrated, omitted when simple), `body`, and an optional
-    CTA slot **or** `ctaLabel + onCta` pair (sub-plan's
-    exploration phase picks one — applies only to the
-    illustrated variant). Co-located Vitest test covers both
-    variants. The audited inventory:
-    - *Illustrated* — `ListsScreen.svelte`, `ItemsScreen.svelte`,
-      `InvitesInboxScreen.svelte`, `DeletedListsScreen.svelte`.
-    - *Simple* — `BlockedScreen.svelte` (the existing dashed-box
-      empty state at line 27–87).
+    R13: **no `variant` prop** — one illustrated shape used
+    everywhere; `icon` (or `iconContent` snippet), optional
+    `title`, optional `body`, and an optional `ctaLabel + onCta`
+    pair (CTA rendered only when both are supplied). Co-located
+    Vitest test covers the component. The audited inventory —
+    every screen below adopts the same illustrated look:
+    - `ListsScreen.svelte`, `ItemsScreen.svelte`,
+      `InvitesInboxScreen.svelte`, `DeletedListsScreen.svelte`,
+      `TrashScreen.svelte`.
+    - `BlockedScreen.svelte` (the existing dashed-box empty state
+      at line 27–87) is brought onto the same look, not kept as a
+      separate variant.
     - `CircleScreen` does **not** have an empty state — the
       earlier inventory claim was wrong; out of scope.
   - R14: existing component tests pass without assertion edits.

@@ -5,8 +5,8 @@ form primitives (`<Button>`, `<TextInput>`, `<Textarea>`, `<Label>`), 0902
 attacks the structural and typographic scaffolding: it lifts recurring
 typography into global semantic-tag rules, migrates div-heavy screens and
 sheets to proper `<header>` / `<h1>` / `<h2>` / `<ul>` / `<li>` markup, and
-collapses four near-identical empty-state blocks into a single `<EmptyState>`
-component.
+collapses the repeated empty-state blocks across six screens into a single
+`<EmptyState>` component.
 
 ## Context
 
@@ -101,9 +101,18 @@ a `<Button variant="rect" tone="ink" size="md" leadingIcon="plus">`; when
 absent, no CTA is rendered. `tone="ink"` (dark background) matches the
 existing call-site style in `ItemsScreen` and the empty-state spec in
 `docs/ui.md` ("CTA button: `background: var(--ink)`"). The
-illustrated-without-CTA case (TrashScreen's empty state has no body or CTA)
-is handled by making `title` and `body` also optional — EmptyState renders
-what it receives.
+without-CTA case (TrashScreen and BlockedScreen have a disc + heading and no
+CTA) is handled by making `title`, `body`, `ctaLabel`, and `onCta` all
+optional — EmptyState renders what it receives.
+
+**One empty-state look everywhere — no `simple` variant (R2).** An earlier
+draft gave `EmptyState` a `variant: 'illustrated' | 'simple'` prop, where
+`simple` was a dashed inline box used only by `BlockedScreen`. That
+reintroduced the very inconsistency this plan exists to remove — one screen
+rendering an empty state unlike every other. `EmptyState` is therefore
+single-shape: the illustrated disc + heading (+ optional body + optional CTA).
+`BlockedScreen` uses it like every other screen (task 4.4). `docs/ui.md` was
+updated in lockstep to document one empty-state pattern, not two.
 
 **`EmptyState` in `shared/components/` (R2).** Per `docs/frontend-layout.md`
 tier rules, `basic/` holds framework-agnostic UI primitives (Button, TextInput,
@@ -139,11 +148,10 @@ concern per commit, no interleaved diffs.
 
 ### New files
 
-- **`web/src/lib/shared/components/EmptyState.svelte`** — illustrated and
-  simple empty-state variants; props: `variant`, `icon`, `title?`, `body?`,
-  `ctaLabel?`, `onCta?`, `data-test?`.
-- **`web/src/lib/shared/components/EmptyState.test.ts`** — Vitest tests for
-  both variants.
+- **`web/src/lib/shared/components/EmptyState.svelte`** — the single
+  illustrated empty-state component; props: `icon?`, `iconContent?`,
+  `iconSize?`, `title?`, `body?`, `ctaLabel?`, `onCta?`, `data-test?`.
+- **`web/src/lib/shared/components/EmptyState.test.ts`** — Vitest tests.
 
 ### Modified files
 
@@ -188,7 +196,8 @@ concern per commit, no interleaved diffs.
   span.row-text` (or confirm already semantic); no ul/li changes expected.
 - **`web/src/lib/privacy/components/CircleScreen.test.ts`** — if needed.
 - **`web/src/lib/privacy/components/BlockedScreen.svelte`** — already uses
-  `<ul>` / `<li>`; empty-state block → `<EmptyState variant="simple">`.
+  `<ul>` / `<li>`; dashed-box empty-state block → `<EmptyState>` (illustrated,
+  no CTA — same look as every other screen).
 - **`web/src/lib/privacy/components/BlockedScreen.test.ts`** — selector
   updates if any.
 - **`web/src/lib/item/components/AddEditItemSheet.svelte`** — `div.sub → p`
@@ -219,9 +228,10 @@ concern per commit, no interleaved diffs.
    per-file CSS while the elements are already covered (R1).
 
 2. **Phase 2 — `<EmptyState>` extraction.** Write `EmptyState.svelte` and its
-   Vitest test. Both variants (illustrated, simple) are exercised before the
-   migration tasks in Phase 3 start calling the new component (R2). RED step:
-   write the test first; GREEN step: implement the component.
+   Vitest test. The single illustrated shape (disc + optional heading / body /
+   CTA) is exercised before the migration tasks in Phase 3 start calling the
+   new component (R2). RED step: write the test first; GREEN step: implement
+   the component.
 
 3. **Phase 3 — Semantic HTML sweep.** One task per file or small group. Each
    task: change element types, keep class names on the new elements, update the
@@ -243,7 +253,7 @@ concern per commit, no interleaved diffs.
 
 - **`docs/frontend-layout.md`** — tier rules (`basic/` vs `shared/`), filename
   conventions (no `+` prefix on test files next to routes).
-- **`docs/ui.md`** — empty-state pattern spec (illustrated vs simple) and
+- **`docs/ui.md`** — empty-state pattern spec (single illustrated pattern) and
   button-pair conventions.
 - **`docs/testing.md`** — three test layers; Vitest for component behaviour,
   Playwright for e2e regression.
