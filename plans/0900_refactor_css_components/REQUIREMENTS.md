@@ -449,3 +449,16 @@ the same directory (Vitest), per `docs/testing.md` and
   tag, fires the right events, respects `disabled`); CSS
   correctness is a visual review against the design canvas, not a
   unit-test concern.
+- **`<Icon>` `color` prop (R9 — reconsidered in 0902).** The 0902
+  sub-plan's sweep confirmed that `stroke="currentColor"` (already
+  in place) handles every colour-setting need via CSS inheritance.
+  Adding a `color` prop would duplicate a mechanism CSS already
+  provides for free. Callers that need a specific colour wrap the
+  icon in any element with the desired `color` value — no prop
+  needed. See 0902 REQUIREMENTS Non-requirements.
+- **Cosmetic icon-colour wrapper removal (R10 — reconsidered in 0902).**
+  Without the `color` prop (R9 above reconsidered), there is no
+  dedicated prop destination for the colour that `.row-icon`
+  currently holds. The `.row-icon` span in `TrashScreen.svelte` is
+  harmless and self-documenting; it is left as-is. See 0902
+  REQUIREMENTS Non-requirements.

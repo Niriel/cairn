@@ -234,21 +234,21 @@ the remaining label-less inputs.
 
 ## Phase 2 — 0902: Icon colour prop + semantic HTML + `<EmptyState>`
 
-### [ ] 2.1 Plan and implement sub-step 0902 (Icon `color` prop + global typography + semantic-HTML sweep + `<EmptyState>`)
+### [ ] 2.1 Plan and implement sub-step 0902 (global typography + semantic-HTML sweep + `<EmptyState>`)
 
 **Created:** 2026-05-29T13:00:09Z
 **Completed:**
 
-**Why:** Completes the step-9 cleanup — `Icon` gains the `color`
-prop the audit calls for, the pure-colour wrapper spans go away,
-the recurring typography lifts to global rules keyed off semantic
-tags, the div-heavy markup turns into proper `<header>` / `<h1>` /
-`<h2>` / `<ul>` / `<li>` structures across every screen and sheet,
-and the duplicated empty-state visual collapses into a single
-`<EmptyState>` component. The result is a screen inventory built
-on semantic HTML with one source of truth for typography — which
-is what makes the post-step-9 plans (account deletion, admin,
-export, PWA, legal) cheap to add without retrofitting consistency.
+**Why:** Completes the step-9 cleanup — the recurring typography
+lifts to global rules keyed off semantic tags, the div-heavy markup
+turns into proper `<header>` / `<h1>` / `<h2>` / `<ul>` / `<li>`
+structures across every screen and sheet, and the duplicated
+empty-state visual collapses into a single `<EmptyState>` component.
+The result is a screen inventory built on semantic HTML with one
+source of truth for typography — which is what makes the post-step-9
+plans (account deletion, admin, export, PWA, legal) cheap to add
+without retrofitting consistency. (R9 and R10 were reconsidered
+during 0902 planning — see Non-requirements in 0900 REQUIREMENTS.md.)
 
 **Prerequisites:** Task 1.1 merged — `0900_refactor_css_components`
 contains the migrated form primitives. The semantic-HTML sweep is
@@ -260,16 +260,13 @@ markup-only on top of the migrated buttons / inputs; sequencing
 - Sub-branch is cut from the updated `0900_refactor_css_components`
   (post-0901 merge).
 - Scope (from REQUIREMENTS.md):
-  - R9: `<Icon>` gains `color?: string`, defaulting to
-    `'currentColor'`. The SVG `stroke` reads from the prop.
-    Precedent: `CairnGlyph.svelte` already has this exact shape.
-  - R10: every purely-cosmetic icon-colour wrapper (e.g.
-    `.row-icon` in `TrashScreen.svelte`) is removed; the colour
-    moves to `<Icon color="var(--…)" />`. Layout-bearing wrappers
-    (`.icon-wrap` in `DeleteItemSheet.svelte`, `.icon-disc` in
-    `LoginCheck.svelte`, the spin wrapper in
-    `RefreshButton.svelte`) **stay** — they carry sizing /
-    background / animation, not just colour.
+  - R9: **Reconsidered in 0902 — see 0900 REQUIREMENTS
+    Non-requirements.** `stroke="currentColor"` already handles
+    colour via CSS inheritance; no explicit prop is needed.
+  - R10: **Reconsidered in 0902 — see 0900 REQUIREMENTS
+    Non-requirements.** Without R9's prop, cosmetic colour
+    wrappers like `.row-icon` have no destination for their
+    colour and are left as-is.
   - R11: `web/src/lib/shared/styles/typography.css` gains rules
     keyed off semantic tags (`h1`, `h2`, `h3`, `section`, `ul` /
     `ol`, plus `.hint` and `.hint-error` for the input hint /
@@ -319,18 +316,15 @@ markup-only on top of the migrated buttons / inputs; sequencing
     searched for `.row` becomes one that uses `getByRole('listitem')`).
     Each migration task lists the matching `.test.ts` file in its
     Files list per CLAUDE.md "Tests out of sync".
-- **Order matters inside the sub-plan**: (a) `<Icon>` `color` prop +
-  Icon.test.ts update + the single canonical wrapper removal in
-  `TrashScreen.svelte` — small, isolated, low risk; surfaces any
-  hidden Icon-rendering coupling early. (b) lift typography rules
+- **Order matters inside the sub-plan**: (a) lift typography rules
   to `typography.css` — write the rules, then confirm the existing
   duplicated class rules in screens still cascade correctly (don't
-  remove them yet; the per-screen sweep does that). (c)
+  remove them yet; the per-screen sweep does that). (b)
   `<EmptyState>` extraction + Vitest test — primitive-first.
-  (d) `InvitePickerSheet.svelte` semantic refactor (canonical
-  case). (e) the rest of the screen / sheet sweep, one task per
-  file. (f) cleanup task that removes the now-dead duplicated
-  typography classes per screen.
+  (c) `InvitePickerSheet.svelte` semantic refactor (canonical
+  case). (d) the rest of the screen / sheet sweep, one task per
+  file. (e) empty-state migration tasks. (f) cleanup task that
+  removes the now-dead duplicated typography classes per screen.
 - The `.hint` / `.hint-error` rule that R6 left to 0902 lands
   with the typography lift (task b).
 - **Visual sweep against the design canvas** before merging.
@@ -366,11 +360,15 @@ markup-only on top of the migrated buttons / inputs; sequencing
 `0900_refactor_css_components` after merge. Open every screen
 listed in REQUIREMENTS R12 in the dev server and visually compare
 against `design/Cairn - Design Canvas.html` — no regression.
-`git grep -l "row-icon"` returns no results (R10 sweep complete).
 `git grep -l "class=\"section-label\""` returns no results (R11 +
-R12 sweep complete, the rule is now keyed off `<h2>`).
+R12 sweep complete, the rule is now keyed off `<h2>`; the two
+expected surviving uses — InvitePickerSheet email label carve-out
+and PrivacyScreen intentional override — are not file-level hits).
 Keyboard-traversal spot check: tab through the Invite picker
 sheet and the Members screen; focus order matches pre-refactor.
+Note: R9 and R10 were reconsidered in 0902 (see Non-requirements
+in 0900 REQUIREMENTS.md); `.row-icon` in TrashScreen is left as-is
+and `<Icon>` does not gain a `color` prop.
 
 ---
 
@@ -419,10 +417,12 @@ new input primitives (`<TextInput>`, `<Textarea>`, `<Label>`) and
 the new `<EmptyState>` are reachable from
 `web/src/lib/basic/components/` and
 `web/src/lib/shared/components/` respectively; `<Button>` accepts
-the new variant / tone / size / leadingIcon props; `<Icon>` accepts
-`color`; `web/src/lib/shared/styles/typography.css` carries the
+the new variant / tone / size / leadingIcon props;
+`web/src/lib/shared/styles/typography.css` carries the
 semantic-tag rules; and `git grep` for the migrated class names
-(`.row-icon`, `.empty-cta`, `.section-label`, `.panel-btn`,
-`.restore` as class definitions rather than carve-out call sites)
-returns either no results or only the carve-outs listed in
-REQUIREMENTS R7.
+(`.empty-cta`, `.section-label`, `.panel-btn`, `.restore` as class
+definitions rather than carve-out call sites) returns either no
+results or only the carve-outs listed in REQUIREMENTS R7. Note:
+`<Icon>` does not gain a `color` prop and `.row-icon` is not
+removed — both were reconsidered in 0902 (see Non-requirements in
+0900 REQUIREMENTS.md).
