@@ -1077,10 +1077,10 @@ the same `.error` toast (identical in both), and heading-only empty states.
   global `.toast-error` class. TrashScreen's `.row-icon` colour wrapper kept
   (cosmetic, allowed). The dead `.name` class is left on the markup for Phase 6.
 
-### [ ] 5.8 CircleScreen + BlockedScreen
+### [x] 5.8 CircleScreen + BlockedScreen
 
 **Created:** 2026-06-03T00:00:00Z
-**Completed:**
+**Completed:** 2026-06-03T15:14:16Z
 
 **Why:** Both authored in **rem** but with their own divergent values
 (0.72/0.78/0.9375 rem) and a dashed-box pattern. They converge onto the global
@@ -1119,6 +1119,24 @@ roles and `.card-dashed`. BlockedScreen's one-off empty state unifies onto
 - `web/src/lib/privacy/components/BlockedScreen.svelte` (+ `.test.ts`)
 
 **Verify:** `pnpm lint` · `pnpm check` · `pnpm test`
+
+**Notes:**
+- **No test changes needed** — CircleScreen's one selector (`data-test="circle-list"`)
+  was preserved by moving it onto the new `<section>` wrapper (which renders under
+  the same `{#if relationships.loaded}` gate, so the loading-gate test still holds);
+  BlockedScreen's test queries `input`. All 625 tests stayed green.
+- CircleScreen: the labelled group is now `<section data-test="circle-list">` with
+  a bare `<h2 class="section-header">` (the count stays inline in the title, so no
+  `<header>`) — the old uppercase 0.75rem/0.04em treatment is dropped for the
+  normal-case global `h2`. `.add-card` → `.card-dashed`; `.intro-text` → `.caption`;
+  `.field` gap 8px → 0.5rem.
+- Both screens: `.circle-list`/`.blocked-list` → `class="… rows"` (global divider,
+  dropped the `.row:first-child border-top` + `.row border-bottom`), `.display-name`
+  → `<h3>`, `.sub` → `.caption .mono` (its old `--stone-lt` was drift vs the global
+  `--stone`). BlockedScreen's `.description` → `.caption` and its dashed-box empty
+  state → `<EmptyState icon="slash" iconSize={44} …>` (the deliberate unification;
+  removed the now-unused `Icon` import). Dead `.circle-list`/`.blocked-list`/
+  `.display-name` classes left on the markup for Phase 6.
 
 ### [ ] 5.9 AddEditItemSheet + DeleteItemSheet + CreateListSheet + CircleExplainerSheet + ProfileSheet
 

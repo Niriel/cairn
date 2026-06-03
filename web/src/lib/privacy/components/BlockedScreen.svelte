@@ -2,7 +2,7 @@
 	import Button from '$lib/basic/components/Button.svelte';
 	import AppTopBar from '$lib/shared/components/AppTopBar.svelte';
 	import Avatar from '$lib/shared/components/Avatar.svelte';
-	import Icon from '$lib/basic/components/Icon.svelte';
+	import EmptyState from '$lib/shared/components/EmptyState.svelte';
 	import {
 		relationships,
 		loadRelationships,
@@ -18,19 +18,21 @@
 <div class="screen" data-test="blocked-screen">
 	<AppTopBar>Blocked</AppTopBar>
 
-	<p class="description">
+	<p class="description caption">
 		People you've blocked. They can't invite you to any list, regardless of your other privacy
 		settings.
 	</p>
 
 	{#if relationships.loaded}
 		{#if relationships.blocked.length === 0}
-			<div class="empty-state" data-test="blocked-empty">
-				<Icon name="slash" size={28} />
-				<p>You haven't blocked anyone.</p>
-			</div>
+			<EmptyState
+				icon="slash"
+				iconSize={44}
+				title="You haven't blocked anyone."
+				data-test="blocked-empty"
+			/>
 		{:else}
-			<ul class="blocked-list">
+			<ul class="blocked-list rows">
 				{#each relationships.blocked as entry (entry.otherUserId)}
 					<li class="row" data-test="blocked-row-{entry.otherUserId}">
 						<Avatar
@@ -40,8 +42,8 @@
 							size={36}
 						/>
 						<div class="row-text">
-							<span class="display-name">{entry.displayName}</span>
-							<span class="sub">{blockedAtLabel(entry.createdAt)}</span>
+							<h3 class="display-name">{entry.displayName}</h3>
+							<span class="sub caption mono">{blockedAtLabel(entry.createdAt)}</span>
 						</div>
 						<Button
 							variant="pill"
@@ -66,31 +68,10 @@
 
 	.description {
 		padding: 0.875rem 1.125rem 0.25rem;
-		font-size: 0.78rem;
-		color: var(--stone);
-		line-height: 1.5;
-	}
-
-	.empty-state {
-		margin: 1.5rem 1.125rem;
-		padding: 2.25rem 1.125rem;
-		text-align: center;
-		border: 1px dashed var(--stone-lt);
-		border-radius: 0.875rem;
-		background: var(--paper-alt);
-		color: var(--stone);
-	}
-
-	.empty-state p {
-		font-size: 0.875rem;
-		margin-top: 0.625rem;
-		margin-bottom: 0;
 	}
 
 	.blocked-list {
-		list-style: none;
 		margin: 0.875rem 0 0;
-		padding: 0;
 	}
 
 	.row {
@@ -98,11 +79,6 @@
 		align-items: center;
 		gap: 0.75rem;
 		padding: 0.875rem 1.125rem;
-		border-bottom: 1px solid var(--rule);
-	}
-
-	.row:first-child {
-		border-top: 1px solid var(--rule);
 	}
 
 	.row-text {
@@ -112,16 +88,7 @@
 		flex-direction: column;
 	}
 
-	.display-name {
-		font-size: 0.9375rem;
-		font-weight: 600;
-		color: var(--ink);
-	}
-
 	.sub {
-		font-size: 0.72rem;
-		color: var(--stone-lt);
 		margin-top: 0.125rem;
-		font-family: var(--mono);
 	}
 </style>

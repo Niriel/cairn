@@ -43,7 +43,7 @@
 	<AppTopBar>Your circle</AppTopBar>
 
 	<div class="intro">
-		<p class="explainer intro-text">
+		<p class="intro-text caption">
 			When your privacy is set to <em>Your circle</em>, these are the only people who can invite you
 			to a list.
 		</p>
@@ -55,37 +55,37 @@
 	</div>
 
 	{#if relationships.loaded}
-		<div class="section-header" data-test="circle-list">
-			People in your circle · {relationships.circle.length}
-		</div>
-		{#if relationships.circle.length > 0}
-			<ul class="circle-list">
-				{#each relationships.circle as entry (entry.otherUserId)}
-					<li class="row" data-test="circle-row-{entry.otherUserId}">
-						<Avatar
-							displayName={entry.displayName}
-							uid={entry.otherUserId}
-							avatarVersion={entry.avatarVersion}
-							size={36}
-						/>
-						<div class="row-text">
-							<span class="display-name">{entry.displayName}</span>
-							<span class="sub">{addedAtLabel(entry.createdAt)}</span>
-						</div>
-						<Button
-							variant="pill"
-							tone="destructive"
-							size="sm"
-							data-test="remove-{entry.otherUserId}"
-							onclick={() => void removeFromCircle(entry.otherUserId)}>Remove</Button
-						>
-					</li>
-				{/each}
-			</ul>
-		{/if}
+		<section data-test="circle-list">
+			<h2 class="section-header">People in your circle · {relationships.circle.length}</h2>
+			{#if relationships.circle.length > 0}
+				<ul class="circle-list rows">
+					{#each relationships.circle as entry (entry.otherUserId)}
+						<li class="row" data-test="circle-row-{entry.otherUserId}">
+							<Avatar
+								displayName={entry.displayName}
+								uid={entry.otherUserId}
+								avatarVersion={entry.avatarVersion}
+								size={36}
+							/>
+							<div class="row-text">
+								<h3 class="display-name">{entry.displayName}</h3>
+								<span class="sub caption mono">{addedAtLabel(entry.createdAt)}</span>
+							</div>
+							<Button
+								variant="pill"
+								tone="destructive"
+								size="sm"
+								data-test="remove-{entry.otherUserId}"
+								onclick={() => void removeFromCircle(entry.otherUserId)}>Remove</Button
+							>
+						</li>
+					{/each}
+				</ul>
+			{/if}
+		</section>
 	{/if}
 
-	<div class="add-card">
+	<div class="add-card card-dashed">
 		<div class="field">
 			<Label for="circle-add-input">E-mail address</Label>
 			<div class="add-input-row">
@@ -145,22 +145,10 @@
 	.whats-this {
 		flex-shrink: 0;
 		margin-top: 1px;
-		font-size: 0.78rem;
 	}
 
 	.section-header {
 		padding: 0.5rem 1.125rem;
-		font-size: 0.75rem;
-		font-weight: 600;
-		color: var(--stone);
-		text-transform: uppercase;
-		letter-spacing: 0.04em;
-	}
-
-	.circle-list {
-		list-style: none;
-		margin: 0;
-		padding: 0;
 	}
 
 	.row {
@@ -168,11 +156,6 @@
 		align-items: center;
 		gap: 0.75rem;
 		padding: 0.875rem 1.125rem;
-		border-bottom: 1px solid var(--rule);
-	}
-
-	.row:first-child {
-		border-top: 1px solid var(--rule);
 	}
 
 	.row-text {
@@ -182,31 +165,19 @@
 		flex-direction: column;
 	}
 
-	.display-name {
-		font-size: 0.9375rem;
-		font-weight: 600;
-		color: var(--ink);
-	}
-
 	.sub {
-		font-size: 0.72rem;
-		color: var(--stone-lt);
 		margin-top: 0.125rem;
-		font-family: var(--mono);
 	}
 
 	.add-card {
 		margin: 0.875rem 1.125rem 1.5rem;
 		padding: 0.875rem;
-		border: 1px dashed var(--stone-lt);
-		border-radius: 0.75rem;
-		background: var(--paper-alt);
 	}
 
 	.field {
 		display: flex;
 		flex-direction: column;
-		gap: 8px;
+		gap: 0.5rem;
 	}
 
 	.add-input-row {
