@@ -266,7 +266,7 @@
 		text-align: left;
 		font: inherit;
 		margin-top: 4px;
-		font-size: 13.5px;
+		font-size: 1rem;
 		line-height: 1.5;
 		color: var(--ink-soft);
 	}

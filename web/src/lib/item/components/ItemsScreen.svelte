@@ -440,7 +440,7 @@
 		margin-top: 14px;
 		font-family: 'Newsreader Variable', Georgia, serif;
 		font-style: italic;
-		font-size: 14px;
+		font-size: 1rem;
 		line-height: 1.55;
 		color: var(--ink-soft);
 	}

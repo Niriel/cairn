@@ -415,11 +415,12 @@ look by using the matching tag or global class — never by setting `font-size`,
 roles:
 
 - `h1` — screen / TopBar title (Newsreader serif).
-- `h2` — section title. A small heading: 0.8125 rem / 600 / `var(--ink-soft)`,
+- `h2` — section title. Newsreader serif, 1.125 rem / 500 / `var(--ink-soft)`,
   **normal-case** (see the label/title note below).
 - `h3` (+ `.row-title`) — sub-heading / row title weight.
 - `.t-hero` — empty-state heading (Newsreader, 1.5 rem).
-- `.t-sheet` — bottom-sheet title.
+- `.t-sheet` — bottom-sheet title. Used on an `<h2>`; identical to the section
+  `h2` but with full `var(--ink)` for contrast on the sheet background.
 - `.list-title` — a list-row name.
 - `.identity-name` — a person's display name (members, inbox, profile).
 - `.body` — default body copy.
@@ -429,7 +430,7 @@ roles:
 **Label vs. title — they are not the same look.** The upper-cased,
 `0.06em`-tracked small-stone treatment is the **form-label** look, owned by the
 `<Label>` primitive (the caption above a form field). **Section titles (`h2`)
-are normal-case** — a small heading (0.8125 rem / 600 / `var(--ink-soft)`), not
+are normal-case** — a serif heading (1.125 rem / 500 / `var(--ink-soft)`), not
 upper-cased and not tracked. The two were historically conflated under the word
 "label"; a section header is an `h2`, not a `<Label>`. Do not re-introduce
 uppercase section headers.
@@ -522,7 +523,7 @@ Every `<TopBar>` renders with:
 The TopBar uses `display: flex; align-items: center; gap: 10px`. The title div has `flex: 1; min-width: 0`, so the leading element and title are visually adjacent. Optional props:
 
 - **`left?: Snippet`** — rendered in the leading slot. When provided, it replaces the back button (`showBack` is ignored). Use this for root screens that need a brand element rather than a back arrow (e.g. `<CairnGlyph>` on the Lists screen).
-- **`sub?: string`** — a secondary line rendered directly below the title; 0.75 rem (12 px), `var(--stone)`.
+- **`sub?: string`** — a secondary line rendered directly below the title; the `.caption` role (1 rem, `var(--stone)`).
 
 These styles live inside `TopBar.svelte` — callers do not re-apply them. Screens that are the navigation root (e.g. Lists) pass a `left` snippet instead of `showBack={false}`.
 
@@ -571,7 +572,7 @@ just without a CTA. Structure:
 
 - A centered 96 × 96 px circle: `background: var(--paper-alt); border: 1px dashed var(--stone-lt); border-radius: 99px`. Contains an icon (`<Icon>`) or a brand illustration (e.g. `<CairnGlyph size={44} color="var(--stone)" />`).
 - A heading: Newsreader 1.5 rem (24 px), weight 500, `var(--ink)`, letter-spacing −0.01 em.
-- Body copy: 0.875 rem (14 px), `var(--ink-soft)`, line-height 1.5, max-width 280 px.
+- Body copy: the `.body` role — 1 rem (16 px), `var(--ink-soft)`, line-height 1.5, max-width 280 px.
 - An optional CTA button: `background: var(--ink); color: var(--paper)`, border-radius 12 px, padding 12 px 22 px, weight 600, 0.875 rem (14 px), with a leading icon. Rendered only on screens with a primary first-run action (Lists, Items); omitted elsewhere.
 
 Heading, body, and CTA are each optional — a screen supplies only the parts it

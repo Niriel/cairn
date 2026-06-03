@@ -9,7 +9,7 @@
 /* Input-rail helper text: sits below a <TextInput> or <Textarea>.
    Pair with .hint-error to flip the colour to ember (validation error). */
 .hint {
-	font-size: 13px;
+	font-size: 1rem;
 	color: var(--stone);
 	margin-top: 0;
 	margin-bottom: 6px;
@@ -22,7 +22,7 @@
 /* Small muted centred copy for legal / security / privacy notices.
    Callers add their own margin-top for spacing. */
 .disclaimer {
-	font-size: 12px;
+	font-size: 1rem;
 	color: var(--stone);
 	text-align: center;
 	line-height: 1.5;
@@ -33,7 +33,7 @@
 /* Muted how-it-works copy that explains app behaviour (not legal/privacy).
    No forced centering — inherits alignment from its container. */
 .explainer {
-	font-size: 13px;
+	font-size: 1rem;
 	color: var(--stone);
 	line-height: 1.5;
 	margin-top: 0;
@@ -50,14 +50,15 @@ h1 {
 	margin: 0;
 }
 
-/* Section titles — a small normal-case heading, NOT a form label. The
-   upper-cased, tracked, small-stone look belongs to the <Label> primitive
-   (form sub-labels like "NAME"/"NOTES"); section titles are quiet headings.
+/* Section titles — a normal-case serif heading, NOT a form label. The
+   upper-cased, tracked, small-stone look belongs to the <Label> primitive (form
+   sub-labels like "NAME"/"NOTES"); section titles are quiet serif headings.
    margin: 0 stops bare <h2> titles picking up browser-default heading margins
    once scoped resets are stripped. */
 h2 {
-	font-size: 0.8125rem;
-	font-weight: 600;
+	font-family: 'Newsreader Variable', Georgia, serif;
+	font-size: 1.125rem;
+	font-weight: 500;
 	color: var(--ink-soft);
 	letter-spacing: normal;
 	text-transform: none;
@@ -69,7 +70,7 @@ h2 {
    heading tag would be invalid HTML. */
 h3,
 .row-title {
-	font-size: 0.9375rem;
+	font-size: 1rem;
 	font-weight: 600;
 	color: var(--ink);
 	margin: 0;
@@ -92,13 +93,9 @@ ol {
 	color: var(--ink);
 }
 
-/* Bottom-sheet title. Class beats tag, so on an <h2 class="t-sheet"> this
-   overrides the global h2 for the properties it declares; because h2 is now
-   normal-case with normal tracking, nothing uppercase/tracked leaks through. */
+/* Bottom-sheet title: a section h2 with stronger contrast for the sheet's
+   background. Used on an <h2>, so it overrides only the colour. */
 .t-sheet {
-	font-family: 'Newsreader Variable', Georgia, serif;
-	font-size: 1.125rem;
-	font-weight: 500;
 	color: var(--ink);
 }
 
@@ -121,14 +118,16 @@ ol {
 
 /* Default body copy. */
 .body {
-	font-size: 0.875rem;
+	font-size: 1rem;
 	color: var(--ink-soft);
 	line-height: 1.5;
 }
 
-/* Muted secondary / metadata line. */
+/* Muted secondary / metadata line. Same 1rem floor as body — it is set apart
+   by colour (--stone), not by being tiny. Genuinely-small text is the job of
+   the Text-size setting, not a hardcoded sub-1rem role. */
 .caption {
-	font-size: 0.75rem;
+	font-size: 1rem;
 	color: var(--stone);
 	line-height: 1.5;
 }

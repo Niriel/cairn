@@ -64,14 +64,14 @@ onto roles:
 | Role | Value | Absorbs (current → converged) |
 |------|-------|-------------------------------|
 | `h1` | serif 1.375rem/500/−0.01em/`--ink` | TopBar `.centre` |
-| `h2` | 0.8125rem/600/`--ink-soft`/**normal case**/margin 0 | all `.section-label`, CircleScreen `.section-header` (0.75rem→0.8125rem, **drops uppercase**). **Not** Settings `.preview-label` (that's a form sub-label → `<Label>`, not h2). |
-| `h3` (also `.row-title` class) | 0.9375rem/600/`--ink`/margin 0 | `.name` at 14/15/15.5px, `.display-name`, `.nav-row-title`, `.list-name` (inbox), `.item-name` (15.5→15), Trash `.name` (weight 500→600). Use the `<h3>` tag for names **not** inside a control; the `.row-title` **class** (same rule) for names inside a tap-target button. |
+| `h2` | serif 1.125rem/500/`--ink-soft`/**normal case**/margin 0 | all `.section-label`, CircleScreen `.section-header` (0.75rem→1.125rem, **drops uppercase**). **Not** Settings `.preview-label` (that's a form sub-label → `<Label>`, not h2). |
+| `h3` (also `.row-title` class) | 1rem/600/`--ink`/margin 0 | `.name` at 14/15/15.5px, `.display-name`, `.nav-row-title`, `.list-name` (inbox), `.item-name` (15.5→15), Trash `.name` (weight 500→600). Use the `<h3>` tag for names **not** inside a control; the `.row-title` **class** (same rule) for names inside a tap-target button. |
 | `.t-hero` | serif 1.5rem/500/−0.01em/`--ink` | `.empty-heading` (×4, 22–24→24), CircleExplainer `h2` (25.6→24) |
-| `.t-sheet` | serif 1.125rem/500/`--ink` | InvitePicker `.title` (17 sans→serif), ListOverflow `.list-name` (18), AvatarSource `.title` (18), AddEditItem `.title` (19) |
+| `.t-sheet` | section `h2` + `--ink` (colour-only override; inherits serif 1.125rem/500) | InvitePicker `.title` (17 sans→serif), ListOverflow `.list-name` (18), AvatarSource `.title` (18), AddEditItem `.title` (19) |
 | `.list-title` | serif 1.0625rem/600/−0.005em/`--ink`/lh 1.3 | ListsScreen `.name` |
 | `.identity-name` | 1.125rem/600/`--ink` | ProfileSheet `.name` |
-| `.body` | 0.875rem/`--ink-soft`/lh 1.5 | `.empty-body`, ListsScreen `.desc`, Items `.notes`(*serif italic kept via extra scoped rule*), various 13.5–14px body |
-| `.caption` | 0.75rem/`--stone`/lh 1.5 | `.sub`, `.subtitle`, `.meta`, `.attribution`, `.row-inviter`, `.nav-row-sub`, `.option-sub`, `.cascade-note`, `.when`, ListOverflow `.meta`, etc. (11–12px / 0.72–0.78rem cluster) |
+| `.body` | 1rem/`--ink-soft`/lh 1.5 | `.empty-body`, ListsScreen `.desc`, Items `.notes`(*serif italic kept via extra scoped rule*), various 13.5–14px body |
+| `.caption` | 1rem/`--stone`/lh 1.5 (set apart by colour, not size) | `.sub`, `.subtitle`, `.meta`, `.attribution`, `.row-inviter`, `.nav-row-sub`, `.option-sub`, `.cascade-note`, `.when`, ListOverflow `.meta`, etc. |
 | `.mono` | JetBrains Mono | vote values, `.score-badge` text, `.nav-row-count`, `.when`, circle/blocked `.sub` |
 
 **Uppercase belongs to form labels, not section titles.** The upper-cased,
@@ -79,7 +79,7 @@ onto roles:
 primitive — "NAME", "NOTES", "E-MAIL ADDRESS"). It bled onto section *titles*
 because both were called "labels" and the global `h2` copied the look. This
 plan separates them: `<Label>` keeps uppercase; the section-title `h2` becomes
-a small normal-case heading (0.8125rem/600/`--ink-soft`, margin 0). This is a
+a normal-case serif heading (1.125rem/500/`--ink-soft`, margin 0). This is a
 deliberate app-wide change — every section title de-upper-cases — and it is the
 real fix for the `<h2 class="t-sheet">` / `<h2 class="t-hero">` over-spill (a
 sheet/hero title on an `<h2>` no longer inherits any uppercase/tracking to
