@@ -170,10 +170,10 @@ layout-only rule.
 
 ## Phase 3 — Global visual system
 
-### [ ] 3.1 Rewrite `typography.css` in rem with the full role set
+### [x] 3.1 Rewrite `typography.css` in rem with the full role set
 
 **Created:** 2026-06-03T00:00:00Z
-**Completed:**
+**Completed:** 2026-06-03T09:49:32Z
 
 **Why:** This is the single source of truth for every type role. All Phase 5
 sweeps delete scoped type and rely on these rules, so they must exist and be
@@ -233,6 +233,17 @@ work (R1).
    (Visual values change, but Vitest asserts behaviour, not pixels.)
 
 **Verify:** `pnpm lint` · `pnpm check` · `pnpm test`
+
+**Notes:** `.hint` (13px/`--stone`), `.disclaimer` (12px/`--stone`), and
+`.explainer` (13px/`--stone`) overlap meaningfully with the new `.caption`
+(0.75rem/`--stone`/lh 1.5) — same colour, near-identical size, all muted
+secondary copy. Left as-is per the task decision; flagged here as a candidate
+for a later collapse (they differ today only in px-vs-rem and per-helper margin
+defaults, which a future pass could fold into `.caption` + layout-local
+margins). `pnpm lint` runs ESLint only in this repo's `lint` script (Prettier
+is a separate `format:check`); ran `prettier --check` on `typography.css`
+explicitly — clean. Pre-existing cSpell editor warnings on the `@import`
+`wght.css` lines (1–2) are untouched and unrelated.
 
 ### [ ] 3.2 Create `surfaces.css` and wire global imports
 
