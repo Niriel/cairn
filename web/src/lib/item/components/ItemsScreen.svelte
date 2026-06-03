@@ -353,6 +353,15 @@
 		text-overflow: ellipsis;
 	}
 
+	/* Collapsed rows truncate to one line; an open row shows the full name,
+	   wrapping (and breaking long unbroken tokens) instead of clipping. */
+	.row.open .item-name {
+		white-space: normal;
+		overflow: visible;
+		text-overflow: clip;
+		overflow-wrap: anywhere;
+	}
+
 	.item-panel {
 		padding: 0.25rem 1.375rem 1.125rem;
 		border-top: 1px dashed var(--rule);

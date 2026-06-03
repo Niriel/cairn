@@ -242,6 +242,10 @@
 	.name {
 		flex: 1;
 		min-width: 0;
+		/* Override <Button>'s base white-space: nowrap so a long list name wraps
+		   instead of overflowing the row (and breaks very long unbroken tokens). */
+		white-space: normal;
+		overflow-wrap: anywhere;
 	}
 
 	.desc {
