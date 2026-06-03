@@ -50,10 +50,10 @@
 
 <Sheet open={true} onclose={oncancel}>
 	<div class="sheet-header">
-		<div>
-			<div class="title">{mode === 'add' ? 'New item' : 'Edit item'}</div>
-			<div class="sub">in {listName}</div>
-		</div>
+		<header>
+			<h2 class="title t-sheet">{mode === 'add' ? 'New item' : 'Edit item'}</h2>
+			<p class="sub caption">in {listName}</p>
+		</header>
 		<button type="button" class="cancel-btn" onclick={oncancel} aria-label="Cancel">×</button>
 	</div>
 	<form
@@ -116,59 +116,53 @@
 		display: flex;
 		justify-content: space-between;
 		align-items: flex-start;
-		margin-bottom: 18px;
-	}
-
-	.title {
-		font-family: 'Newsreader Variable', Georgia, serif;
-		font-size: 19px;
-		font-weight: 500;
-		color: var(--ink);
+		margin-bottom: 1.125rem;
 	}
 
 	.sub {
-		font-size: 12px;
-		color: var(--stone);
-		margin-top: 2px;
+		margin-top: 0.125rem;
 	}
 
 	.cancel-btn {
 		background: none;
 		border: none;
-		font-size: 20px;
+		font-size: 1.25rem;
 		color: var(--ink-soft);
 		cursor: pointer;
-		padding: 0 4px;
+		padding: 0 0.25rem;
 		line-height: 1;
 	}
 
 	form {
 		display: flex;
 		flex-direction: column;
-		gap: 18px;
+		gap: 1.125rem;
 	}
 
 	.field {
 		display: flex;
 		flex-direction: column;
-		gap: 8px;
+		gap: 0.5rem;
 	}
 
+	/* The notes textarea is editorial serif copy — an annotated exception to the
+	   layout-only rule (it is body content the user is composing). */
 	.notes-field :global(textarea) {
 		font-family: 'Newsreader Variable', Georgia, serif;
-		font-size: 14px;
 	}
 
+	/* "· optional" recedes against the bold form label — a per-label weight/colour
+	   override, not drift. */
 	.optional {
 		font-weight: 400;
 		text-transform: none;
-		color: var(--stone-lt, var(--stone));
+		color: var(--stone);
 	}
 
 	.actions {
 		display: flex;
-		gap: 10px;
-		margin-top: 18px;
+		gap: 0.625rem;
+		margin-top: 1.125rem;
 	}
 
 	.actions :global(button) {

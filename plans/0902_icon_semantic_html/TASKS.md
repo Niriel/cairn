@@ -1138,10 +1138,10 @@ roles and `.card-dashed`. BlockedScreen's one-off empty state unifies onto
   removed the now-unused `Icon` import). Dead `.circle-list`/`.blocked-list`/
   `.display-name` classes left on the markup for Phase 6.
 
-### [ ] 5.9 AddEditItemSheet + DeleteItemSheet + CreateListSheet + CircleExplainerSheet + ProfileSheet
+### [x] 5.9 AddEditItemSheet + DeleteItemSheet + CreateListSheet + CircleExplainerSheet + ProfileSheet
 
 **Created:** 2026-06-03T00:00:00Z
-**Completed:**
+**Completed:** 2026-06-03T16:47:42Z
 
 **Why:** Five sheets. Titles → `.t-sheet`/`.t-hero`; ProfileSheet name →
 `.identity-name`; handles → `.sheet-handle`; the explainer hero converges to
@@ -1195,6 +1195,30 @@ roles and `.card-dashed`. BlockedScreen's one-off empty state unifies onto
 - `web/src/lib/profile/components/ProfileSheet.svelte` (+ `.test.ts`)
 
 **Verify:** `pnpm lint` · `pnpm check` · `pnpm test`
+
+**Notes:**
+- **No test changes needed** — all five suites key on `data-test` / `form` /
+  `getByText` (ProfileSheet keeps `data-test="state-badge"`). All 625 tests
+  stayed green.
+- **AddEditItemSheet:** the title block became a `<header>` (title + subtitle) →
+  `<h2 class="t-sheet">` + `<p class="caption">`. The notes textarea keeps its
+  editorial serif (annotated; dropped the hardcoded 14px so it scales). `.optional`
+  kept as an annotated per-label weight/colour override. All px gaps → rem.
+- **DeleteItemSheet:** `.heading` → `<h2 class="t-sheet">`, `.body` → `<p class="body">`.
+  The `.icon-wrap` ember disc stays as an annotated layout-bearing exception
+  (dropped the `#fef2f2` hex fallback for the bare `--ember-bg` token). px → rem.
+- **CreateListSheet:** confirm-only — title comes from `<Sheet>`; just the `.field`
+  gap 8px → 0.5rem.
+- **CircleExplainerSheet:** bare `h2`/`p` element selectors replaced with role
+  classes — `<h2 class="t-hero">`, intro `<p class="body">`, `.point-title` →
+  `<h3>`, `.point-body` → `.caption`, `.privacy-footer` → `.card-alt .caption`
+  (the footer gains card-alt's hairline border, a deliberate surfaces convergence).
+- **ProfileSheet:** `.handle` → `.sheet-handle`; `.name` → `<h2 class="identity-name">`
+  (centred via the kept `.name` layout rule); the state label is **not** a pill —
+  dropped the `badge` class (which would now match the global inline-flex `.badge`),
+  rendered as `<span class="state-label … caption mono">` with the sage/ember
+  `color` as an annotated per-state one-liner. `.action-card` → `+ .card` (kept
+  `overflow:hidden` to clip the inner button); `.subtitle` opacity → `.caption`.
 
 ### [ ] 5.10 SettingsScreen + PrivacyScreen
 

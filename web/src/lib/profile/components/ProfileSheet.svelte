@@ -56,23 +56,23 @@
 </script>
 
 <Sheet open={true} {onclose} data-test="profile-sheet">
-	<div class="handle"></div>
+	<div class="sheet-handle"></div>
 
 	<Avatar uid={userId} {displayName} size={68} {avatarVersion} />
-	<p class="name">{displayName}</p>
+	<h2 class="name identity-name">{displayName}</h2>
 
 	{#if relationships.loaded}
 		{#if isInCircle}
-			<span data-test="state-badge" class="badge circle">IN YOUR CIRCLE</span>
+			<span data-test="state-badge" class="state-label circle caption mono">IN YOUR CIRCLE</span>
 		{:else if isBlocked}
-			<span data-test="state-badge" class="badge blocked">BLOCKED</span>
+			<span data-test="state-badge" class="state-label blocked caption mono">BLOCKED</span>
 		{/if}
 	{/if}
 
 	{#if relationships.loaded}
 		<div class="actions">
 			{#if isBlocked}
-				<div class="action-card">
+				<div class="action-card card">
 					<Button
 						variant="text"
 						tone="ink"
@@ -89,7 +89,7 @@
 				</div>
 			{:else}
 				{#if isInCircle}
-					<div class="action-card">
+					<div class="action-card card">
 						<Button
 							variant="text"
 							tone="ink"
@@ -105,7 +105,7 @@
 						</Button>
 					</div>
 				{:else}
-					<div class="action-card">
+					<div class="action-card card">
 						<Button
 							variant="text"
 							tone="ink"
@@ -117,13 +117,13 @@
 						>
 							<Icon name="user-plus" />
 							<span>Add to your circle</span>
-							<span class="subtitle">Lets you accept invites from them</span>
+							<span class="subtitle caption">Lets you accept invites from them</span>
 						</Button>
 					</div>
 				{/if}
 
 				{#if pendingInvitationId}
-					<div class="action-card">
+					<div class="action-card card">
 						<Button
 							variant="text"
 							tone="ink"
@@ -163,7 +163,7 @@
 						</ButtonPair>
 					</div>
 				{:else}
-					<div class="action-card">
+					<div class="action-card card">
 						<Button
 							variant="text"
 							tone="destructive"
@@ -184,58 +184,44 @@
 </Sheet>
 
 <style>
-	.handle {
-		width: 40px;
-		height: 4px;
-		border-radius: 99px;
-		background: var(--stone-lt);
-		margin: 0 auto 16px;
-	}
-
 	.name {
-		font-size: 18px;
-		font-weight: 600;
 		text-align: center;
-		margin: 12px 0 0;
+		margin: 0.75rem 0 0;
 	}
 
-	.badge {
+	/* The state label is centred block text, not a pill — its sage/ember colour
+	   is a per-state one-liner, not drift. */
+	.state-label {
 		display: block;
-		font-size: 12px;
-		font-weight: 600;
-		font-family: monospace;
 		text-align: center;
-		margin-top: 6px;
+		margin-top: 0.375rem;
 	}
 
-	.badge.circle {
+	.state-label.circle {
 		color: var(--sage);
 	}
 
-	.badge.blocked {
+	.state-label.blocked {
 		color: var(--ember);
 	}
 
 	.actions {
-		margin-top: 18px;
+		margin-top: 1.125rem;
 		display: flex;
 		flex-direction: column;
-		gap: 8px;
+		gap: 0.5rem;
 	}
 
+	/* .card supplies the border + radius; clip the inner full-width button. */
 	.action-card {
-		border: 1px solid var(--rule);
-		border-radius: 12px;
 		overflow: hidden;
 	}
 
 	.subtitle {
 		display: block;
-		font-size: 12px;
-		opacity: 0.6;
 	}
 
 	.block-confirm {
-		margin-top: 18px;
+		margin-top: 1.125rem;
 	}
 </style>
