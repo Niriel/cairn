@@ -1030,10 +1030,10 @@ semantic markup, type → roles, empty state. `InvitesBanner.row` is a carve-out
   base, per task 3.3). `.multi-text` → `<h3>`. The `.row` carve-out stayed a
   `<div>`.
 
-### [ ] 5.7 TrashScreen + DeletedListsScreen
+### [x] 5.7 TrashScreen + DeletedListsScreen
 
 **Created:** 2026-06-03T00:00:00Z
-**Completed:**
+**Completed:** 2026-06-03T15:10:02Z
 
 **Why:** Same `div.rows` + `div.row` pattern (icon + text + restore button),
 the same `.error` toast (identical in both), and heading-only empty states.
@@ -1063,6 +1063,19 @@ the same `.error` toast (identical in both), and heading-only empty states.
 - `web/src/lib/list/components/DeletedListsScreen.svelte` (+ `.test.ts`)
 
 **Verify:** `pnpm lint` · `pnpm check` · `pnpm test`
+
+**Notes:**
+- **No test changes needed** — both suites key on `data-test` only (rows,
+  empty, error, restore). All 625 tests stayed green.
+- Both screens: `.rows`/`.row` divs → `<ul class="rows">`/`<li class="row">`,
+  dropped `class:first` and the scoped `border-bottom`/`.row.first border-top`
+  for the global `.rows` divider. `.name` → `<h3>` (TrashScreen's 15.5px/500 and
+  DeletedLists' 15px/600 both converge on global 15px/600), `.attribution` and
+  `.loading` → `.caption`. Empty states → `<EmptyState icon="trash-2"
+  iconSize={44}>` (deleting the bespoke `.empty*` CSS; the disc converges from
+  80px to EmptyState's fixed 96px). The byte-identical `.error` toast → the
+  global `.toast-error` class. TrashScreen's `.row-icon` colour wrapper kept
+  (cosmetic, allowed). The dead `.name` class is left on the markup for Phase 6.
 
 ### [ ] 5.8 CircleScreen + BlockedScreen
 

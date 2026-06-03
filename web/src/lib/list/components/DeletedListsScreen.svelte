@@ -4,6 +4,7 @@
 
 	import AppTopBar from '$lib/shared/components/AppTopBar.svelte';
 	import Button from '$lib/basic/components/Button.svelte';
+	import EmptyState from '$lib/shared/components/EmptyState.svelte';
 	import Icon from '$lib/basic/components/Icon.svelte';
 	import IconButton from '$lib/basic/components/IconButton.svelte';
 
@@ -28,21 +29,21 @@
 	</AppTopBar>
 
 	{#if listTrash.loading}
-		<div class="loading" data-test="deleted-lists-loading">Loading…</div>
+		<div class="loading caption" data-test="deleted-lists-loading">Loading…</div>
 	{:else if listTrash.rows.length === 0 && !listTrash.error}
-		<div class="empty" data-test="deleted-lists-empty">
-			<div class="empty-circle">
-				<Icon name="trash-2" size={44} />
-			</div>
-			<div class="empty-heading">No deleted lists.</div>
-		</div>
+		<EmptyState
+			icon="trash-2"
+			iconSize={44}
+			title="No deleted lists."
+			data-test="deleted-lists-empty"
+		/>
 	{:else}
-		<div class="rows">
-			{#each listTrash.rows as row, i (row.id)}
-				<div class="row" class:first={i === 0} data-test="deleted-list-row-{row.id}">
+		<ul class="rows">
+			{#each listTrash.rows as row (row.id)}
+				<li class="row" data-test="deleted-list-row-{row.id}">
 					<div class="meta">
-						<span class="name">{row.name}</span>
-						<span class="attribution"
+						<h3 class="name">{row.name}</h3>
+						<span class="attribution caption"
 							>deleted by {row.deleted_by_name} · {timeAgo(row.deleted_at)}</span
 						>
 					</div>
@@ -53,13 +54,13 @@
 						data-test="deleted-list-restore-{row.id}"
 						onclick={() => void restoreOne(row.id)}>Restore</Button
 					>
-				</div>
+				</li>
 			{/each}
-		</div>
+		</ul>
 	{/if}
 
 	{#if listTrash.error}
-		<div class="error" data-test="deleted-lists-error">{listTrash.error}</div>
+		<div class="toast-error" data-test="deleted-lists-error">{listTrash.error}</div>
 	{/if}
 </div>
 
@@ -71,54 +72,18 @@
 	}
 
 	.loading {
-		padding: 16px 18px;
-		color: var(--stone);
-	}
-
-	.empty {
-		display: flex;
-		flex-direction: column;
-		align-items: center;
-		justify-content: center;
-		padding: 40px 36px;
-		text-align: center;
-	}
-
-	.empty-circle {
-		width: 80px;
-		height: 80px;
-		border-radius: 99px;
-		background: var(--paper-alt, var(--paper));
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		margin-bottom: 22px;
-		border: 1px dashed var(--stone);
-		color: var(--stone);
-	}
-
-	.empty-heading {
-		font-family: 'Newsreader Variable', Georgia, serif;
-		font-size: 22px;
-		font-weight: 500;
-		color: var(--ink);
-		letter-spacing: -0.01em;
+		padding: 1rem 1.125rem;
 	}
 
 	.rows {
-		margin-top: 14px;
+		margin-top: 0.875rem;
 	}
 
 	.row {
 		display: flex;
 		align-items: center;
-		gap: 12px;
-		padding: 14px 18px;
-		border-bottom: 1px solid var(--rule);
-	}
-
-	.row.first {
-		border-top: 1px solid var(--rule);
+		gap: 0.75rem;
+		padding: 0.875rem 1.125rem;
 	}
 
 	.meta {
@@ -128,31 +93,7 @@
 		flex-direction: column;
 	}
 
-	.name {
-		font-size: 15px;
-		font-weight: 600;
-		color: var(--ink);
-		line-height: 1.35;
-	}
-
 	.attribution {
-		font-size: 12px;
-		color: var(--stone);
-		margin-top: 2px;
-	}
-
-	.error {
-		position: fixed;
-		left: max(0px, calc(50% - var(--app-max-w) / 2 + 12px));
-		right: max(0px, calc(50% - var(--app-max-w) / 2 + 12px));
-		bottom: calc(env(safe-area-inset-bottom) + 18px);
-		padding: 14px 16px;
-		color: var(--ember);
-		background: var(--paper);
-		border: 1px solid var(--ember);
-		border-radius: 12px;
-		font-size: 13.5px;
-		text-align: center;
-		z-index: 200;
+		margin-top: 0.125rem;
 	}
 </style>
