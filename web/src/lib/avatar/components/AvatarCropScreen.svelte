@@ -224,8 +224,8 @@
 		display: flex;
 		flex-direction: column;
 		height: 100%;
-		background: #1a1614;
-		color: var(--paper);
+		background: var(--paper);
+		color: var(--ink);
 	}
 
 	.content {
@@ -287,6 +287,7 @@
 
 	.explainer {
 		margin-top: 18px;
+		color: var(--ink-soft);
 	}
 
 	.preview-row {
