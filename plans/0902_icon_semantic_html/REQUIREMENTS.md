@@ -1,156 +1,181 @@
-# Requirements: Semantic HTML + global typography + `<EmptyState>`
+# Requirements: Semantic HTML + global visual system (homogenisation)
 
-0902 is the second and final sub-step of the step-9 CSS refactor. It lifts
-recurring typography into global rules keyed off semantic tags, replaces
-div-heavy scaffolding with semantic HTML across every screen and sheet, and
-extracts a single `<EmptyState>` component from four near-identical
-copy-pasted empty-state blocks. The result is a screen inventory built on
-semantic HTML with one source of truth for typography — which is what makes
-subsequent plans (account deletion, admin, PWA, legal) cheap to add without
-retrofitting consistency. No user-visible behaviour changes.
+0902 is the second and final sub-step of the step-9 CSS refactor. Its remit
+**widened mid-plan** (see PLAN.md → "Scope change") from a narrow
+typography-and-empty-state cleanup to a full homogenisation pass: the screen
+inventory was prototyped by copy-pasting CSS out of the `design/` JSX, which
+left every component carrying its own near-duplicate visual rules (fonts,
+colors, borders, backgrounds, badges, cards). Those values have drifted —
+member names at 14/15/15.5/17/18 px, sheet titles at 17/18/19/24/25.6 px,
+section labels in two units (11.5 px vs 0.75 rem), the same row border and
+the same dashed empty-state box re-declared in a dozen files.
 
-## R1. Global typography rules keyed off semantic tags
+The end state: **scoped component CSS holds layout only; every visual decision
+(color, background, border-color, font, spacing-of-type) has exactly one home
+in global CSS**, reached by a semantic tag or a global class. This is the
+"layout local, visual global" convention now recorded in
+`docs/ui.md` → "Where CSS lives". Convergence is deliberate: where two screens
+disagree on an accidental value, they converge on one global value — this plan
+**does** change some pixels on screen, by design. (This reverses the original
+"no user-visible behaviour changes / match the original" framing; see PLAN.md.)
 
-`web/src/lib/shared/styles/typography.css` gains the following rules. Exact
-values are reconciled during the Phase 2 exploration task (see PLAN.md
-Decisions), which reads the existing per-file CSS and records the chosen values
-before any rule is written.
+## R1. Unit policy — rem default, em for local scaling, px for hairlines
 
-- **`h1`** — screen title: Newsreader Variable serif, 22 px, weight 500,
-  `letter-spacing: -0.01em`, `color: var(--ink)`, `margin: 0`. There is
-  exactly one `<h1>` per screen: the TopBar title. Sheet titles use `<h2>`
-  (see R3) and override the global `h2` rule via a scoped `header h2` rule.
-- **`h2`** — section label: 11.5 px, `var(--stone)`, weight 600,
-  `letter-spacing: 0.06em`, `text-transform: uppercase`. Replaces the
-  per-file `.section-label` rule. Padding stays as scoped CSS within each
-  component (it varies by context).
-- **`ul`, `ol`** — `list-style: none; margin: 0; padding: 0`. Cairn lists
-  are flex / grid scaffolds, not bulleted.
-- **`h3`** — row name / primary label: 15 px, `var(--ink)`, weight 600,
-  `margin: 0`. Normalises the 14–15.5 px drift across `InvitePickerSheet`,
-  `MembersScreen`, `TrashScreen`, `DeletedListsScreen`, etc. Two intentional
-  scoped overrides remain: `ListsScreen` list name at 17 px (the list title is
-  the hero of its row) and `ProfileSheet` display name at 18 px (hero display
-  at the top of the sheet).
+All sizes move to the policy in `docs/ui.md` → "Units":
 
-## R2. `<EmptyState>` extracted
+- **`rem`** for `font-size` and type-coupled spacing/sizing. This is what makes
+  the Settings font-size control (it scales root `font-size` via
+  `--font-size-scale`) actually take effect — px values silently ignore it,
+  which is why the control is currently dead.
+- **`em`** for a sub-element that should track its **local** font-size, not the
+  global scale — e.g. an icon next to a text label sizes in `em` so it grows
+  with that label; likewise inline icon↔label gaps.
+- **`px`** only for what must not scale: hairline borders (`1px solid`),
+  shadow offsets, genuinely fixed structural measures.
 
-A new `web/src/lib/shared/components/EmptyState.svelte` encapsulates the one
-empty-state shape used across the whole app. There is **no `variant` prop** —
-a single illustrated look everywhere is a deliberate consistency choice
-(`docs/ui.md` documents one empty-state pattern, not two). A 96 × 96 px circle
-disc (`--paper-alt` background, dashed `--stone-lt` border) contains the icon,
-followed by an optional serif heading, an optional body paragraph, and an
-optional CTA button. Every screen supplies only the parts it needs. Props:
+The rem-vs-px split between domains (privacy/circle/blocked were authored in
+rem; everything else in px) is eliminated — everything normalises to rem.
 
-- `icon?: IconName` — icon name, rendered inside the disc. Optional when
-  `iconContent` is supplied.
-- `iconContent?: Snippet` — Svelte snippet rendered inside the disc in place of
-  `<Icon>`. Use this for disc content outside the icon system (e.g. a
-  `<CairnGlyph>`). Takes priority over `icon` when both are supplied.
-- `iconSize?: number` — icon size in pixels, default `32`. Use `44` for
-  screens whose original markup used a larger icon (TrashScreen,
-  DeletedListsScreen). Ignored when `iconContent` is supplied.
-- `title?: string` — heading copy. Omitted renders no heading.
-- `body?: string` — body paragraph copy. Omitted renders no body (TrashScreen,
-  DeletedListsScreen, BlockedScreen have a heading but no body).
-- `ctaLabel?: string` and `onCta?: () => void` — when both are supplied, a
-  `<Button variant="rect" tone="ink" size="md" leadingIcon="plus">` CTA
-  is rendered below the body. When either is omitted, no CTA is rendered. Uses
-  `tone="ink"` (dark background) to match the existing screens' CTA style and
-  the empty-state spec in `docs/ui.md` ("CTA button: `background: var(--ink)`").
+## R2. Global type scale keyed off tags + role classes
 
-`data-test` is forwarded to the outermost element.
+`web/src/lib/shared/styles/typography.css` holds one rule per type role. No
+component re-declares a `font-family`, `font-size`, `font-weight`,
+`letter-spacing`, `text-transform`, `line-height`, or text `color`. Roles
+(canonical rem values; see PLAN.md → "Type scale" for the px→rem table and the
+per-selector mapping):
 
-A co-located `EmptyState.test.ts` covers the component with Vitest: renders
-with required props, the disc is present, `<Icon>` renders from `icon`,
-`iconContent` overrides `icon`, heading / body render when supplied, CTA fires
-`onCta`, and the CTA is absent unless both `ctaLabel` and `onCta` are supplied.
+- **`h1`** — screen title (TopBar). Newsreader serif, 1.375 rem, 500,
+  −0.01em, `--ink`, margin 0.
+- **`h2`** — section label. 0.72 rem, 600, 0.06em, uppercase, `--stone`.
+  Padding stays scoped (it is layout). CircleScreen's `.section-header`
+  (0.75 rem / 0.04em) and SettingsScreen's `.preview-label` (11 px) converge
+  onto this.
+- **`h3`** — standard row / primary label. 0.9375 rem, 600, `--ink`, margin 0.
+  Normalises the 14/15/15.5 px spread.
+- **`.t-hero`** — empty-state and explainer-sheet hero. Newsreader serif,
+  1.5 rem, 500, −0.01em, `--ink`. (EmptyState's heading uses this role.)
+- **`.t-sheet`** — bottom-sheet title (applied to the sheet header `<h2>`,
+  overriding the global section-label `h2`). Newsreader serif, 1.125 rem, 500,
+  `--ink`. Converges the 17/18/19 px sheet titles; InvitePicker's title moves
+  from sans to serif (deliberate).
+- **`.list-title`** — the list-row hero name (ListsScreen). Newsreader serif,
+  1.0625 rem, 600, −0.005em, `--ink`, line-height 1.3.
+- **`.identity-name`** — a person's name as a sheet hero (ProfileSheet).
+  1.125 rem, 600, `--ink`.
+- **`.body`** — body paragraph. 0.875 rem, `--ink-soft`, line-height 1.5.
+- **`.caption`** — subtitle / metadata / attribution / row-sub. 0.75 rem,
+  `--stone`, line-height 1.5. Converges the 11–12 px / 0.72–0.75 rem
+  secondary-text cluster.
+- **`.mono`** — numeric / monospace runs (vote values, counts, "when"
+  timestamps). `'JetBrains Mono', ui-monospace, monospace`; pairs with
+  `.caption` for size where small.
 
-## R3. Semantic HTML sweep
+Two larger names are intentional roles (`.list-title`, `.identity-name`), not
+drift; everything else collapses to `h3`.
 
-The 0902 sub-plan replaces div scaffolding with semantic tags across the
-file list below. The recurring mappings are:
+## R3. Global surface rules — borders, backgrounds, cards, list dividers
 
-- `<div class="header">` → `<header>` (containing `<h2>` for the sheet title
-  + `<p>` for the subtitle). The sheet title `<h2>` overrides the global `h2`
-  section-label rule via a scoped `header h2 { font-size: 17px; … }` rule.
-- `<div class="section-label">` → `<h2 class="section-label">` during Phase
-  3; the `.section-label` class is removed from the element (and the per-file
-  CSS deleted) in the Phase 5 cleanup once the global `h2` rule covers it.
-- `<div class="rows">` → `<ul class="rows">`.
-- `<div class="row">` → `<li class="row">` (containing whatever interactive
-  element is appropriate).
-- `<div class="name">` → `<h3 class="name">` in all row contexts. The global
-  `h3` rule (15 px) normalises the 14–15.5 px spread. `ListsScreen` and
-  `ProfileSheet` keep scoped `h3` overrides for their intentionally larger
-  sizes (17 px and 18 px respectively).
-- `<div class="sub">` / `.subtitle` → `<p class="sub">` in a header context;
-  `<span class="sub">` in an `<li>` context.
+A new `web/src/lib/shared/styles/surfaces.css` (imported alongside
+`typography.css`) owns the repeated structural-visual patterns. No component
+re-declares these borders/backgrounds:
 
-Files in scope (one task per file or small group where changes are minimal):
+- **List dividers.** `.rows` carries the top rule; each `.rows .row` carries a
+  bottom rule (`1px solid var(--rule)`). The per-file `.row.first { border-top }`
+  / `.row:last-child { border-bottom: none }` hacks are removed.
+- **`.card`** — `1px solid var(--rule)`, `border-radius: 0.75rem`,
+  `background: var(--paper)`. **`.card-alt`** — same with
+  `background: var(--paper-alt)`. **`.card-dashed`** — `1px dashed var(--stone-lt)`,
+  same radius, `background: var(--paper-alt)`. Radii converge to `0.75rem`
+  (was 0.75 rem / 12 px / 0.875 rem).
+- **`.surface-alt`** — `background: var(--paper-alt)` for raised regions with
+  no border (e.g. the invite picker's e-mail section, an open item row, a
+  selected option).
+- **`.sheet-handle`** — the drag handle repeated in three sheets:
+  `width: 2.25rem; height: 0.25rem; border-radius: 99px; background: var(--stone-lt)`.
 
-- `InvitePickerSheet.svelte` — canonical case.
-- `ListOverflowSheet.svelte`, `AvatarSourceSheet.svelte` — each has a
-  `div.header`; `ListOverflowSheet` also has `div.rows` with `<Button>`
-  children (the rows become `<ul>` with each `<Button>` in an `<li>`).
-- `MembersScreen.svelte` — `div.section-label`, `div.rows`, `div.row`,
-  `div.name`.
-- `ItemsScreen.svelte` — `div.rows`, `div.row`.
-- `ListsScreen.svelte` — `div.row` per list entry.
-- `InvitesInboxScreen.svelte`, `InvitesBanner.svelte` — `div.row` patterns.
-- `TrashScreen.svelte`, `DeletedListsScreen.svelte` — `div.rows`, `div.row`.
-- `CircleScreen.svelte`, `BlockedScreen.svelte`, `AddEditItemSheet.svelte` —
-  small targeted changes (`div.row-text`, `div.sub`).
-- `SettingsScreen.svelte`, `PrivacyScreen.svelte` — already use `<h2>` for
-  section labels; Phase 6 cleanup removes the now-redundant `.section-label`
-  class from the element and the local CSS rule.
-- `ProfileSheet.svelte`, `CircleExplainerSheet.svelte`, `CreateListSheet.svelte`,
-  `TopBar.svelte` — confirm no outstanding `div.header` / `div.rows` /
-  `div.row` / `div.section-label` patterns remain.
+## R4. Global control rules — badges; shared `<Button>` for pills
 
-## R4. Existing tests pass (with selector-level rewrites)
+`web/src/lib/shared/styles/controls.css` (imported alongside the others) owns
+badge looks; raw duplicated buttons are replaced by the existing `<Button>`:
 
-Every existing Vitest component test must pass. Selector-level rewrites are
-expected and allowed — e.g. a query that searched for `div.row` can become
-`li.row` or `getByRole('listitem')`; a query that searched for
-`div.section-label` becomes `h2`. Semantically, the assertions must be
-equivalent to the original. Each migration task in Phase 4 lists the
-corresponding `.test.ts` file in its **Files** list and updates any assertions
-that break due to the element-type change.
+- **Badges.** `.badge` base (inline-flex, centred, `border-radius: 99px`),
+  with tone variants: `.badge-ink` (bg `--ink`, color `--paper`),
+  `.badge-soft` (bg `--paper-alt`, `1px solid var(--rule)`, color `--stone`),
+  and score variants `.badge-score.positive` (`--sage`) /
+  `.badge-score.negative` (`--ember`). Covers the count badge (InvitesBanner),
+  the privacy badge (PrivacyScreen), and the aggregate score badge (ItemsScreen).
+- **Pill buttons.** `InvitesInboxScreen` and `InvitesBanner` hand-roll
+  `.btn-accept` / `.btn-decline` with their own padding, radius, font, and
+  color. These are replaced by the existing
+  `<Button variant="pill" tone="sage|…">` primitive (already used by
+  InvitePickerSheet), deleting the hand-rolled button CSS. No new button
+  component is created — only reuse of the existing one.
 
-Playwright e2e: the existing suite is the regression net. No new e2e tests
-are added in this plan.
+## R5. Semantic HTML sweep
+
+Div scaffolding becomes semantic across every in-scope file (mappings as in
+the original plan, still in force):
+
+- `<div class="header">` → `<header>` (containing the sheet title `<h2 class="t-sheet">`
+  + an optional `<p class="caption">` subtitle).
+- `<div class="section-label">` / `<div class="section-header">` → `<h2>`.
+- `<div class="rows">` → `<ul class="rows">`; `<div class="row">` →
+  `<li class="row">` (or `<button class="row">` where the row is itself the
+  tap target).
+- `<div class="name">` → `<h3 class="name">` in row contexts (the two hero
+  names use `.list-title` / `.identity-name`).
+- `<div class="sub">` / `.subtitle` / `.meta` → `<p>` in a header context,
+  `<span>` in a list-row context, each carrying `.caption`.
+
+Carve-outs documented in the task blocks (e.g. InvitesBanner's `.row` is a
+layout div, not a list item; the InvitePicker e-mail `<label>` stays a label).
+
+## R6. One empty-state look, migrated everywhere
+
+The shared `<EmptyState>` (already extracted, task 2.1) is the single
+empty-state home; its visual CSS legitimately lives in the component and uses
+the `.t-hero` / `.body` roles. The six screens with bespoke empty-state markup
+(ListsScreen, ItemsScreen, InvitesInboxScreen, DeletedListsScreen, TrashScreen,
+BlockedScreen) migrate to it, deleting their copy-pasted `.empty*` CSS.
+BlockedScreen's one-off dashed-box empty state is unified onto the same look
+(a deliberate visual change; `docs/ui.md` documents one pattern).
+
+## R7. Acceptance: scoped CSS is layout-only
+
+After the sweep, a scoped `<style>` block in any in-scope `.svelte` file
+contains no `font-family`, `font-size`, `font-weight`, `letter-spacing`,
+`text-transform`, `line-height`, text `color`, `background`, or
+`border*-color` declaration — those all live in the global sheets. A grep
+guard in the final task enforces this, listing the few documented exceptions
+(EmptyState's own visual rules; Snackbar/Sheet/Button primitive internals;
+state-dependent `color` that is genuinely dynamic, if any — each annotated).
+
+## R8. Existing tests pass (with selector-level rewrites)
+
+Every Vitest component test passes. Selector rewrites are expected and allowed
+(`div.row` → `li.row` or `getByRole('listitem')`; `div.section-label` → `h2`).
+Each sweep task lists its `.test.ts` and updates assertions broken by
+element-type changes. The Playwright suite is the regression net; no new e2e
+specs are added.
 
 ## Non-requirements (explicitly excluded)
 
-- **`<Icon>` `color` prop** — `Icon.svelte` already uses `stroke="currentColor"`,
-  which inherits from the surrounding CSS `color`. Callers that need a specific
-  colour wrap the icon in any container element (a `<span>`, an `<li>`, etc.)
-  with the desired `color` value. No prop is needed; adding one would duplicate
-  a mechanism CSS already provides for free.
-- **Cosmetic icon-colour wrapper removal** — `.row-icon` in `TrashScreen` and
-  any similar one-off wrappers are left as-is; they are self-documenting and
-  harmless.
-- **`CircleScreen` empty state** — when the circle is empty the always-present
-  add-card is the only thing on screen; adding a no-circle empty-state is a
-  screen design change, not a refactor.
-- **`<NavRow>` component extraction** — `SettingsScreen` and `PrivacyScreen`
-  share a nav-row shape but extracting it is a separate plan.
-- **PrivacyScreen `div.nav-rows` and SettingsScreen nav-button groups** —
-  `PrivacyScreen` has `<div class="nav-rows">` containing `<Button>` children;
-  `SettingsScreen` uses `<section>` (already semantic) with direct `<Button>`
-  children. Wrapping these in `<ul>/<li>` is the `<NavRow>` extraction plan's
-  remit, not this semantic-HTML sweep. Task 3.9 confirms both files have no
-  outstanding `div.rows`/`div.row`/`div.header` patterns, and notes the
-  `div.nav-rows` deferral explicitly.
-- **`<h3>` global rule** — member-name spans drift between 14 px and 15 px
-  across files; no single canonical value exists. The semantic `<h3>` tag lands
-  for accessibility; per-component scoped CSS targeting `h3` stays.
-- **New e2e tests** — the existing Playwright suite is the regression net;
-  adding new specs is a separate concern.
-- **PrivacyScreen `section-label` font-size reconciliation** — PrivacyScreen's
-  `.section-label` CSS rule already uses `font-size: 11.5px`, identical to the
-  global `h2` value. No font-size override is needed or kept; PrivacyScreen
-  follows the same Phase 5 cleanup as all other files (class removed, font
-  properties removed, padding moved to a bare `h2` selector).
+- **New shared components beyond `<EmptyState>`.** This plan globalises CSS and
+  reuses the *existing* `<Button>`; it does **not** extract `<NavRow>`,
+  `<Badge>`, `<Card>`, or `<Toast>` Svelte components. Those are follow-up
+  plans. (Replacing raw `<button>`s with the existing `<Button>` is reuse, not
+  new extraction, and is in scope per R4.)
+- **`<NavRow>` extraction** — `SettingsScreen` / `PrivacyScreen` nav rows and
+  `PrivacyScreen` `div.nav-rows` keep their structure; only their visual CSS
+  moves to global. The component extraction is a separate plan.
+- **`<Icon>` `color` prop** — `Icon` uses `stroke="currentColor"`; callers set
+  `color` on an ancestor. No prop added. Icon *sizing* in `em` (R1) is applied
+  where a task calls for it, but a wholesale Icon-component change to em-based
+  sizing is out of scope.
+- **Reworking the vote control, segmented control, or theme/size pickers'
+  bespoke chrome** beyond moving their colors/borders/fonts to global. The
+  radio-dot, theme-option, and size-option structural CSS (sizing, grid) stays
+  scoped as layout.
+- **New e2e tests** — existing Playwright suite is the net.
+- **CircleScreen no-circle empty state** — adding one is a design change, not a
+  refactor (unchanged from original).

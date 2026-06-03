@@ -182,7 +182,7 @@ The **Sign out** action is the first row of the Account section. **Delete accoun
 
 ### Avatars
 
-Cairn renders the same `<Avatar>` everywhere a user appears (item attribution, members list, profile sheets, the Settings profile chip). The component branches on `profiles.avatar_version`: `0` (the default) renders the existing coloured initials disc; any positive integer renders an `<img>` with `src="/avatars/{uid}.webp?v={avatar_version}"`. See `avatars.md` for the storage decision, the cache-busting URL pattern, and the upload sidecar.
+Cairn renders the same `<Avatar>` everywhere a user appears (item attribution, members list, profile sheets, the Settings profile chip). The component branches on `profiles.avatar_version`: `0` (the default) renders the existing colored initials disc; any positive integer renders an `<img>` with `src="/avatars/{uid}.webp?v={avatar_version}"`. See `avatars.md` for the storage decision, the cache-busting URL pattern, and the upload sidecar.
 
 The user-facing flow lives in `design/cairn-avatar-screens.jsx`:
 
@@ -208,7 +208,7 @@ A small non-blocking panel sits _above_ the destructive button: _"Want a copy of
 
 After tapping the destructive button: a brief loading state, then a confirmation screen ("Your account has been deleted") with a single button back to the sign-in screen. The session cookie is cleared (the server's `DELETE /auth/session` endpoint sets `Max-Age=0` on the `cairn_session` cookie); the app is fully logged out.
 
-The "Deleted user" tombstone gets a specific visual treatment wherever an avatar would normally render: a flat gray disc, no initials. The muted-italic display-name treatment is scoped to the **Items accordion** in v1 — it appears on item attribution lines there, and a future revisit may extend it to the members list (rare — the tombstone is never an active member) and to bin-screen "deleted by …" attribution. The bin screens currently render the literal display name "Deleted user" in the standard `var(--stone-lt)` colour, same as any other deleted-by attribution.
+The "Deleted user" tombstone gets a specific visual treatment wherever an avatar would normally render: a flat gray disc, no initials. The muted-italic display-name treatment is scoped to the **Items accordion** in v1 — it appears on item attribution lines there, and a future revisit may extend it to the members list (rare — the tombstone is never an active member) and to bin-screen "deleted by …" attribution. The bin screens currently render the literal display name "Deleted user" in the standard `var(--stone-lt)` color, same as any other deleted-by attribution.
 
 For the data model behind all of this, see `account-deletion.md`.
 
@@ -374,9 +374,64 @@ This applies to button pairs only. Single primary buttons (e.g. **Save** on the 
 
 These patterns were settled during implementation and must be followed on every new screen. They are not repeated in individual plan tasks — read this section when building any UI.
 
+### Where CSS lives: layout local, visual global
+
+The screen inventory was first prototyped by copy-pasting CSS out of the JSX
+design refs, which left every component carrying its own near-duplicate
+font/color rules. Those drift apart over time (member names at 14 px in one
+file, 15 px in another, 15.5 px in a third; section-label padding ranging
+4–18 px) and there is no single source of truth for any visual decision. The
+convention that replaces that mess:
+
+- **Layout stays local.** A component's scoped `<style>` block holds only
+  layout: flex/grid, `gap`, positioning, structural sizes, `overflow`, and the
+  spacing that arranges _this_ component's pieces. Layout is inherently about a
+  component's own composition, so it belongs with the component.
+- **Visual styling is global.** Color, `background`, border color,
+  `font-family`, `font-size`, `font-weight`, `letter-spacing`,
+  `text-transform`, and `line-height` live in the global stylesheets
+  (`typography.css`, `tokens.css`), keyed off the semantic tag (`h1`, `h2`,
+  `h3`, `ul`, `p`, …). A scoped rule that sets any of these is a code smell —
+  extract it. There is one home per visual role, and every screen inherits it.
+- **Variants are global classes, not scoped rules.** When two genuinely
+  different looks of the same tag are needed (say two `<ul>` treatments, or a
+  sheet-title `<h2>` versus a section-label `<h2>`), introduce a class for the
+  variant — but define that class _globally_ so any component can opt in. The
+  smell is never "a class exists"; it is "a _local_ rule defines a visual
+  look." A legitimate scoped block is layout-only; the moment it carries a
+  color or a font size, that declaration wants to be global — on the tag, or
+  on a global variant class.
+
+When homogenising or refactoring, do **not** anchor on "match each page's
+current look." Accidental drift should converge on one global value, accepting
+the deliberate visual changes that follow. The goal is one source of truth per
+visual role, not the preservation of per-page quirks.
+
+### Units: rem for the type scale, em for local scaling, px for hairlines
+
+The Settings font-size control multiplies the root `font-size`
+(`:root { font-size: calc(16px * var(--font-size-scale)) }` in
+`typography.css`). For that control to do anything, sizes must be expressed
+relative to that root. A value hard-coded in px ignores the user's font-size
+choice entirely — which is why the control currently has no visible effect:
+the screens were prototyped in px. So:
+
+- **`rem`** — the default. Use it for `font-size` and for spacing/sizing that
+  should scale with the global type scale (text-block padding, gaps,
+  max-widths, most component dimensions). One source of truth: the root
+  font-size.
+- **`em`** — for a sub-element that should track its **local** font-size rather
+  than the global scale. The canonical case: an icon next to a text label
+  (e.g. inside a button) should grow and shrink with *that label*, so size it
+  in `em`. Likewise inline icon↔label gaps and padding that should hug text at
+  whatever size it renders.
+- **`px`** — for what must **not** scale with text: hairline borders
+  (`1px solid`), shadow offsets, and genuinely fixed structural measures. A 1px
+  rule is 1px at every font size.
+
 ### App shell width and fixed-position elements
 
-The app is constrained to `--app-max-w: 26rem` (≈ 416 px), centred with `margin-inline: auto`. This token lives in `tokens.css` and is referenced by `+layout.svelte`.
+The app is constrained to `--app-max-w: 26rem` (≈ 416 px), centered with `margin-inline: auto`. This token lives in `tokens.css` and is referenced by `+layout.svelte`.
 
 Fixed-position elements (`position: fixed`) are placed relative to the viewport, not the shell, so naïve `left: 0; right: 0` or `right: 16px` will escape the container on wide screens. The correct patterns:
 
@@ -393,7 +448,7 @@ These are already in `Sheet.svelte` and `Fab.svelte`. Any new fixed-position ele
 
 ### Full-height screens and vertical centring
 
-Screens that can show an empty state should be flex columns that fill the viewport so the empty state can be centred:
+Screens that can show an empty state should be flex columns that fill the viewport so the empty state can be centered:
 
 ```css
 .screen {
@@ -470,7 +525,7 @@ every screen is a deliberate consistency choice — utility screens (e.g.
 Blocked) use the same illustrated treatment as first-run screens (e.g. Lists),
 just without a CTA. Structure:
 
-- A centred 96 × 96 px circle: `background: var(--paper-alt); border: 1px dashed var(--stone-lt); border-radius: 99px`. Contains an icon (`<Icon>`) or a brand illustration (e.g. `<CairnGlyph size={44} color="var(--stone)" />`).
+- A centered 96 × 96 px circle: `background: var(--paper-alt); border: 1px dashed var(--stone-lt); border-radius: 99px`. Contains an icon (`<Icon>`) or a brand illustration (e.g. `<CairnGlyph size={44} color="var(--stone)" />`).
 - A heading: Newsreader 24 px, weight 500, `var(--ink)`, letter-spacing −0.01 em.
 - Body copy: 14 px, `var(--ink-soft)`, line-height 1.5, max-width 280 px.
 - An optional CTA button: `background: var(--ink); color: var(--paper)`, border-radius 12 px, padding 12 px 22 px, weight 600, 14 px, with a leading icon. Rendered only on screens with a primary first-run action (Lists, Items); omitted elsewhere.

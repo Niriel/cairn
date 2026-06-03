@@ -105,16 +105,16 @@
 </script>
 
 <Sheet open={true} {onclose} data-test="invite-picker">
-	<div class="header">
-		<div class="title">Add someone</div>
-		<div class="explainer subtitle">
+	<header class="header">
+		<h2 class="title">Add someone</h2>
+		<p class="explainer subtitle">
 			{#if hasTappableRows}
 				Tap to invite, or type an e-mail below
 			{:else}
 				Invite someone by e-mail
 			{/if}
-		</div>
-	</div>
+		</p>
+	</header>
 
 	<div class="body">
 		{#if circleRows.length > 0}
