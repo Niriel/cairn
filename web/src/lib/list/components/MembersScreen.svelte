@@ -72,36 +72,40 @@
 
 	<div class="content">
 		{#if loading}
-			<div class="loading" data-test="members-loading">Loading…</div>
+			<div class="loading caption" data-test="members-loading">Loading…</div>
 		{:else}
-			<div class="section-label">{countLabel}</div>
-			<div class="rows">
-				{#each rows as m (m.user_id)}
-					<button
-						class="row"
-						class:is-self={m.user_id === profile.uid}
-						data-test="member-row-{m.user_id}"
-						disabled={m.user_id === profile.uid}
-						onclick={() => {
-							if (m.user_id !== profile.uid) openProfile = m;
-						}}
-					>
-						<Avatar
-							displayName={m.profiles.display_name}
-							size={36}
-							uid={m.user_id}
-							avatarVersion={m.profiles.avatar_version}
-						/>
-						<div class="info">
-							<div class="name">{m.profiles.display_name}</div>
-							<div class="sub">{subLine(m)}</div>
-						</div>
-						{#if m.user_id !== profile.uid}
-							<Icon name="more-vertical" size={18} />
-						{/if}
-					</button>
-				{/each}
-			</div>
+			<section>
+				<h2 class="section-label">{countLabel}</h2>
+				<ul class="rows">
+					{#each rows as m (m.user_id)}
+						<li>
+							<button
+								class="row"
+								class:is-self={m.user_id === profile.uid}
+								data-test="member-row-{m.user_id}"
+								disabled={m.user_id === profile.uid}
+								onclick={() => {
+									if (m.user_id !== profile.uid) openProfile = m;
+								}}
+							>
+								<Avatar
+									displayName={m.profiles.display_name}
+									size={36}
+									uid={m.user_id}
+									avatarVersion={m.profiles.avatar_version}
+								/>
+								<div class="info">
+									<span class="name row-title">{m.profiles.display_name}</span>
+									<span class="sub caption">{subLine(m)}</span>
+								</div>
+								{#if m.user_id !== profile.uid}
+									<Icon name="more-vertical" size={18} />
+								{/if}
+							</button>
+						</li>
+					{/each}
+				</ul>
+			</section>
 
 			<div class="add-wrap">
 				<Button
@@ -150,17 +154,11 @@
 	}
 
 	.loading {
-		padding: 16px 18px;
-		color: var(--stone);
+		padding: 1rem 1.125rem;
 	}
 
 	.section-label {
-		font-size: 11.5px;
-		color: var(--stone);
-		font-weight: 600;
-		letter-spacing: 0.06em;
-		text-transform: uppercase;
-		padding: 18px 18px 6px;
+		padding: 1.125rem 1.125rem 0.375rem;
 	}
 
 	.rows {
@@ -171,9 +169,8 @@
 	.row {
 		display: flex;
 		align-items: center;
-		gap: 12px;
-		padding: 14px 18px;
-		border-bottom: 1px solid var(--rule);
+		gap: 0.75rem;
+		padding: 0.875rem 1.125rem;
 		background: transparent;
 		border-top: none;
 		border-left: none;
@@ -184,10 +181,6 @@
 		width: 100%;
 	}
 
-	.row:last-of-type {
-		border-bottom: none;
-	}
-
 	.row.is-self {
 		cursor: default;
 	}
@@ -195,27 +188,21 @@
 	.info {
 		flex: 1;
 		min-width: 0;
-	}
-
-	.name {
-		font-size: 15px;
-		font-weight: 600;
-		color: var(--ink);
+		display: flex;
+		flex-direction: column;
 	}
 
 	.sub {
-		font-size: 12px;
-		color: var(--stone);
-		margin-top: 2px;
+		margin-top: 0.125rem;
 	}
 
 	.add-wrap {
-		padding: 24px 18px 18px;
+		padding: 1.5rem 1.125rem 1.125rem;
 		display: flex;
 		justify-content: center;
 	}
 
 	.add-label {
-		margin-left: 8px;
+		margin-left: 0.5rem;
 	}
 </style>

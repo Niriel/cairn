@@ -700,10 +700,10 @@ handle → global `.sheet-handle`.
   `### [ ] 5.2 …` heading line (the body survived, orphaned). Restored here and
   marked done. Flagging since it already landed in a commit.
 
-### [ ] 5.3 MembersScreen
+### [x] 5.3 MembersScreen
 
 **Created:** 2026-06-03T00:00:00Z
-**Completed:**
+**Completed:** 2026-06-03T12:29:01Z
 
 **Why:** Full suite: section label, rows, row (a `<button>`), avatar + name +
 sub + action. `.name` matches `h3` already (good convergence check).
@@ -731,6 +731,29 @@ sub + action. `.name` matches `h3` already (good convergence check).
 - `web/src/lib/list/components/MembersScreen.svelte` (+ `.test.ts`)
 
 **Verify:** `pnpm lint` · `pnpm check` · `pnpm test`
+
+**Notes:**
+- **Row markup:** kept `class="row"` on the `<button>` (the whole tap target)
+  and wrapped it in a bare `<li>` — the second of the task's two options. This
+  preserves all the scoped button layout/reset and lets the global `.rows .row`
+  descendant selector key the divider off the button. Dropped the scoped
+  `border-bottom` and the `.row:last-of-type { border-bottom: none }`; the last
+  row now keeps a bottom border, the deliberate divider-model convergence.
+- **No test changes needed** — the suite keys only on `data-test` and
+  `textContent`, neither of which the div→section/ul/li/h2/span changes touch.
+  All 8 tests stayed green (full suite 624 passed).
+- **`.info` made a flex column** so the now-`<span>` name/sub still stack (they
+  were block `<div>`s before).
+- **`.name` rule deleted** (type now on global `.row-title`); the `name` class
+  is left on the markup as a dead class for Phase 6, per the standing rules.
+- **`.loading` also swept** (not called out in the task): dropped its `--stone`
+  colour onto `.caption` and converted padding to rem, consistent with standing
+  rule 2 and the other Phase 5 screens.
+- **`.sub` → `.caption`** per the task. Noting `.fine` (the newer 0.8rem
+  sub-floor metadata role, added after this plan was written) would arguably
+  suit the "Joined …" / "Created the list" metadata line better; left as
+  `.caption` to respect the task's explicit choice — a candidate for the Phase 6
+  visual sweep.
 
 ### [ ] 5.4 ItemsScreen
 
