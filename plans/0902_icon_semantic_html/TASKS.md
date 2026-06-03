@@ -393,10 +393,10 @@ on the `.t-hero` / `.body` roles. Spacing converted to rem (`2.5rem 2.25rem`
 padding, `1.5rem` disc gap, `0.625rem` heading gap, `1.75rem` body gap,
 `17.5rem` max-width); the 96px disc and hairline dashed border stay px.
 
-### [ ] 3.5 Add a `sage` filled-pill tone to `<Button>`
+### [x] 3.5 Add a `sage` filled-pill tone to `<Button>`
 
 **Created:** 2026-06-03T00:00:00Z
-**Completed:**
+**Completed:** 2026-06-03T10:36:44Z
 
 **Why:** Task 4.2 replaces the hand-rolled Accept/Decline pills with `<Button>`,
 but the design renders **Accept as a filled sage button** (`background:

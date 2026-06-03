@@ -110,6 +110,27 @@ describe('Button', () => {
 			});
 			expect(getByDataTest('b')).toHaveClass('tone-destructive');
 		});
+
+		test('sage tone', () => {
+			const { getByDataTest } = render(Button, {
+				tone: 'sage',
+				'data-test': 'b',
+				children: label('Ok')
+			});
+			expect(getByDataTest('b')).toHaveClass('tone-sage');
+		});
+	});
+
+	test('sage pill variant carries both pill and tone-sage classes', () => {
+		const { getByDataTest } = render(Button, {
+			variant: 'pill',
+			tone: 'sage',
+			'data-test': 'b',
+			children: label('Accept')
+		});
+		const btn = getByDataTest('b');
+		expect(btn).toHaveClass('pill');
+		expect(btn).toHaveClass('tone-sage');
 	});
 
 	describe('size classes', () => {

@@ -5,7 +5,7 @@
 	import Icon from './Icon.svelte';
 
 	type Variant = 'rect' | 'pill' | 'text' | 'link';
-	type Tone = 'primary' | 'ink' | 'destructive';
+	type Tone = 'primary' | 'ink' | 'destructive' | 'sage';
 	type Size = 'sm' | 'md';
 
 	type Props = {
@@ -50,6 +50,7 @@
 	class:tone-primary={tone === 'primary'}
 	class:tone-ink={tone === 'ink'}
 	class:tone-destructive={tone === 'destructive'}
+	class:tone-sage={tone === 'sage'}
 	class:size-md={size === 'md'}
 	class:size-sm={size === 'sm'}
 	{disabled}
@@ -106,6 +107,11 @@
 		color: var(--paper);
 	}
 
+	.rect.tone-sage {
+		background: var(--sage);
+		color: var(--paper);
+	}
+
 	.rect.size-md {
 		padding: 12px 20px;
 		font-size: 15px;
@@ -137,6 +143,14 @@
 		border: 1px solid var(--rule);
 	}
 
+	/* sage is the single affirmative "go" action — filled, unlike every other
+	   pill tone (which stay outlined). */
+	.pill.tone-sage {
+		background: var(--sage);
+		color: var(--paper);
+		border: none;
+	}
+
 	.pill.size-sm {
 		padding: 7px 14px;
 		font-size: 12.5px;
@@ -166,6 +180,10 @@
 
 	.text.tone-destructive {
 		color: var(--ember);
+	}
+
+	.text.tone-sage {
+		color: var(--sage);
 	}
 
 	.text.size-md {
