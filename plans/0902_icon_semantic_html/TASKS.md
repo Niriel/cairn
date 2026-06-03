@@ -42,10 +42,10 @@
 
 ## Phase 0 — Reconcile docs
 
-### [ ] 0.1 Finish the `docs/ui.md` rem + role reconciliation
+### [x] 0.1 Finish the `docs/ui.md` rem + role reconciliation
 
 **Created:** 2026-06-03T00:00:00Z
-**Completed:**
+**Completed:** 2026-06-03T09:45:35Z
 
 **Why:** `docs/ui.md` gained the two governing conventions ("Where CSS lives",
 "Units") during planning, but several of its concrete specs still quote px
@@ -106,6 +106,15 @@ doc and the code must agree, or the next UI plan references stale px.
 
 **Verify:** `pnpm exec prettier --check "docs/ui.md"` (or note if md is outside
 the Prettier config).
+
+**Notes:** `docs/` is outside the Prettier-managed scope — there is no root
+`package.json` or `.prettierrc`; the config lives in `web/` and `web`'s
+`format` script (`prettier --write .`) only covers `web/`. Running
+`prettier --check` against `docs/ui.md` reports warnings, but the diff is
+entirely in **untouched** sections (an `*emphasis*` → `_emphasis_` on the
+`em`-units line, and the indentation of the `.row-nav` CSS code block). None of
+the four edited regions introduce new style issues, so the pre-existing
+formatting was left as-is rather than reformatting unrelated content.
 
 ---
 

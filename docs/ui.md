@@ -220,7 +220,7 @@ The full feature is documented in `invites.md`; this section covers the UI surfa
 
 When the user has at least one pending invite, a single row appears at the top of the Lists screen, above the list of lists:
 
-- One pending invite: _"Alice invited you to **Stuff to read**"_ with two inline affordances — **Accept** (sage) and **Decline** (muted).
+- One pending invite: _"Alice invited you to **Stuff to read**"_ with two inline affordances — **Accept** (filled sage) and **Decline** (outlined).
 - More than one: _"3 pending invites"_ with a chevron; tapping opens the full inbox screen.
 
 The row uses a slightly tinted background (warm cream in light mode, slate-700 in dark) to distinguish it from list rows without competing for attention. It disappears entirely when the inbox is empty — invites are not a permanent UI element.
@@ -232,7 +232,7 @@ Reachable from Settings → Invites or by tapping the multi-invite row on the Li
 - Inviter's display name and avatar.
 - _"invited you to"_ in muted text.
 - The list name, in the same weight as a list-row title.
-- An **Accept** button (sage) and a **Decline** button (muted), side by side.
+- An **Accept** button (filled sage) and a **Decline** button (outlined), side by side.
 
 Accept navigates immediately into the list (the user is now a full member). Decline removes the row with no animation drama and no "Are you sure?" — the row is replaced by the next pending invite, or by an empty-state message if it was the last (_"No pending invites"_, gentle, friendly).
 
@@ -407,6 +407,50 @@ current look." Accidental drift should converge on one global value, accepting
 the deliberate visual changes that follow. The goal is one source of truth per
 visual role, not the preservation of per-page quirks.
 
+#### Type roles
+
+`typography.css` defines the full set of type roles. A screen reaches a visual
+look by using the matching tag or global class — never by setting `font-size`,
+`font-weight`, `letter-spacing`, or `text-transform` in a scoped block. The
+roles:
+
+- `h1` — screen / TopBar title (Newsreader serif).
+- `h2` — section title. A small heading: 0.8125 rem / 600 / `var(--ink-soft)`,
+  **normal-case** (see the label/title note below).
+- `h3` (+ `.row-title`) — sub-heading / row title weight.
+- `.t-hero` — empty-state heading (Newsreader, 1.5 rem).
+- `.t-sheet` — bottom-sheet title.
+- `.list-title` — a list-row name.
+- `.identity-name` — a person's display name (members, inbox, profile).
+- `.body` — default body copy.
+- `.caption` — muted secondary / metadata line.
+- `.mono` — monospace (vote indicator, aggregate-score badge).
+
+**Label vs. title — they are not the same look.** The upper-cased,
+`0.06em`-tracked small-stone treatment is the **form-label** look, owned by the
+`<Label>` primitive (the caption above a form field). **Section titles (`h2`)
+are normal-case** — a small heading (0.8125 rem / 600 / `var(--ink-soft)`), not
+upper-cased and not tracked. The two were historically conflated under the word
+"label"; a section header is an `h2`, not a `<Label>`. Do not re-introduce
+uppercase section headers.
+
+### Semantic structure
+
+Markup carries meaning, so labelled content groups use real sectioning
+elements rather than anonymous `<div>`s:
+
+- A labelled content group is a `<section>` whose title is a bare `<h2>` (the
+  global `h2` role styles it; no class needed).
+- `<header>` is used **only** when the section intro carries more than the
+  title — e.g. a sheet whose head is a title plus a subtitle. A section with
+  just a title needs no `<header>`; the bare `<h2>` is the head.
+- `<footer>` holds trailing notes (a muted explanatory line at the end of a
+  section or sheet).
+- A single, unlabelled list is **not** sectioned — render the `<ul>`/rows
+  directly without a wrapping `<section>` or empty `<h2>`.
+- The TopBar middle slot stays a layout `<div>` holding the `<h1>` title and an
+  optional `<p>` subtitle as siblings — it is chrome, not a content section.
+
 ### Units: rem for the type scale, em for local scaling, px for hairlines
 
 The Settings font-size control multiplies the root `font-size`
@@ -471,14 +515,14 @@ Screens that can show an empty state should be flex columns that fill the viewpo
 
 Every `<TopBar>` renders with:
 
-- Newsreader serif, 22 px, weight 500, letter-spacing −0.01 em for the title
+- Newsreader serif, 1.375 rem (22 px), weight 500, letter-spacing −0.01 em for the title
 - `min-height: 56px`; padding 12 px top / 18 px sides (plus safe-area insets)
 - `border-bottom: 1px solid var(--rule)`
 
 The TopBar uses `display: flex; align-items: center; gap: 10px`. The title div has `flex: 1; min-width: 0`, so the leading element and title are visually adjacent. Optional props:
 
 - **`left?: Snippet`** — rendered in the leading slot. When provided, it replaces the back button (`showBack` is ignored). Use this for root screens that need a brand element rather than a back arrow (e.g. `<CairnGlyph>` on the Lists screen).
-- **`sub?: string`** — a secondary line rendered directly below the title; 12 px, `var(--stone)`.
+- **`sub?: string`** — a secondary line rendered directly below the title; 0.75 rem (12 px), `var(--stone)`.
 
 These styles live inside `TopBar.svelte` — callers do not re-apply them. Screens that are the navigation root (e.g. Lists) pass a `left` snippet instead of `showBack={false}`.
 
@@ -526,9 +570,9 @@ Blocked) use the same illustrated treatment as first-run screens (e.g. Lists),
 just without a CTA. Structure:
 
 - A centered 96 × 96 px circle: `background: var(--paper-alt); border: 1px dashed var(--stone-lt); border-radius: 99px`. Contains an icon (`<Icon>`) or a brand illustration (e.g. `<CairnGlyph size={44} color="var(--stone)" />`).
-- A heading: Newsreader 24 px, weight 500, `var(--ink)`, letter-spacing −0.01 em.
-- Body copy: 14 px, `var(--ink-soft)`, line-height 1.5, max-width 280 px.
-- An optional CTA button: `background: var(--ink); color: var(--paper)`, border-radius 12 px, padding 12 px 22 px, weight 600, 14 px, with a leading icon. Rendered only on screens with a primary first-run action (Lists, Items); omitted elsewhere.
+- A heading: Newsreader 1.5 rem (24 px), weight 500, `var(--ink)`, letter-spacing −0.01 em.
+- Body copy: 0.875 rem (14 px), `var(--ink-soft)`, line-height 1.5, max-width 280 px.
+- An optional CTA button: `background: var(--ink); color: var(--paper)`, border-radius 12 px, padding 12 px 22 px, weight 600, 0.875 rem (14 px), with a leading icon. Rendered only on screens with a primary first-run action (Lists, Items); omitted elsewhere.
 
 Heading, body, and CTA are each optional — a screen supplies only the parts it
 needs (e.g. Trash and Blocked render the disc + heading with no CTA).
