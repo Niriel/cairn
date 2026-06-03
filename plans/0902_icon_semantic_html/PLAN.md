@@ -71,7 +71,8 @@ onto roles:
 | `.list-title` | serif 1.0625rem/600/−0.005em/`--ink`/lh 1.3 | ListsScreen `.name` |
 | `.identity-name` | 1.125rem/600/`--ink` | ProfileSheet `.name` |
 | `.body` | 1rem/`--ink-soft`/lh 1.5 | `.empty-body`, ListsScreen `.desc`, Items `.notes`(*serif italic kept via extra scoped rule*), various 13.5–14px body |
-| `.caption` | 1rem/`--stone`/lh 1.5 (set apart by colour, not size) | `.sub`, `.subtitle`, `.meta`, `.attribution`, `.row-inviter`, `.nav-row-sub`, `.option-sub`, `.cascade-note`, `.when`, ListOverflow `.meta`, etc. |
+| `.caption` | 1rem/`--stone`/lh 1.5 (set apart by colour, not size) | `.sub`, `.subtitle`, `.row-inviter`, `.nav-row-sub`, `.option-sub`, `.cascade-note`, ListOverflow `.meta`, etc. |
+| `.fine` | 0.8rem/`--stone`/lh 1.5 (the one tier below the 1rem floor) | Items `.attribution` + `.member-vote`, ListsScreen `.meta` line, timestamps (`.when`). Genuinely-secondary metadata that reads fine small. |
 | `.mono` | JetBrains Mono | vote values, `.score-badge` text, `.nav-row-count`, `.when`, circle/blocked `.sub` |
 
 **Uppercase belongs to form labels, not section titles.** The upper-cased,

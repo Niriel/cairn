@@ -131,7 +131,7 @@
 					{:else}
 						<div class="desc no-desc" data-test="list-desc-{item.id}">(no description)</div>
 					{/if}
-					<div class="meta">
+					<div class="meta fine">
 						<span>{item.item_count} {item.item_count === 1 ? 'item' : 'items'}</span>
 						<span class="dot">•</span>
 						<span>{timeAgo(item.modified_at)}</span>
@@ -300,8 +300,6 @@
 
 	.meta {
 		margin-top: 6px;
-		font-size: 11.5px;
-		color: var(--stone);
 		display: flex;
 		align-items: center;
 		gap: 4px;

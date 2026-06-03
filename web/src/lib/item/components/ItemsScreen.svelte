@@ -155,7 +155,7 @@
 							{#if item.member_votes.length > 0}
 								<div class="member-votes">
 									{#each item.member_votes as mv (mv.user_id)}
-										<span class="member-vote">
+										<span class="member-vote fine">
 											<Avatar
 												displayName={mv.display_name}
 												size={18}
@@ -174,7 +174,7 @@
 									{/each}
 								</div>
 							{/if}
-							<div class="attribution">
+							<div class="attribution fine">
 								Added by <strong
 									data-test="attribution-creator-{item.id}"
 									class:tombstone={item.created_by === TOMBSTONE_UID}>{item.created_by_name}</strong
@@ -457,13 +457,11 @@
 		display: inline-flex;
 		align-items: center;
 		gap: 6px;
-		font-size: 12.5px;
-		color: var(--ink-soft);
 	}
 
 	.mv-val {
 		font-family: 'JetBrains Mono', ui-monospace, monospace;
-		font-weight: 600;
+		font-size: 1em;
 		color: var(--stone);
 	}
 
@@ -477,9 +475,6 @@
 
 	.attribution {
 		margin-top: 14px;
-		font-size: 11.5px;
-		color: var(--stone);
-		line-height: 1.5;
 	}
 
 	.attribution strong {

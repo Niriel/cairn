@@ -424,7 +424,9 @@ roles:
 - `.list-title` — a list-row name.
 - `.identity-name` — a person's display name (members, inbox, profile).
 - `.body` — default body copy.
-- `.caption` — muted secondary / metadata line.
+- `.caption` — muted secondary / metadata line (1 rem, set apart by colour).
+- `.fine` — fine print: the one tier below the 1 rem floor (0.8 rem, `var(--stone)`)
+  for attribution lines, the list-meta line, vote labels, and timestamps.
 - `.mono` — monospace (vote indicator, aggregate-score badge).
 
 **Label vs. title — they are not the same look.** The upper-cased,

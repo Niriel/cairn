@@ -132,6 +132,16 @@ ol {
 	line-height: 1.5;
 }
 
+/* Fine print — the one tier deliberately below the 1rem floor (0.8rem).
+   Genuinely-secondary metadata that reads fine small: attribution lines, the
+   list-meta line ("2 items · 5 days ago"), vote labels, timestamps. Like
+   .caption, set apart by --stone; distinguished from it by being smaller. */
+.fine {
+	font-size: 0.8rem;
+	color: var(--stone);
+	line-height: 1.5;
+}
+
 /* Monospace — vote indicator, aggregate-score badge, counts. */
 .mono {
 	font-family: 'JetBrains Mono', ui-monospace, monospace;
