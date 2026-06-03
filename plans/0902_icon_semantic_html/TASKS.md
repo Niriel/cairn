@@ -18,7 +18,13 @@
 
 1. **Semantic first.** Apply the R5 element-type mappings. Keep the class name
    on the new element through the sweep so test selectors keep working; dead
-   classes are removed in Phase 6.
+   classes are removed in Phase 6. **Sectioning:** wrap each labelled content
+   group in `<section>` with its title as a bare `<h2>` (no `<header>` around a
+   lone heading); use `<header>` only where the intro carries more than the
+   title (sheet title + subtitle), and `<footer>` for trailing notes
+   (cascade-note, "What's this?" link). A single unlabelled list is not
+   sectioned. Where a section label both titles a group *and* labels a single
+   input (the InvitePicker "By e-mail" caption), use the `<Label>` primitive.
 2. **Strip scoped visual.** Delete every `font-*`, `letter-spacing`,
    `text-transform`, `line-height`, text `color`, `background`, and
    `border*-color` declaration from the scoped `<style>`, replacing it by the
@@ -59,6 +65,13 @@ doc and the code must agree, or the next UI plan references stale px.
   roles (`h1`, `h2`, `h3`, `.t-hero`, `.t-sheet`, `.list-title`,
   `.identity-name`, `.body`, `.caption`, `.mono`) so the doc names the source
   of truth that `typography.css` implements.
+- Add a short **"Semantic structure"** convention under the CSS-conventions
+  section so later screens inherit it: a labelled content group is a
+  `<section>` with its title as a bare `<h2>`; `<header>` is used only when the
+  section intro carries more than the title (sheet title + subtitle); `<footer>`
+  holds trailing notes; a single unlabelled list is not sectioned. Note the
+  TopBar middle slot stays a layout `<div>` holding the `<h1>` title and an
+  optional `<p>` subtitle as siblings.
 - Disc dimensions (96 px) and hairline borders stay px per the Units rule.
 
 **Files:**
@@ -68,7 +81,9 @@ doc and the code must agree, or the next UI plan references stale px.
 1. Update the TopBar visual spec and the empty-state spec to rem (px in
    parentheses).
 2. Add the "Type roles" list under the CSS-conventions section.
-3. No code or tests in this task. `pnpm lint`/`pnpm check` not required for a
+3. Add the "Semantic structure" (`<section>` / `<header>` / `<footer>`)
+   convention under the CSS-conventions section.
+4. No code or tests in this task. `pnpm lint`/`pnpm check` not required for a
    markdown-only change, but run `pnpm exec prettier --check docs/ui.md` if
    markdown is in the Prettier glob.
 
@@ -148,6 +163,12 @@ work (R1).
 - Add the new role classes from PLAN.md → Type scale: `.t-hero`, `.t-sheet`,
   `.list-title`, `.identity-name`, `.body`, `.caption`, `.mono`. Exact values
   in the PLAN table.
+- **Pin the font-family stacks** (the PLAN table abbreviates them as "serif" /
+  "JetBrains Mono"): the serif roles (`h1`, `.t-hero`, `.t-sheet`,
+  `.list-title`) use `'Newsreader Variable', Georgia, serif` — the *variable*
+  family that is actually `@import`-ed (not bare `'Newsreader'`, which several
+  out-of-scope files have drifted to); `.mono` uses `'JetBrains Mono',
+  ui-monospace, monospace`, matching the existing VoteControl/ItemsScreen usage.
 - `.t-sheet` must override the global section-label `h2` when applied to a
   sheet header's `<h2 class="t-sheet">` — class selector beats tag selector, so
   no `!important` needed.
@@ -185,6 +206,11 @@ copy and add a class instead (R3).
   `.rows .row` divider model, `.card`, `.card-alt`, `.card-dashed`,
   `.surface-alt`, `.sheet-handle` — values per PLAN.md → Surfaces. Radii
   converge to `0.75rem`; hairline borders stay `1px`.
+- The divider is keyed off `.rows` only; **every list container is renamed to
+  `class="rows"` in its Phase 5 sweep** (`.list`, `.circle-list`,
+  `.blocked-list` included), so this one rule covers them all. (This supersedes
+  the parent plan's `border-bottom`→`<hr>` decision — see R3.) `<hr>` is kept
+  only for ListOverflowSheet's action menu (task 5.2), not for data lists.
 - Find the global-CSS import site (where `typography.css` and `tokens.css` are
   imported — check `web/src/routes/+layout.svelte` and any `app.css`). Import
   `surfaces.css` there, after `tokens.css` and `typography.css`.
@@ -214,7 +240,17 @@ PrivacyScreen, and ItemsScreen. One set of badge rules removes the drift (R4).
 **Decisions:**
 - Create `web/src/lib/shared/styles/controls.css` with `.badge` base and
   `.badge-ink`, `.badge-soft`, `.badge-score` (+`.positive`/`.negative`) per
-  PLAN.md → Controls. Import alongside `surfaces.css`.
+  PLAN.md → Controls. `.badge-score.positive` = `color: var(--sage); background:
+  var(--sage-bg)`, `.negative` = the ember pair; the base supplies the pill
+  radius. Import alongside `surfaces.css`.
+- Also add `.toast-error` — the persistent error toast duplicated byte-for-byte
+  in `TrashScreen` / `DeletedListsScreen`. Include both the visual (color
+  `--ember`, background `--paper`, `1px solid var(--ember)`, `border-radius:
+  0.75rem`, `text-align: center`, font-size in rem) **and** the shared
+  fixed-position pattern (`position: fixed`; the shell-aware
+  `left/right: max(0px, calc(50% - var(--app-max-w) / 2 + 0.75rem))`;
+  `bottom: calc(env(safe-area-inset-bottom) + 18px)`; `z-index: 200`) since it
+  is a self-contained transient surface.
 - Pill buttons are **not** styled here — they become `<Button>` in Phase 4.
 
 **Files:**
@@ -259,6 +295,54 @@ identical to them) and converts spacing to rem (R1, R6).
 
 **Verify:** `pnpm lint` · `pnpm check` · `pnpm test`
 
+### [ ] 3.5 Add a `sage` filled-pill tone to `<Button>`
+
+**Created:** 2026-06-03T00:00:00Z
+**Completed:**
+
+**Why:** Task 4.2 replaces the hand-rolled Accept/Decline pills with `<Button>`,
+but the design renders **Accept as a filled sage button** (`background:
+var(--sage); color: #fff` — `design/cairn-invite-screens.jsx`, `docs/ui.md` →
+"Accept (sage)"). `<Button>` today exposes tones `primary | ink | destructive`
+(`Button.svelte`), and its `pill` variant is outlined-only — none of which can
+produce a filled sage pill. This task adds the one missing tone so 4.2 can use
+it instead of stalling on the absent tone.
+
+**Prerequisites:** None (Button already exists from 0901). Read `Button.svelte`
+to match the existing `Variant`/`Tone`/`Size` structure and the `class:tone-*`
+binding pattern.
+
+**Decisions:**
+- Add `'sage'` to the `Tone` union and a matching `class:tone-sage={tone ===
+  'sage'}` binding on the `<button>`.
+- The `pill` variant renders the `sage` tone **filled**, unlike every other
+  pill tone (which stay outlined): `.pill.tone-sage { background: var(--sage);
+  color: var(--paper); border: none }`. The filled-only-for-sage asymmetry is
+  intentional — sage is the single affirmative "go" action.
+- For completeness add the rect and text analogues so the tone is fully
+  defined: `.rect.tone-sage { background: var(--sage); color: var(--paper) }`
+  and `.text.tone-sage { color: var(--sage) }`. (Only the pill is consumed by
+  this plan, but a half-defined tone is a smell.)
+- Use `var(--paper)` for the foreground, not a literal `#fff`, so it tracks the
+  theme (the hand-rolled pill's `#fff` was a token-bypass).
+
+**Reference:** `Button.svelte` for the variant/tone class pattern;
+`docs/ui.md` → "Invites inbox screen" for the Accept-is-sage contract.
+
+**Files:**
+- `web/src/lib/basic/components/Button.svelte` (modify)
+- `web/src/lib/basic/components/Button.test.ts` (modify)
+
+**Steps:**
+1. RED — In `Button.test.ts`, add a case rendering `<Button variant="pill"
+   tone="sage">` and assert it carries the `tone-sage` (and `pill`) class.
+   Confirm it fails (tone not yet in the union / no class emitted).
+2. GREEN — Add `'sage'` to `Tone`, the `class:tone-sage` binding, and the
+   three tone rules above. Re-run and confirm green.
+3. `pnpm lint` · `pnpm check` · `pnpm test`.
+
+**Verify:** `pnpm lint` · `pnpm check` · `pnpm test`
+
 ---
 
 ## Phase 4 — Shared chrome + `<Button>` reuse
@@ -268,22 +352,39 @@ identical to them) and converts spacing to rem (R1, R6).
 **Created:** 2026-06-03T00:00:00Z
 **Completed:**
 
-**Why:** TopBar's `.centre` div carries the only canonical page title and its
-type duplicates the global `h1`. Making it `<h1>` and deleting the scoped font
+**Why:** TopBar's title is the only canonical page-level heading and its type
+duplicates the global `h1`. Promoting it to `<h1>` and deleting the scoped font
 properties is the cleanest single instance of the whole plan. TopBar is fully
 handled here and not revisited in Phase 5.
 
 **Prerequisites:** Task 3.1 (global `h1` in rem).
 
 **Decisions:**
-- `<div class="centre">` → `<h1 class="centre">`. Remove `font-family`,
-  `font-size`, `font-weight`, `letter-spacing`, and `line-height` from the
-  scoped `.centre` rule (now covered by global `h1`; `line-height: 1.1` — keep
-  only if it differs from the global and is intentional, otherwise drop). Keep
-  `flex: 1; min-width: 0`.
-- `.sub` → `<p class="sub caption">` if it is a `<div>`; move its type to
-  `.caption` (0.75rem/`--stone`) and keep only layout (`margin-top`) scoped.
-  Convert `margin-top` to rem.
+- The middle slot currently wraps **both** the title (`{@render children()}`)
+  and the optional `.sub`, inside one `<div class="centre">`
+  (`TopBar.svelte:33-36`). Do **not** turn that wrapper into the `<h1>` — that
+  would nest the subtitle `<p>` inside the heading, which is invalid (an `<h1>`
+  cannot contain a `<p>`). Instead keep the wrapper as a layout `<div>` and put
+  the title and subtitle as **siblings** inside it:
+  ```svelte
+  <div class="middle">
+    <h1>{@render children()}</h1>
+    {#if sub}<p class="sub caption">{sub}</p>{/if}
+  </div>
+  ```
+- **Rename the class `centre` → `middle`** (the `left` / `middle` / `right`
+  triad). Class names are code, so they take US spelling — and `middle` reads
+  better than `center`, which implies the slot is centring something. Update
+  the scoped rule, the markup, and the stale `.centre` mention in
+  `typography.css` (the comment at the `h1` rule, which also references a
+  non-existent "task 3.10").
+- On the new `<h1>`: it inherits the global `h1` type — add no scoped font
+  properties. `line-height: 1.1` from the old `.centre` rule may move onto the
+  scoped `h1`/`.middle` layout only if it is intentional and differs from the
+  global; otherwise drop it.
+- `.middle` keeps only layout: `flex: 1; min-width: 0`.
+- `.sub` (the `<div>` → `<p class="sub caption">`): move its type to `.caption`
+  (0.75rem/`--stone`); keep only layout (`margin-top`) scoped, converted to rem.
 - TopBar's `header` `background: var(--paper)` and `border-bottom: 1px solid
   var(--rule)` are single-instance app chrome — they may stay scoped (R "single
   instance chrome"). Convert the `padding`/`gap`/`min-height` to rem where they
@@ -291,11 +392,14 @@ handled here and not revisited in Phase 5.
 
 **Files:**
 - `web/src/lib/shared/components/TopBar.svelte` (modify)
+- `web/src/lib/shared/styles/typography.css` (modify — drop the stale `.centre`
+  comment reference)
 - `web/src/lib/shared/components/TopBar.test.ts` (modify if it queries
-  `.centre` as a div)
+  `.centre` — a grep shows it does not today, so likely no change)
 
 **Steps:**
-1. Apply the element + CSS changes above.
+1. Apply the element + CSS changes above (sibling `<h1>` + `<p>`, class rename,
+   scoped-type removal).
 2. Update `TopBar.test.ts` selectors if needed.
 3. `pnpm lint` · `pnpm check` · `pnpm test`.
 
@@ -311,20 +415,24 @@ handled here and not revisited in Phase 5.
 `<Button variant="pill">`. Reusing `<Button>` deletes the duplicated button CSS
 (R4). The rest of these two files' sweep is task 5.6.
 
-**Prerequisites:** Task 3.1. Read `Button.svelte` to confirm the `variant`,
-`tone`, and `size` props and the available pill tones.
+**Prerequisites:** Task 3.5 (`<Button>` has the `sage` filled-pill tone). Read
+`Button.svelte` to confirm the `variant`, `tone`, and `size` props.
 
 **Decisions:**
 - Replace each `<button class="btn-accept">Accept</button>` with
-  `<Button variant="pill" tone="sage" …>` and each
-  `<button class="btn-decline">Decline</button>` with a muted pill tone
-  (confirm the tone name in `Button.svelte`; "Decline" is the backward/less
-  committal action and goes left per the button-pair rule). Preserve all
-  `data-test`, `onclick`, and disabled wiring.
+  `<Button variant="pill" tone="sage" size="sm" …>` (filled sage, matching the
+  design) and each `<button class="btn-decline">Decline</button>` with
+  `<Button variant="pill" tone="ink" size="sm" …>` (outlined). "Decline" is the
+  backward/less-committal action and goes left per the button-pair rule.
+  Preserve all `data-test`, `onclick`, and disabled wiring.
+- Decline's current muted-stone outline converges onto the outlined `ink` pill
+  — a deliberate homogenisation change (the parent plan collapsed `neutral` →
+  `ink`, so there is no separate muted tone, and reintroducing one is out of
+  scope).
 - Delete the `.btn-accept` / `.btn-decline` scoped CSS. Keep `.buttons`
-  (layout: flex/gap) and convert its gap to rem.
-- If `<Button>` cannot express a needed tone, stop and flag rather than
-  re-adding bespoke CSS.
+  (layout: flex/gap) and convert its gap to rem. Both buttons today are
+  full-width (`flex: 1`); preserve that via the layout wrapper (e.g. `.buttons
+  > :global(button) { flex: 1 }`) since `<Button>` is inline-flex by default.
 
 **Files:**
 - `web/src/lib/invite/components/InvitesInboxScreen.svelte` (modify)
@@ -362,19 +470,26 @@ and proves the global roles/classes compose with a real component.
 - `<div class="header">` → `<header>`; `.title` div → `<h2 class="title t-sheet">`;
   `.subtitle` div → `<p class="subtitle caption">`. (A `<header>` + `<h2>` was
   already partly started in the working tree — finish it.)
-- The two `<div class="section-label">` → `<h2 class="section-label">`
-  (global `h2`; drop the scoped font props, keep padding as layout, in rem).
+- **Section structure.** This sheet has three content groups — "Your circle",
+  "People you share other lists with", and the by-e-mail field. Wrap each in a
+  `<section>`. The first two are lone-title groups: `<div class="section-label">`
+  → a bare `<h2 class="section-label">` (global `h2`; drop the scoped font
+  props, keep padding as layout, in rem) followed by its `<ul>` — **no**
+  `<header>`. The e-mail group is handled below.
 - `<div class="rows">` → `<ul class="rows">`; `<div class="row">` →
   `<li class="row">`; rely on the global `.rows`/`.rows .row` divider — delete
   the scoped `border-top`/`:last-child border-bottom`.
 - `<div class="name">` → `<h3 class="name">` (drop scoped 14 px → global 15px).
 - `<div class="sub">` → `<span class="sub caption">`.
-- `.email-section` → keep as layout; its `background: var(--paper-alt)` becomes
-  the `.surface-alt` class on the element; `border-top` uses the global rule or
-  stays as a hairline (keep `1px` px). The `<label class="section-label
-  email-label">` stays a `<label>` (form-label carve-out) — give it the global
-  `h2` look by keeping `class="section-label"` (tag is label, so it needs the
-  class for the look; document that this label intentionally keeps the class).
+- `.email-section` → a `<section>` kept as layout; its
+  `background: var(--paper-alt)` becomes the `.surface-alt` class on the
+  element; `border-top` stays a hairline (`1px` px). Its "By e-mail" caption is
+  both the section's intro **and** the label for the one e-mail input, so
+  replace `<label class="section-label email-label" for="…">` with the
+  `<Label for="invite-picker-email-input">By e-mail</Label>` primitive
+  (`$lib/basic/components/Label.svelte` — it already renders the section-label
+  look as a real `<label>`). Delete the `.email-label` scoped rule. **No global
+  `.section-label` class is introduced.**
 - `.invited` check uses `color: var(--sage)` — that is a state color on an
   icon wrapper; move it to a tiny global helper or keep as an annotated
   exception (decide and note).
@@ -429,8 +544,10 @@ sub + action. `.name` matches `h3` already (good convergence check).
 **Prerequisites:** Phase 3; task 5.1.
 
 **Decisions:**
-- `<div class="section-label">` → `<h2 class="section-label">` (padding only,
-  rem). `<div class="rows">` → `<ul class="rows">`. Each `<button class="row">`
+- Wrap the labelled members group in a `<section>` whose bare `<h2>` is its
+  title (no `<header>` — lone title). `<div class="section-label">` →
+  `<h2 class="section-label">` (padding only, rem). `<div class="rows">` →
+  `<ul class="rows">`. Each `<button class="row">`
   → `<li class="row"><button …></li>` **or** keep `<button class="row">` as the
   list item if the row is the whole tap target — if so, use a `<li>` wrapper to
   stay valid inside `<ul>`. The row's `background: transparent` / `border:
@@ -466,7 +583,10 @@ empty-state with a CTA.
 - `.item-name` → `<h3>` (15.5px → 15px global; the `.row.open .item-name`
   weight bump 600 is a state — keep as a scoped state rule on the tag, annotate,
   or accept default). `.score-badge` → `.badge .badge-score` (+ positive/
-  negative); delete its scoped color/bg/radius/font. `.notes` → `.body` plus a
+  negative); delete its scoped color/bg/radius/font. `.badge-score.positive`
+  sets `color: var(--sage); background: var(--sage-bg)` and `.negative` the
+  ember pair; the badge takes the `.badge` base's pill radius (99px), converging
+  the current 6px — a deliberate change. `.notes` → `.body` plus a
   scoped `font-family: …serif; font-style: italic` (annotated exception, see
   PLAN open question). `.member-vote` → `.caption`; `.mv-val` → `.mono` (+
   positive/negative state color). `.attribution` → `.caption`; the tombstone
@@ -495,9 +615,11 @@ illustrated empty-state with a `<CairnGlyph>` disc + CTA.
 **Prerequisites:** Phase 3; task 5.1.
 
 **Decisions:**
-- `<div class="list">` → `<ul class="list">`; each `<div class="row">` →
-  `<li class="row">` (keep `class:last`). `.row-top`, `.desc`, `.desc-text`
-  stay layout divs/buttons.
+- `<div class="list">` → `<ul class="rows">` (rename `.list` → `.rows` so the
+  global `.rows`/`.rows .row` divider applies; move any `.list`-specific layout
+  onto `.rows` and update test selectors that query `.list`); each
+  `<div class="row">` → `<li class="row">` (keep `class:last`). `.row-top`,
+  `.desc`, `.desc-text` stay layout divs/buttons.
 - `<span class="name">` (inside the nav button) → `<h3 class="name list-title">`
   — `.list-title` carries the serif 1.0625rem/600 look; delete the scoped font
   block. `.desc` → `.body` (13.5px → 0.875rem) with the no-desc italic/`--stone`
@@ -525,11 +647,13 @@ semantic markup, type → roles, empty state. `InvitesBanner.row` is a carve-out
 **Prerequisites:** Phase 3; tasks 4.2, 5.1.
 
 **Decisions:**
-- InvitesInboxScreen: `<div class="list">` → `<ul class="list">`; `<div
-  class="row">` → `<li class="row">` (inner `.row-top`/`.row-info` stay divs).
-  `.list-name` → `<h3>`; `.row-inviter` → `.caption`; `.inviter-name` weight via
-  a scoped state or `<strong>`; `.when` → `.caption .mono`. Divider via global
-  `.rows`/`.list` rule (rename selector or add the divider to `.list`). Empty
+- InvitesInboxScreen: `<div class="list">` → `<ul class="rows">` (rename
+  `.list` → `.rows` so the global `.rows`/`.rows .row` divider applies; update
+  test selectors querying `.list`); `<div class="row">` → `<li class="row">`
+  (inner `.row-top`/`.row-info` stay divs). `.list-name` → `<h3>`; `.row-inviter`
+  → `.caption`; `.inviter-name` weight via a scoped state or `<strong>`; `.when`
+  → `.caption .mono`. Drop the per-file `.row.first`/`.row` border hacks (global
+  divider). Empty
   state → `<EmptyState icon="inbox" title="No pending invites" body=…>` (reword
   the `<br/>` body into one sentence). Delete `.empty*` and `.loading` color
   (→ `.caption`).
@@ -562,10 +686,13 @@ the same `.error` toast (identical in both), and heading-only empty states.
   → global 15px/600). `.attribution` → `<span class="caption">`. TrashScreen's
   `.row-icon` color wrapper stays (cosmetic, allowed). `.loading` color →
   `.caption`.
-- The `.error` toast is identical in both → migrate both to `<Snackbar>` (it
-  exists and is already used elsewhere) OR add a global `.toast-error` to
-  `controls.css` and apply it; pick one and note it. Do not leave the scoped
-  `color`/`background`/`border-color`.
+- The `.error` toast is byte-identical in both → apply the global
+  `.toast-error` class created in task 3.3 (`<div class="toast-error">`) and
+  delete the scoped `.error` rule from both files. Keep it a plain
+  `{#if …error}` element — do **not** migrate to `<Snackbar>` (its 6 s
+  auto-dismiss + `open`/`onclose` wiring would change the persistent-error
+  behaviour). No scoped `color`/`background`/`border-color`/positioning left
+  behind.
 - Empty states → `<EmptyState icon="trash-2" title=… iconSize={44}>` (no body,
   no CTA) and `<EmptyState icon="trash-2" title="No deleted lists." iconSize={44}>`.
   Delete `.empty*` CSS.
@@ -589,14 +716,24 @@ roles and `.card-dashed`. BlockedScreen's one-off empty state unifies onto
 **Prerequisites:** Phase 3; task 5.1.
 
 **Decisions:**
-- Both: `<div class="section-header">` → `<h2>` (drop the diverging 0.75rem/
-  0.04em; global `h2` is 0.72rem/0.06em). `.display-name` (span) → `<h3>`. `.sub`
-  → `.caption .mono` (it is a monospace count/since line; if `--stone-lt` vs
-  `--stone` matters it is drift → use `.caption`). `.row`/`.row:first-child`
-  dividers → global `.rows`/`.circle-list`/`.blocked-list` rule (the lists are
-  already `<ul>`; add the divider to the existing list class or rename to
-  `.rows`). `.description`/`.intro-text`/`.whats-this` → `.caption` / `.body` as
-  fits.
+- **Section structure.** CircleScreen has one labelled group: wrap "People in
+  your circle · {count}" + its `<ul>` in a `<section>` whose `<div
+  class="section-header">` → a bare `<h2>` (the count is inline in the title, so
+  it stays a lone heading — no `<header>`; drop the diverging 0.75rem/0.04em →
+  global `h2` 0.72rem/0.06em). The `.intro` block (explainer + "What's this?")
+  is *screen* intro under the TopBar, not a section header — keep it a layout
+  `<div>`. The `.add-card` is an unlabelled add form (its own `<Label>`), not a
+  section — keep it a block. **BlockedScreen has no section label** — its
+  `.description` is screen intro and its `.blocked-list` is a single unlabelled
+  list, so it gets **no** `<section>` wrapper.
+- Both: `.display-name` (span) → `<h3>`. `.sub` → `.caption .mono` (it is a
+  monospace count/since line; if `--stone-lt` vs `--stone` matters it is drift →
+  use `.caption`). Rename `.circle-list` / `.blocked-list` → `class="rows"` so
+  the global `.rows`/`.rows .row` divider applies; drop the per-file
+  `.row:first-child border-top` / `.row border-bottom` hacks; update test
+  selectors querying `.circle-list` / `.blocked-list`. `.description` /
+  `.intro-text` → `.caption` / `.body`; the `.whats-this` link stays a
+  `<Button variant="link">`.
 - CircleScreen `.add-card` → `.card-dashed` (delete scoped border/bg/radius;
   keep margin/padding layout in rem).
 - BlockedScreen `.empty-state` (dashed box) → `<EmptyState icon="slash"
@@ -609,12 +746,12 @@ roles and `.card-dashed`. BlockedScreen's one-off empty state unifies onto
 
 **Verify:** `pnpm lint` · `pnpm check` · `pnpm test`
 
-### [ ] 5.9 AddEditItemSheet + CreateListSheet + CircleExplainerSheet + ProfileSheet
+### [ ] 5.9 AddEditItemSheet + DeleteItemSheet + CreateListSheet + CircleExplainerSheet + ProfileSheet
 
 **Created:** 2026-06-03T00:00:00Z
 **Completed:**
 
-**Why:** Four sheets. Titles → `.t-sheet`/`.t-hero`; ProfileSheet name →
+**Why:** Five sheets. Titles → `.t-sheet`/`.t-hero`; ProfileSheet name →
 `.identity-name`; handles → `.sheet-handle`; the explainer hero converges to
 `.t-hero`.
 
@@ -626,6 +763,14 @@ roles and `.card-dashed`. BlockedScreen's one-off empty state unifies onto
   `.notes-field textarea` serif is an editorial exception (annotate). `.optional`
   label override (weight/transform/colour) → keep minimal or a small global
   helper; note.
+- DeleteItemSheet: `.heading` (19px serif) → `<h2 class="t-sheet">` (converges
+  19→18px); `.body` (13px explanatory copy) → `<p class="body">`. The
+  `.icon-wrap` (40×40 ember disc: `background: var(--ember-bg)`,
+  `color: var(--ember)`, `border-radius`) is a **layout-bearing** wrapper, not a
+  pure-colour one — it stays as an annotated exception (per the parent plan's
+  "layout-bearing icon wrappers stay" non-requirement). `.content` / `.text` /
+  `.actions` stay layout; convert px gaps/margins to rem. The Cancel/Delete
+  buttons are already `<Button>` (no change). No empty state.
 - CreateListSheet: title comes from the `<Sheet>`; only `form`/`.field` layout
   here — convert `gap` to rem; nothing visual to strip. Likely a confirm-only
   task.
@@ -635,14 +780,20 @@ roles and `.card-dashed`. BlockedScreen's one-off empty state unifies onto
   layout). It uses bare `h2`/`p` element selectors in scope — replace with
   classes so global roles apply.
 - ProfileSheet: `.name` → `<h2 class="identity-name">` (or `<p class="identity-name">`
-  per current element; keep centred via a layout rule). `.badge` → `.badge`
-  (+ a mono caption); the `.badge.circle`/`.badge.blocked` state colours
-  (`--sage`/`--ember`) → `.badge-score`-style variants or annotated state
-  one-liners. `.handle` → `.sheet-handle`. `.action-card` → `.card`. `.subtitle`
-  opacity → `.caption`.
+  per current element; keep centred via a layout rule). The `.badge.circle` /
+  `.badge.blocked` element is **not** a pill — it is a centred, monospace
+  sage/ember **text label** under the name (`display: block`, no bg/border/
+  radius). Do **not** map it to `.badge` / `.badge-score` (the `.badge` base is
+  `inline-flex` + `border-radius: 99px`, which would turn it into an inline pill
+  and break its centring). Render it as `.caption .mono` with `text-align:
+  center` as scoped layout, and the sage/ember `color` as an annotated scoped
+  state one-liner (`.circle { color: var(--sage) }` / `.blocked { color:
+  var(--ember) }`). `.handle` → `.sheet-handle`. `.action-card` → `.card`.
+  `.subtitle` opacity → `.caption`.
 
 **Files:**
 - `web/src/lib/item/components/AddEditItemSheet.svelte` (+ `.test.ts`)
+- `web/src/lib/item/components/DeleteItemSheet.svelte` (+ `.test.ts`)
 - `web/src/lib/list/components/CreateListSheet.svelte` (+ `.test.ts` if any)
 - `web/src/lib/privacy/components/CircleExplainerSheet.svelte` (+ `.test.ts` if any)
 - `web/src/lib/profile/components/ProfileSheet.svelte` (+ `.test.ts`)
@@ -662,15 +813,26 @@ their many scoped type/border/background rules onto global roles + `.card` /
 **Prerequisites:** Phase 3; task 5.1.
 
 **Decisions:**
+- **Section structure (both).** Each `.preference-group` (Settings: People,
+  Appearance, Text size, Recovery, Account) and each Privacy group (Who can
+  invite you, People) is a labelled content group → wrap it in a `<section>`
+  with its title as a bare `<h2>` (lone titles, no `<header>`). PrivacyScreen's
+  `.cascade-note` ("N pending invites have been declined…") is trailing
+  explanatory content at the foot of the invite-policy section → put it in a
+  `<footer>` inside that `<section>`.
 - SettingsScreen: `.preference-group h2` → drop the duplicated font props (global
   `h2`), keep padding (rem). `.display-name` / `.nav-row-title` → `<h3>`.
-  `.nav-row-sub` / `.preview-sub` → `.caption`; `.preview-label` (11px) → global
-  `h2` (converge). `.nav-row-count` → `.caption .mono`. `.theme-option` /
-  `.size-card` / `.size-preview` / `.size-option`: move border/bg/colour/font to
-  `.card` / `.surface-alt` + state classes; keep grid/sizing/padding as scoped
-  layout (rem). The selected-state colour swaps stay as scoped state rules
-  referencing tokens (annotate) — they are genuine state, not drift.
-  `.skeleton-*` shimmer backgrounds are layout/animation chrome — keep.
+  `.nav-row-sub` / `.preview-sub` → `.caption`. `.nav-row-count` →
+  `.caption .mono`. `.preview-label` ("Preview", 11px) is a **sub-label inside**
+  the Text-size section, not a section title — do **not** make it an `<h2>` (that
+  would imply a nested section). Render it with the same small-label look via the
+  `<Label>` primitive (no `for`), consistent with the e-mail-caption resolution;
+  if that reads wrong, fall back to a `.caption`. `.theme-option` / `.size-card`
+  / `.size-preview` / `.size-option`: move border/bg/colour/font to `.card` /
+  `.surface-alt` + state classes; keep grid/sizing/padding as scoped layout
+  (rem). The selected-state colour swaps stay as scoped state rules referencing
+  tokens (annotate) — they are genuine state, not drift. `.skeleton-*` shimmer
+  backgrounds are layout/animation chrome — keep.
 - PrivacyScreen: `.section-label` `<h2>` already matches — drop font props, keep
   padding (rem). `.option-title` → `<h3>`; `.option-sub`/`.cascade-note`/
   `.nav-row-sub` → `.caption`. `.segmented-control` / `.nav-rows` borders →
@@ -704,16 +866,18 @@ grep guard, runs the full toolchain, and does the visual canvas sweep.
 
 **Decisions:**
 - Remove `class="section-label"` from `<h2>` elements where the class is no
-  longer needed by a test or a layout rule; delete empty scoped rules. The
-  InvitePicker e-mail `<label>` keeps `class="section-label"` (it is a `<label>`,
-  not an `<h2>`, so it needs the class to get the global look) — documented
-  carve-out.
+  longer needed by a test or a layout rule; delete empty scoped rules. (No
+  global `.section-label` class exists — section titles get their look from the
+  `h2` tag; the one e-mail caption that is a form label uses the `<Label>`
+  primitive, not a kept `.section-label` class. Confirm no stray
+  `class="section-label"` survives on a non-`<h2>` element.)
 - **Layout-only guard.** Run a grep over in-scope `.svelte` `<style>` blocks for
   visual declarations and confirm only documented exceptions remain:
   ```
-  git grep -nE '(font-family|font-size|font-weight|letter-spacing|text-transform|line-height|^\s*color:|background:|border[a-z-]*:\s*[^;]*var\(--(ink|stone|sage|ember|paper|rule|accent)' -- 'web/src/lib/**/*.svelte'
+  git grep -nE '(font-family|font-size|font-weight|letter-spacing|text-transform|line-height|^\s*color:|background:|border[a-z-]*:\s*[^;]*var\(--(ink|stone|sage|ember|paper|rule|accent)\))' -- 'web/src/lib/**/*.svelte'
   ```
-  (Refine the pattern as needed.) Every hit must be an annotated exception:
+  (Parens are balanced above — the original draft dropped the closing `)`;
+  refine the pattern further as needed.) Every hit must be an annotated exception:
   EmptyState's disc; the serif-italic `.notes`/tombstone; single-instance
   toast/TopBar chrome; genuine state-colour one-liners. Each exception carries an
   inline comment naming why.

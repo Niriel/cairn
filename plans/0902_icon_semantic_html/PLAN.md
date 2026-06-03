@@ -85,31 +85,63 @@ decide in review).
 ### Surfaces → `surfaces.css` (R3)
 
 `.rows`/`.rows .row` divider model (top rule on the list, bottom rule on each
-row) replaces per-file first/last border hacks. `.card` / `.card-alt` /
-`.card-dashed` (radius converges to 0.75 rem). `.surface-alt` for raised
-backgrounds. `.sheet-handle` for the three sheet handles (width converges
-36/40 px → 2.25 rem).
+row) replaces per-file first/last border hacks. Every list container is renamed
+to `class="rows"` (`.list`, `.circle-list`, `.blocked-list` included) so this
+single rule covers them all. This supersedes the parent plan's "convert
+`border-bottom`-as-separator to `<hr>`" decision
+(`plans/0900_refactor_css_components/PLAN.md`): that predates the `<ul>`/`<li>`
+migration, and `<hr>` is invalid as a direct child of `<ul>`, so a border on
+each `<li class="row">` is the correct idiom for data rows. `<hr>` is kept only
+for ListOverflowSheet's *action menu* (wrapped in `<li role="separator">`), not
+for data lists. `.card` / `.card-alt` / `.card-dashed` (radius converges to
+0.75 rem). `.surface-alt` for raised backgrounds. `.sheet-handle` for the three
+sheet handles (width converges 36/40 px → 2.25 rem).
 
 ### Controls → `controls.css` (R4)
 
-`.badge` + tone/score variants. Pill buttons in InvitesInboxScreen /
-InvitesBanner are replaced by the existing `<Button variant="pill">` — the
-hand-rolled `.btn-*` CSS is deleted, not globalised.
+`.badge` + tone/score variants, plus `.toast-error` (the persistent error toast
+duplicated byte-for-byte in TrashScreen / DeletedListsScreen — globalised whole,
+visual + shared fixed positioning; kept as a plain `{#if error}` element, not
+migrated to `<Snackbar>` whose auto-dismiss would change behaviour). Pill
+buttons in InvitesInboxScreen / InvitesBanner are replaced by
+`<Button variant="pill">` — the hand-rolled `.btn-*` CSS is deleted, not
+globalised. `<Button>`'s tones today
+(`primary | ink | destructive`) cannot render the design's **filled sage**
+Accept button, so `<Button>` gains one minimal new tone — `sage` — that renders
+*filled* in the pill variant (sage background, paper text); all other pill
+tones stay outlined. Accept → `tone="sage"` (filled), Decline → `tone="ink"`
+(outlined; its muted-stone outline converges onto ink, a deliberate change).
+This extends the existing primitive rather than minting a new component
+(reversing the earlier "reuse only, no Button change" framing — the design
+demands the filled affirmative shape).
 
 ### Single-instance chrome
 
 The rule's enemy is duplication/drift, so *repeated* visual patterns are
 mandatory-global. Genuinely single-instance chrome that is visual but unique
 (TopBar's `background`/`border-bottom`; the Sheet backdrop) may stay scoped —
-but its **type** still moves out (TopBar `.centre` → global `h1`). The sheet
+but its **type** still moves out (TopBar's title → global `h1`). The sheet
 handle repeats three times, so it goes global.
 
 ### Semantic HTML + EmptyState (R5, R6)
 
-Mappings unchanged from the original (header/h2/ul/li/h3/p-or-span). Empty
-states migrate to the shared `<EmptyState>`, which is the legitimate home for
-the empty-state visual and uses the `.t-hero`/`.body` roles. BlockedScreen
-unifies onto the one look (deliberate change).
+The sweep goes further than the original header/h2/ul/li/h3/p mapping: a
+"section label" is the *title of a content group*, so each labelled group
+becomes a `<section>` with that title as its `<h2>`. The structure is
+deliberately minimal — a lone title stays a bare `<h2>` (no `<header>` wrapper
+around a single heading); a `<header>` appears only where the intro carries more
+than the title (the sheet headers: title + subtitle); and a `<footer>` holds
+trailing notes (PrivacyScreen's cascade-note, "What's this?" links). A single
+unlabelled list is not sectioned (a `<section>` should have a heading). The
+InvitePicker "By e-mail" caption is both the e-mail section's intro and the
+label for its one input, so it reuses the 0901 `<Label>` primitive (which
+already renders the section-label look as a real `<label>`) — this dissolves the
+"floating section-label class" problem without minting a global `.section-label`
+class. The cross-screen `<section>`/`<header>`/`<footer>` convention is recorded
+in `docs/ui.md` by Phase 0 so later screens inherit it. Empty states migrate to
+the shared `<EmptyState>`, which is the legitimate home for the empty-state
+visual and uses the `.t-hero`/`.body` roles. BlockedScreen unifies onto the one
+look (deliberate change).
 
 ### Acceptance (R7)
 
@@ -136,9 +168,10 @@ sheets there.
 Every file in the R5 list: `InvitePickerSheet`, `InvitesInboxScreen`,
 `InvitesBanner`, `ListOverflowSheet`, `MembersScreen`, `ListsScreen`,
 `AvatarSourceSheet`, `ItemsScreen`, `TrashScreen`, `AddEditItemSheet`,
-`DeletedListsScreen`, `CreateListSheet`, `CircleScreen`, `BlockedScreen`,
-`PrivacyScreen`, `CircleExplainerSheet`, `SettingsScreen`, `ProfileSheet`,
-`TopBar`, `EmptyState` (rem conversion). Each loses its scoped visual CSS,
+`DeleteItemSheet`, `DeletedListsScreen`, `CreateListSheet`, `CircleScreen`,
+`BlockedScreen`, `PrivacyScreen`, `CircleExplainerSheet`, `SettingsScreen`,
+`ProfileSheet`, `TopBar`, `EmptyState` (rem conversion). Each loses its scoped
+visual CSS,
 converts remaining layout to rem/em, goes semantic, and (where applicable)
 migrates its empty state and adopts `<Button>`.
 
@@ -153,10 +186,13 @@ migrates its empty state and adopts `<Button>`.
 2. **Phase 2 — `<EmptyState>` extraction.** [shipped].
 3. **Phase 3 — Global visual system.** Rewrite `typography.css` in rem + full
    role set; create `surfaces.css` and `controls.css`; wire imports; convert
-   `EmptyState` to rem and the new roles. Foundation for every sweep.
+   `EmptyState` to rem and the new roles; extend `<Button>` with the `sage`
+   filled-pill tone the Accept button needs (task 3.5). Foundation for every
+   sweep.
 4. **Phase 4 — Shared chrome + Button reuse.** Sheet handle → global; TopBar
-   `.centre` → `<h1>`; replace InvitesInbox/InvitesBanner hand-rolled pills
-   with `<Button>`.
+   title → `<h1>` (its wrapper `<div>` kept as layout, renamed `.centre` →
+   `.middle`, subtitle as a sibling `<p>`); replace InvitesInbox/InvitesBanner
+   hand-rolled pills with `<Button>`.
 5. **Phase 5 — Per-component sweeps.** One task per file/group: semantic HTML,
    strip scoped visual (adopt global roles/classes), convert layout to rem/em,
    migrate empty state if present. InvitePickerSheet is the canonical first

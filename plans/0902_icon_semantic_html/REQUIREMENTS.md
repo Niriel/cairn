@@ -81,7 +81,19 @@ re-declares these borders/backgrounds:
 
 - **List dividers.** `.rows` carries the top rule; each `.rows .row` carries a
   bottom rule (`1px solid var(--rule)`). The per-file `.row.first { border-top }`
-  / `.row:last-child { border-bottom: none }` hacks are removed.
+  / `.row:last-child { border-bottom: none }` hacks are removed. **All list
+  containers use `class="rows"`** so this one rule covers every list — the
+  variant names `.list` (ListsScreen, InvitesInboxScreen), `.circle-list`
+  (CircleScreen), and `.blocked-list` (BlockedScreen) are renamed to `.rows`
+  (their layout-specific scoped rules move to a `.rows` selector or a co-class).
+  This supersedes the parent plan's decision
+  (`plans/0900_refactor_css_components/PLAN.md` → "`<hr>` separator sweep") to
+  convert every `border-bottom`-as-separator into an explicit `<hr>`: that
+  predates the concrete `<ul>`/`<li>` migration, and an `<hr>` is invalid as a
+  direct child of a `<ul>` (a border on each `<li class="row">` is the right
+  idiom for data rows). `<hr>` survives only where it separates a *menu of
+  actions* rather than data rows — `ListOverflowSheet`'s action list, wrapped as
+  `<li role="separator"><hr /></li>` (task 5.2).
 - **`.card`** — `1px solid var(--rule)`, `border-radius: 0.75rem`,
   `background: var(--paper)`. **`.card-alt`** — same with
   `background: var(--paper-alt)`. **`.card-dashed`** — `1px dashed var(--stone-lt)`,
@@ -101,24 +113,62 @@ badge looks; raw duplicated buttons are replaced by the existing `<Button>`:
 - **Badges.** `.badge` base (inline-flex, centred, `border-radius: 99px`),
   with tone variants: `.badge-ink` (bg `--ink`, color `--paper`),
   `.badge-soft` (bg `--paper-alt`, `1px solid var(--rule)`, color `--stone`),
-  and score variants `.badge-score.positive` (`--sage`) /
-  `.badge-score.negative` (`--ember`). Covers the count badge (InvitesBanner),
-  the privacy badge (PrivacyScreen), and the aggregate score badge (ItemsScreen).
+  and score variants `.badge-score.positive` (`color: var(--sage); background:
+  var(--sage-bg)`) / `.badge-score.negative` (`color: var(--ember); background:
+  var(--ember-bg)`). The score badge keeps both its tinted background **and** a
+  text colour (matching today's `ItemsScreen` look); its radius converges from
+  the current 6 px to the `.badge` pill (`99px`) — a deliberate change. Covers
+  the count badge (InvitesBanner), the privacy badge (PrivacyScreen), and the
+  aggregate score badge (ItemsScreen). (The ProfileSheet circle/blocked label is
+  **not** a badge — it is a centred text label; see R5 carve-outs / task 5.9.)
+- **Error toast.** `TrashScreen` and `DeletedListsScreen` carry a byte-identical
+  persistent `.error` toast (ember text, paper background, `1px solid
+  var(--ember)`, radius, shell-aware fixed positioning). It is globalised as a
+  single `.toast-error` class in `controls.css` (visual **and** the shared
+  fixed-position pattern, since it is a self-contained transient surface), and
+  both screens apply it, deleting their duplicated scoped rule. It stays a
+  plain `{#if error}` element — **not** migrated to `<Snackbar>`, whose 6 s
+  auto-dismiss would change the persistent-error behaviour.
 - **Pill buttons.** `InvitesInboxScreen` and `InvitesBanner` hand-roll
   `.btn-accept` / `.btn-decline` with their own padding, radius, font, and
-  color. These are replaced by the existing
-  `<Button variant="pill" tone="sage|…">` primitive (already used by
-  InvitePickerSheet), deleting the hand-rolled button CSS. No new button
-  component is created — only reuse of the existing one.
+  color. These are replaced by `<Button variant="pill">`, deleting the
+  hand-rolled button CSS. `<Button>` today exposes tones `primary | ink |
+  destructive`, none of which render the **filled sage** Accept button the
+  design specifies (`background: var(--sage); color: #fff` — see
+  `design/cairn-invite-screens.jsx` and `docs/ui.md` → "Accept (sage)").
+  `<Button>` therefore gains a minimal new **`sage` tone** that renders
+  **filled** in the `pill` variant (sage background, paper/white text); the
+  `pill` variant stays outlined for every other tone. Accept →
+  `<Button variant="pill" tone="sage">` (filled); Decline →
+  `<Button variant="pill" tone="ink">` (outlined). Decline's current
+  muted-stone outline converges onto the outlined `ink` pill — a deliberate
+  homogenisation change. This is a minimal extension of the existing
+  primitive, not a new component.
 
 ## R5. Semantic HTML sweep
 
-Div scaffolding becomes semantic across every in-scope file (mappings as in
-the original plan, still in force):
+Div scaffolding becomes semantic across every in-scope file. The mappings:
 
-- `<div class="header">` → `<header>` (containing the sheet title `<h2 class="t-sheet">`
-  + an optional `<p class="caption">` subtitle).
-- `<div class="section-label">` / `<div class="section-header">` → `<h2>`.
+- **Sectioning.** A "section label" is the *title of a group of content*
+  ("Your circle", "Appearance", "Who can invite you to lists"), so each such
+  group becomes a `<section>` whose heading is that title. The element rules:
+  - The section title → `<h2>` (global `h2` type). A `<div class="section-label">`
+    / `<div class="section-header">` becomes the section's `<h2>`.
+  - **No trivial headers.** A `<section>` whose only introductory content is its
+    title keeps a bare `<h2>` as its first child — do **not** wrap a lone `<h2>`
+    in a `<header>`. Promote to `<header>` only when the section's intro carries
+    *more than the title* (a subtitle, a count, a trailing action) — this is the
+    sheet-header case below.
+  - **Trailing notes → `<footer>`.** Closing/explanatory content at the foot of
+    a section (e.g. PrivacyScreen's `cascade-note` "3 pending invites have been
+    declined…", a "What's this?" link) becomes a `<footer>` inside the
+    `<section>`.
+  - A single, unlabelled list on a screen needs no `<section>` wrapper (a
+    `<section>` should have a heading); only labelled content groups are
+    sectioned.
+- `<div class="header">` → `<header>` — the sheet/screen header where the title
+  *does* travel with companions: the sheet title `<h2 class="t-sheet">` + an
+  optional `<p class="caption">` subtitle.
 - `<div class="rows">` → `<ul class="rows">`; `<div class="row">` →
   `<li class="row">` (or `<button class="row">` where the row is itself the
   tap target).
@@ -128,7 +178,11 @@ the original plan, still in force):
   `<span>` in a list-row context, each carrying `.caption`.
 
 Carve-outs documented in the task blocks (e.g. InvitesBanner's `.row` is a
-layout div, not a list item; the InvitePicker e-mail `<label>` stays a label).
+layout div, not a list item). The InvitePicker e-mail "By e-mail" caption is
+both the e-mail `<section>`'s intro **and** the label for its one input, so it
+uses the existing `<Label>` primitive (`<Label for="…">By e-mail</Label>`,
+which already renders the section-label look as a real `<label>`) rather than a
+`<div class="section-label">` — no global `.section-label` class is introduced.
 
 ## R6. One empty-state look, migrated everywhere
 
@@ -164,7 +218,9 @@ specs are added.
   reuses the *existing* `<Button>`; it does **not** extract `<NavRow>`,
   `<Badge>`, `<Card>`, or `<Toast>` Svelte components. Those are follow-up
   plans. (Replacing raw `<button>`s with the existing `<Button>` is reuse, not
-  new extraction, and is in scope per R4.)
+  new extraction, and is in scope per R4. The one exception is the minimal
+  `sage` filled-pill tone added to `<Button>` per R4 — an extension of the
+  existing primitive, not a new component.)
 - **`<NavRow>` extraction** — `SettingsScreen` / `PrivacyScreen` nav rows and
   `PrivacyScreen` `div.nav-rows` keep their structure; only their visual CSS
   moves to global. The component extraction is a separate plan.
@@ -179,3 +235,12 @@ specs are added.
 - **New e2e tests** — existing Playwright suite is the net.
 - **CircleScreen no-circle empty state** — adding one is a design change, not a
   refactor (unchanged from original).
+- **Strict heading-level hierarchy inside sheets.** Every section label is
+  uniformly an `<h2>` (carrying the global section-label look), and a sheet
+  title is also an `<h2 class="t-sheet">`, so a sheet's title and the section
+  labels it contains sit at the same heading level. This flatness is accepted:
+  demoting in-sheet section labels to `<h3>` would give them the row-name look,
+  not the section-label look, breaking the one-role-per-tag design; the
+  `<section>` wrappers (R5) provide the structural grouping, and the HTML5
+  outline algorithm browsers/AT actually use never relied on heading-level
+  nesting within sectioning roots. Deliberately not pursued here.
