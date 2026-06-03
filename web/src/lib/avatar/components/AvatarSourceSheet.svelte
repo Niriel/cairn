@@ -20,13 +20,13 @@
 </script>
 
 <Sheet open={true} onclose={oncancel}>
-	<div class="handle"></div>
-	<div class="header">
-		<div class="title">Profile picture</div>
-		<div class="explainer subtitle">
+	<div class="sheet-handle"></div>
+	<header class="header">
+		<h2 class="t-sheet">Profile picture</h2>
+		<p class="subtitle caption">
 			A photo, doodle, or anything else · JPG, PNG, WebP, or HEIC · up to 8 MB
-		</div>
-	</div>
+		</p>
+	</header>
 	<input
 		bind:this={cameraInput}
 		type="file"
@@ -67,28 +67,13 @@
 		clip: rect(0, 0, 0, 0);
 	}
 
-	.handle {
-		width: 36px;
-		height: 4px;
-		border-radius: 99px;
-		background: var(--stone-lt);
-		margin: 0 auto 14px;
-	}
-
 	.header {
-		padding: 0 22px 14px;
+		padding: 0 1.375rem 0.875rem;
 		border-bottom: 1px solid var(--rule);
 	}
 
-	.title {
-		font-family: 'Newsreader Variable', Georgia, serif;
-		font-size: 18px;
-		font-weight: 500;
-		color: var(--ink);
-	}
-
 	.subtitle {
-		margin-top: 2px;
+		margin-top: 0.125rem;
 	}
 
 	.divider {

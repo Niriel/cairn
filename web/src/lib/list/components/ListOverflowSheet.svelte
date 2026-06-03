@@ -77,59 +77,67 @@
 </script>
 
 <Sheet open={true} {onclose}>
-	<div class="handle"></div>
-	<div class="header">
-		<div class="list-name">{listName}</div>
-		<div class="meta">{meta}</div>
-	</div>
-	<div class="rows">
-		<Button
-			variant="text"
-			tone="ink"
-			size="md"
-			data-test="list-overflow-rename"
-			onclick={() => (showRename = true)}
-		>
-			<Icon name="pencil" size={18} />
-			<span class="label">Rename list</span>
-		</Button>
-		<hr />
-		<Button
-			variant="text"
-			tone="ink"
-			size="md"
-			data-test="list-overflow-edit-description"
-			onclick={() => (showEditDescription = true)}
-		>
-			<Icon name="feather" size={18} />
-			<span class="label">Edit description</span>
-		</Button>
-		<hr />
-		<Button
-			variant="text"
-			tone="ink"
-			size="md"
-			data-test="list-overflow-manage-members"
-			onclick={goManageMembers}
-		>
-			<Icon name="users" size={18} />
-			<span class="label">Manage members</span>
-		</Button>
-		<hr />
-		<Button
-			variant="text"
-			tone="ink"
-			size="md"
-			data-test="list-overflow-view-trash"
-			onclick={onviewtrash}
-		>
-			<Icon name="trash-2" size={18} />
-			<span class="label">View bin</span>
-		</Button>
-		<hr />
+	<div class="sheet-handle"></div>
+	<header class="header">
+		<h2 class="t-sheet">{listName}</h2>
+		<p class="meta caption">{meta}</p>
+	</header>
+	<ul class="menu">
+		<li>
+			<Button
+				variant="text"
+				tone="ink"
+				size="md"
+				data-test="list-overflow-rename"
+				onclick={() => (showRename = true)}
+			>
+				<Icon name="pencil" size={18} />
+				<span class="body">Rename list</span>
+			</Button>
+		</li>
+		<li role="separator" aria-hidden="true"><hr /></li>
+		<li>
+			<Button
+				variant="text"
+				tone="ink"
+				size="md"
+				data-test="list-overflow-edit-description"
+				onclick={() => (showEditDescription = true)}
+			>
+				<Icon name="feather" size={18} />
+				<span class="body">Edit description</span>
+			</Button>
+		</li>
+		<li role="separator" aria-hidden="true"><hr /></li>
+		<li>
+			<Button
+				variant="text"
+				tone="ink"
+				size="md"
+				data-test="list-overflow-manage-members"
+				onclick={goManageMembers}
+			>
+				<Icon name="users" size={18} />
+				<span class="body">Manage members</span>
+			</Button>
+		</li>
+		<li role="separator" aria-hidden="true"><hr /></li>
+		<li>
+			<Button
+				variant="text"
+				tone="ink"
+				size="md"
+				data-test="list-overflow-view-trash"
+				onclick={onviewtrash}
+			>
+				<Icon name="trash-2" size={18} />
+				<span class="body">View bin</span>
+			</Button>
+		</li>
+		<li role="separator" aria-hidden="true"><hr /></li>
 		{#if confirmingLeave}
-			<div class="confirm">
-				<p class="confirm-copy">
+			<li class="confirm">
+				<p class="confirm-copy body">
 					Leave {listName}? You'll have to be re-invited to rejoin.
 				</p>
 				<ButtonPair>
@@ -148,31 +156,35 @@
 						>
 					{/snippet}
 				</ButtonPair>
-			</div>
+			</li>
 		{:else}
+			<li>
+				<Button
+					variant="text"
+					tone="ink"
+					size="md"
+					data-test="list-overflow-leave"
+					onclick={() => (confirmingLeave = true)}
+				>
+					<Icon name="log-out" size={18} />
+					<span class="body">Leave list</span>
+				</Button>
+			</li>
+		{/if}
+		<li role="separator" aria-hidden="true"><hr /></li>
+		<li>
 			<Button
 				variant="text"
-				tone="ink"
+				tone="destructive"
 				size="md"
-				data-test="list-overflow-leave"
-				onclick={() => (confirmingLeave = true)}
+				data-test="list-overflow-delete"
+				onclick={() => void handleDelete()}
 			>
-				<Icon name="log-out" size={18} />
-				<span class="label">Leave list</span>
+				<Icon name="trash" size={18} />
+				<span class="body">Delete list</span>
 			</Button>
-		{/if}
-		<hr />
-		<Button
-			variant="text"
-			tone="destructive"
-			size="md"
-			data-test="list-overflow-delete"
-			onclick={() => void handleDelete()}
-		>
-			<Icon name="trash" size={18} />
-			<span class="label">Delete list</span>
-		</Button>
-	</div>
+		</li>
+	</ul>
 </Sheet>
 
 {#if showRename}
@@ -188,50 +200,32 @@
 {/if}
 
 <style>
-	.handle {
-		width: 36px;
-		height: 4px;
-		border-radius: 99px;
-		background: var(--stone-lt);
-		margin: 0 auto 14px;
-	}
-
 	.header {
-		padding: 0 22px 14px;
+		padding: 0 1.375rem 0.875rem;
 		border-bottom: 1px solid var(--rule);
 	}
 
-	.list-name {
-		font-family: 'Newsreader Variable', Georgia, serif;
-		font-size: 18px;
-		font-weight: 500;
-		color: var(--ink);
-	}
-
 	.meta {
-		font-size: 12px;
-		color: var(--stone);
-		margin-top: 2px;
+		margin-top: 0.125rem;
 	}
 
-	.rows :global(button) {
-		padding: 14px 22px;
-		gap: 14px;
+	.menu :global(button) {
+		padding: 0.875rem 1.375rem;
+		gap: 0.875rem;
 	}
 
-	.label {
-		font-size: 15px;
-		font-weight: 500;
+	/* Hairline divider between action-menu items. */
+	.menu hr {
+		margin: 0;
+		border: none;
+		border-top: 1px solid var(--rule);
 	}
 
 	.confirm {
-		padding: 14px 22px;
+		padding: 0.875rem 1.375rem;
 	}
 
 	.confirm-copy {
-		margin: 0 0 10px;
-		font-size: 13.5px;
-		color: var(--ink);
-		line-height: 1.4;
+		margin: 0 0 0.625rem;
 	}
 </style>

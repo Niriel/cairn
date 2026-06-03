@@ -639,8 +639,10 @@ and proves the global roles/classes compose with a real component.
   rule-less, their look comes from `.t-sheet`/global `h3`) — dead classes to be
   swept in task 6.1 per the standing rules.
 
+### [x] 5.2 ListOverflowSheet + AvatarSourceSheet
+
 **Created:** 2026-06-03T00:00:00Z
-**Completed:**
+**Completed:** 2026-06-03T11:03:35Z
 
 **Why:** Both have a `<div class="header">` → `<header>` with a serif title
 → `.t-sheet`, and `ListOverflowSheet` has a `<div class="rows">` of `<Button>`
@@ -675,6 +677,28 @@ handle → global `.sheet-handle`.
 - `web/src/lib/avatar/components/AvatarSourceSheet.svelte` (+ `.test.ts`)
 
 **Verify:** `pnpm lint` · `pnpm check` · `pnpm test`
+
+**Notes:**
+- **No test changes needed** for either file — both suites key on `data-test`
+  / `getByText` / input selectors, none of which the element-type changes
+  touch. ListOverflowSheet (10) + AvatarSourceSheet (3) stayed green unchanged.
+- **Both headers became `<header>`** (not bare `<h2>` + sibling): each carries
+  title + subtitle (list-name + meta; "Profile picture" + the format line), so
+  the standing-rule "intro carries more than the title" branch applies.
+- **Menu labels use `.body`, and the `.label` class was dropped** rather than
+  kept rule-less — no test referenced it, so there was no selector to preserve
+  (cleaner than leaving a Phase-6 dead class). `.confirm-copy` likewise gained
+  `.body` and kept only its margin.
+- **AvatarSourceSheet dropped `.explainer`** in favour of `.caption` (same
+  `--stone`, near-identical size); the buttons/`.divider` structure was left
+  as-is — the task scoped this file to header/title/subtitle/handle only, not a
+  full menu-list conversion.
+- The `.menu hr` separators get a scoped hairline (`border-top: 1px solid
+  var(--rule)`); this is the action-menu divider, kept in px per the Units rule
+  and not the data-list `.rows` model.
+- **Plan-file fix:** the 5.1 commit (e70a96c) accidentally dropped this task's
+  `### [ ] 5.2 …` heading line (the body survived, orphaned). Restored here and
+  marked done. Flagging since it already landed in a commit.
 
 ### [ ] 5.3 MembersScreen
 
