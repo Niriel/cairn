@@ -27,8 +27,8 @@
 			<Icon name={icon} size={iconSize} />
 		{/if}
 	</div>
-	{#if title}<p class="empty-heading">{title}</p>{/if}
-	{#if body}<p class="empty-body">{body}</p>{/if}
+	{#if title}<p class="empty-heading t-hero">{title}</p>{/if}
+	{#if body}<p class="empty-body body">{body}</p>{/if}
 	{#if ctaLabel && onCta}
 		<Button variant="rect" tone="ink" size="md" leadingIcon="plus" onclick={onCta}>
 			{ctaLabel}
@@ -42,10 +42,12 @@
 		flex-direction: column;
 		align-items: center;
 		justify-content: center;
-		padding: 40px 36px;
+		padding: 2.5rem 2.25rem;
 		text-align: center;
 	}
 
+	/* The disc is the empty-state home: a fixed 96px circle (does not scale with
+	   text) with a hairline dashed border. */
 	.empty-circle {
 		width: 96px;
 		height: 96px;
@@ -55,23 +57,16 @@
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		margin-bottom: 24px;
+		margin-bottom: 1.5rem;
 	}
 
+	/* Type comes from the .t-hero / .body roles; only spacing is local. */
 	.empty-heading {
-		font-family: 'Newsreader Variable', Georgia, serif;
-		font-size: 24px;
-		font-weight: 500;
-		letter-spacing: -0.01em;
-		color: var(--ink);
-		margin-bottom: 10px;
+		margin-bottom: 0.625rem;
 	}
 
 	.empty-body {
-		font-size: 14px;
-		color: var(--ink-soft);
-		line-height: 1.5;
-		margin: 0 0 28px;
-		max-width: 280px;
+		margin: 0 0 1.75rem;
+		max-width: 17.5rem;
 	}
 </style>

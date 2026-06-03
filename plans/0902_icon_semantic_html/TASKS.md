@@ -353,10 +353,10 @@ the scoped rules carried. `.toast-error` converts to rem (`0.75rem` shell
 offset, `0.875rem` type, `0.75rem` radius) but keeps the `+ 18px` safe-area
 bottom offset per the task. No markup uses the classes yet — wired in Phase 5.
 
-### [ ] 3.4 Convert `EmptyState` to rem and the global roles
+### [x] 3.4 Convert `EmptyState` to rem and the global roles
 
 **Created:** 2026-06-03T00:00:00Z
-**Completed:**
+**Completed:** 2026-06-03T10:26:57Z
 
 **Why:** EmptyState shipped in px (22–24 px heading, 14 px body). To match the
 homogenised scale it uses the `.t-hero` and `.body` roles (or rem values
@@ -384,6 +384,14 @@ identical to them) and converts spacing to rem (R1, R6).
 2. `pnpm lint` · `pnpm check` · `pnpm test`.
 
 **Verify:** `pnpm lint` · `pnpm check` · `pnpm test`
+
+**Notes:** Kept the `.empty-heading` / `.empty-body` layout classes on the
+markup (now `class="empty-heading t-hero"` / `class="empty-body body"`) rather
+than removing them — `EmptyState.test.ts` selects on those class names, and
+they now carry only local spacing (margins, `max-width`). Type lives entirely
+on the `.t-hero` / `.body` roles. Spacing converted to rem (`2.5rem 2.25rem`
+padding, `1.5rem` disc gap, `0.625rem` heading gap, `1.75rem` body gap,
+`17.5rem` max-width); the 96px disc and hairline dashed border stay px.
 
 ### [ ] 3.5 Add a `sage` filled-pill tone to `<Button>`
 
