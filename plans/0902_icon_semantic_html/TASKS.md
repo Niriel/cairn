@@ -295,10 +295,10 @@ wholesale in Phase 5. **User correction:** dropped the "converges 36/40px →"
 style narration from the comments — comments describe what a surface *is*, not
 the drift being left behind.
 
-### [ ] 3.3 Create `controls.css` (badges) and wire its import
+### [x] 3.3 Create `controls.css` (badges) and wire its import
 
 **Created:** 2026-06-03T00:00:00Z
-**Completed:**
+**Completed:** 2026-06-03T10:15:57Z
 
 **Why:** Count, status, and score badges are re-declared in InvitesBanner,
 PrivacyScreen, and ItemsScreen. One set of badge rules removes the drift (R4).
@@ -340,6 +340,18 @@ PrivacyScreen, and ItemsScreen. One set of badge rules removes the drift (R4).
 2. `pnpm lint` · `pnpm check` · `pnpm test`.
 
 **Verify:** `pnpm lint` · `pnpm check` · `pnpm test`
+
+**Notes:** Converged badge values off the existing declarations: `.badge` base
+is the inline-flex pill (`min-width`/`height: 1.25rem`, `font-size: 0.75rem`,
+weight 600, radius 99px) from PrivacyScreen's count badge; `.badge-ink` is
+InvitesBanner's dark count (ink/paper); `.badge-soft` is the muted outlined
+count (paper-alt + rule). Two deliberate convergences flow from "base supplies
+the pill radius": the score badge (was `6px` radius) and InvitesBanner's count
+(was a `32px` disc) both become the 1.25rem pill. Used the bare `--sage-bg` /
+`--ember-bg` tokens (they exist in `tokens.css`), dropping the old hex fallbacks
+the scoped rules carried. `.toast-error` converts to rem (`0.75rem` shell
+offset, `0.875rem` type, `0.75rem` radius) but keeps the `+ 18px` safe-area
+bottom offset per the task. No markup uses the classes yet — wired in Phase 5.
 
 ### [ ] 3.4 Convert `EmptyState` to rem and the global roles
 
