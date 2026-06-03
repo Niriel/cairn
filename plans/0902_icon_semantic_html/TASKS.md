@@ -562,6 +562,70 @@ handled here and not revisited in Phase 5.
 
 **Verify:** `pnpm lint` · `pnpm check` · `pnpm test`
 
+### [ ] 4.3 Scale a button's `leadingIcon` with its label (em-sized `Icon`)
+
+**Created:** 2026-06-03T13:00:00Z
+**Completed:**
+
+**Why:** Task 5.4's side work converted `<Button>`'s size tiers to rem (md =
+1rem, sm = 0.8rem `.fine`), so button **labels** now track the Settings
+text-size control. But the optional `leadingIcon` is still rendered by `Icon`
+at a fixed pixel size (`Button.svelte`'s `iconSize` = `sm ? 14 : 16`, passed to
+`Icon`'s numeric `size`, which becomes a bare `width`/`height` in px — see
+`Icon.svelte:13-15`). The result: at larger text-size settings the label grows
+but the plus/trash/pencil glyph beside it stays put, an increasingly obvious
+mismatch. The plan's own Units rule already says "use em for icon-beside-label
+sizing" — this is the one place the primitive still violates it.
+
+**Prerequisites:** Task 5.4 (Button size tiers are rem). Read `Icon.svelte` and
+`Button.svelte` (the `iconSize` derived value + the `<Icon>` render at the top
+of the `<button>`).
+
+**Decisions:**
+- **Scope: the in-`Button` leading icon only.** Standalone `<Icon>` calls that
+  are genuinely fixed-size affordances (TopBar controls, the more-vertical row
+  chevron, FAB glyph, etc.) are out of scope — they are deliberate tap-target
+  sizing, not icon-beside-label text. This task fixes only the glyph that sits
+  inline with a scaling label inside `<Button>`.
+- **Extend `Icon`'s `size` to accept a unit string.** Change `size?: number` →
+  `size?: number | string` (default stays `20`). The `<svg width={size}
+  height={size}>` already renders a string verbatim, so passing `size="1em"`
+  yields `width="1em"` — a CSS-unit value SVG honours, and one a Vitest test can
+  assert on the rendered attribute. A bare number keeps rendering px, so every
+  existing caller is unaffected.
+- **`Button` passes `"1em"` for its leading icon.** Replace the px `iconSize`
+  derivation with the literal `"1em"` so the glyph is exactly one label-line tall
+  and scales with the (rem-based) label. `1em` matches the old md icon (16px at a
+  1rem button) and is within ~1px of the old sm icon — no meaningful visual
+  regression at the default size, correct scaling above it. Remove the now-unused
+  `iconSize` `$derived` (and its `size`-prop dependency for icon purposes; `size`
+  still drives font-size/padding).
+- Leave the `gap` between icon and label as-is (already rem from 5.4); optionally
+  note whether it should be em for tighter coupling, but do not change it here.
+
+**Reference:** `docs/ui.md` → "Units: rem / em / px" (the icon-beside-label = em
+rule); `Button.svelte` `iconSize`; `Icon.svelte:4-15`.
+
+**Files:**
+- `web/src/lib/basic/components/Icon.svelte` (modify — widen `size` type)
+- `web/src/lib/basic/components/Button.svelte` (modify — pass `"1em"`, drop
+  `iconSize`)
+- `web/src/lib/basic/components/Button.test.ts` (modify — assert the leading
+  icon renders at `1em`)
+- `web/src/lib/basic/components/Icon.test.ts` (modify if present — a string
+  `size` still renders verbatim)
+
+**Steps:**
+1. RED — In `Button.test.ts`, render a `<Button leadingIcon="plus">` and assert
+   the rendered `<svg>` has `width="1em"` (and `height="1em"`). Confirm it fails
+   (today it is `16`/`14`). Note: `Icon` is sometimes mocked in suites — assert
+   against the real `Icon` here (do not mock it in this case).
+2. GREEN — Widen `Icon`'s `size` to `number | string`; have `Button` pass
+   `"1em"` for `leadingIcon` and remove the `iconSize` derivation. Re-run; green.
+3. `pnpm lint` · `pnpm check` · `pnpm test`.
+
+**Verify:** `pnpm lint` · `pnpm check` · `pnpm test`
+
 ---
 
 ## Phase 5 — Per-component sweeps
@@ -755,10 +819,10 @@ sub + action. `.name` matches `h3` already (good convergence check).
   `.caption` to respect the task's explicit choice — a candidate for the Phase 6
   visual sweep.
 
-### [ ] 5.4 ItemsScreen
+### [x] 5.4 ItemsScreen
 
 **Created:** 2026-06-03T00:00:00Z
-**Completed:**
+**Completed:** 2026-06-03T12:54:49Z
 
 **Why:** `div.rows` → `ul`, `div.row` → `li`; row-inner stays a layout div. Has
 the score badge (→ `.badge-score`), the notes block (serif-italic — exception),
@@ -800,6 +864,40 @@ empty-state with a CTA.
 - `web/src/lib/item/components/ItemsScreen.svelte` (+ `.test.ts`)
 
 **Verify:** `pnpm lint` · `pnpm check` · `pnpm test`
+
+**Notes:**
+- **No test changes needed** — the suite keys on `data-test`/`textContent`/class
+  presence (`tombstone`); none of the div→ul/li, span-role, or EmptyState
+  changes touch those. Full suite stayed green (624 passed).
+- **`item-name` row title is the scaling fix the user spotted:** it was hardcoded
+  `15.5px` (frozen, ignored the Settings text-size control) while `.notes` was
+  `1rem` (scaled) — hence "only descriptions resize". Now on the global
+  `.row-title` role (1rem), so titles scale too. The open-state weight bump
+  (500→600) was dropped — `.row-title` is 600, so accepting the default per the
+  task's "accept default" option; the open row stays distinct via its
+  `.surface-alt`-equivalent tint + expanded panel.
+- **`.row.open` tint** kept as an annotated scoped one-liner referencing
+  `--paper-alt` (genuine toggled state); **`.item-panel`** moved to the global
+  `.surface-alt` class (always-on tint). Score badge → `.badge badge-score mono`;
+  member-vote values → `.mono`; `.notes` → `.body` + annotated serif-italic;
+  attribution/member-vote already carried `.fine`. Empty block → `<EmptyState>`.
+  Undo snackbar kept as annotated single-instance inverted-chrome toast, type/px
+  → rem.
+- **Side work — `Button.svelte` size tiers converted px → rem (user-directed).**
+  Reviewing the panel Edit/Delete pills, the user flagged that *all* `<Button>`
+  sizes were hardcoded px and so never tracked the text-size control. Converted
+  every variant's `font-size`/padding/gap/radius to rem, tying the tiers to the
+  type scale: **`md` = 1rem** (body floor), **`sm` = 0.8rem** (the `.fine`
+  small-print role). Confirmed **every pill call site (13) passes `size="sm"`** —
+  pill is never `md`, so `.pill.size-md` is currently dead (left in place,
+  font now 1rem, for API completeness). This is a shared-primitive change beyond
+  5.4's stated scope and the Phase 6 guard excludes `basic/Button`; flagging for
+  the user (own commit if desired).
+- **Known remaining gap (flagged, not fixed):** `Icon` renders bare numeric
+  `width`/`height` (px), so a button's `leadingIcon` stays a fixed size while
+  the label now scales — visible at large text-size settings. Fixing means
+  sizing the SVG in `em` (an `Icon`-primitive change, app-wide). Left for a
+  follow-up decision.
 
 ### [ ] 5.5 ListsScreen
 
