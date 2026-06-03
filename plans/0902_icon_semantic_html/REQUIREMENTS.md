@@ -46,12 +46,23 @@ per-selector mapping):
 
 - **`h1`** — screen title (TopBar). Newsreader serif, 1.375 rem, 500,
   −0.01em, `--ink`, margin 0.
-- **`h2`** — section label. 0.72 rem, 600, 0.06em, uppercase, `--stone`.
-  Padding stays scoped (it is layout). CircleScreen's `.section-header`
-  (0.75 rem / 0.04em) and SettingsScreen's `.preview-label` (11 px) converge
-  onto this.
+- **`h2`** — section **title**. 0.8125 rem, 600, `--ink-soft`, **normal
+  case**, `margin: 0`. **Not uppercase.** Uppercase + `0.06em` tracking is the
+  *form-label* look and lives only on the `<Label>` primitive — the two roles
+  were conflated under the word "label", and this requirement separates them: a
+  section title is a small heading, a form label is the upper-cased field
+  caption. Dropping uppercase from section titles is a deliberate, app-wide
+  visual change (the JSX prototyped them upper-cased, but type is not lifted
+  from the JSX). Padding stays scoped (it is layout). CircleScreen's
+  `.section-header` (0.75 rem / 0.04em, uppercase) converges onto this.
+  SettingsScreen's `.preview-label` is a *form* sub-label, **not** a section
+  title — it uses `<Label>`, not `h2` (see R5 / task 5.10), so it is **not**
+  absorbed here.
 - **`h3`** — standard row / primary label. 0.9375 rem, 600, `--ink`, margin 0.
-  Normalises the 14/15/15.5 px spread.
+  Normalises the 14/15/15.5 px spread. The same rule is also exposed as a
+  `.row-title` **class** (`h3, .row-title { … }`) for row names that must sit
+  **inside** an interactive control, where a heading tag is invalid HTML — see
+  R5.
 - **`.t-hero`** — empty-state and explainer-sheet hero. Newsreader serif,
   1.5 rem, 500, −0.01em, `--ink`. (EmptyState's heading uses this role.)
 - **`.t-sheet`** — bottom-sheet title (applied to the sheet header `<h2>`,
@@ -93,7 +104,11 @@ re-declares these borders/backgrounds:
   direct child of a `<ul>` (a border on each `<li class="row">` is the right
   idiom for data rows). `<hr>` survives only where it separates a *menu of
   actions* rather than data rows — `ListOverflowSheet`'s action list, wrapped as
-  `<li role="separator"><hr /></li>` (task 5.2).
+  `<li role="separator"><hr /></li>` (task 5.2). That action menu therefore does
+  **not** carry the global `.rows` class — it is `<hr>`-separated, not the
+  per-row-border data-list model, and keeping `.rows` would add the container
+  top-divider it doesn't want (directly under its header's existing
+  `border-bottom`). It keeps a distinct layout class (`.menu`); see task 5.2.
 - **`.card`** — `1px solid var(--rule)`, `border-radius: 0.75rem`,
   `background: var(--paper)`. **`.card-alt`** — same with
   `background: var(--paper-alt)`. **`.card-dashed`** — `1px dashed var(--stone-lt)`,
@@ -172,8 +187,17 @@ Div scaffolding becomes semantic across every in-scope file. The mappings:
 - `<div class="rows">` → `<ul class="rows">`; `<div class="row">` →
   `<li class="row">` (or `<button class="row">` where the row is itself the
   tap target).
-- `<div class="name">` → `<h3 class="name">` in row contexts (the two hero
-  names use `.list-title` / `.identity-name`).
+- `<div class="name">` → `<h3 class="name">` **only where the name is not
+  nested inside an interactive control**. Where the row's whole body is the tap
+  target (a `<button class="row">` / `<button class="row-tap">` / a row-nav
+  `<Button variant="text">`), the name stays a **`<span>`** carrying the role
+  class — `<span class="name row-title">` for a plain row name, or
+  `<span class="name list-title">` for the ListsScreen hero name — **never an
+  `<h3>`**. A heading is flow content, invalid as a `<button>` descendant, it is
+  subsumed into the button's accessible name rather than exposed to
+  heading-navigation, and the linter (`svelte/flat/recommended`) won't catch it.
+  This matches the parent plan (`0900` R12), which kept member-names as `<span>`.
+  The two hero names use `.list-title` / `.identity-name`.
 - `<div class="sub">` / `.subtitle` / `.meta` → `<p>` in a header context,
   `<span>` in a list-row context, each carrying `.caption`.
 
@@ -181,7 +205,8 @@ Carve-outs documented in the task blocks (e.g. InvitesBanner's `.row` is a
 layout div, not a list item). The InvitePicker e-mail "By e-mail" caption is
 both the e-mail `<section>`'s intro **and** the label for its one input, so it
 uses the existing `<Label>` primitive (`<Label for="…">By e-mail</Label>`,
-which already renders the section-label look as a real `<label>`) rather than a
+which renders the upper-cased form-label look as a real `<label>` — the correct
+look here, since this caption *is* the label for the e-mail input) rather than a
 `<div class="section-label">` — no global `.section-label` class is introduced.
 
 ## R6. One empty-state look, migrated everywhere
@@ -198,11 +223,20 @@ BlockedScreen's one-off dashed-box empty state is unified onto the same look
 
 After the sweep, a scoped `<style>` block in any in-scope `.svelte` file
 contains no `font-family`, `font-size`, `font-weight`, `letter-spacing`,
-`text-transform`, `line-height`, text `color`, `background`, or
-`border*-color` declaration — those all live in the global sheets. A grep
-guard in the final task enforces this, listing the few documented exceptions
-(EmptyState's own visual rules; Snackbar/Sheet/Button primitive internals;
-state-dependent `color` that is genuinely dynamic, if any — each annotated).
+`text-transform`, `line-height`, text `color`, `background` (other than the
+value-less layout resets `background: none` / `transparent` on un-styled
+buttons), or `border*-color` declaration — those all live in the global sheets.
+A grep guard in the final task enforces this. The guard is scoped to the
+**swept in-scope files only**, not all of `web/src/lib` — the untouched
+primitives in `basic/` (`Button`, `TextInput`, `Textarea`, `Sheet`, `Snackbar`,
+`Accordion`, `VoteControl`, …) and the untouched `shared/` components
+(`Avatar`, `AppTopBar`, `NavRow`, …) legitimately carry visual CSS and are not
+in scope. The documented exceptions among the swept files: EmptyState's own
+visual rules; single-instance TopBar/sheet/undo-snackbar chrome; the
+serif-italic `.notes` / tombstone editorial type; kept cosmetic icon-colour
+wrappers (e.g. TrashScreen `.row-icon { color: var(--stone) }`, left as-is per
+the parent plan's reconsidered R10); and genuinely-dynamic state `color`
+one-liners — each annotated inline with why.
 
 ## R8. Existing tests pass (with selector-level rewrites)
 

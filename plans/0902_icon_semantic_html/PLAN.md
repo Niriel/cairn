@@ -64,8 +64,8 @@ onto roles:
 | Role | Value | Absorbs (current → converged) |
 |------|-------|-------------------------------|
 | `h1` | serif 1.375rem/500/−0.01em/`--ink` | TopBar `.centre` |
-| `h2` | 0.72rem/600/0.06em/uppercase/`--stone` | all `.section-label`, CircleScreen `.section-header` (0.75rem→0.72rem, 0.04em→0.06em), Settings `.preview-label` (11px) |
-| `h3` | 0.9375rem/600/`--ink` | `.name` at 14/15/15.5px, `.display-name`, `.nav-row-title`, `.list-name` (inbox), `.item-name` (15.5→15), Trash `.name` (weight 500→600) |
+| `h2` | 0.8125rem/600/`--ink-soft`/**normal case**/margin 0 | all `.section-label`, CircleScreen `.section-header` (0.75rem→0.8125rem, **drops uppercase**). **Not** Settings `.preview-label` (that's a form sub-label → `<Label>`, not h2). |
+| `h3` (also `.row-title` class) | 0.9375rem/600/`--ink`/margin 0 | `.name` at 14/15/15.5px, `.display-name`, `.nav-row-title`, `.list-name` (inbox), `.item-name` (15.5→15), Trash `.name` (weight 500→600). Use the `<h3>` tag for names **not** inside a control; the `.row-title` **class** (same rule) for names inside a tap-target button. |
 | `.t-hero` | serif 1.5rem/500/−0.01em/`--ink` | `.empty-heading` (×4, 22–24→24), CircleExplainer `h2` (25.6→24) |
 | `.t-sheet` | serif 1.125rem/500/`--ink` | InvitePicker `.title` (17 sans→serif), ListOverflow `.list-name` (18), AvatarSource `.title` (18), AddEditItem `.title` (19) |
 | `.list-title` | serif 1.0625rem/600/−0.005em/`--ink`/lh 1.3 | ListsScreen `.name` |
@@ -73,6 +73,17 @@ onto roles:
 | `.body` | 0.875rem/`--ink-soft`/lh 1.5 | `.empty-body`, ListsScreen `.desc`, Items `.notes`(*serif italic kept via extra scoped rule*), various 13.5–14px body |
 | `.caption` | 0.75rem/`--stone`/lh 1.5 | `.sub`, `.subtitle`, `.meta`, `.attribution`, `.row-inviter`, `.nav-row-sub`, `.option-sub`, `.cascade-note`, `.when`, ListOverflow `.meta`, etc. (11–12px / 0.72–0.78rem cluster) |
 | `.mono` | JetBrains Mono | vote values, `.score-badge` text, `.nav-row-count`, `.when`, circle/blocked `.sub` |
+
+**Uppercase belongs to form labels, not section titles.** The upper-cased,
+`0.06em`-tracked, small-stone look is the *form-label* treatment (the `<Label>`
+primitive — "NAME", "NOTES", "E-MAIL ADDRESS"). It bled onto section *titles*
+because both were called "labels" and the global `h2` copied the look. This
+plan separates them: `<Label>` keeps uppercase; the section-title `h2` becomes
+a small normal-case heading (0.8125rem/600/`--ink-soft`, margin 0). This is a
+deliberate app-wide change — every section title de-upper-cases — and it is the
+real fix for the `<h2 class="t-sheet">` / `<h2 class="t-hero">` over-spill (a
+sheet/hero title on an `<h2>` no longer inherits any uppercase/tracking to
+fight, because the tag rule no longer sets them).
 
 Judgement calls flagged for review: collapsing the whole 11–12 px secondary
 cluster onto one `.caption` (0.75 rem); making all sheet titles serif;
@@ -135,13 +146,21 @@ trailing notes (PrivacyScreen's cascade-note, "What's this?" links). A single
 unlabelled list is not sectioned (a `<section>` should have a heading). The
 InvitePicker "By e-mail" caption is both the e-mail section's intro and the
 label for its one input, so it reuses the 0901 `<Label>` primitive (which
-already renders the section-label look as a real `<label>`) — this dissolves the
-"floating section-label class" problem without minting a global `.section-label`
-class. The cross-screen `<section>`/`<header>`/`<footer>` convention is recorded
+renders the upper-cased form-label look as a real `<label>` — correct here,
+since the caption *is* the input's label) — this dissolves the "floating
+section-label class" problem without minting a global `.section-label` class. The cross-screen `<section>`/`<header>`/`<footer>` convention is recorded
 in `docs/ui.md` by Phase 0 so later screens inherit it. Empty states migrate to
 the shared `<EmptyState>`, which is the legitimate home for the empty-state
 visual and uses the `.t-hero`/`.body` roles. BlockedScreen unifies onto the one
-look (deliberate change).
+look (deliberate change). **Row names stay phrasing inside a control.** Where
+the row's whole body is the tap target (Members' `<button class="row">`, Items'
+`<button class="row-tap">`, Lists' row-nav `<Button variant="text">`), the name
+is a `<span>` carrying the role class (`.row-title`, or `.list-title` for the
+Lists hero), **not** an `<h3>` — a heading is invalid as a `<button>`
+descendant, is folded into the button's accessible name rather than exposed to
+AT heading-navigation, and the linter won't catch it. `<h3>` is used only for
+row names not nested in a control (Inbox / Trash / Deleted-lists rows, whose
+action button is a sibling). This matches the parent plan's `0900` R12.
 
 ### Acceptance (R7)
 

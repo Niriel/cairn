@@ -62,9 +62,22 @@ doc and the code must agree, or the next UI plan references stale px.
   for the fixed disc; heading 1.5 rem (24 px); body 0.875 rem (14 px)), and any
   other quoted type size.
 - Add a short "Type roles" list to the "Where CSS lives" area naming the global
-  roles (`h1`, `h2`, `h3`, `.t-hero`, `.t-sheet`, `.list-title`,
-  `.identity-name`, `.body`, `.caption`, `.mono`) so the doc names the source
-  of truth that `typography.css` implements.
+  roles (`h1`, `h2`, `h3` (+ `.row-title`), `.t-hero`, `.t-sheet`,
+  `.list-title`, `.identity-name`, `.body`, `.caption`, `.mono`) so the doc
+  names the source of truth that `typography.css` implements.
+- **Record the label/title split.** Note that the upper-cased, `0.06em`-tracked
+  small-stone treatment is the **form-label** look (the `<Label>` primitive)
+  and that **section titles (`h2`) are normal-case** (a small heading,
+  0.8125rem/600/`--ink-soft`) — they are *not* upper-cased. The two were
+  conflated under the word "label"; the doc must state the section-title look
+  so later screens don't re-introduce uppercase section headers.
+- **Reconcile the Decline affordance.** `docs/ui.md` describes the invite
+  affordance as "Accept (sage) and Decline (muted)" in both the "Inbox row on
+  the Lists screen" and "Invites inbox screen" sections. Task 4.2 converges
+  Decline onto the outlined `ink` pill (0901 collapsed `neutral`→`ink`, so
+  there is no muted tone to keep). Update the wording in both sections to match
+  (e.g. "Accept (filled sage) and Decline (outlined)") so the doc and the
+  shipped look agree.
 - Add a short **"Semantic structure"** convention under the CSS-conventions
   section so later screens inherit it: a labelled content group is a
   `<section>` with its title as a bare `<h2>`; `<header>` is used only when the
@@ -80,10 +93,14 @@ doc and the code must agree, or the next UI plan references stale px.
 **Steps:**
 1. Update the TopBar visual spec and the empty-state spec to rem (px in
    parentheses).
-2. Add the "Type roles" list under the CSS-conventions section.
+2. Add the "Type roles" list under the CSS-conventions section, and the
+   label/title split note (uppercase = form labels via `<Label>`; section
+   titles are normal-case small headings).
 3. Add the "Semantic structure" (`<section>` / `<header>` / `<footer>`)
    convention under the CSS-conventions section.
-4. No code or tests in this task. `pnpm lint`/`pnpm check` not required for a
+4. Update the Decline wording in the "Inbox row" and "Invites inbox screen"
+   sections to match the converged outlined-ink pill (no longer "muted").
+5. No code or tests in this task. `pnpm lint`/`pnpm check` not required for a
    markdown-only change, but run `pnpm exec prettier --check docs/ui.md` if
    markdown is in the Prettier glob.
 
@@ -158,8 +175,21 @@ work (R1).
 
 **Decisions:**
 - Convert the existing `h1`/`h2`/`h3` rules to rem: `h1` 1.375rem, `h2`
-  0.72rem, `h3` 0.9375rem (values + other props per PLAN.md → Type scale).
+  0.8125rem, `h3` 0.9375rem (values + other props per PLAN.md → Type scale).
   Keep the `ul, ol` reset.
+- **`h2` is a normal-case section title, not a form label.** Rewrite it as
+  0.8125rem / 600 / `--ink-soft` / **`text-transform: none`** / `letter-spacing:
+  normal` / **`margin: 0`**. Do **not** carry over the old `text-transform:
+  uppercase` + `0.06em` tracking — that is the form-label look and lives only on
+  the `<Label>` primitive (`basic/components/Label.svelte`, unchanged). Adding
+  `margin: 0` matches `h1`/`h3` and stops bare-`<h2>` section titles from
+  picking up the browser-default heading margins once their scoped margin resets
+  are stripped. (This de-upper-cases every section title app-wide — deliberate.)
+- Write the `h3` row-name rule as **`h3, .row-title { … }`** (one rule, two
+  selectors): the `<h3>` tag for row names *not* inside a control, and the
+  `.row-title` **class** for row names that must sit inside a tap-target button
+  (where a heading tag is invalid HTML — see tasks 5.3/5.4). Same values
+  (0.9375rem/600/`--ink`/margin 0).
 - Add the new role classes from PLAN.md → Type scale: `.t-hero`, `.t-sheet`,
   `.list-title`, `.identity-name`, `.body`, `.caption`, `.mono`. Exact values
   in the PLAN table.
@@ -169,9 +199,14 @@ work (R1).
   family that is actually `@import`-ed (not bare `'Newsreader'`, which several
   out-of-scope files have drifted to); `.mono` uses `'JetBrains Mono',
   ui-monospace, monospace`, matching the existing VoteControl/ItemsScreen usage.
-- `.t-sheet` must override the global section-label `h2` when applied to a
-  sheet header's `<h2 class="t-sheet">` — class selector beats tag selector, so
-  no `!important` needed.
+- `.t-sheet` (and `.t-hero` on `CircleExplainerSheet`'s `<h2>`) override the
+  global `h2` when applied to a sheet header's `<h2 class="t-sheet">` — class
+  beats tag for the properties the class declares (font-family/size/weight/
+  colour), so no `!important` needed. Crucially, because `h2` is now normal-case
+  with normal tracking (above), there is **no** `text-transform`/`letter-spacing`
+  left on the tag for these classes to leak from — the earlier risk of a sheet
+  title rendering UPPERCASE is removed at the root. (`.t-hero` still sets its own
+  `-0.01em`; `.t-sheet` inherits normal tracking, which is correct for it.)
 - Do **not** add a bare global `p` rule (would clobber component paragraphs);
   body text opts in via `.body` / `.caption`.
 - Keep `.hint`, `.disclaimer`, `.explainer` as-is for now (they are existing
@@ -243,6 +278,16 @@ PrivacyScreen, and ItemsScreen. One set of badge rules removes the drift (R4).
   PLAN.md → Controls. `.badge-score.positive` = `color: var(--sage); background:
   var(--sage-bg)`, `.negative` = the ember pair; the base supplies the pill
   radius. Import alongside `surfaces.css`.
+- **`.badge-score` is tonal only — it does not set the font.** The aggregate
+  score is monospace; that font is the `.mono` role's job (PLAN type scale lists
+  "`.score-badge` text" under `.mono`). So the ItemsScreen element carries
+  `class="badge badge-score mono positive|negative"` (task 5.4) — `.badge-score`
+  must not silently drop the monospace by omitting it.
+- **The global `.badge` is an inline-flex pill — keep it off ProfileSheet's
+  circle/blocked label.** That label (`<span class="badge circle">` today) is
+  centred block text, not a pill. Task 5.9 strips its `badge` class and renders
+  it as `.caption .mono`; nothing in this task should make it match the global
+  pill.
 - Also add `.toast-error` — the persistent error toast duplicated byte-for-byte
   in `TrashScreen` / `DeletedListsScreen`. Include both the visual (color
   `--ember`, background `--paper`, `1px solid var(--ember)`, `border-radius:
@@ -480,7 +525,16 @@ and proves the global roles/classes compose with a real component.
   `<li class="row">`; rely on the global `.rows`/`.rows .row` divider — delete
   the scoped `border-top`/`:last-child border-bottom`.
 - `<div class="name">` → `<h3 class="name">` (drop scoped 14 px → global 15px).
+  These rows are **not** tap targets (the Invite control is the action), so the
+  name is genuinely not inside a control — `<h3>` is valid here.
 - `<div class="sub">` → `<span class="sub caption">`.
+- **Unify the two "Invite" buttons.** The circle rows already use
+  `<Button variant="pill" tone="ink" size="sm">`, but the co-member rows still
+  hand-roll a raw `<button class="invite-btn">` (no scoped CSS — renders as a
+  default browser button; 0901 migrated only the circle row, leaving this one).
+  Swap it to the same `<Button variant="pill" tone="ink" size="sm">` so both
+  "Invite" buttons match; preserve its `data-test` and `onclick`. Delete any
+  `.invite-btn` rule (there is none today).
 - `.email-section` → a `<section>` kept as layout; its
   `background: var(--paper-alt)` becomes the `.surface-alt` class on the
   element; `border-top` stays a hairline (`1px` px). Its "By e-mail" caption is
@@ -516,8 +570,14 @@ handle → global `.sheet-handle`.
 - ListOverflowSheet: `.list-name` div → `<h2 class="t-sheet">`; `.meta` div →
   `<p class="caption">`; `.label` (button row label) drops scoped font (15px →
   it is a row label; use `h3` semantics only if it is a heading, else keep as
-  plain text styled by `.body` — it is a menu item label, use `.body`). `<hr>`
-  between groups inside `<ul>` is invalid as a direct `<ul>` child — wrap:
+  plain text styled by `.body` — it is a menu item label, use `.body`).
+  **The `<div class="rows">` becomes `<ul class="menu">`, NOT `<ul class="rows">`.**
+  This is an `<hr>`-separated *action menu*, not the per-row-border data-list
+  model, so it must not carry the global `.rows` class (which would add a
+  container `border-top` directly under the header's `border-bottom`). Move the
+  existing `.rows :global(button)` layout rule onto `.menu :global(button)`, and
+  update any test selector querying `.rows` here. `<hr>` between items inside a
+  `<ul>` is invalid as a direct `<ul>` child — wrap:
   `<li role="separator" aria-hidden="true"><hr /></li>`; add a layout rule to
   zero its list padding. Handle div → `.sheet-handle` (delete scoped handle
   CSS).
@@ -554,7 +614,10 @@ sub + action. `.name` matches `h3` already (good convergence check).
   none` button-reset stays as layout-ish reset (it is not a visual look, it is
   un-styling a button) — keep but convert to the minimum. Divider via global
   `.rows .row`.
-- `<div class="name">` → `<h3 class="name">` (delete scoped 15px). `<div
+- `<div class="name">` → `<span class="name row-title">` (delete scoped 15px;
+  the `.row-title` class carries the h3 row-name look). **Not an `<h3>`** — the
+  name sits inside the row's tap-target `<button>`, where a heading is invalid
+  HTML and would be folded into the button's accessible name. `<div
   class="sub">` → `<span class="sub caption">` (12px → 0.75rem global).
 
 **Files:**
@@ -580,13 +643,18 @@ empty-state with a CTA.
   only sets background via the global token (this is a *state* background —
   acceptable as a scoped one-liner referencing the token, annotate). `row-inner`
   stays a div.
-- `.item-name` → `<h3>` (15.5px → 15px global; the `.row.open .item-name`
-  weight bump 600 is a state — keep as a scoped state rule on the tag, annotate,
-  or accept default). `.score-badge` → `.badge .badge-score` (+ positive/
-  negative); delete its scoped color/bg/radius/font. `.badge-score.positive`
-  sets `color: var(--sage); background: var(--sage-bg)` and `.negative` the
-  ember pair; the badge takes the `.badge` base's pill radius (99px), converging
-  the current 6px — a deliberate change. `.notes` → `.body` plus a
+- `.item-name` (a `<span>` inside the `<button class="row-tap">`) →
+  `<span class="item-name row-title">` (15.5px → 15px global via `.row-title`).
+  **Keep it a `<span>`, not an `<h3>`** — it sits inside the row's tap-target
+  button, where a heading is invalid HTML. The `.row.open .item-name` weight
+  bump 600 is a state — keep as a scoped state rule on the class, annotate, or
+  accept default. `.score-badge` → `<span class="badge badge-score mono">` (+
+  positive/negative); delete its scoped color/bg/radius/font. The `.mono` class
+  is **required** — `.badge-score` is tonal only and would otherwise drop the
+  monospace the score has today (PLAN type scale puts the score-badge font under
+  `.mono`). `.badge-score.positive` sets `color: var(--sage); background:
+  var(--sage-bg)` and `.negative` the ember pair; the badge takes the `.badge`
+  base's pill radius (99px), converging the current 6px — a deliberate change. `.notes` → `.body` plus a
   scoped `font-family: …serif; font-style: italic` (annotated exception, see
   PLAN open question). `.member-vote` → `.caption`; `.mv-val` → `.mono` (+
   positive/negative state color). `.attribution` → `.caption`; the tombstone
@@ -620,9 +688,12 @@ illustrated empty-state with a `<CairnGlyph>` disc + CTA.
   onto `.rows` and update test selectors that query `.list`); each
   `<div class="row">` → `<li class="row">` (keep `class:last`). `.row-top`,
   `.desc`, `.desc-text` stay layout divs/buttons.
-- `<span class="name">` (inside the nav button) → `<h3 class="name list-title">`
-  — `.list-title` carries the serif 1.0625rem/600 look; delete the scoped font
-  block. `.desc` → `.body` (13.5px → 0.875rem) with the no-desc italic/`--stone`
+- `<span class="name">` (inside the row-nav `<Button variant="text">`) **stays a
+  `<span class="name list-title">`** — `.list-title` carries the serif
+  1.0625rem/600 look; delete the scoped font block. Do **not** promote it to an
+  `<h3>`: it lives inside the nav button (the row's tap target), where a heading
+  is invalid HTML and would be folded into the button's accessible name. The
+  class, not the tag, carries the hero look. `.desc` → `.body` (13.5px → 0.875rem) with the no-desc italic/`--stone`
   kept as a scoped state (annotate) or a `.caption` swap. `.see-toggle` and
   `.meta` → `.caption`; `.dot` color → keep as a one-liner referencing
   `--stone-lt` (tiny, annotate) or fold into `.caption` context.
@@ -785,10 +856,14 @@ roles and `.card-dashed`. BlockedScreen's one-off empty state unifies onto
   sage/ember **text label** under the name (`display: block`, no bg/border/
   radius). Do **not** map it to `.badge` / `.badge-score` (the `.badge` base is
   `inline-flex` + `border-radius: 99px`, which would turn it into an inline pill
-  and break its centring). Render it as `.caption .mono` with `text-align:
-  center` as scoped layout, and the sage/ember `color` as an annotated scoped
-  state one-liner (`.circle { color: var(--sage) }` / `.blocked { color:
-  var(--ember) }`). `.handle` → `.sheet-handle`. `.action-card` → `.card`.
+  and break its centring). **Drop the `badge` class
+  name from this element** (it would otherwise match the new global `.badge`
+  inline-flex pill from task 3.3 and break the centred-text look). Render it as
+  `<span class="circle">` / `<span class="blocked">` carrying `.caption .mono`
+  with `text-align: center` as scoped layout, and the sage/ember `color` as an
+  annotated scoped state one-liner (`.circle { color: var(--sage) }` / `.blocked
+  { color: var(--ember) }`). The test keys on `data-test="state-badge"`, so keep
+  that attribute. `.handle` → `.sheet-handle`. `.action-card` → `.card`.
   `.subtitle` opacity → `.caption`.
 
 **Files:**
@@ -871,16 +946,28 @@ grep guard, runs the full toolchain, and does the visual canvas sweep.
   `h2` tag; the one e-mail caption that is a form label uses the `<Label>`
   primitive, not a kept `.section-label` class. Confirm no stray
   `class="section-label"` survives on a non-`<h2>` element.)
-- **Layout-only guard.** Run a grep over in-scope `.svelte` `<style>` blocks for
-  visual declarations and confirm only documented exceptions remain:
+- **Layout-only guard.** Scope the grep to **only the `.svelte` files this
+  branch touched** — *not* all of `web/src/lib`, which includes untouched
+  primitives (`basic/Button`, `TextInput`, `Textarea`, `Sheet`, `Snackbar`,
+  `Accordion`, `VoteControl`, …) and untouched `shared/` components (`Avatar`,
+  `AppTopBar`, `NavRow`, …) that legitimately carry visual CSS and have no
+  annotation. Drive it off the branch diff so the set is exactly the swept files:
   ```
-  git grep -nE '(font-family|font-size|font-weight|letter-spacing|text-transform|line-height|^\s*color:|background:|border[a-z-]*:\s*[^;]*var\(--(ink|stone|sage|ember|paper|rule|accent)\))' -- 'web/src/lib/**/*.svelte'
+  git diff --name-only main...HEAD -- 'web/src/lib/**/*.svelte' \
+    | xargs grep -nE '(font-family|font-size|font-weight|letter-spacing|text-transform|line-height):|(color|background|border[a-z-]*-color):[^;]*var\(--(ink|ink-soft|stone|stone-lt|sage|sage-bg|ember|ember-bg|paper|paper-alt|rule|accent)\)'
   ```
-  (Parens are balanced above — the original draft dropped the closing `)`;
-  refine the pattern further as needed.) Every hit must be an annotated exception:
-  EmptyState's disc; the serif-italic `.notes`/tombstone; single-instance
-  toast/TopBar chrome; genuine state-colour one-liners. Each exception carries an
-  inline comment naming why.
+  The type props (`font-*`, `letter-spacing`, `text-transform`, `line-height`)
+  always match; `color`/`background`/`border-*-color` match **only** when the
+  value references a visual token — so value-less layout resets
+  (`background: none` / `transparent`, `color: inherit`) are correctly *not*
+  flagged. Every remaining hit must be an annotated exception:
+  EmptyState's disc; the serif-italic `.notes`/tombstone editorial type;
+  single-instance TopBar / sheet / undo-snackbar chrome; the persistent
+  `.toast-error` (globalised); kept cosmetic icon-colour wrappers
+  (`TrashScreen .row-icon { color: var(--stone) }`, left per the reconsidered
+  parent R10); and genuinely-dynamic state-colour one-liners (the open-row
+  weight/background, ProfileSheet `.circle`/`.blocked`, vote `.positive`/
+  `.negative`). Each exception carries an inline comment naming why.
 - Confirm `1px` hairline borders and `env()`/shadow values are the only
   remaining px in scoped blocks (Units rule).
 
