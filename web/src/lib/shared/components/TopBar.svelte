@@ -30,9 +30,9 @@
 			</button>
 		{/if}
 	</div>
-	<div class="centre">
-		{@render children()}
-		{#if sub}<div class="sub">{sub}</div>{/if}
+	<div class="middle">
+		<h1>{@render children()}</h1>
+		{#if sub}<p class="sub caption">{sub}</p>{/if}
 	</div>
 	<div class="right">
 		{#if right}
@@ -45,10 +45,10 @@
 	header {
 		display: flex;
 		align-items: flex-start;
-		gap: 10px;
-		min-height: 56px;
-		padding: calc(env(safe-area-inset-top) + 12px) calc(env(safe-area-inset-right) + 18px) 12px
-			calc(env(safe-area-inset-left) + 18px);
+		gap: 0.625rem;
+		min-height: 3.5rem;
+		padding: calc(env(safe-area-inset-top) + 0.75rem) calc(env(safe-area-inset-right) + 1.125rem)
+			0.75rem calc(env(safe-area-inset-left) + 1.125rem);
 		background: var(--paper);
 		color: var(--ink);
 		border-bottom: 1px solid var(--rule);
@@ -66,24 +66,13 @@
 		flex-shrink: 0;
 	}
 
-	.centre {
+	.middle {
 		flex: 1;
 		min-width: 0;
-		font-family: 'Newsreader Variable', Georgia, serif;
-		font-size: 22px;
-		font-weight: 500;
-		letter-spacing: -0.01em;
-		line-height: 1.1;
 	}
 
 	.sub {
-		font-family: inherit;
-		font-size: 12px;
-		font-weight: 400;
-		letter-spacing: normal;
-		color: var(--stone);
-		margin-top: 2px;
-		line-height: 1.3;
+		margin-top: 0.125rem;
 	}
 
 	.icon-btn {

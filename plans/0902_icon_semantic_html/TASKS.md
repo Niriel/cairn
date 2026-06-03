@@ -441,14 +441,30 @@ binding pattern.
 
 **Verify:** `pnpm lint` · `pnpm check` · `pnpm test`
 
+**Notes:**
+- **No `typography.css` edit needed.** The task anticipated a stale `.centre` /
+  "task 3.10" reference in the `h1` comment, but the 3.1 rewrite already
+  replaced it with a clean comment (`/* Screen titles — the TopBar <h1> is the
+  one canonical page-level heading. */`). Grep confirms no `.centre` or `3.10`
+  survives anywhere in the file.
+- **Dropped `line-height: 1.1` rather than moving it onto a scoped `.middle h1`.**
+  The decision allowed keeping it only "if intentional and differs from the
+  global; otherwise drop it." The global `h1` sets no line-height (browser
+  default ~1.2); a TopBar title is near-always single-line, so 1.1 buys nothing
+  visible and would trip the Phase 6 layout-only grep guard (which flags
+  `line-height:`), forcing an annotation for no benefit. Dropped per "otherwise
+  drop it." `.middle` now carries only `flex: 1; min-width: 0`.
+- No test changes: `TopBar.test.ts` keys on `data-test` and text content, never
+  the `.centre`/`.middle` class.
+
 ---
 
 ## Phase 4 — Shared chrome + `<Button>` reuse
 
-### [ ] 4.1 TopBar — `<h1>` title, trim scoped type
+### [x] 4.1 TopBar — `<h1>` title, trim scoped type
 
 **Created:** 2026-06-03T00:00:00Z
-**Completed:**
+**Completed:** 2026-06-03T10:40:17Z
 
 **Why:** TopBar's title is the only canonical page-level heading and its type
 duplicates the global `h1`. Promoting it to `<h1>` and deleting the scoped font
