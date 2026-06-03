@@ -89,7 +89,7 @@
 
 	/* rect variant */
 	.rect {
-		border-radius: 12px;
+		border-radius: 0.75rem;
 	}
 
 	.rect.tone-primary {
@@ -112,14 +112,17 @@
 		color: var(--paper);
 	}
 
+	/* Size tiers track the type scale: md is the 1rem body floor, sm is the
+	   0.8rem "small print" tier (the .fine role). Both rem, so buttons scale
+	   with the Settings text-size control. */
 	.rect.size-md {
-		padding: 12px 20px;
-		font-size: 15px;
+		padding: 0.75rem 1.25rem;
+		font-size: 1rem;
 	}
 
 	.rect.size-sm {
-		padding: 8px 14px;
-		font-size: 13px;
+		padding: 0.5rem 0.875rem;
+		font-size: 0.8rem;
 	}
 
 	/* pill variant */
@@ -152,15 +155,15 @@
 	}
 
 	.pill.size-sm {
-		padding: 7px 14px;
-		font-size: 12.5px;
-		gap: 6px;
+		padding: 0.4375rem 0.875rem;
+		font-size: 0.8rem;
+		gap: 0.375rem;
 	}
 
 	.pill.size-md {
-		padding: 10px 18px;
-		font-size: 14px;
-		gap: 6px;
+		padding: 0.625rem 1.125rem;
+		font-size: 1rem;
+		gap: 0.375rem;
 	}
 
 	/* text variant */
@@ -187,18 +190,18 @@
 	}
 
 	.text.size-md {
-		padding: 12px 18px;
+		padding: 0.75rem 1.125rem;
 		width: 100%;
-		font-size: 15px;
+		font-size: 1rem;
 		font-weight: 500;
 		text-align: left;
-		gap: 12px;
+		gap: 0.75rem;
 	}
 
 	.text.size-sm {
-		padding: 4px 8px;
-		font-size: 13px;
-		gap: 6px;
+		padding: 0.25rem 0.5rem;
+		font-size: 0.8rem;
+		gap: 0.375rem;
 	}
 
 	/* link variant — inherits font-size from context */
@@ -208,6 +211,6 @@
 		padding: 0;
 		color: var(--accent);
 		font-weight: 600;
-		gap: 6px;
+		gap: 0.375rem;
 	}
 </style>
