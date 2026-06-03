@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { tick } from 'svelte';
+	import { tick, untrack } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { pgGet } from '$lib/shared/http/postgrest';
@@ -67,9 +67,15 @@
 
 	$effect(() => {
 		if (!isOpen) return;
-		return pushHistoryGuard(() => {
-			openId = null;
-		});
+		// untrack: pushHistoryGuard → pushState reads SvelteKit's internal
+		// history state, which would otherwise re-track this effect and re-push
+		// a fresh guard on every change — stacking history entries until neither
+		// the TopBar back nor the browser back can escape the pile.
+		return untrack(() =>
+			pushHistoryGuard(() => {
+				openId = null;
+			})
+		);
 	});
 
 	function toggleRow(id: string) {
