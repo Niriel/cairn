@@ -1220,10 +1220,10 @@ roles and `.card-dashed`. BlockedScreen's one-off empty state unifies onto
   `color` as an annotated per-state one-liner. `.action-card` → `+ .card` (kept
   `overflow:hidden` to clip the inner button); `.subtitle` opacity → `.caption`.
 
-### [ ] 5.10 SettingsScreen + PrivacyScreen
+### [x] 5.10 SettingsScreen + PrivacyScreen
 
 **Created:** 2026-06-03T00:00:00Z
-**Completed:**
+**Completed:** 2026-06-03T17:27:42Z
 
 **Why:** Both already use `<h2>` for section labels (good); the work is to strip
 their many scoped type/border/background rules onto global roles + `.card` /
@@ -1267,6 +1267,37 @@ their many scoped type/border/background rules onto global roles + `.card` /
 - `web/src/lib/privacy/components/PrivacyScreen.svelte` (+ `.test.ts` if any)
 
 **Verify:** `pnpm lint` · `pnpm check` · `pnpm test`
+
+**Notes:**
+- **Deviation — titles inside tap-targets are `.row-title`, not `<h3>`.** The
+  task said `.display-name` / `.nav-row-title` / `.option-title` → `<h3>`, but
+  every one of these sits **inside** an interactive control (the profile-chip
+  `<Button>`, the nav-row `<Button>`s, the radio `<button class="option">`),
+  where a heading element is invalid HTML and folds into the control's
+  accessible name — exactly the case tasks 5.3–5.5 resolved with the `.row-title`
+  class (the shared `h3, .row-title` rule from 3.1). Used `.row-title` for all of
+  them; valid HTML, identical look.
+- **No test changes needed.** SettingsScreen's structural tests assert
+  `section.preference-group` + its `<h2>` (both kept); PrivacyScreen keys on
+  `data-test`. All 625 tests stayed green.
+- **`.preview-label` → `.caption`, not `<Label>`.** A bare `<label>` with no
+  associated control (the "Preview" caption labels a region, not an input) would
+  trip a11y-label-has-associated-control — took the task's explicit `.caption`
+  fallback. Rendered the size-preview's secondary line as `<p class="preview-sub
+  caption">` (the inline `font-size` demo px wins over the role's 1rem, by design).
+- **SettingsScreen surfaces:** `.theme-option` → `+ .card`, `.size-card` →
+  `.card-alt`, `.size-preview` → `.card`; selected-state colour swaps and the
+  segmented size buttons kept as annotated scoped control-chrome/state. Section
+  `<h2>`s lost their uppercase 11.5px treatment for the normal-case global `h2`.
+  px → rem throughout (skeleton shimmer chrome left as-is).
+- **PrivacyScreen:** `.segmented-control` → `+ .card`; count `.badge` →
+  `.badge .badge-soft` (deleted the scoped badge rule); `.option-sub`/`.nav-row-sub`
+  → `.caption`; `.cascade-note` wrapped in a `<footer>` (trailing note) as
+  `.caption`. `.option.selected` tint and the radio-dot/dot-fill control chrome
+  kept scoped (annotated; already token-based). `.nav-rows` full-bleed
+  top/bottom rules kept as annotated single-instance hairline band (NavRow
+  extraction is a separate plan). `.privacy-note` callout left as single-instance
+  scoped chrome.
 
 ---
 

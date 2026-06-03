@@ -67,7 +67,11 @@
 	<div class="content">
 		<section class="section">
 			<h2 class="section-label">Who can invite you to lists</h2>
-			<div class="segmented-control" role="radiogroup" aria-label="Who can invite you to lists">
+			<div
+				class="segmented-control card"
+				role="radiogroup"
+				aria-label="Who can invite you to lists"
+			>
 				{#each opts as opt (opt.k)}
 					{@const isSelected = (displayPolicy ?? userSettings.invitePolicy) === opt.k}
 					<button
@@ -83,15 +87,17 @@
 							{#if isSelected}<span class="dot-fill"></span>{/if}
 						</span>
 						<span class="option-text">
-							<span class="option-title">{opt.label}</span>
-							<span class="option-sub">{opt.sub}</span>
+							<span class="option-title row-title">{opt.label}</span>
+							<span class="option-sub caption">{opt.sub}</span>
 						</span>
 					</button>
 				{/each}
 			</div>
 
 			{#if cascadeNote}
-				<p class="cascade-note" data-test="cascade-note">{cascadeNote}</p>
+				<footer>
+					<p class="cascade-note caption" data-test="cascade-note">{cascadeNote}</p>
+				</footer>
 			{/if}
 
 			{#if userSettings.invitePolicy === 'circle'}
@@ -118,11 +124,13 @@
 				>
 					<Icon name="users" size={20} />
 					<span class="nav-row-text">
-						<span class="nav-row-title">Your circle</span>
-						<span class="nav-row-sub">People you'll let invite you</span>
+						<span class="nav-row-title row-title">Your circle</span>
+						<span class="nav-row-sub caption">People you'll let invite you</span>
 					</span>
 					{#if relationships.loaded}
-						<span class="badge" data-test="circle-count">{relationships.circle.length}</span>
+						<span class="badge badge-soft" data-test="circle-count"
+							>{relationships.circle.length}</span
+						>
 					{/if}
 					<Icon name="chevron-right" size={18} />
 				</Button>
@@ -136,11 +144,13 @@
 				>
 					<Icon name="slash" size={20} />
 					<span class="nav-row-text">
-						<span class="nav-row-title">Blocked</span>
-						<span class="nav-row-sub">People who can never invite you</span>
+						<span class="nav-row-title row-title">Blocked</span>
+						<span class="nav-row-sub caption">People who can never invite you</span>
 					</span>
 					{#if relationships.loaded}
-						<span class="badge" data-test="blocked-count">{relationships.blocked.length}</span>
+						<span class="badge badge-soft" data-test="blocked-count"
+							>{relationships.blocked.length}</span
+						>
 					{/if}
 					<Icon name="chevron-right" size={18} />
 				</Button>
@@ -180,19 +190,12 @@
 	}
 
 	.section-label {
-		padding: 22px 18px 8px;
-		font-size: 11.5px;
-		font-weight: 600;
-		color: var(--stone);
-		text-transform: uppercase;
-		letter-spacing: 0.06em;
-		margin: 0;
+		padding: 1.375rem 1.125rem 0.5rem;
 	}
 
+	/* .card supplies the border + radius; overflow clips the divided options. */
 	.segmented-control {
 		margin: 0 1.125rem;
-		border: 1px solid var(--rule);
-		border-radius: 0.75rem;
 		overflow: hidden;
 	}
 
@@ -214,6 +217,7 @@
 		border-bottom: none;
 	}
 
+	/* Selected is genuine state, not drift — the option tints. */
 	.option.selected {
 		background: var(--paper-alt);
 	}
@@ -251,15 +255,7 @@
 		flex-direction: column;
 	}
 
-	.option-title {
-		font-size: 0.875rem;
-		font-weight: 600;
-		color: var(--ink);
-	}
-
 	.option-sub {
-		font-size: 0.75rem;
-		color: var(--stone);
 		margin-top: 0.125rem;
 	}
 
@@ -270,16 +266,14 @@
 
 	.cascade-note {
 		margin: 0 1.125rem;
-		font-size: 0.75rem;
-		color: var(--stone);
-		line-height: 1.5;
 	}
 
 	.whats-a-circle {
 		margin: 0.75rem 1.125rem 0;
-		font-size: 0.9375rem;
 	}
 
+	/* Full-bleed top/bottom rules band the nav-row group — single-instance
+	   hairline chrome (NavRow extraction is a separate plan). */
 	.nav-rows {
 		margin: 0;
 		border-top: 1px solid var(--rule);
@@ -293,31 +287,8 @@
 		flex-direction: column;
 	}
 
-	.nav-row-title {
-		font-size: 0.9375rem;
-		font-weight: 600;
-		color: var(--ink);
-	}
-
 	.nav-row-sub {
-		font-size: 0.75rem;
-		color: var(--stone);
 		margin-top: 0.125rem;
-	}
-
-	.badge {
-		min-width: 1.25rem;
-		height: 1.25rem;
-		padding: 0 0.25rem;
-		border-radius: 99px;
-		background: var(--paper-alt);
-		border: 1px solid var(--rule);
-		font-size: 0.72rem;
-		font-weight: 600;
-		color: var(--stone);
-		display: inline-flex;
-		align-items: center;
-		justify-content: center;
 	}
 
 	.privacy-note {
