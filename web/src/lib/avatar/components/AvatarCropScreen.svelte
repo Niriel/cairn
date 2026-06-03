@@ -96,7 +96,35 @@
 		ctx.arc(CANVAS_SIZE / 2, CANVAS_SIZE / 2, CIRCLE_R, 0, Math.PI * 2);
 		ctx.stroke();
 		ctx.restore();
-		previewUrl = canvasEl.toDataURL('image/jpeg', 0.7);
+
+		// Preview reflects the actual saved output: the cropped circle region only,
+		// without the dimming overlay or guide ring drawn above.
+		const pv = document.createElement('canvas');
+		pv.width = EXPORT_SIZE;
+		pv.height = EXPORT_SIZE;
+		const pvCtx = pv.getContext('2d');
+		if (pvCtx) {
+			renderCrop(pvCtx);
+			previewUrl = pv.toDataURL('image/jpeg', 0.7);
+		}
+	}
+
+	// Draw only the image, mapping the crop circle's bounding box to fill the
+	// whole EXPORT_SIZE×EXPORT_SIZE output — so the saved avatar is the cropped
+	// region, not the framed cropping UI (no dim overlay, no guide ring).
+	function renderCrop(target: CanvasRenderingContext2D) {
+		if (!loadedImg) return;
+		const cropOrigin = CANVAS_SIZE / 2 - CIRCLE_R; // top-left of the circle's bbox
+		const f = EXPORT_SIZE / (CIRCLE_R * 2); // bbox (280px) → export (256px)
+		target.clearRect(0, 0, EXPORT_SIZE, EXPORT_SIZE);
+		target.save();
+		target.translate(
+			(CANVAS_SIZE / 2 + panX - cropOrigin) * f,
+			(CANVAS_SIZE / 2 + panY - cropOrigin) * f
+		);
+		target.scale(scale * f, scale * f);
+		target.drawImage(loadedImg, -loadedImg.width / 2, -loadedImg.height / 2);
+		target.restore();
 	}
 
 	function handlePointerDown(e: PointerEvent) {
@@ -131,7 +159,7 @@
 		offscreen.height = EXPORT_SIZE;
 		const offCtx = offscreen.getContext('2d');
 		if (offCtx) {
-			offCtx.drawImage(canvasEl, 0, 0, CANVAS_SIZE, CANVAS_SIZE, 0, 0, EXPORT_SIZE, EXPORT_SIZE);
+			renderCrop(offCtx);
 		}
 		// offCtx is null in some test environments; fall back to the main canvas
 		const exportTarget = offCtx ? offscreen : canvasEl;
