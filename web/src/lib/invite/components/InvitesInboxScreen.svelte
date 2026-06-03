@@ -3,6 +3,7 @@
 	import { resolve } from '$app/paths';
 	import Avatar from '$lib/shared/components/Avatar.svelte';
 	import AppTopBar from '$lib/shared/components/AppTopBar.svelte';
+	import Button from '$lib/basic/components/Button.svelte';
 	import Icon from '$lib/basic/components/Icon.svelte';
 	import RefreshButton from '$lib/basic/components/RefreshButton.svelte';
 	import {
@@ -74,15 +75,19 @@
 							<span class="when">{timeAgo(entry.createdAt)}</span>
 						</div>
 						<div class="buttons">
-							<button
-								class="btn-decline"
+							<Button
+								variant="pill"
+								tone="ink"
+								size="sm"
 								data-test="inbox-decline-{entry.id}"
-								onclick={() => void declineInvitation(entry.id)}>Decline</button
+								onclick={() => void declineInvitation(entry.id)}>Decline</Button
 							>
-							<button
-								class="btn-accept"
+							<Button
+								variant="pill"
+								tone="sage"
+								size="sm"
 								data-test="inbox-accept-{entry.id}"
-								onclick={() => void handleAccept(entry.id)}>Accept</button
+								onclick={() => void handleAccept(entry.id)}>Accept</Button
 							>
 						</div>
 					</div>
@@ -215,29 +220,11 @@
 
 	.buttons {
 		display: flex;
-		gap: 8px;
+		gap: 0.5rem;
 	}
 
-	.btn-decline,
-	.btn-accept {
+	/* Both pills span the row equally; <Button> is inline-flex by default. */
+	.buttons > :global(button) {
 		flex: 1;
-		padding: 9px 0;
-		border-radius: 999px;
-		font-size: 13.5px;
-		font-weight: 600;
-		font-family: inherit;
-		cursor: pointer;
-	}
-
-	.btn-decline {
-		border: 1px solid var(--rule);
-		background: transparent;
-		color: var(--stone);
-	}
-
-	.btn-accept {
-		border: none;
-		background: var(--sage);
-		color: #fff;
 	}
 </style>

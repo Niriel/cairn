@@ -519,10 +519,10 @@ handled here and not revisited in Phase 5.
 
 **Verify:** `pnpm lint` · `pnpm check` · `pnpm test`
 
-### [ ] 4.2 Replace hand-rolled pills with `<Button>` (InvitesInboxScreen + InvitesBanner)
+### [x] 4.2 Replace hand-rolled pills with `<Button>` (InvitesInboxScreen + InvitesBanner)
 
 **Created:** 2026-06-03T00:00:00Z
-**Completed:**
+**Completed:** 2026-06-03T10:47:19Z
 
 **Why:** Both files hand-roll `.btn-accept` / `.btn-decline` (diverging
 13/13.5 px, own radius/colors) while InvitePickerSheet already uses the shared
