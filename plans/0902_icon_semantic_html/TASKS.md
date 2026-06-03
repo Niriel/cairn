@@ -562,10 +562,10 @@ handled here and not revisited in Phase 5.
 
 **Verify:** `pnpm lint` · `pnpm check` · `pnpm test`
 
-### [ ] 4.3 Scale a button's `leadingIcon` with its label (em-sized `Icon`)
+### [x] 4.3 Scale a button's `leadingIcon` with its label (em-sized `Icon`)
 
 **Created:** 2026-06-03T13:00:00Z
-**Completed:**
+**Completed:** 2026-06-03T13:03:11Z
 
 **Why:** Task 5.4's side work converted `<Button>`'s size tiers to rem (md =
 1rem, sm = 0.8rem `.fine`), so button **labels** now track the Settings

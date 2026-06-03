@@ -214,6 +214,17 @@ describe('Button', () => {
 			});
 			expect(getByDataTest('b').querySelector('svg')).toBeNull();
 		});
+
+		test('leading icon is sized in em so it scales with the label', () => {
+			const { getByDataTest } = render(Button, {
+				leadingIcon: 'pencil',
+				'data-test': 'b',
+				children: label('Edit')
+			});
+			const svg = getByDataTest('b').querySelector('svg');
+			expect(svg?.getAttribute('width')).toBe('1em');
+			expect(svg?.getAttribute('height')).toBe('1em');
+		});
 	});
 
 	test('no-props default renders rect/primary/md classes', () => {

@@ -34,8 +34,6 @@
 		...rest
 	}: Props = $props();
 
-	const iconSize = $derived(size === 'sm' ? 14 : 16);
-
 	function handleClick() {
 		if (disabled) return;
 		onclick?.();
@@ -59,7 +57,9 @@
 	{...rest}
 >
 	{#if leadingIcon}
-		<Icon name={leadingIcon} size={iconSize} />
+		<!-- 1em: the glyph tracks the (rem-based) label size, so it scales with
+		     the Settings text-size control. -->
+		<Icon name={leadingIcon} size="1em" />
 	{/if}
 	{@render children?.()}
 </button>
