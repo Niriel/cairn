@@ -1,0 +1,57 @@
+/* Surfaces: the row-divider model, cards, raised backgrounds, and sheet
+   handles. One home per visual look; components add the class and keep only
+   layout local.
+
+   Visual only (background, border, radius). Layout — padding, gap, flex,
+   margins that arrange a component's own pieces — stays in the component's
+   scoped <style>. Hairline borders stay 1px; card radii are 0.75rem. */
+
+/* ── Row-divider model ──────────────────────────────────────────────
+   A top rule on the list plus a bottom rule on each row closes the set of
+   dividers. Data-list containers carry class="rows". */
+.rows {
+	border-top: 1px solid var(--rule);
+}
+
+.rows .row {
+	border-bottom: 1px solid var(--rule);
+}
+
+/* ── Cards ───────────────────────────────────────────────────────────
+   .card        — plain raised card on the page background.
+   .card-alt    — tinted card (warm cream / slate), e.g. the invites banner.
+   .card-dashed — dashed-outline card for placeholder / opt-in surfaces. */
+.card {
+	background: var(--paper);
+	border: 1px solid var(--rule);
+	border-radius: 0.75rem;
+}
+
+.card-alt {
+	background: var(--paper-alt);
+	border: 1px solid var(--rule);
+	border-radius: 0.75rem;
+}
+
+.card-dashed {
+	background: var(--paper-alt);
+	border: 1px dashed var(--stone-lt);
+	border-radius: 0.75rem;
+}
+
+/* A raised background tint with no border (section panels, callouts). */
+.surface-alt {
+	background: var(--paper-alt);
+}
+
+/* ── Sheet handle ────────────────────────────────────────────────────
+   The grab-pill at the top of a bottom sheet. 2.25rem wide; the 4px
+   thickness is a fixed hairline-ish measure; the radius is a full pill.
+   margin centres it and sets the gap to the sheet body. */
+.sheet-handle {
+	width: 2.25rem;
+	height: 4px;
+	border-radius: 99px;
+	background: var(--stone-lt);
+	margin: 0 auto 14px;
+}

@@ -245,10 +245,10 @@ is a separate `format:check`); ran `prettier --check` on `typography.css`
 explicitly — clean. Pre-existing cSpell editor warnings on the `@import`
 `wght.css` lines (1–2) are untouched and unrelated.
 
-### [ ] 3.2 Create `surfaces.css` and wire global imports
+### [x] 3.2 Create `surfaces.css` and wire global imports
 
 **Created:** 2026-06-03T00:00:00Z
-**Completed:**
+**Completed:** 2026-06-03T10:00:26Z
 
 **Why:** The row-divider, card, raised-surface, and sheet-handle looks are
 re-declared across ~10 files. Centralising them lets every sweep delete its
@@ -281,6 +281,19 @@ copy and add a class instead (R3).
    all green).
 
 **Verify:** `pnpm lint` · `pnpm check` · `pnpm test`
+
+**Notes:** PLAN → Surfaces gives only the convergence targets (card radius
+0.75rem, handle width 2.25rem); the remaining values were read off the existing
+declarations — `.rows .row` divider is `1px solid var(--rule)` (MembersScreen /
+ListsScreen), the sheet handle is `4px` tall / `99px` (pill) radius /
+`var(--stone-lt)` / `margin: 0 auto 14px` (AvatarSourceSheet, ListOverflowSheet,
+identical), `.card-alt` tint is `var(--paper-alt)` + `1px solid var(--rule)`
+(InvitesBanner), `.card-dashed` is `var(--paper-alt)` + `1px dashed
+var(--stone-lt)` (ListsScreen). The handle keeps its `margin: 0 auto 14px`
+(centring + body gap) in the class so the per-file `.handle` rule deletes
+wholesale in Phase 5. **User correction:** dropped the "converges 36/40px →"
+style narration from the comments — comments describe what a surface *is*, not
+the drift being left behind.
 
 ### [ ] 3.3 Create `controls.css` (badges) and wire its import
 
