@@ -99,16 +99,6 @@ ol {
 	color: var(--ink);
 }
 
-/* A list-row name (Lists screen). */
-.list-title {
-	font-family: 'Newsreader Variable', Georgia, serif;
-	font-size: 1.0625rem;
-	font-weight: 600;
-	letter-spacing: -0.005em;
-	line-height: 1.3;
-	color: var(--ink);
-}
-
 /* A person's display name (members, inbox, profile). */
 .identity-name {
 	font-size: 1.125rem;

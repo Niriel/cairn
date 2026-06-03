@@ -422,7 +422,6 @@ roles:
 - `.t-hero` — empty-state heading (Newsreader, 1.5 rem).
 - `.t-sheet` — bottom-sheet title. Used on an `<h2>`; identical to the section
   `h2` but with full `var(--ink)` for contrast on the sheet background.
-- `.list-title` — a list-row name.
 - `.identity-name` — a person's display name (members, inbox, profile).
 - `.body` — default body copy.
 - `.caption` — muted secondary / metadata line (1 rem, set apart by colour).

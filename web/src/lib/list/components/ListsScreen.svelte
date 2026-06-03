@@ -13,6 +13,7 @@
 	import AppTopBar from '$lib/shared/components/AppTopBar.svelte';
 	import MoreButton from '$lib/shared/components/MoreButton.svelte';
 	import UndoSnackbar from '$lib/shared/components/UndoSnackbar.svelte';
+	import EmptyState from '$lib/shared/components/EmptyState.svelte';
 	import { lists, refreshLists, undoDeleteList } from '$lib/list/state/lists.svelte';
 	import { timeAgo } from '$lib/shared/model/time-ago';
 	import type { List } from '$lib/list/model/list';
@@ -71,30 +72,21 @@
 	{#if lists.loading}
 		<div class="content" data-test="lists-loading">Loading…</div>
 	{:else if lists.items.length === 0}
-		<div class="content empty" data-test="lists-empty">
-			<div class="empty-circle">
+		<EmptyState
+			data-test="lists-empty"
+			title="Start your first cairn"
+			body="A cairn is a small stack of stones hikers leave to mark the way. Make a list of things — movies, books, places — and share it with friends."
+			ctaLabel="Create your first list"
+			onCta={() => (createSheetOpen = true)}
+		>
+			{#snippet iconContent()}
 				<CairnGlyph size={44} color="var(--stone)" />
-			</div>
-			<div class="empty-heading">Start your first cairn</div>
-			<p class="empty-body">
-				A cairn is a small stack of stones hikers leave to mark the way. Make a list of things —
-				movies, books, places — and share it with friends.
-			</p>
-			<Button
-				variant="rect"
-				tone="ink"
-				size="md"
-				leadingIcon="plus"
-				data-test="lists-empty-cta"
-				onclick={() => {
-					createSheetOpen = true;
-				}}>Create your first list</Button
-			>
-		</div>
+			{/snippet}
+		</EmptyState>
 	{:else}
-		<div class="list">
+		<ul class="rows">
 			{#each lists.items as item, i (item.id)}
-				<div class="row" class:last={i === lists.items.length - 1} data-test="list-row-{item.id}">
+				<li class="row" class:last={i === lists.items.length - 1} data-test="list-row-{item.id}">
 					<div class="row-top">
 						<Button
 							variant="text"
@@ -104,7 +96,7 @@
 							style="flex: 1; min-width: 0; padding: 0;"
 							onclick={() => {
 								void goto(resolve(`/lists/${item.id}`));
-							}}><span class="name">{item.name}</span></Button
+							}}><span class="name row-title">{item.name}</span></Button
 						>
 						<MoreButton
 							size={18}
@@ -116,20 +108,20 @@
 					</div>
 					{#if item.description !== null}
 						<button
-							class="desc"
+							class="desc body"
 							class:expanded={expandedIds.has(item.id)}
 							data-test="list-desc-{item.id}"
 							onclick={() => toggleDesc(item.id)}
 						>
 							<span class="desc-text" bind:this={descTextEls[item.id]}>{item.description}</span>
 							{#if expandedIds.has(item.id)}
-								<span class="see-toggle">(see less)</span>
+								<span class="see-toggle fine">(see less)</span>
 							{:else if truncatedIds.has(item.id)}
-								<span class="see-toggle">(see more)</span>
+								<span class="see-toggle fine">(see more)</span>
 							{/if}
 						</button>
 					{:else}
-						<div class="desc no-desc" data-test="list-desc-{item.id}">(no description)</div>
+						<div class="desc no-desc body" data-test="list-desc-{item.id}">(no description)</div>
 					{/if}
 					<div class="meta fine">
 						<span>{item.item_count} {item.item_count === 1 ? 'item' : 'items'}</span>
@@ -151,9 +143,9 @@
 							</span>
 						{/if}
 					</div>
-				</div>
+				</li>
 			{/each}
-		</div>
+		</ul>
 	{/if}
 </div>
 
@@ -226,15 +218,16 @@
 
 	/* ── List rows ── */
 
-	.list {
-		padding-top: 6px;
+	.rows {
+		padding-top: 0.375rem;
 	}
 
 	.row {
-		padding: 14px 18px;
-		border-bottom: 1px solid var(--rule);
+		padding: 0.875rem 1.125rem;
 	}
 
+	/* The global .rows .row divider gives every row a bottom rule; the last row
+	   closes against the screen edge, so suppress its rule. */
 	.row.last {
 		border-bottom: none;
 	}
@@ -242,33 +235,32 @@
 	.row-top {
 		display: flex;
 		align-items: center;
+		padding-bottom: 0.5rem;
+		border-bottom: 1px dashed var(--rule);
 	}
 
 	.name {
 		flex: 1;
 		min-width: 0;
-		font-family: 'Newsreader Variable', Georgia, serif;
-		font-size: 17px;
-		font-weight: 600;
-		letter-spacing: -0.005em;
-		color: var(--ink);
-		line-height: 1.3;
 	}
 
 	.desc {
 		display: flex;
-		align-items: baseline;
-		gap: 4px;
+		/* top, not baseline: the smaller (see more/less) toggle is always shorter
+		   than the description line, so aligning to the top keeps the row height =
+		   the text line — the toggle can't push content below it down a few px
+		   when it appears on expand (baseline alignment grew the line). Top also
+		   keeps the toggle beside the first line when an expanded description
+		   wraps, rather than centred against the whole block. */
+		align-items: flex-start;
+		gap: 0.25rem;
 		width: 100%;
 		background: none;
 		border: none;
 		padding: 0;
 		text-align: left;
 		font: inherit;
-		margin-top: 4px;
-		font-size: 1rem;
-		line-height: 1.5;
-		color: var(--ink-soft);
+		margin-top: 0.5rem;
 	}
 
 	.desc-text {
@@ -288,10 +280,9 @@
 	.see-toggle {
 		flex-shrink: 0;
 		white-space: nowrap;
-		font-size: 11.5px;
-		color: var(--stone);
 	}
 
+	/* The placeholder reads as a quiet italic aside — a state on the .body desc. */
 	.desc.no-desc {
 		cursor: default;
 		color: var(--stone);
@@ -299,12 +290,13 @@
 	}
 
 	.meta {
-		margin-top: 6px;
+		margin-top: 0.375rem;
 		display: flex;
 		align-items: center;
-		gap: 4px;
+		gap: 0.25rem;
 	}
 
+	/* Faint separator dot between metadata fields. */
 	.dot {
 		color: var(--stone-lt);
 	}
@@ -312,45 +304,5 @@
 	.avatars {
 		display: inline-flex;
 		align-items: center;
-	}
-
-	/* ── Empty state ── */
-
-	.empty {
-		display: flex;
-		flex-direction: column;
-		align-items: center;
-		justify-content: center;
-		padding: 40px 36px;
-		text-align: center;
-	}
-
-	.empty-circle {
-		width: 96px;
-		height: 96px;
-		border-radius: 99px;
-		background: var(--paper-alt);
-		border: 1px dashed var(--stone-lt);
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		margin-bottom: 24px;
-	}
-
-	.empty-heading {
-		font-family: 'Newsreader Variable', Georgia, serif;
-		font-size: 24px;
-		font-weight: 500;
-		letter-spacing: -0.01em;
-		color: var(--ink);
-		margin-bottom: 10px;
-	}
-
-	.empty-body {
-		font-size: 14px;
-		color: var(--ink-soft);
-		line-height: 1.5;
-		margin: 0 0 28px;
-		max-width: 280px;
 	}
 </style>

@@ -899,10 +899,10 @@ empty-state with a CTA.
   sizing the SVG in `em` (an `Icon`-primitive change, app-wide). Left for a
   follow-up decision.
 
-### [ ] 5.5 ListsScreen
+### [x] 5.5 ListsScreen
 
 **Created:** 2026-06-03T00:00:00Z
-**Completed:**
+**Completed:** 2026-06-03T13:16:30Z
 
 **Why:** `div.row` per list, with a `.row-top` (name + overflow) and an
 expandable `.desc`. The list name is the hero → `.list-title`. Has the
@@ -933,6 +933,48 @@ illustrated empty-state with a `<CairnGlyph>` disc + CTA.
 - `web/src/lib/list/components/ListsScreen.svelte` (+ `.test.ts`)
 
 **Verify:** `pnpm lint` · `pnpm check` · `pnpm test`
+
+**Notes:**
+- **User correction — list name now matches the item name, not the serif hero.**
+  The task specified the list name → `.list-title` (serif 1.0625rem). The user
+  asked for it to "look identical to the item name", so it carries `.row-title`
+  (1rem / 600 / `--ink`, sans) instead. **Consequence:** `.list-title` lost its
+  only consumer, so (per a follow-up user instruction) the role was **retired** —
+  deleted from `typography.css` and removed from the `docs/ui.md` type-roles
+  list. The historical references in this plan's `PLAN.md` / `REQUIREMENTS.md`
+  are left as planning record.
+- **User addition — dashed separator under each list title.** The user wanted the
+  ItemsScreen "expanded item" look (`.item-panel`'s `border-top: 1px dashed
+  var(--rule)`) under the list title too. Added `border-bottom: 1px dashed
+  var(--rule)` + `padding-bottom: 0.5rem` to `.row-top`, and bumped `.desc`
+  `margin-top` to `0.5rem` for symmetric breathing room. Hairline stays px (Units
+  rule); the `border-bottom:` shorthand is not matched by the Phase 6 guard
+  (which only flags `border-*-color:`), same as the existing item-panel rule, so
+  no annotation needed.
+- **`.see-toggle` → `.fine` (0.8rem), not the task's `.caption`.** The task
+  predates the `.fine` role (commit `49f077d`); `.meta` had already been migrated
+  to `.fine` in the markup, so `.see-toggle` uses `.fine` for consistency with
+  the adjacent meta line — `.caption` (now the 1rem floor) would have blown the
+  inline "(see more)" hint up to body size.
+- **Empty state → `<EmptyState>`** via the `iconContent` snippet holding
+  `<CairnGlyph size={44} color="var(--stone)" />`. The CTA's old
+  `data-test="lists-empty-cta"` is gone (EmptyState's CTA Button has no per-call
+  data-test), so test (b) now asserts the CTA via
+  `empty.querySelector('button')` + its label text — behaviourally equivalent.
+- `.list` → `<ul class="rows">`, `.row` → `<li class="row">` (global divider;
+  kept `.row.last` border-suppression per the task). `.name` font block dropped
+  (role-driven); `.desc` → `.body`; no-desc italic/`--stone` kept as annotated
+  state; `.dot` `--stone-lt` kept as annotated one-liner.
+- **User bug fix — `.desc` row jumped on expand.** With `align-items: baseline`,
+  adding the smaller `(see less)` toggle grew the flex line via baseline
+  ascent/descent maths (worsened by the collapsed `overflow:hidden` baseline
+  quirk), pushing content below down a few px. Switched `.desc` to
+  `align-items: flex-start` so the row height = the text line and the shorter
+  toggle can't change it; top-align also keeps the toggle beside the first line
+  when an expanded description wraps. Single-line trade-off: the smaller toggle
+  sits a touch above the text baseline. (A future inline-toggle refactor —
+  toggle in the text flow rather than a flex sibling — would give baseline
+  reading without the height coupling.)
 
 ### [ ] 5.6 InvitesInboxScreen + InvitesBanner
 
