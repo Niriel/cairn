@@ -138,19 +138,7 @@
 </script>
 
 {#if viewState === 'edit'}
-	<AppTopBar showBack={false}>
-		{#snippet left()}
-			<button class="icon-btn" onclick={() => history.back()}>
-				<Icon name="x" size={22} />
-			</button>
-		{/snippet}
-		{#snippet right()}
-			<Button variant="rect" tone="ink" size="sm" data-test="save-profile" onclick={saveName}
-				>Save</Button
-			>
-		{/snippet}
-		Edit profile
-	</AppTopBar>
+	<AppTopBar showBack={true}>Edit profile</AppTopBar>
 
 	{#if showSourceSheet}
 		<AvatarSourceSheet
@@ -222,6 +210,12 @@
 			<b>Where your picture appears.</b>
 			Next to your name on shared lists, in the members screen, and on items you've added. A photo, a
 			doodle, your cat — whatever you'd like other people in your lists to see.
+		</div>
+
+		<div class="save-row">
+			<Button variant="rect" tone="primary" size="md" data-test="save-profile" onclick={saveName}
+				>Save</Button
+			>
 		</div>
 	</div>
 
@@ -320,6 +314,16 @@
 		font-size: 12px;
 		color: var(--ink-soft);
 		line-height: 1.55;
+	}
+
+	/* Save sits at the foot of the form, full-width, where people expect the
+	   primary commit action. */
+	.save-row {
+		margin-top: 28px;
+	}
+
+	.save-row :global(button) {
+		width: 100%;
 	}
 
 	.icon-btn {

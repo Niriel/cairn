@@ -1,4 +1,5 @@
 <script lang="ts">
+	import Button from '$lib/basic/components/Button.svelte';
 	import Icon from '$lib/basic/components/Icon.svelte';
 	import AppTopBar from '$lib/shared/components/AppTopBar.svelte';
 
@@ -175,9 +176,6 @@
 			</button>
 		{/snippet}
 		Crop
-		{#snippet right()}
-			<button class="save-btn" data-test="crop-save" onclick={handleSave}>Save</button>
-		{/snippet}
 	</AppTopBar>
 
 	<div class="content">
@@ -215,6 +213,12 @@
 					{/if}
 				{/each}
 			</div>
+		</div>
+
+		<div class="save-row">
+			<Button variant="rect" tone="primary" size="md" data-test="crop-save" onclick={handleSave}
+				>Save</Button
+			>
 		</div>
 	</div>
 </div>
@@ -337,15 +341,14 @@
 		align-items: center;
 	}
 
-	.save-btn {
-		padding: 8px 14px;
-		border: none;
-		border-radius: 10px;
-		background: var(--ink);
-		color: var(--paper);
-		font-size: 13px;
-		font-weight: 600;
-		cursor: pointer;
-		font-family: inherit;
+	/* Save sits at the foot of the form, full-width, where people expect the
+	   primary commit action — not tucked in the top corner. */
+	.save-row {
+		margin-top: 22px;
+		width: 100%;
+	}
+
+	.save-row :global(button) {
+		width: 100%;
 	}
 </style>
