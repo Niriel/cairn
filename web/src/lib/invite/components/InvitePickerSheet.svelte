@@ -2,6 +2,7 @@
 	import { SvelteSet } from 'svelte/reactivity';
 	import Button from '$lib/basic/components/Button.svelte';
 	import Icon from '$lib/basic/components/Icon.svelte';
+	import Label from '$lib/basic/components/Label.svelte';
 	import Sheet from '$lib/basic/components/Sheet.svelte';
 	import TextInput from '$lib/basic/components/TextInput.svelte';
 	import Avatar from '$lib/shared/components/Avatar.svelte';
@@ -106,8 +107,8 @@
 
 <Sheet open={true} {onclose} data-test="invite-picker">
 	<header class="header">
-		<h2 class="title">Add someone</h2>
-		<p class="explainer subtitle">
+		<h2 class="title t-sheet">Add someone</h2>
+		<p class="subtitle caption">
 			{#if hasTappableRows}
 				Tap to invite, or type an e-mail below
 			{:else}
@@ -118,72 +119,78 @@
 
 	<div class="body">
 		{#if circleRows.length > 0}
-			<div class="section-label">Your circle</div>
-			<div class="rows">
-				{#each circleRows as row (row.otherUserId)}
-					<div class="row" data-test="invite-picker-circle-row-{row.otherUserId}">
-						<Avatar
-							displayName={row.displayName}
-							size={32}
-							uid={row.otherUserId}
-							avatarVersion={row.avatarVersion}
-						/>
-						<div class="info">
-							<div class="name">{row.displayName}</div>
-							<div class="sub">In your circle</div>
-						</div>
-						{#if invitedIds.has(row.otherUserId)}
-							<span class="invited" data-test="invite-picker-invited-{row.otherUserId}">
-								<Icon name="check" size={18} />
-							</span>
-						{:else}
-							<Button
-								variant="pill"
-								tone="ink"
-								size="sm"
-								data-test="invite-picker-invite-{row.otherUserId}"
-								onclick={() => void inviteUser(row.otherUserId)}>Invite</Button
-							>
-						{/if}
-					</div>
-				{/each}
-			</div>
+			<section>
+				<h2 class="section-label">Your circle</h2>
+				<ul class="rows">
+					{#each circleRows as row (row.otherUserId)}
+						<li class="row" data-test="invite-picker-circle-row-{row.otherUserId}">
+							<Avatar
+								displayName={row.displayName}
+								size={32}
+								uid={row.otherUserId}
+								avatarVersion={row.avatarVersion}
+							/>
+							<div class="info">
+								<h3 class="name">{row.displayName}</h3>
+								<span class="sub caption">In your circle</span>
+							</div>
+							{#if invitedIds.has(row.otherUserId)}
+								<span class="invited" data-test="invite-picker-invited-{row.otherUserId}">
+									<Icon name="check" size={18} />
+								</span>
+							{:else}
+								<Button
+									variant="pill"
+									tone="ink"
+									size="sm"
+									data-test="invite-picker-invite-{row.otherUserId}"
+									onclick={() => void inviteUser(row.otherUserId)}>Invite</Button
+								>
+							{/if}
+						</li>
+					{/each}
+				</ul>
+			</section>
 		{/if}
 
 		{#if coMemberRows.length > 0}
-			<div class="section-label">People you share other lists with</div>
-			<div class="rows">
-				{#each coMemberRows as row (row.userId)}
-					<div class="row" data-test="invite-picker-comember-row-{row.userId}">
-						<Avatar
-							displayName={row.displayName}
-							size={32}
-							uid={row.userId}
-							avatarVersion={row.avatarVersion}
-						/>
-						<div class="info">
-							<div class="name">{row.displayName}</div>
-							<div class="sub">On {row.sharedCount} of your other lists</div>
-						</div>
-						{#if invitedIds.has(row.userId)}
-							<span class="invited" data-test="invite-picker-invited-{row.userId}">
-								<Icon name="check" size={18} />
-							</span>
-						{:else}
-							<button
-								class="invite-btn"
-								data-test="invite-picker-invite-{row.userId}"
-								onclick={() => void inviteUser(row.userId)}>Invite</button
-							>
-						{/if}
-					</div>
-				{/each}
-			</div>
+			<section>
+				<h2 class="section-label">People you share other lists with</h2>
+				<ul class="rows">
+					{#each coMemberRows as row (row.userId)}
+						<li class="row" data-test="invite-picker-comember-row-{row.userId}">
+							<Avatar
+								displayName={row.displayName}
+								size={32}
+								uid={row.userId}
+								avatarVersion={row.avatarVersion}
+							/>
+							<div class="info">
+								<h3 class="name">{row.displayName}</h3>
+								<span class="sub caption">On {row.sharedCount} of your other lists</span>
+							</div>
+							{#if invitedIds.has(row.userId)}
+								<span class="invited" data-test="invite-picker-invited-{row.userId}">
+									<Icon name="check" size={18} />
+								</span>
+							{:else}
+								<Button
+									variant="pill"
+									tone="ink"
+									size="sm"
+									data-test="invite-picker-invite-{row.userId}"
+									onclick={() => void inviteUser(row.userId)}>Invite</Button
+								>
+							{/if}
+						</li>
+					{/each}
+				</ul>
+			</section>
 		{/if}
 	</div>
 
-	<div class="email-section">
-		<label class="section-label email-label" for="invite-picker-email-input">By e-mail</label>
+	<section class="email-section surface-alt">
+		<Label for="invite-picker-email-input">By e-mail</Label>
 		<form
 			class="email-row"
 			onsubmit={(e) => {
@@ -206,7 +213,7 @@
 				>Send</Button
 			>
 		</form>
-	</div>
+	</section>
 </Sheet>
 
 <Snackbar
@@ -218,17 +225,11 @@
 
 <style>
 	.header {
-		padding: 4px 4px 12px;
-	}
-
-	.title {
-		font-size: 17px;
-		font-weight: 600;
-		color: var(--ink);
+		padding: 0.25rem 0.25rem 0.75rem;
 	}
 
 	.subtitle {
-		margin-top: 2px;
+		margin-top: 0.125rem;
 	}
 
 	.body {
@@ -237,13 +238,9 @@
 		overflow-y: auto;
 	}
 
+	/* Section title look comes from the global h2; only its spacing is local. */
 	.section-label {
-		font-size: 11.5px;
-		color: var(--stone);
-		font-weight: 600;
-		letter-spacing: 0.06em;
-		text-transform: uppercase;
-		padding: 14px 4px 6px;
+		padding: 0.875rem 0.25rem 0.375rem;
 	}
 
 	.rows {
@@ -254,13 +251,8 @@
 	.row {
 		display: flex;
 		align-items: center;
-		gap: 12px;
-		padding: 12px 4px;
-		border-top: 1px solid var(--rule);
-	}
-
-	.row:last-child {
-		border-bottom: 1px solid var(--rule);
+		gap: 0.75rem;
+		padding: 0.75rem 0.25rem;
 	}
 
 	.info {
@@ -268,33 +260,28 @@
 		min-width: 0;
 	}
 
-	.name {
-		font-size: 14px;
-		font-weight: 600;
-		color: var(--ink);
-	}
-
 	.sub {
-		font-size: 11.5px;
-		color: var(--stone);
-		margin-top: 2px;
+		margin-top: 0.125rem;
 	}
 
 	.invited {
 		display: inline-flex;
 		align-items: center;
 		justify-content: center;
+		/* State colour: the affirmative tick on an already-invited row. */
 		color: var(--sage);
 	}
 
 	.email-section {
-		padding: 14px 4px 4px;
+		padding: 0.875rem 0.25rem 0.25rem;
 		border-top: 1px solid var(--rule);
-		background: var(--paper-alt);
 	}
 
-	.email-label {
-		padding: 0 0 8px;
+	/* The <Label> primitive renders an inline <label>; make it a block with a
+	   gap to the input below. */
+	.email-section :global(label) {
+		display: block;
+		margin-bottom: 0.5rem;
 	}
 
 	.email-row {

@@ -569,10 +569,10 @@ handled here and not revisited in Phase 5.
 Each task follows the **Standing rules** at the top of this file. Per-file
 **Decisions** below only call out what is specific or surprising.
 
-### [ ] 5.1 InvitePickerSheet — canonical sweep
+### [x] 5.1 InvitePickerSheet — canonical sweep
 
 **Created:** 2026-06-03T00:00:00Z
-**Completed:**
+**Completed:** 2026-06-03T10:54:54Z
 
 **Why:** Fullest set of transformations in one file (header, two section
 labels, two list groups, name + sub, an e-mail form). Establishes the playbook
@@ -623,7 +623,21 @@ and proves the global roles/classes compose with a real component.
 
 **Verify:** `pnpm lint` · `pnpm check` · `pnpm test`
 
-### [ ] 5.2 ListOverflowSheet + AvatarSourceSheet
+**Notes:**
+- **No test changes needed.** `InvitePickerSheet.test.ts` selects only by
+  `data-test` and asserts `textContent` — none of the element-type changes
+  (div→section/ul/li, div→h3, label→`<Label>`) touch those selectors, so all 6
+  tests stayed green unchanged.
+- **`.invited` sage colour kept as an annotated scoped exception** (per the
+  task's "decide and note"): it is a genuine per-row state colour on the
+  affirmative tick, not drift — no global helper warranted for one instance.
+- **`<Label>` layout shim.** The primitive renders a bare inline `<label>`; the
+  old `.email-label` relied on `padding-bottom` for the gap to the input. Added
+  a scoped `.email-section :global(label) { display: block; margin-bottom: 0.5rem }`
+  layout rule so the label sits as a block with the gap preserved.
+- `.title` and `.name` classes are left on the `<h2>`/`<h3>` markup (now
+  rule-less, their look comes from `.t-sheet`/global `h3`) — dead classes to be
+  swept in task 6.1 per the standing rules.
 
 **Created:** 2026-06-03T00:00:00Z
 **Completed:**
