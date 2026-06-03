@@ -976,10 +976,10 @@ illustrated empty-state with a `<CairnGlyph>` disc + CTA.
   toggle in the text flow rather than a flex sibling — would give baseline
   reading without the height coupling.)
 
-### [ ] 5.6 InvitesInboxScreen + InvitesBanner
+### [x] 5.6 InvitesInboxScreen + InvitesBanner
 
 **Created:** 2026-06-03T00:00:00Z
-**Completed:**
+**Completed:** 2026-06-03T15:05:59Z
 
 **Why:** Finish the two invite components whose pills were swapped in task 4.2:
 semantic markup, type → roles, empty state. `InvitesBanner.row` is a carve-out
@@ -1009,6 +1009,26 @@ semantic markup, type → roles, empty state. `InvitesBanner.row` is a carve-out
 - `web/src/lib/invite/components/InvitesBanner.svelte` (+ `.test.ts`)
 
 **Verify:** `pnpm lint` · `pnpm check` · `pnpm test`
+
+**Notes:**
+- **No test changes needed** for either file — both suites key on
+  `data-test` / `textContent` / `getByText`, none of which the
+  div→ul/li/h3, EmptyState, or badge changes touch. All tests stayed green
+  (625 passed across the full suite).
+- **InvitesInboxScreen empty state** → `<EmptyState icon="inbox" …>` with the
+  `<br/>` body rewritten into one sentence; deleted the bespoke `.empty*` CSS
+  and the now-unused `Icon` import. `.list` → `<ul class="list rows">`, `.row`
+  → `<li class="row">`, dropped `class:first` and the scoped
+  `border-bottom`/`.row.first border-top` (global `.rows` divider). `.list-name`
+  → `<h3>`, `.row-inviter` → `<p class="caption">`, `.inviter-name` → `<strong>`
+  with an annotated ink-emphasis colour, `.when` → `.caption .mono`, `.intro`
+  and `.loading` → `.caption`.
+- **InvitesBanner** `.banner` → `.card-alt` (dropped scoped bg/border/radius,
+  kept margin/padding as rem layout). `.copy` → `<p class="body">` with `.bold`
+  spans → `<strong>`; `.grey` kept as an annotated emphasis colour. `.count-badge`
+  (a 32px disc) → `.badge .badge-ink` (deliberate convergence to the 1.25rem pill
+  base, per task 3.3). `.multi-text` → `<h3>`. The `.row` carve-out stayed a
+  `<div>`.
 
 ### [ ] 5.7 TrashScreen + DeletedListsScreen
 

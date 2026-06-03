@@ -27,7 +27,7 @@
 
 {#if invitations.inbox.length === 1}
 	{@const entry = invitations.inbox[0]}
-	<div class="banner" data-test="invites-banner">
+	<div class="banner card-alt" data-test="invites-banner">
 		<div class="row">
 			<Avatar
 				displayName={entry.inviterName}
@@ -35,11 +35,11 @@
 				uid={entry.inviterUid}
 				avatarVersion={entry.inviterAvatarVersion}
 			/>
-			<div class="copy">
-				<span class="bold">{entry.inviterName}</span>
+			<p class="copy body">
+				<strong>{entry.inviterName}</strong>
 				<span class="grey">invited you to</span>
-				<span class="bold">{entry.listName}</span>
-			</div>
+				<strong>{entry.listName}</strong>
+			</p>
 		</div>
 		<div class="buttons">
 			<Button
@@ -67,8 +67,8 @@
 			data-test="invites-banner-multi"
 			onclick={() => void goto(resolve('/settings/invites'))}
 		>
-			<span class="count-badge">{invitations.inbox.length}</span>
-			<span class="multi-text">{invitations.inbox.length} pending invites</span>
+			<span class="badge badge-ink">{invitations.inbox.length}</span>
+			<h3 class="multi-text">{invitations.inbox.length} pending invites</h3>
 			<Icon name="chevron-right" size={18} />
 		</Button>
 	</div>
@@ -76,31 +76,24 @@
 
 <style>
 	.banner {
-		margin: 8px 18px 14px;
-		padding: 14px;
-		background: var(--paper-alt);
-		border: 1px solid var(--rule);
-		border-radius: 12px;
+		margin: 0.5rem 1.125rem 0.875rem;
+		padding: 0.875rem;
 	}
 
 	.row {
 		display: flex;
 		align-items: center;
-		gap: 10px;
+		gap: 0.625rem;
 	}
 
 	.copy {
 		flex: 1;
 		min-width: 0;
-		font-size: 13.5px;
-		color: var(--ink);
-		line-height: 1.4;
+		margin: 0;
 	}
 
-	.bold {
-		font-weight: 600;
-	}
-
+	/* "invited you to" recedes against the ink names — emphasis colour, not
+	   drift. */
 	.grey {
 		color: var(--stone);
 	}
@@ -116,24 +109,7 @@
 		flex: 1;
 	}
 
-	.count-badge {
-		width: 32px;
-		height: 32px;
-		border-radius: 99px;
-		background: var(--ink);
-		color: var(--paper);
-		display: inline-flex;
-		align-items: center;
-		justify-content: center;
-		font-size: 12px;
-		font-weight: 700;
-		flex-shrink: 0;
-	}
-
 	.multi-text {
 		flex: 1;
-		font-size: 14px;
-		font-weight: 600;
-		color: var(--ink);
 	}
 </style>

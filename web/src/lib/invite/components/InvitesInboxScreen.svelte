@@ -4,7 +4,7 @@
 	import Avatar from '$lib/shared/components/Avatar.svelte';
 	import AppTopBar from '$lib/shared/components/AppTopBar.svelte';
 	import Button from '$lib/basic/components/Button.svelte';
-	import Icon from '$lib/basic/components/Icon.svelte';
+	import EmptyState from '$lib/shared/components/EmptyState.svelte';
 	import RefreshButton from '$lib/basic/components/RefreshButton.svelte';
 	import {
 		acceptInvitation,
@@ -42,22 +42,21 @@
 
 	<div class="content">
 		{#if invitations.inboxLoading}
-			<div class="loading" data-test="inbox-loading">Loading…</div>
+			<div class="loading caption" data-test="inbox-loading">Loading…</div>
 		{:else if invitations.inbox.length === 0}
-			<div class="empty" data-test="inbox-empty">
-				<div class="empty-circle">
-					<Icon name="inbox" size={32} />
-				</div>
-				<div class="empty-heading">No pending invites</div>
-				<p class="empty-body">When someone invites you to their list,<br /> it'll appear here.</p>
-			</div>
+			<EmptyState
+				icon="inbox"
+				title="No pending invites"
+				body="When someone invites you to their list, it'll appear here."
+				data-test="inbox-empty"
+			/>
 		{:else}
-			<p class="intro">
+			<p class="intro caption">
 				People who've invited you to their lists. Accept to join, or decline to clear.
 			</p>
-			<div class="list">
-				{#each invitations.inbox as entry, i (entry.id)}
-					<div class="row" class:first={i === 0} data-test="inbox-row-{entry.id}">
+			<ul class="list rows">
+				{#each invitations.inbox as entry (entry.id)}
+					<li class="row" data-test="inbox-row-{entry.id}">
 						<div class="row-top">
 							<Avatar
 								displayName={entry.inviterName}
@@ -66,13 +65,13 @@
 								avatarVersion={entry.inviterAvatarVersion}
 							/>
 							<div class="row-info">
-								<div class="row-inviter">
-									<span class="inviter-name">{entry.inviterName}</span>
+								<p class="row-inviter caption">
+									<strong class="inviter-name">{entry.inviterName}</strong>
 									<span class="invited-label">invited you to</span>
-								</div>
-								<div class="list-name">{entry.listName}</div>
+								</p>
+								<h3 class="list-name">{entry.listName}</h3>
 							</div>
-							<span class="when">{timeAgo(entry.createdAt)}</span>
+							<span class="when caption mono">{timeAgo(entry.createdAt)}</span>
 						</div>
 						<div class="buttons">
 							<Button
@@ -90,9 +89,9 @@
 								onclick={() => void handleAccept(entry.id)}>Accept</Button
 							>
 						</div>
-					</div>
+					</li>
 				{/each}
-			</div>
+			</ul>
 		{/if}
 	</div>
 </div>
@@ -112,80 +111,29 @@
 	}
 
 	.loading {
-		padding: 16px 18px;
-		color: var(--stone);
-	}
-
-	/* ── Empty state ── */
-
-	.empty {
-		flex: 1;
-		display: flex;
-		flex-direction: column;
-		align-items: center;
-		justify-content: center;
-		padding: 40px 36px;
-		text-align: center;
-	}
-
-	.empty-circle {
-		width: 96px;
-		height: 96px;
-		border-radius: 99px;
-		background: var(--paper-alt);
-		border: 1px dashed var(--stone-lt);
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		margin-bottom: 24px;
-		color: var(--stone);
-	}
-
-	.empty-heading {
-		font-family: 'Newsreader Variable', Georgia, serif;
-		font-size: 24px;
-		font-weight: 500;
-		letter-spacing: -0.01em;
-		color: var(--ink);
-		margin-bottom: 10px;
-	}
-
-	.empty-body {
-		font-size: 14px;
-		color: var(--ink-soft);
-		line-height: 1.5;
-		margin: 0;
-		max-width: 260px;
+		padding: 1rem 1.125rem;
 	}
 
 	.intro {
-		font-size: 12.5px;
-		color: var(--stone);
-		line-height: 1.5;
-		padding: 14px 18px 6px;
+		padding: 0.875rem 1.125rem 0.375rem;
 		margin: 0;
 	}
 
 	.list {
-		margin-top: 6px;
+		margin-top: 0.375rem;
 	}
 
 	.row {
 		display: flex;
 		flex-direction: column;
-		gap: 12px;
-		padding: 14px 18px;
-		border-bottom: 1px solid var(--rule);
-	}
-
-	.row.first {
-		border-top: 1px solid var(--rule);
+		gap: 0.75rem;
+		padding: 0.875rem 1.125rem;
 	}
 
 	.row-top {
 		display: flex;
 		align-items: center;
-		gap: 12px;
+		gap: 0.75rem;
 	}
 
 	.row-info {
@@ -194,27 +142,20 @@
 	}
 
 	.row-inviter {
-		font-size: 14px;
-		color: var(--stone);
-		line-height: 1.35;
+		margin: 0;
 	}
 
+	/* The inviter name reads as ink against the stone caption line — emphasis
+	   colour on the <strong>, not drift. */
 	.inviter-name {
-		font-weight: 600;
 		color: var(--ink);
 	}
 
 	.list-name {
-		font-size: 15px;
-		font-weight: 600;
-		color: var(--ink);
-		margin-top: 2px;
+		margin-top: 0.125rem;
 	}
 
 	.when {
-		font-size: 11px;
-		color: var(--stone-lt);
-		font-family: monospace;
 		flex-shrink: 0;
 	}
 
