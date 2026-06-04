@@ -95,7 +95,6 @@
 				<span class="body">Rename list</span>
 			</Button>
 		</li>
-		<li role="separator" aria-hidden="true"><hr /></li>
 		<li>
 			<Button
 				variant="text"
@@ -108,7 +107,6 @@
 				<span class="body">Edit description</span>
 			</Button>
 		</li>
-		<li role="separator" aria-hidden="true"><hr /></li>
 		<li>
 			<Button
 				variant="text"
@@ -121,7 +119,6 @@
 				<span class="body">Manage members</span>
 			</Button>
 		</li>
-		<li role="separator" aria-hidden="true"><hr /></li>
 		<li>
 			<Button
 				variant="text"
@@ -134,7 +131,6 @@
 				<span class="body">View bin</span>
 			</Button>
 		</li>
-		<li role="separator" aria-hidden="true"><hr /></li>
 		{#if confirmingLeave}
 			<li class="confirm">
 				<p class="confirm-copy body">
@@ -150,7 +146,7 @@
 						<Button
 							variant="rect"
 							tone="destructive"
-							size="sm"
+							size="md"
 							data-test="list-overflow-leave-confirm"
 							onclick={() => void handleLeave()}>Leave</Button
 						>
@@ -171,7 +167,6 @@
 				</Button>
 			</li>
 		{/if}
-		<li role="separator" aria-hidden="true"><hr /></li>
 		<li>
 			<Button
 				variant="text"
@@ -214,10 +209,14 @@
 		gap: 0.875rem;
 	}
 
-	/* Hairline divider between action-menu items. */
-	.menu hr {
-		margin: 0;
-		border: none;
+	/* Full-bleed band: a hairline above the first action and below the last,
+	   plus a divider between each adjacent pair. */
+	.menu {
+		border-top: 1px solid var(--rule);
+		border-bottom: 1px solid var(--rule);
+	}
+
+	.menu > li + li {
 		border-top: 1px solid var(--rule);
 	}
 

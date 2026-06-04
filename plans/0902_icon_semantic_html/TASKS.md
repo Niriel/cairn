@@ -1469,10 +1469,10 @@ applied to appended work).
 no longer prescribes `<hr>`; `docs/ui.md` carries the separator note. (Doc-only;
 no test layer.)
 
-### [ ] 7.2 Remove `<hr>` from the `ListOverflowSheet` action menu → CSS border
+### [x] 7.2 Remove `<hr>` from the `ListOverflowSheet` action menu → CSS border
 
 **Created:** 2026-06-04T06:37:11Z
-**Completed:**
+**Completed:** 2026-06-04T08:38:56Z
 
 **Why:** The action menu's five `<li role="separator" aria-hidden="true"><hr /></li>`
 elements (lines 98, 111, 124, 137, 174) are a validity hack — a stylistic line
@@ -1509,6 +1509,19 @@ items.
    returns nothing.
 
 **Verify:** `pnpm lint` · `pnpm check` · `pnpm test`
+
+**Notes:**
+- **Deviation (band, at user's request):** rather than only an inter-row
+  `li + li` border, the `.menu` now also carries a full-bleed band — a hairline
+  above the first action and below the last (`border-top` + `border-bottom` on
+  `.menu`) — to match the `.nav-rows` band look (R11). The `li + li` divider is
+  kept for the inter-row hairlines.
+- **Bug fixed (user-reported, in-area):** the Leave-list confirm pair had
+  mismatched font sizes — Cancel was `size="md"`, Leave `size="sm"`. Both are
+  now `size="md"`, matching the ButtonPair convention used elsewhere (e.g.
+  `PostAcceptPromptSheet`). The `<hr>`-era markup had hidden this.
+- The test file referenced no `role="separator"` / `<hr>`, so the RED step was a
+  no-op and no test assertions changed.
 
 ### [ ] 7.3 Lift the flex-line (`.media`) and `.field` layout blocks to global utilities
 

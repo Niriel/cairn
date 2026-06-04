@@ -563,6 +563,11 @@ When a list row has a primary label and a trailing chevron that both navigate to
 
 A divider between adjacent sibling rows — data rows, action-menu rows, or nav-rows — is **presentational, not semantic**: render it as a `1px solid var(--rule)` border on the adjacent siblings (`.rows .row`, `.menu > li + li`, `nav-row + nav-row`), never as an `<hr>`. `<hr>` is invalid as a direct child of `<ul>` and carries no useful document semantics between sibling rows, so the codebase uses no `<hr>` and keeps no global `hr` reset.
 
+**An itemised group is fully ruled — a rule above the first item and one below the last, not just between.** Any set of repeated sibling rows (a list of items, an action menu, a run of nav-rows) reads as one closed band: a hairline opens the group above its first row and another closes it below its last, in addition to the inter-row dividers. Don't suppress the leading or trailing rule to "close against the screen edge" — that leaves the group looking unfinished and inconsistent with its neighbours. Two equivalent mechanisms produce the band:
+
+- **Container + per-row bottom** (the `.rows` data-list model): the container carries `border-top` and every row carries `border-bottom`, so the last row's own bottom rule closes the set. Every row gets a `border-bottom` — never a `:last-child { border-bottom: none }` exception.
+- **Container band + inter-row top** (the `.menu` / `.nav-rows` model): the container carries both `border-top` and `border-bottom` (the band), and `li + li` / `nav-row + nav-row` draws the dividers between.
+
 ### Cursor convention
 
 - `cursor: pointer` — **navigation and explicit call-to-action buttons only** (links, FABs, row-nav buttons, CTA buttons). The pointer (hand) signals "this takes you somewhere or submits something."

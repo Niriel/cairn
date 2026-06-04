@@ -85,8 +85,8 @@
 		</EmptyState>
 	{:else}
 		<ul class="rows">
-			{#each lists.items as item, i (item.id)}
-				<li class="row" class:last={i === lists.items.length - 1} data-test="list-row-{item.id}">
+			{#each lists.items as item (item.id)}
+				<li class="row" data-test="list-row-{item.id}">
 					<div class="row-top">
 						<Button
 							variant="text"
@@ -224,12 +224,6 @@
 
 	.row {
 		padding: 0.875rem 1.125rem;
-	}
-
-	/* The global .rows .row divider gives every row a bottom rule; the last row
-	   closes against the screen edge, so suppress its rule. */
-	.row.last {
-		border-bottom: none;
 	}
 
 	.row-top {
