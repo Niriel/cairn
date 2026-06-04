@@ -2064,10 +2064,10 @@ a new correction task, not an edit to 5.8.
 
 **Verify:** `pnpm lint` · `pnpm check` · `pnpm test`
 
-### [ ] 8.5 Fix avatar baseline misalignment (photos vs initials)
+### [x] 8.5 Fix avatar baseline misalignment (photos vs initials)
 
 **Created:** 2026-06-04T08:16:49Z
-**Completed:**
+**Completed:** 2026-06-04T11:05:02Z
 
 **Why:** On the Lists screen the per-list member avatars are misaligned — photo
 avatars render higher than initials avatars (R15). `Avatar.svelte` renders both

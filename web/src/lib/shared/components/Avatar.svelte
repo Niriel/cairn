@@ -35,6 +35,7 @@
 		align-items: center;
 		justify-content: center;
 		border-radius: 50%;
+		vertical-align: middle;
 		width: ${size / 16}rem;
 		height: ${size / 16}rem;
 	`);
