@@ -42,6 +42,8 @@
 </header>
 
 <style>
+	/* Single-instance top-bar chrome: the paper background, ink foreground and
+	   hairline base rule are bespoke to this fixed bar, not global type drift. */
 	header {
 		display: flex;
 		align-items: flex-start;
@@ -75,10 +77,12 @@
 		margin-top: 0.125rem;
 	}
 
+	/* Bar action button: a transparent ink-tinted icon target — chrome local to
+	   this single-instance bar. */
 	.icon-btn {
 		background: none;
 		border: none;
-		padding: 4px;
+		padding: 0.25rem;
 		color: var(--ink);
 		cursor: pointer;
 		display: flex;

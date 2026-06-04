@@ -1303,10 +1303,10 @@ their many scoped type/border/background rules onto global roles + `.card` /
 
 ## Phase 6 — Cleanup, layout-only guard, full check
 
-### [ ] 6.1 Remove dead classes, enforce layout-only, full check + visual sweep
+### [x] 6.1 Remove dead classes, enforce layout-only, full check + visual sweep
 
 **Created:** 2026-06-03T00:00:00Z
-**Completed:**
+**Completed:** 2026-06-04T06:06:33Z
 
 **Why:** After the sweeps, classes kept only to preserve test selectors
 (`.section-label` on `<h2>`, etc.) and any now-empty scoped rules are dead. This
@@ -1362,3 +1362,60 @@ grep guard, runs the full toolchain, and does the visual canvas sweep.
    radii, button pairs.
 
 **Verify:** `./scripts/check.sh`
+
+**Notes:**
+
+- **No dead classes or empty rules found.** The three surviving
+  `.section-label` rules (InvitePickerSheet, PrivacyScreen, MembersScreen) all
+  carry layout `padding`, so they are live layout-only rules, not test-only
+  husks. All three sit on `<h2>` elements; no stray `class="section-label"` on a
+  non-`<h2>` element. The grep for empty `{}` blocks matched only JS arrow
+  bodies, never CSS.
+
+- **Annotations added** to the three swept-file exceptions that the Phase-5
+  sweeps left un-commented: `TopBar` header chrome + `.icon-btn`,
+  and `TrashScreen .row-icon`. Comments are self-explanatory (they name the
+  *why* directly rather than citing plan-internal labels — per a user
+  correction mid-task, an earlier draft referencing "R10" was rewritten).
+
+- **One px→rem fix:** `TopBar .icon-btn` padding `4px` → `0.25rem` (scaling
+  chrome, brought in line with the Units rule and the sibling sheet
+  cancel-button convention).
+
+- **Layout-only guard — swept-file exceptions (each carries an inline
+  comment):**
+  - `EmptyState` — the fixed 96px dashed disc.
+  - `ItemsScreen` — `.row.open` tint, serif-italic `.notes`, tombstone
+    attribution, `.mv-val.positive/.negative` vote signs, the single-instance
+    `.undo-snackbar` inverted chrome.
+  - `AddEditItemSheet` — serif notes textarea, `.optional` label weight.
+  - `DeleteItemSheet` — the 40px ember icon-disc affordance.
+  - `ProfileSheet` — `.state-label.circle/.blocked` state colours.
+  - `ListsScreen` — `.desc.no-desc` placeholder, `.dot` separator (+ one inline
+    `style="color: var(--stone)"` on the `MoreButton` glyph — a cosmetic icon
+    tint that inline-style can't carry a comment for; left as-is).
+  - `InvitePickerSheet`/`InvitesBanner`/`InvitesInboxScreen` — emphasis/state
+    colours on names and the affirmative tick.
+  - `PrivacyScreen`/`SettingsScreen` — segmented-control + radio chrome (track,
+    selected-cell ink, dot), all annotated as genuine selected-state.
+  - `TopBar` — single-instance bar chrome.
+  - `TrashScreen` — `.row-icon` cosmetic stone tint.
+
+- **Guard noise from the full branch diff.** Driving the grep off
+  `main...HEAD` also surfaces files this branch touched for reasons *outside*
+  the semantic-HTML sweep, which the decision's "swept files only" framing
+  assumed would be excluded: the `basic/` primitives (`Button`, `Label`,
+  `TextInput`, `Textarea`) that legitimately *own* visual CSS, and the auth /
+  avatar screens (`LoginCheck`, `LoginRequest`, `DevShortcuts`,
+  `AvatarCropScreen`) which were never part of Phase 5's role/rem migration and
+  still hold their original visual CSS and px units. These are out of this
+  task's scope; they are correctly un-annotated.
+
+- **Benign type-prop matches left un-annotated:** `font-family: inherit` button
+  resets in `MembersScreen` and `PrivacyScreen` are normalisation (the opposite
+  of drift) and sit inside already-annotated control blocks.
+
+- **Visual canvas sweep (step 4) NOT performed** — this environment has no
+  browser to open `design/Cairn - Design Canvas.html`, and Playwright cannot run
+  here. The layout/proportion comparison against the canvas still needs a human
+  pass before this branch ships.

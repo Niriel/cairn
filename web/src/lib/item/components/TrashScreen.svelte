@@ -86,6 +86,8 @@
 		padding: 1rem 1.125rem;
 	}
 
+	/* Tints the leading row glyph a quiet stone. Kept local because it is purely
+	   cosmetic icon colour, not part of the global type/role system. */
 	.row-icon {
 		display: inline-flex;
 		color: var(--stone);
