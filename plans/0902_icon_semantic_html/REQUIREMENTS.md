@@ -269,24 +269,63 @@ global `hr` reset rule in `reset.css` is removed. The visual result is identical
 (`plans/0000_implementation_order.md` step 9, bullet 4), which still prescribes
 the opposite (`<hr>` sweep) — reconciled in this plan's doc task.
 
-## R10. `.row` and `.field` layout blocks consolidated into global utilities
+## R10. The flex-line (`.media`) and form-field (`.field`) layout blocks consolidated
 
-The flex row block — `display: flex; align-items: center; gap: 0.75rem;
-padding: 0.875rem 1.125rem` — is copy-pasted across `DeletedListsScreen`,
-`TrashScreen`, `BlockedScreen`, `CircleScreen`, and `MembersScreen`; the
-form-field wrapper — `display: flex; flex-direction: column; gap: 0.5rem` —
-across ~9 sheets/forms (`AddEditItemSheet`, `CreateListSheet`,
-`EditDescriptionSheet`, `RenameListSheet`, `LoginRequest`, `CircleScreen`,
-`ProfileSheet`, the profile route, and the InvitePicker e-mail row). Both are
-pure layout, so they don't violate R7 — but they are exactly the copy-paste
-step 9 exists to kill.
+Two pure-layout blocks are copy-pasted across many files. They passed R7's
+visual-only guard (they are layout, not visual), but they are exactly the
+duplication step 9 targets.
 
-A single global `.row` base and `.field` utility land in `surfaces.css`. Each
-call site keeps only its genuine *deltas* as scoped overrides (e.g.
-`TrashScreen`'s tighter `gap: 0.625rem` + extra left padding + `min-height`;
-`MembersScreen`'s button-reset variant). Only declarations identical across ≥2
-files are lifted; a genuinely one-off block stays inline (the master-plan
-guardrail: minimise repetition without exploding the API).
+**The flex line is a media object, and `class="row"` conflates two concepts.**
+The horizontal "leading icon/avatar · text column · trailing action" line — the
+media object (Nicole Sullivan, "The media object saves hundreds of lines of
+code", 2010) — is copy-pasted as `display: flex; align-items: center` (+ a
+`gap`) across `DeletedListsScreen`, `TrashScreen`, `BlockedScreen`,
+`CircleScreen`, `MembersScreen` (where it is the `<li class="row">` itself),
+**and** as a differently-named child in the expandable rows: `ItemsScreen`
+`.row-inner`, `ListsScreen` `.row-top`, `InvitesInboxScreen` `.row-top`,
+`InvitesBanner` `.row`, `InvitePickerSheet` `.row`.
+
+`class="row"` is carrying two distinct ideas that coincide in simple rows and
+split apart in expandable ones:
+
+- **the list item / divider unit** — what `.rows .row { border-bottom }` (R3)
+  targets; one per `<li>`, on every list. This stays `.row`, unchanged.
+- **the horizontal flex line** — the `<li>` itself in the five simple sites, but
+  a *child* (`.row-inner` / `.row-top`) in the expandable ones.
+
+So the flex-line layout must **not** be lifted onto the global `.row`: doing so
+would apply `display: flex; align-items: center` to the expandable
+`<li class="row">` wrappers in `ItemsScreen` / `ListsScreen` /
+`InvitesInboxScreen`, laying their stacked inner panel/description out
+side-by-side and breaking them.
+
+**New `.media` utility.** A global `.media` lands in `surfaces.css` holding
+**only** the universal core — `display: flex; align-items: center` plus the
+common `gap: 0.75rem`. It is deliberately lean: padding, alignment overrides,
+and the `gap: 0.625rem` minority stay per-site scoped deltas (the padding
+genuinely varies — `0.875rem 1.125rem`, `…0.875rem 1.25rem`, none,
+`0.75rem 0.25rem` — and is not lifted, so a lean `.media` can't clash with any
+consumer). A credit comment above the rule names the media-object pattern; the
+`.media-*` / `.media__*` namespace is **reserved by convention** (noted in the
+comment) for future variants — e.g. `.media-start` for a top-aligned
+(`flex-start`) line, `.media-body` for the text column — to be added only when a
+real second consumer appears, not pre-minted (the master-plan guardrail:
+minimise repetition without exploding the API).
+
+`.media` is applied to **every** flex line: the five simple `<li class="row">`
+gain `class="row media"`; the expandable rows' inner lines (`ItemsScreen`
+`.row-inner`, `ListsScreen` `.row-top`, `InvitesInboxScreen` `.row-top`,
+`InvitesBanner` `.row`, `InvitePickerSheet` `.row`) adopt `.media` and keep only
+their genuine deltas (e.g. `TrashScreen`/`ItemsScreen` `gap: 0.625rem` + extra
+left padding + `min-height`; `MembersScreen`'s button-reset variant;
+`ListsScreen` `.row-top`'s dashed bottom border).
+
+**`.field`** — the form-field wrapper `display: flex; flex-direction: column;
+gap: 0.5rem` — also lands in `surfaces.css`, copy-pasted across ~9 sheets/forms
+(`AddEditItemSheet`, `CreateListSheet`, `EditDescriptionSheet`,
+`RenameListSheet`, `LoginRequest`, `CircleScreen`, `ProfileSheet`, the profile
+route, and the InvitePicker e-mail row). Audit each site's actual values before
+deleting the local copy; lift only where identical.
 
 ## R11. `<NavRow>` shared component extracted
 
@@ -295,32 +334,160 @@ nav-row shape — a leading `<Icon size={20}>`, a title/subtitle text column
 (`.nav-row-title.row-title` + `.nav-row-sub.caption`), an optional trailing
 badge/count, and a trailing `chevron-right` icon, all wrapped in a
 `<Button variant="text" tone="ink" size="md">` — repeats verbatim across
-`SettingsScreen` (Invites, Privacy, …), `PrivacyScreen` (Your circle, Blocked),
-and `InvitesInboxScreen`.
+`SettingsScreen` (Invites, Privacy, Deleted lists, Sign out) and `PrivacyScreen`
+(Your circle, Blocked). **`InvitesInboxScreen` is not a consumer** — it renders
+*data rows* (invite cards on `<li class="row">`), not nav-rows; the "Invites"
+nav-row lives in `SettingsScreen`, pointing *to* that inbox. (An earlier draft
+listed it; that was the nav-row/destination conflation.) `SettingsScreen`'s
+profile chip (an `<Avatar>` lead + display-name, no sub) **also** migrates:
+`NavRow`'s lead is a snippet (below), not an icon name, so the chip passes its
+avatar as the `lead`. Its skeleton loading state and the section `border-bottom`
+stay scoped — only the loaded `<Button>` becomes a `<NavRow>`.
 
 Extract `web/src/lib/shared/components/NavRow.svelte` (the `shared/` tier — an
 app-styled primitive like `<EmptyState>`, not a `basic/` framework primitive).
-Props: `icon: IconName`, `title: string`, `sub?: string`, `onclick?` **or**
-`href?` (navigation), `data-test?`, and a `trailing?` snippet for the
-badge/count slot (rendered between the text column and the chevron). The chevron
-is always rendered. The component wraps the existing `<Button>` so the tap
+Props: `lead: Snippet` (the leading visual, rendered before the text column — an
+`<Icon size={20}>` for menu rows, an `<Avatar>` for the profile chip, so one
+mechanism covers both and there is no `icon`-name prop), `title: string`,
+`sub?: string`, `onclick?` (navigation lives in the handler —
+`goto(resolve(…))`; there is no `href` prop, since `<Button>` renders a
+`<button>` not an `<a>`, and a bare-string href would fight the typed
+`resolve()`), `data-test?`, and a `trailing?` snippet for the badge/count slot
+(rendered between the text column and the chevron). The chevron is always
+rendered. The component wraps the existing `<Button>` so the tap
 target, focus, and look are unchanged; it owns the `.nav-row-*` layout that is
 currently duplicated and the inter-row divider border
 (`nav-row + nav-row { border-top: 1px solid var(--rule) }`), which re-homes the
-`PrivacyScreen` divider R9 strips. Co-located `NavRow.test.ts` covers behaviour
+`PrivacyScreen` divider R9 strips. Applied uniformly, this also gives
+`SettingsScreen`'s grouped nav-rows the inter-row hairline they lack today — a
+deliberate homogenisation so every nav-row group reads alike (the divider fires
+only between adjacent nav-rows).
+
+The full-bleed **band** (a rule above the first row and below the last) is a
+separate, shared concern: a global **`.nav-rows`** container class
+(`border-top` + `border-bottom`, full-bleed) wraps each nav-row group. **Band
+everywhere** — Privacy's People group (banded today) and Settings' People /
+Recovery / Account groups (which gain it) all adopt `.nav-rows`, so every group
+reads as one fully-ruled, iOS-style grouped list (single-row groups are banded
+too). The profile chip is standalone — its own section with a `border-bottom`,
+not a group — so it is **not** banded. NavRow carries the `nav-row` class on the
+element **it renders directly** (a `.nav-row` root wrapping the `<Button>`), so
+its scoped `nav-row + nav-row` rule matches between adjacent instances; the class
+cannot live on the child `<Button>`'s root, which is outside NavRow's style
+scope. Co-located `NavRow.test.ts` covers behaviour
 (renders title/sub, fires `onclick`, exposes the trailing slot, accessible name
-from the title). The three screens migrate to `<NavRow>` and delete their
+from the title). The two screens migrate to `<NavRow>` and delete their
 duplicated nav-row CSS.
+
+## R12. `<Badge>` component
+
+**Supersedes the Non-requirement** that deferred `<Badge>` to a follow-up plan
+(see Non-requirements). The pill-shaped count/score badge — the `.badge` base
+plus a tone — is rendered at four sites today as raw `<span class="badge badge-*
+…">` (ItemsScreen aggregate score, InvitesBanner multi-count, PrivacyScreen
+circle + blocked counts), and the SettingsScreen → Invites count is a plain
+`<span class="nav-row-count caption mono">` that is *not* a badge at all.
+
+Extract `web/src/lib/basic/components/Badge.svelte` (the `basic/` tier — a
+generic control primitive, peer of `<Button>`, carrying app-semantic tones the
+way `<Button>` carries `tone-sage`).
+
+- **Props:** `tone: 'ink' | 'soft' | 'score'`, `sign?: 'positive' | 'negative'`
+  (score only), `data-test?`, and `children` (the content — a count or a signed
+  score). It renders `<span class="badge badge-{tone} …">{children}</span>`,
+  re-using the global `.badge*` classes from `controls.css` (**no new visual
+  CSS**). For `tone="score"` it also applies `.mono` and the
+  `.positive` / `.negative` class from `sign` (the score is a numeral — mono is
+  correct here, unlike dates; see R14). `ink` / `soft` render no mono.
+- **Tone semantics.** `ink` (filled dark) = a pending-action / notification count
+  that wants attention — the InvitesBanner multi-count and the **SettingsScreen
+  invites count** (promoted from plain mono text to `<Badge tone="ink">`).
+  `soft` (muted outlined) = an informational count — PrivacyScreen's circle /
+  blocked counts. `score` = the ItemsScreen aggregate (tinted sage/ember by
+  `sign`).
+- **Migrations.** Replace the four raw `.badge` spans with `<Badge>` and promote
+  the Settings invites count. The Settings / Privacy counts ride NavRow's
+  `trailing` snippet (R11) as `<Badge>`s.
+- Co-located `Badge.test.ts`: renders children; applies the tone class;
+  `tone="score"` + `sign` applies `mono` + `positive` / `negative`.
+
+## R13. `<InviteCard>` shared invite component
+
+A single pending invitation is presented in two places — each row of
+`InvitesInboxScreen` and the single-invite case of `InvitesBanner` (on the Lists
+screen) — and the two were hand-rolled separately and have drifted: the inbox row
+shows a 36px avatar, a separated inviter line + list-name + a `timeAgo` date; the
+banner shows a 28px avatar, the whole sentence inlined in one `<p>`, and **no
+date**. The missing date is a visible inconsistency.
+
+Extract `web/src/lib/invite/components/InviteCard.svelte` (the `invite/` domain
+tier) rendering the **one** canonical invitation presentation: an avatar, the
+inviter line ("{name} invited you to {list}"), the date, and the Accept / Decline
+pill pair.
+
+- **Props:** the inbox `entry` (id, `inviterName`, `inviterUid`,
+  `inviterAvatarVersion`, `listName`, `createdAt`) plus `onAccept: () => void`
+  and `onDecline: () => void`. The component is **presentational** — the
+  `acceptInvitation` / `declineInvitation` / `goto` data logic stays in each
+  consumer's handler, passed in.
+- **Converged look.** One avatar size (**36px**, the inbox size — the banner's
+  28px converges up). The date shows in **both** places (the banner gains it).
+  Accept = `<Button variant="pill" tone="sage">`, Decline =
+  `<Button variant="pill" tone="ink">` (the R4 pair). The date renders as
+  `.caption`, **not** mono (R14).
+- **Consumers.** `InvitesInboxScreen` maps the inbox to `<InviteCard>`s inside its
+  `<ul class="rows">` (each in a `<li class="row">`); `InvitesBanner`'s
+  single-invite branch renders one `<InviteCard>` inside its `.card-alt` wrapper.
+  Both delete their duplicated invite markup. (The *multi*-invite banner branch is
+  unchanged in nature — a nav-link to the invites page carrying an `ink` count
+  `<Badge>` per R12, not an `<InviteCard>`.)
+- Co-located `InviteCard.test.ts`: renders inviter name, list name and date;
+  Accept / Decline fire their callbacks.
+
+## R14. Dates are caption prose, not monospace
+
+`timeAgo()` and the circle/blocked "since" labels all return prose ("3 days ago",
+"added last week", a spelled-out "12 Mar 2026") — never aligned, tabular
+numerals. Yet `.mono` is applied to a date at only **two** of the seven
+`timeAgo`/date sites (InvitesInboxScreen `.when`, and CircleScreen /
+BlockedScreen `.sub`); the other five (TrashScreen, ItemsScreen ×2, MembersScreen
+"Joined …", ListsScreen, DeletedListsScreen) are already plain caption/fine text.
+Mono earns its place for *numeric / tabular* runs (vote values, the score badge,
+counts) — not a lone prose date.
+
+- **Dates lose `.mono`.** They render as `.caption` (or `.fine` where the line is
+  the small metadata tier). **No new `.date` class** — a date is secondary
+  metadata, which `.caption` / `.fine` already cover; a one-property role would be
+  churn. The InvitesInbox date is handled by `<InviteCard>` (R13, caption from the
+  start); the CircleScreen / BlockedScreen labels drop their `mono` class.
+- **`.mono` is reserved for numerics** — vote values (`.mv-val`), the score
+  `<Badge>` (R12), and counts. (The ProfileSheet `.state-label` is a stylistic
+  all-caps label, not a date or a number — out of scope here.)
+- **Doc reconciliation:** the PLAN type-scale note and `docs/ui.md` type-roles,
+  which list "'when' timestamps" / circle-blocked `.sub` under `.mono`, are
+  corrected to "numerics only; dates are caption prose".
+
+## R15. Avatars align consistently in inline contexts
+
+`Avatar.svelte` renders the photo `<img>` and the initials `<span>` as
+`display: inline-flex` with no `vertical-align`, so in an inline context (e.g.
+ListsScreen's overlapping member stack, where each avatar is wrapped in an inline
+`<span>`) they align to different baselines — the photo's bottom edge vs. the
+initials' text baseline — and photos render higher than initials. The shared
+avatar style gains `vertical-align: middle`, fixing inline alignment app-wide and
+remaining a no-op where the avatar is a flex item (the other screens, which align
+via `align-items: center` and are unaffected today).
 
 ## Non-requirements (explicitly excluded)
 
-- **New shared components beyond `<EmptyState>` and `<NavRow>`.** This plan
-  globalises CSS and reuses the *existing* `<Button>`; beyond the `<NavRow>`
-  extraction added in R11, it does **not** extract `<Badge>`, `<Card>`, or
-  `<Toast>` Svelte components. Those are follow-up plans. (Replacing raw
-  `<button>`s with the existing `<Button>` is reuse, not new extraction, and is
-  in scope per R4. The `sage` filled-pill tone added to `<Button>` per R4 is an
-  extension of the existing primitive, not a new component.)
+- **New components beyond `<EmptyState>`, `<NavRow>`, `<Badge>`, and
+  `<InviteCard>`.** This plan globalises CSS and reuses the *existing*
+  `<Button>`; beyond the `<NavRow>` (R11), `<Badge>` (R12), and `<InviteCard>`
+  (R13) extractions, it does **not** extract `<Card>` or `<Toast>` Svelte
+  components. Those are follow-up plans. (Replacing raw `<button>`s with the
+  existing `<Button>` is reuse, not new extraction, and is in scope per R4. The
+  `sage` filled-pill tone added to `<Button>` per R4 is an extension of the
+  existing primitive, not a new component.)
 - **`<Icon>` `color` prop** — `Icon` uses `stroke="currentColor"`; callers set
   `color` on an ancestor. No prop added. Icon *sizing* in `em` (R1) is applied
   where a task calls for it, but a wholesale Icon-component change to em-based

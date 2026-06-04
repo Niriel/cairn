@@ -73,7 +73,7 @@ onto roles:
 | `.body` | 1rem/`--ink-soft`/lh 1.5 | `.empty-body`, ListsScreen `.desc`, Items `.notes`(*serif italic kept via extra scoped rule*), various 13.5–14px body |
 | `.caption` | 1rem/`--stone`/lh 1.5 (set apart by colour, not size) | `.sub`, `.subtitle`, `.row-inviter`, `.nav-row-sub`, `.option-sub`, `.cascade-note`, ListOverflow `.meta`, etc. |
 | `.fine` | 0.8rem/`--stone`/lh 1.5 (the one tier below the 1rem floor) | Items `.attribution` + `.member-vote`, ListsScreen `.meta` line, timestamps (`.when`). Genuinely-secondary metadata that reads fine small. |
-| `.mono` | JetBrains Mono | vote values, `.score-badge` text, `.nav-row-count`, `.when`, circle/blocked `.sub` |
+| `.mono` | JetBrains Mono | **numerics only** — vote values, the score `<Badge>`, counts. **Not** dates: `.when` / circle-blocked `.sub` drop mono (R14). |
 
 **Uppercase belongs to form labels, not section titles.** The upper-cased,
 `0.06em`-tracked, small-stone look is the *form-label* treatment (the `<Label>`
@@ -229,9 +229,17 @@ migrates its empty state and adopts `<Button>`.
    Phase 6 shipped — see "Scope change 2" below.] Reconcile the master plan +
    `docs/ui.md` to the borders-not-`<hr>` decision; remove every `<hr>`
    (`ListOverflowSheet` action menu, `PrivacyScreen` divider) in favour of CSS
-   borders and drop the dead `hr` reset; lift the duplicated `.row` / `.field`
-   layout blocks to global utilities in `surfaces.css`; extract a `<NavRow>`
-   shared component and migrate Settings/Privacy/InvitesInbox onto it.
+   borders and drop the dead `hr` reset; lift the duplicated flex-line
+   (`.media`) / `.field` layout blocks to global utilities in `surfaces.css`;
+   extract a `<NavRow>` shared component and migrate Settings/Privacy onto it.
+8. **Phase 8 — components + fixes: `<Badge>`, `<InviteCard>`, date prose, avatar
+   alignment (R12–R15).** [appended — see "Scope change 3" below.] Reconcile docs
+   (mono = numerics, dates are caption prose; record the new components); extract
+   `<Badge>` and migrate the four badge sites + the Settings invites count;
+   extract `<InviteCard>` and migrate the inbox rows + the single-invite banner
+   (one avatar size, banner gains the date); drop `.mono` from the circle/blocked
+   date labels; fix the avatar baseline misalignment (photos rendering higher
+   than initials) with `vertical-align: middle`.
 
 ## Reference docs and skills
 
@@ -264,20 +272,68 @@ threads, all on-theme for "kill the copy-paste, one home per pattern":
   `docs/ui.md` are reconciled to record this (Phase 7's first, doc task — the
   Phase 0 pattern applied to appended work).
 
-- **`.row` / `.field` (R10).** R7 made scoped CSS layout-only, but two *layout*
-  blocks are still copy-pasted across many files. They are pure layout so they
-  passed R7's guard, yet they are precisely the duplication step 9 targets.
-  Lift the identical core to global `.row` / `.field` utilities in
-  `surfaces.css`; keep only genuine per-file deltas scoped.
+- **`.media` / `.field` (R10).** R7 made scoped CSS layout-only, but two *layout*
+  blocks are still copy-pasted across many files. The horizontal flex line is a
+  media object (Sullivan, 2010); `class="row"` conflates it with the list-item /
+  divider unit — they coincide in simple rows but split apart in expandable ones
+  (Items / Lists / InvitesInbox put the flex line on a child, not the `<li>`).
+  So `.row` stays the divider unit and a new **lean** `.media`
+  (`display: flex; align-items: center` + `gap`, nothing else) carries the flex
+  line, applied to every flex line (the simple `<li>`s and the expandable rows'
+  inner lines alike); the `.media-*` namespace is reserved for future variants.
+  `.field` lands likewise. Keep only genuine per-file deltas scoped, and **never**
+  put the flex-line layout on the global `.row` (it would flex the expandable
+  outer wrappers and break them).
 
 - **`<NavRow>` (R11).** 0902 deliberately deferred this ("separate plan") and
   only globalised the nav-row *visual* CSS, leaving the nav-row *structure*
-  duplicated across Settings/Privacy/InvitesInbox. We now pull the extraction
+  duplicated across Settings/Privacy (InvitesInbox renders data rows, not
+  nav-rows — it is not a consumer). We now pull the extraction
   in: a `shared/` `<NavRow>` wrapping the existing `<Button>`, owning the
   nav-row layout and the inter-row border (which re-homes the `PrivacyScreen`
-  `<hr>` R9 removes). Mirrors `<EmptyState>`'s tier and test placement.
+  `<hr>` R9 removes); a shared global `.nav-rows` container class draws the
+  full-bleed band, applied to **every** nav-row group (Settings' included, so
+  they match Privacy's grouped-list look). Mirrors `<EmptyState>`'s tier and
+  test placement.
 
-No behaviour change beyond what step 9 already disclosed; every separator swap
-is the same hairline in the same place, and `<NavRow>` preserves the existing
-tap target and look. Doc reconciliation lands first so downstream steps don't
-read the stale `<hr>` prescription.
+Separator swaps are the same hairline in the same place, with one deliberate
+addition: SettingsScreen's grouped nav-rows (People: Invites / Privacy) gain the
+inter-row hairline they lack today, so every nav-row group reads alike — that is
+the homogenisation goal, not a regression. `<NavRow>` otherwise preserves the
+existing tap target and look. Doc reconciliation lands first so downstream steps
+don't read the stale `<hr>` prescription.
+
+## Scope change 3 — `<Badge>`, `<InviteCard>`, date prose (Phase 8, R12–R14)
+
+Appended after Phase 7 — three more dedup/homogenise threads the original plan
+deferred or missed:
+
+- **`<Badge>` (R12).** R4 globalised the badge *CSS* but listed a `<Badge>`
+  *component* as a Non-requirement. Pulled in now: a `basic/` `<Badge>` (tones
+  `ink` / `soft` / `score`±) wrapping the existing `.badge*` classes, adopted at
+  all four badge sites — and the SettingsScreen invites count, today plain mono
+  text, is promoted to an `ink` badge. Tone semantics: `ink` = attention /
+  notification count, `soft` = informational count, `score` = the sage/ember
+  aggregate.
+
+- **`<InviteCard>` (R13).** The single-invitation presentation is hand-rolled
+  twice (inbox rows + the single-invite banner) and has drifted — different
+  avatar sizes and, oddly, no date on the banner. One `invite/` `<InviteCard>`
+  (avatar + inviter line + date + Accept/Decline) serves both; the banner gains
+  the date and both converge on a 36px avatar. It is presentational — accept /
+  decline data logic stays in each consumer.
+
+- **Date prose (R14).** `timeAgo`/date labels are prose, but `.mono` is applied
+  to a date at only two of seven sites. Dates drop `.mono` (→ `.caption` /
+  `.fine`); `.mono` is reserved for numerics (vote values, score, counts). No
+  `.date` class — `.caption` / `.fine` already cover secondary metadata.
+
+- **Avatar alignment (R15).** A live bug surfaced while reviewing: on the Lists
+  screen the overlapping member avatars are misaligned — photos render higher
+  than initials, because `Avatar` is `inline-flex` with no `vertical-align` and
+  the photo/initials baselines differ in the inline stack. Fixed at the root with
+  `vertical-align: middle` on the shared avatar style (a no-op where the avatar
+  is a flex child, so the other screens are untouched).
+
+All on-theme for step 9 (kill duplication, one home per pattern); R15 is a small
+companion bug fix. Doc reconciliation lands first (Phase 8's first task).

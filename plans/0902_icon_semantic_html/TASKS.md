@@ -1510,49 +1510,104 @@ items.
 
 **Verify:** `pnpm lint` · `pnpm check` · `pnpm test`
 
-### [ ] 7.3 Lift `.row` and `.field` layout blocks to global utilities
+### [ ] 7.3 Lift the flex-line (`.media`) and `.field` layout blocks to global utilities
 
 **Created:** 2026-06-04T06:37:11Z
 **Completed:**
 
-**Why:** The flex row block and the form-field wrapper are copy-pasted across
-many files (R10). They are pure layout (so they passed R7's visual-only guard)
-but are exactly the duplication step 9 targets.
+**Why:** The horizontal flex-line block and the form-field wrapper are
+copy-pasted across many files (R10). They are pure layout (so they passed R7's
+visual-only guard) but are exactly the duplication step 9 targets.
 
 **Prerequisites:** Phase 3 (`surfaces.css` exists and is wired in).
 
 **Decisions:**
-- Add to `surfaces.css`: `.row { display: flex; align-items: center;
-  gap: 0.75rem; padding: 0.875rem 1.125rem }` and `.field { display: flex;
-  flex-direction: column; gap: 0.5rem }`.
-- Each call site keeps only its genuine deltas as a scoped override:
-  `TrashScreen` (`gap: 0.625rem`, extra left padding, `min-height`),
-  `MembersScreen` (the button-reset variant: `background: transparent`,
-  border resets, `width: 100%`, `cursor`, `text-align`). Remove the now-redundant
-  identical declarations from each file.
-- Lift only declarations identical across ≥2 files; leave one-offs inline.
+- **`class="row"` carries two concepts — do not conflate them.** `.row` is the
+  list-item / divider unit (`.rows .row { border-bottom }`, R3): one per `<li>`,
+  on every list — leave it unchanged. The *horizontal flex line* (leading
+  icon/avatar · text · trailing action — a media object) is a **separate** thing:
+  it is the `<li class="row">` itself in the five simple sites, but a *child*
+  (`.row-inner` / `.row-top`) in the expandable rows. **Never lift the flex-line
+  layout onto the global `.row`** — it would flex the expandable
+  `<li class="row">` wrappers in ItemsScreen / ListsScreen / InvitesInboxScreen
+  and lay their stacked inner panel/description out side-by-side, breaking them.
+- Add a **lean** `.media` to `surfaces.css` holding **only** the universal core:
+  `display: flex; align-items: center; gap: 0.75rem`. Padding is **not** lifted
+  (it varies per site); the `gap: 0.625rem` minority and any alignment override
+  stay scoped deltas. Keeping `.media` this minimal is what stops it clashing
+  with any consumer.
+- Above the rule, add a comment crediting the media-object pattern — Nicole
+  Sullivan, "The media object saves hundreds of lines of code" (2010) — and
+  noting that the `.media-*` / `.media__*` namespace is reserved for future
+  variants (`.media-start` for a `flex-start` line, `.media-body` for the text
+  column), to be added only when a second consumer needs them (not pre-minted).
+- Apply `.media` to every flex line, keeping each site's genuine deltas scoped:
+  - `DeletedListsScreen`, `BlockedScreen`, `CircleScreen` — `<li class="row">` →
+    `class="row media"` (delete the lifted `display`/`align-items`/`gap`; keep
+    padding).
+  - `MembersScreen` — the `<button class="row">` (the tap target inside the
+    `<li>`) → `class="row media"`; keep the button-reset deltas
+    (`background: transparent`, border resets, `width`, `cursor`, `text-align`,
+    `font-family: inherit`).
+  - `TrashScreen` — `<li class="row">` → `class="row media"`; keep
+    `gap: 0.625rem` and the extra left padding (`0.875rem 1.125rem 0.875rem
+    1.25rem`).
+  - `ItemsScreen` — leave the outer `<li class="row">` as the divider unit; add
+    `.media` to the inner line: `class="row-inner media"`; keep its
+    `gap: 0.625rem`, left padding, and `min-height: 3.5rem`.
+  - `ListsScreen` — leave the outer `<li class="row">`; add `.media` to the
+    inner line: `class="row-top media"`; keep its `padding-bottom` + dashed
+    `border-bottom`.
+  - `InvitesInboxScreen` — leave the outer `<li class="row">` (it is a column
+    wrapper); add `.media` to `.row-top` (`class="row-top media"`); keep its gap.
+  - `InvitesBanner` — its `.row` is a flex-line `<div>` carve-out (not a list
+    item) → add `.media`; keep `gap: 0.625rem`.
+  - `InvitePickerSheet` — `<li class="row">` is a flat flex line (not expandable)
+    → `class="row media"`; keep its `padding: 0.75rem 0.25rem`.
+- Add `.field { display: flex; flex-direction: column; gap: 0.5rem }` to
+  `surfaces.css`. Audit each `.field` site's actual values first; delete the
+  local declaration only where identical, keeping genuine deltas scoped.
+  **Audit done for the three never-swept-in-Phase-5 sites — all lift wholesale:**
+  `EditDescriptionSheet` and `RenameListSheet` are identical bar `gap: 8px`
+  (= `0.5rem`, the intended px→rem). `web/src/routes/(app)/profile/+page.svelte`
+  adds `margin-top: 28px` — **drop it too**: homogenisation takes priority over
+  that one gap, so delete its local `.field` rule wholesale as well. (If the
+  spacing is wanted back later, re-add it by hand — a flex gap, a spacer, or a
+  wrapper.) Note that route is otherwise un-swept (scoped type/colour from a
+  prior plan, out of 0902 scope) — 7.3 touches only its `.field`.
 - Behaviour is unchanged — no new logic; the existing Vitest/Playwright suite is
-  the regression net (R8).
+  the regression net (R8). No test selector changes expected — the inner lines
+  keep their `.row-inner` / `.row-top` names and merely gain `.media` alongside.
 
 **Files:**
-- `web/src/lib/shared/styles/surfaces.css` (modify)
-- `.row` call sites (modify): `list/components/DeletedListsScreen.svelte`,
+- `web/src/lib/shared/styles/surfaces.css` (modify — add `.media` + `.field`)
+- flex-line sites (modify): `list/components/DeletedListsScreen.svelte`,
   `item/components/TrashScreen.svelte`, `privacy/components/BlockedScreen.svelte`,
-  `privacy/components/CircleScreen.svelte`, `list/components/MembersScreen.svelte`
-- `.field` call sites (modify): `item/components/AddEditItemSheet.svelte`,
+  `privacy/components/CircleScreen.svelte`, `list/components/MembersScreen.svelte`,
+  `item/components/ItemsScreen.svelte`, `list/components/ListsScreen.svelte`,
+  `invite/components/InvitesInboxScreen.svelte`,
+  `invite/components/InvitesBanner.svelte`,
+  `invite/components/InvitePickerSheet.svelte`
+- `.field` sites (modify): `item/components/AddEditItemSheet.svelte`,
   `list/components/CreateListSheet.svelte`,
   `list/components/EditDescriptionSheet.svelte`,
   `list/components/RenameListSheet.svelte`, `auth/components/LoginRequest.svelte`,
   `privacy/components/CircleScreen.svelte`, `profile/components/ProfileSheet.svelte`,
   `web/src/routes/(app)/profile/+page.svelte`,
-  `invite/components/InvitePickerSheet.svelte` (only if its e-mail row uses the
+  `invite/components/InvitePickerSheet.svelte` (e-mail row, only if it uses the
   same `.field` block)
 
 **Steps:**
-1. Add the global `.row` and `.field` rules to `surfaces.css`.
-2. In each call site, delete the duplicated identical declarations, keeping only
-   genuine deltas (audit each — do not assume; some `.row`s differ).
-3. `pnpm test` green (no assertion changes expected — this is layout-only).
+1. Add the global `.media` (lean core + credit/namespace comment) and `.field`
+   rules to `surfaces.css`.
+2. For each flex-line site, add `.media` to the **actual flex line** (the `<li>`
+   in simple sites, the inner `.row-inner` / `.row-top` in expandable ones —
+   never the expandable outer `<li class="row">`), delete the now-redundant
+   `display`/`align-items`/`gap` declarations, and keep genuine deltas. Audit
+   each — do not assume.
+3. For each `.field` site, delete the duplicated declarations only where
+   identical to the global; keep deltas.
+4. `pnpm test` green (no assertion changes expected — layout-only).
 
 **Verify:** `pnpm lint` · `pnpm check` · `pnpm test`
 
@@ -1569,55 +1624,96 @@ tone="ink"`; global `.row-title` / `.caption` roles exist).
 
 **Decisions:**
 - New `web/src/lib/shared/components/NavRow.svelte` (shared tier — app-styled
-  primitive, not `basic/`). Props: `icon: IconName`, `title: string`,
-  `sub?: string`, `onclick?: () => void` **or** `href?: string`,
-  `data-test?: string`, and a `trailing?: Snippet` slot rendered between the text
-  column and the chevron (for badge/count).
+  primitive, not `basic/`). Props: `lead: Snippet` (the leading visual — the
+  caller passes `<Icon size={20}>` for menu rows or `<Avatar>` for the profile
+  chip; a single snippet mechanism, **no `icon`-name prop**), `title: string`,
+  `sub?: string`, `onclick?: () => void` (no `href` — `<Button>` renders a
+  `<button>`, not an `<a>`; callers navigate with `goto(resolve(…))` in the
+  handler), `data-test?: string`, and a `trailing?: Snippet` slot rendered
+  between the text column and the chevron (for badge/count).
 - Internals: render `<Button variant="text" tone="ink" size="md">` containing
-  `<Icon name={icon} size={20} />`, a `.nav-row-text` column
+  `{@render lead()}` (the caller-supplied leading `<Icon size={20}>` / `<Avatar>`),
+  a `.nav-row-text` column
   (`<span class="nav-row-title row-title">{title}</span>` + optional
   `<span class="nav-row-sub caption">{sub}</span>`), the optional `trailing`
   snippet, and a trailing `<Icon name="chevron-right" size={18} />`. Tap target,
   focus, and look are identical to today's hand-rolled rows.
-- Owns the previously-duplicated `.nav-row-text` / `.nav-row-title` /
-  `.nav-row-sub` layout and the inter-row divider:
-  `nav-row + nav-row { border-top: 1px solid var(--rule) }` (re-homes the
-  PrivacyScreen divider removed in 7.5). Whether the divider lives on a wrapping
-  element or via `:global` is decided in the task; keep it layout-only.
+- **NavRow's root is a `<div class="nav-row">` wrapping the `<Button>`** (the
+  Button stays the full-width tap target; the `.nav-row` div is inert layout).
+  The class must sit on this NavRow-rendered element so its scoped
+  `nav-row + nav-row { border-top: 1px solid var(--rule) }` rule matches between
+  adjacent instances — it can't go on the child `<Button>`'s root, which is
+  outside NavRow's style scope. Owns the previously-duplicated `.nav-row-text` /
+  `.nav-row-title` / `.nav-row-sub` layout and that inter-row divider (re-homes
+  the PrivacyScreen `<hr>` removed in 7.5); keep it layout-only.
+- **Add a global `.nav-rows` container class to `surfaces.css`** for the
+  full-bleed band: `border-top` + `border-bottom` (`1px solid var(--rule)`),
+  full margin (`margin: 0`). Each nav-row group wraps its `<NavRow>`s in
+  `<div class="nav-rows">` to get the band (applied in 7.5, **band everywhere**).
+  Division of labour: `.nav-rows` draws the band (above first / below last);
+  NavRow draws the inter-row rule between adjacent `.nav-row`s.
 - Accessible name comes from `title` (and the screen's existing `data-test`).
 
 **Files:**
 - `web/src/lib/shared/components/NavRow.svelte` (create)
 - `web/src/lib/shared/components/NavRow.test.ts` (create)
+- `web/src/lib/shared/styles/surfaces.css` (modify — add the `.nav-rows` band
+  container class)
 
 **Steps:**
-1. RED — Write `NavRow.test.ts`: renders `title` and `sub`; clicking fires
-   `onclick`; the `trailing` snippet renders in the slot; the accessible name
-   derives from `title`. Confirm red (component doesn't exist).
+1. RED — Write `NavRow.test.ts`: renders `title` and `sub`; the `lead` and
+   `trailing` snippets render in their slots; clicking fires `onclick`; the
+   accessible name derives from `title`. Confirm red (component doesn't exist).
 2. GREEN — Implement `NavRow.svelte` per Decisions.
 3. GREEN — `pnpm test` green.
 
 **Verify:** `pnpm lint` · `pnpm check` · `pnpm test`
 
-### [ ] 7.5 Migrate Settings/Privacy/InvitesInbox to `<NavRow>`; drop the dead `hr` reset
+### [ ] 7.5 Migrate Settings/Privacy to `<NavRow>`; drop the dead `hr` reset
 
 **Created:** 2026-06-04T06:37:11Z
 **Completed:**
 
-**Why:** With `<NavRow>` extracted (7.4), the three screens' duplicated nav-row
+**Why:** With `<NavRow>` extracted (7.4), the two screens' duplicated nav-row
 markup and CSS collapse to call sites. Migrating PrivacyScreen also removes the
 last `<hr>` in the codebase, so the global `hr` reset becomes dead and is
-deleted (R9).
+deleted (R9). **InvitesInboxScreen is not in scope** — it renders data rows
+(invite cards on `<li class="row">`), not nav-rows; the "Invites" nav-row that
+points to it lives in SettingsScreen.
 
 **Prerequisites:** Task 7.4 (`<NavRow>` exists); Task 7.2 (ListOverflowSheet
 `<hr>` already gone — this task removes the final one).
 
 **Decisions:**
-- Replace each hand-rolled nav-row `<Button>` block in `SettingsScreen`,
-  `PrivacyScreen`, and `InvitesInboxScreen` with `<NavRow …>`, passing the
-  badge/count via the `trailing` snippet where present
-  (`badge-soft` circle/blocked counts on Privacy; the invites count on
-  Settings). Delete the now-duplicated `.nav-row-*` scoped CSS from all three.
+- Replace each hand-rolled nav-row `<Button>` block with `<NavRow …>`:
+  `SettingsScreen` (Invites, Privacy, Deleted lists, Sign out) and
+  `PrivacyScreen` (Your circle, Blocked). Pass the badge/count via the
+  `trailing` snippet where present (`badge-soft` circle/blocked counts on
+  Privacy; the invites count on Settings). Each migrated row passes its leading
+  `<Icon size={20}>` via NavRow's `lead` snippet. Delete the now-duplicated
+  `.nav-row-*` scoped CSS from both.
+- **Migrate SettingsScreen's profile chip too** (the loaded branch only): it
+  becomes `<NavRow title={profile.displayName} data-test="profile-chip"
+  onclick={…}>` with `<Avatar size={44} data-test="profile-avatar" …>` passed as
+  the `lead` snippet and no `sub`. Keep the `{#if profile.displayName === null}`
+  skeleton branch and the `.profile-chip-section` `border-bottom` scoped — only
+  the loaded `<Button>` turns into a `<NavRow>`.
+- **Expected new divider:** SettingsScreen's People group (Invites + Privacy)
+  gains an inter-row hairline from NavRow's `nav-row + nav-row` divider — it has
+  none today. This is the deliberate homogenisation (R11) so the group reads
+  like Privacy's, **not** a regression to suppress. Single-row sections
+  (Recovery, Account) and the profile chip (own section) get no divider.
+- **Band everywhere — wrap each nav-row group in `<div class="nav-rows">`** (the
+  global band class added in 7.4). PrivacyScreen already has a
+  `<div class="nav-rows">` — keep the wrapper but **delete its scoped
+  `border-top` / `border-bottom` band rule** (lines ~277–281; the global class
+  now supplies it). SettingsScreen has no wrapper — add a `<div class="nav-rows">`
+  around the NavRows in each labelled group (People: Invites + Privacy; Recovery:
+  Deleted lists; Account: Sign out), inside the `<section>` after its `<h2>`.
+  These groups gain the full-bleed band, including the single-row Recovery /
+  Account groups (deliberate, the iOS-style grouped-list look). The profile chip
+  is **not** wrapped — it stays in `.profile-chip-section` with its
+  `border-bottom` only.
 - Delete the bare `<hr />` in `PrivacyScreen.svelte` (line ~137); the
   inter-row divider is now the `nav-row + nav-row` border owned by `<NavRow>`.
 - Once `grep -rn '<hr' web/src` is empty, delete the global `hr { … }` rule in
@@ -1629,14 +1725,13 @@ deleted (R9).
 **Files:**
 - `web/src/lib/settings/components/SettingsScreen.svelte` (+ `.test.ts`)
 - `web/src/lib/privacy/components/PrivacyScreen.svelte` (+ `.test.ts`)
-- `web/src/lib/invite/components/InvitesInboxScreen.svelte` (+ `.test.ts`)
 - `web/src/lib/shared/styles/reset.css` (modify — remove the `hr` rule)
 
 **Steps:**
-1. RED — Update the three screens' tests for the `<NavRow>` markup (selector
+1. RED — Update the two screens' tests for the `<NavRow>` markup (selector
    rewrites only); confirm red against the pre-migration markup where a selector
    changed.
-2. GREEN — Migrate the three screens to `<NavRow>`, removing duplicated
+2. GREEN — Migrate the two screens to `<NavRow>`, removing duplicated
    `.nav-row-*` CSS and the PrivacyScreen `<hr />`.
 3. GREEN — Confirm `grep -rn '<hr' web/src` is empty, then delete the `hr` rule
    from `reset.css`; `grep -rn 'hr {' web/src` is empty.
@@ -1645,3 +1740,234 @@ deleted (R9).
 **Verify:** `./scripts/check.sh` (and `--e2e` before the PR — note Playwright is
 not runnable in this environment, so write/adjust specs but report e2e as
 locally unrunnable).
+
+## Phase 8 — Components: `<Badge>`, `<InviteCard>`, date prose (R12–R14)
+
+### [ ] 8.1 Reconcile docs — mono is numerics-only; dates are caption prose; record new components
+
+**Created:** 2026-06-04T08:16:49Z
+**Completed:**
+
+**Why:** `docs/ui.md`'s type-roles (added in task 0.1) list "'when' timestamps"
+and the circle/blocked `.sub` under `.mono`. R14 makes dates caption prose, so
+the doc must be corrected before the code task, or a later screen re-monos a
+date. Also record that `<Badge>` (R12) and `<InviteCard>` (R13) now exist
+(reversing the `<Badge>` Non-requirement). Doc-first, per the Phase 0 / 7.1
+pattern.
+
+**Prerequisites:** None (doc-only).
+
+**Decisions:**
+- In `docs/ui.md`, change the `.mono` role description to **numerics only**
+  (vote values, the score badge, counts) and state that **dates render as
+  caption prose** (`.caption` / `.fine`), never mono — `timeAgo()` and the
+  circle/blocked labels are prose, not tabular numerals. No `.date` role is
+  introduced.
+- Note in the components/conventions area that the shared `<Badge>` (tones
+  `ink` / `soft` / `score`±) and `<InviteCard>` exist, so later screens reuse
+  them rather than re-rolling badge spans or invite markup.
+
+**Files:**
+- `docs/ui.md` (modify)
+
+**Steps:**
+1. Update the `.mono` type-role wording and add the "dates are caption prose"
+   note.
+2. Record `<Badge>` / `<InviteCard>` in the components/conventions area.
+3. No code/tests. Run `pnpm exec prettier --check "docs/ui.md"` (or note md is
+   outside the Prettier scope, per task 0.1's finding).
+
+**Verify:** `pnpm exec prettier --check "docs/ui.md"` (or note md is outside the
+Prettier config).
+
+### [ ] 8.2 Create `<Badge>` and migrate the badge sites + the Settings invites count
+
+**Created:** 2026-06-04T08:16:49Z
+**Completed:**
+
+**Why:** The pill badge is rendered as raw `<span class="badge badge-* …">` at
+four sites, and the Settings invites count is plain mono text that should be a
+badge (R12). One `<Badge>` component removes the duplication and makes the count
+a proper badge.
+
+**Prerequisites:** Task 3.3 (the global `.badge*` classes exist in
+`controls.css`); task 7.5 (Settings/Privacy nav-rows are `<NavRow>`s whose
+`trailing` slot carries the counts — 8.2 swaps the raw count spans there for
+`<Badge>`s).
+
+**Decisions:**
+- New `web/src/lib/basic/components/Badge.svelte` (the `basic/` tier — a generic
+  control primitive, peer of `<Button>`). Props: `tone: 'ink' | 'soft' |
+  'score'`, `sign?: 'positive' | 'negative'`, `data-test?`, `children`. Renders
+  `<span class="badge badge-{tone} …">{children}</span>` re-using the global
+  `.badge*` classes — **no new visual CSS**. For `tone="score"` it also adds
+  `.mono` and the `sign` class (`positive` / `negative`); `ink` / `soft` add no
+  mono.
+- **Tone semantics:** `ink` = attention/notification count (InvitesBanner
+  multi-count; the **Settings invites count**, promoted from `.nav-row-count`
+  mono text). `soft` = informational count (Privacy circle / blocked). `score` =
+  the ItemsScreen aggregate.
+- **Migrations** (these files' Phase 5 tasks are done — modifying the files is
+  fine; do not edit the completed task blocks):
+  - `ItemsScreen` — `<span class="score-badge badge badge-score mono …">` →
+    `<Badge tone="score" sign={…}>` (keep `score-badge` only if a test selects
+    it; the `mono` + `positive`/`negative` now come from Badge).
+  - `InvitesBanner` multi-count — `<span class="badge badge-ink">` →
+    `<Badge tone="ink">`.
+  - `PrivacyScreen` circle / blocked counts — `<span class="badge badge-soft">`
+    → `<Badge tone="soft">` (these now sit in NavRow's `trailing` slot per 7.5).
+  - `SettingsScreen` invites count — replace the `<span class="nav-row-count
+    caption mono">` with `<Badge tone="ink">` in NavRow's `trailing` slot;
+    delete the now-dead `.nav-row-count` rule.
+
+**Files:**
+- `web/src/lib/basic/components/Badge.svelte` (create)
+- `web/src/lib/basic/components/Badge.test.ts` (create)
+- `web/src/lib/item/components/ItemsScreen.svelte` (+ `.test.ts` if it selects
+  the badge)
+- `web/src/lib/invite/components/InvitesBanner.svelte` (+ `.test.ts` if needed)
+- `web/src/lib/privacy/components/PrivacyScreen.svelte` (+ `.test.ts` —
+  `circle-count` / `blocked-count` `data-test` must pass through `<Badge>`)
+- `web/src/lib/settings/components/SettingsScreen.svelte` (+ `.test.ts` if it
+  selects the count)
+
+**Steps:**
+1. RED — `Badge.test.ts`: renders `children`; applies `badge-{tone}`;
+   `tone="score"` + `sign` applies `mono` + `positive`/`negative`. Confirm red.
+2. GREEN — Implement `Badge.svelte`.
+3. GREEN — Migrate the five sites; preserve every `data-test`; update tests for
+   the element change. Re-run green.
+4. `pnpm lint` · `pnpm check` · `pnpm test`.
+
+**Verify:** `pnpm lint` · `pnpm check` · `pnpm test`
+
+### [ ] 8.3 Create `<InviteCard>` and migrate the inbox rows + the single-invite banner
+
+**Created:** 2026-06-04T08:16:49Z
+**Completed:**
+
+**Why:** The single-invitation presentation is hand-rolled twice
+(`InvitesInboxScreen` rows and `InvitesBanner`'s single-invite branch) and has
+drifted — different avatar sizes and no date on the banner (R13). One shared
+component removes the duplication and the inconsistency.
+
+**Prerequisites:** Task 4.2 / 5.6 (both screens already use `<Button
+variant="pill">` Accept/Decline); R14 (date renders as `.caption`, not mono).
+
+**Decisions:**
+- New `web/src/lib/invite/components/InviteCard.svelte` (the `invite/` domain
+  tier). **Presentational only** — props: `entry` (id, `inviterName`,
+  `inviterUid`, `inviterAvatarVersion`, `listName`, `createdAt`) plus
+  `onAccept: () => void` and `onDecline: () => void`. The `acceptInvitation` /
+  `declineInvitation` / `goto` logic stays in each consumer's handler.
+- Renders: `<Avatar size={36}>` + an inviter line (`<strong>{inviterName}</strong>`
+  + "invited you to" + the list name) + the date `<span class="caption">{timeAgo(entry.createdAt)}</span>`
+  (**not** mono) + the Accept/Decline pill pair (`tone="sage"` / `tone="ink"`,
+  Decline left per the button-pair rule). Owns its internal layout (the media
+  line + the button row); the flex line uses `.media` (R10).
+- **Converged look:** avatar size is **36px** in both places (the banner's 28px
+  converges up); the date shows in **both** (the banner gains it).
+- **Consumers:**
+  - `InvitesInboxScreen` — replace the per-row markup with
+    `{#each invitations.inbox as entry}<li class="row"><InviteCard {entry}
+    onAccept={() => void handleAccept(entry.id)} onDecline={() => void
+    declineInvitation(entry.id)} /></li>{/each}` inside `<ul class="rows">`.
+    Delete the now-duplicated `.row-top` / `.row-info` / `.row-inviter` /
+    `.when` / `.buttons` markup and CSS.
+  - `InvitesBanner` — the single-invite branch renders one `<InviteCard>` inside
+    the `.card-alt` wrapper, wiring its own `handleAccept` / `declineInvitation`.
+    The **multi-invite** branch is unchanged in nature (a nav-link carrying an
+    `ink` count `<Badge>` per 8.2). Delete the single-invite `.row` / `.copy` /
+    `.buttons` markup and CSS now living in `<InviteCard>`.
+- Preserve the existing `data-test`s (`inbox-row-{id}`, `inbox-accept-{id}` /
+  `inbox-decline-{id}`, `invites-banner-accept` / `-decline`) — thread them
+  through `InviteCard` props or keep them on the consumer's wrapper as the tests
+  require (check each `.test.ts`).
+
+**Files:**
+- `web/src/lib/invite/components/InviteCard.svelte` (create)
+- `web/src/lib/invite/components/InviteCard.test.ts` (create)
+- `web/src/lib/invite/components/InvitesInboxScreen.svelte` (+ `.test.ts`)
+- `web/src/lib/invite/components/InvitesBanner.svelte` (+ `.test.ts`)
+
+**Steps:**
+1. RED — `InviteCard.test.ts`: renders the inviter name, list name, and date;
+   Accept fires `onAccept`, Decline fires `onDecline`. Confirm red.
+2. GREEN — Implement `InviteCard.svelte`.
+3. GREEN — Migrate both consumers; delete the duplicated markup/CSS; update the
+   two screens' tests for the new structure (selector-level, behaviour
+   preserved). Re-run green.
+4. `pnpm lint` · `pnpm check` · `pnpm test`.
+
+**Verify:** `pnpm lint` · `pnpm check` · `pnpm test`
+
+### [ ] 8.4 Drop `.mono` from the circle/blocked date labels
+
+**Created:** 2026-06-04T08:16:49Z
+**Completed:**
+
+**Why:** R14 — dates are caption prose, not mono. CircleScreen and BlockedScreen
+render their "since" labels as `.sub caption mono`; the mono is removed so they
+match the other five date sites. (The InvitesInbox date is handled by
+`<InviteCard>` in 8.3.) Task 5.8 shipped these with mono and is frozen — this is
+a new correction task, not an edit to 5.8.
+
+**Prerequisites:** None (independent CSS/markup change).
+
+**Decisions:**
+- In `CircleScreen.svelte` and `BlockedScreen.svelte`, remove the `mono` class
+  from the `addedAtLabel` / `blockedAtLabel` date `<span>`s — they become
+  `class="sub caption"`. No other change; the label text and layout are
+  untouched.
+
+**Files:**
+- `web/src/lib/privacy/components/CircleScreen.svelte` (+ `.test.ts` if it
+  selects on `mono` — unlikely)
+- `web/src/lib/privacy/components/BlockedScreen.svelte` (+ `.test.ts` if needed)
+
+**Steps:**
+1. Remove the `mono` class from the two date label spans.
+2. `pnpm lint` · `pnpm check` · `pnpm test` (behaviour unchanged — tests key on
+   `data-test`/text, so green without assertion edits).
+
+**Verify:** `pnpm lint` · `pnpm check` · `pnpm test`
+
+### [ ] 8.5 Fix avatar baseline misalignment (photos vs initials)
+
+**Created:** 2026-06-04T08:16:49Z
+**Completed:**
+
+**Why:** On the Lists screen the per-list member avatars are misaligned — photo
+avatars render higher than initials avatars (R15). `Avatar.svelte` renders both
+the `<img>` and the initials `<span>` as `display: inline-flex` with no
+`vertical-align`, so in an inline context they align to the line's baseline; the
+initials span's baseline is its text baseline while the `<img>`'s is its bottom
+edge, so the two sit at different heights. ListsScreen wraps each avatar in a
+plain inline `<span style="margin-left: -6px">` (the overlap stack), so the
+avatar is inline content and the mismatch shows. Other screens place `<Avatar>`
+as a direct flex child, where `align-items: center` governs and the bug is
+hidden — which is why only the Lists stack is affected.
+
+**Prerequisites:** None.
+
+**Decisions:**
+- Add `vertical-align: middle;` to the shared avatar style (`sharedStyle`) in
+  `Avatar.svelte`, so all three branches (tombstone span, photo `<img>`, initials
+  `<span>`) align consistently in any inline context. It is a no-op where the
+  avatar is a flex item (the other screens), so there is no risk to them — the
+  one change fixes the bug app-wide.
+- No markup change to ListsScreen is needed; the root cause is in the component.
+
+**Files:**
+- `web/src/lib/shared/components/Avatar.svelte` (modify)
+
+**Steps:**
+1. Add `vertical-align: middle;` to `sharedStyle`.
+2. `pnpm lint` · `pnpm check` · `pnpm test` — existing Avatar tests stay green
+   (they assert markup/attributes, not layout).
+
+**Note:** Baseline alignment is not unit-testable (jsdom has no layout engine);
+verify visually / via Playwright on the Lists-screen avatar stack. State e2e as
+locally unrunnable per the environment.
+
+**Verify:** `pnpm lint` · `pnpm check` · `pnpm test`
