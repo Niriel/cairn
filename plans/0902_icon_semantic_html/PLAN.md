@@ -225,6 +225,13 @@ migrates its empty state and adopts `<Button>`.
    layout-only grep guard (R7); `./scripts/check.sh`; visual canvas sweep of
    every touched screen against `design/` (judging layout/proportion, since
    colors/type are now intentionally homogenised, not matched to the JSX).
+7. **Phase 7 — separators, row/field, NavRow (R9–R11).** [appended after
+   Phase 6 shipped — see "Scope change 2" below.] Reconcile the master plan +
+   `docs/ui.md` to the borders-not-`<hr>` decision; remove every `<hr>`
+   (`ListOverflowSheet` action menu, `PrivacyScreen` divider) in favour of CSS
+   borders and drop the dead `hr` reset; lift the duplicated `.row` / `.field`
+   layout blocks to global utilities in `surfaces.css`; extract a `<NavRow>`
+   shared component and migrate Settings/Privacy/InvitesInbox onto it.
 
 ## Reference docs and skills
 
@@ -240,3 +247,37 @@ migrates its empty state and adopts `<Button>`.
 - Final value tuning (the `.caption` collapse; serif sheet titles;
   `.notes` serif-italic as exception vs a `.prose` role) — resolved in review
   of this plan / Phase 3.
+
+## Scope change 2 — separators, row/field, NavRow (Phase 7, R9–R11)
+
+Appended after Phase 6 shipped, while reviewing what step 9 forgot. Three
+threads, all on-theme for "kill the copy-paste, one home per pattern":
+
+- **Separators (R9).** The master plan's step-9 bullet 4 said "replace
+  `border-bottom`-as-separator with `<hr>`." R3 already half-reversed this for
+  data rows (a border per `<li class="row">`, since `<hr>` is invalid in a
+  `<ul>`) but **kept `<hr>` for the `ListOverflowSheet` action menu**. On
+  reflection that carve-out is wrong too: a divider is presentational, not
+  semantic, and the surviving `<li role="separator"><hr/></li>` is a validity
+  hack. Decision (with the user): remove `<hr>` entirely, use CSS borders
+  everywhere, and delete the dead global `hr` reset. The master plan and
+  `docs/ui.md` are reconciled to record this (Phase 7's first, doc task — the
+  Phase 0 pattern applied to appended work).
+
+- **`.row` / `.field` (R10).** R7 made scoped CSS layout-only, but two *layout*
+  blocks are still copy-pasted across many files. They are pure layout so they
+  passed R7's guard, yet they are precisely the duplication step 9 targets.
+  Lift the identical core to global `.row` / `.field` utilities in
+  `surfaces.css`; keep only genuine per-file deltas scoped.
+
+- **`<NavRow>` (R11).** 0902 deliberately deferred this ("separate plan") and
+  only globalised the nav-row *visual* CSS, leaving the nav-row *structure*
+  duplicated across Settings/Privacy/InvitesInbox. We now pull the extraction
+  in: a `shared/` `<NavRow>` wrapping the existing `<Button>`, owning the
+  nav-row layout and the inter-row border (which re-homes the `PrivacyScreen`
+  `<hr>` R9 removes). Mirrors `<EmptyState>`'s tier and test placement.
+
+No behaviour change beyond what step 9 already disclosed; every separator swap
+is the same hairline in the same place, and `<NavRow>` preserves the existing
+tap target and look. Doc reconciliation lands first so downstream steps don't
+read the stale `<hr>` prescription.

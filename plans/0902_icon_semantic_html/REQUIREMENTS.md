@@ -246,18 +246,81 @@ Each sweep task lists its `.test.ts` and updates assertions broken by
 element-type changes. The Playwright suite is the regression net; no new e2e
 specs are added.
 
+## R9. No `<hr>` — separators are CSS borders everywhere
+
+**Supersedes R3's carve-out** that kept `<hr>` for the `ListOverflowSheet`
+action menu. A separator between sibling rows — data rows or action rows — is
+presentational, not semantic: an `<hr>` carries no document meaning the reader
+needs, and it is invalid as a direct child of a `<ul>`, which is exactly why the
+existing `ListOverflowSheet` markup hides each one inside
+`<li role="separator" aria-hidden="true"><hr /></li>` purely to stay valid.
+That wrapper is a hack dressing a stylistic line as structure.
+
+Every `<hr>` is removed: the five in `ListOverflowSheet.svelte` (lines 98, 111,
+124, 137, 174) and the bare one in `PrivacyScreen.svelte` (line 137). Dividers
+become a CSS border between adjacent siblings (`1px solid var(--rule)`),
+matching the `.rows .row` data-list idiom R3 already established — e.g.
+`.menu > li + li { border-top: 1px solid var(--rule) }` for the action menu,
+and the `nav-row + nav-row` border owned by `<NavRow>` (R11) for the privacy
+nav divider. The separator `<li role="separator">` elements and the scoped
+`.menu hr` rule are deleted. Once no `<hr>` remains in `web/src`, the now-dead
+global `hr` reset rule in `reset.css` is removed. The visual result is identical
+(the same hairline in the same place). This also corrects the master plan
+(`plans/0000_implementation_order.md` step 9, bullet 4), which still prescribes
+the opposite (`<hr>` sweep) — reconciled in this plan's doc task.
+
+## R10. `.row` and `.field` layout blocks consolidated into global utilities
+
+The flex row block — `display: flex; align-items: center; gap: 0.75rem;
+padding: 0.875rem 1.125rem` — is copy-pasted across `DeletedListsScreen`,
+`TrashScreen`, `BlockedScreen`, `CircleScreen`, and `MembersScreen`; the
+form-field wrapper — `display: flex; flex-direction: column; gap: 0.5rem` —
+across ~9 sheets/forms (`AddEditItemSheet`, `CreateListSheet`,
+`EditDescriptionSheet`, `RenameListSheet`, `LoginRequest`, `CircleScreen`,
+`ProfileSheet`, the profile route, and the InvitePicker e-mail row). Both are
+pure layout, so they don't violate R7 — but they are exactly the copy-paste
+step 9 exists to kill.
+
+A single global `.row` base and `.field` utility land in `surfaces.css`. Each
+call site keeps only its genuine *deltas* as scoped overrides (e.g.
+`TrashScreen`'s tighter `gap: 0.625rem` + extra left padding + `min-height`;
+`MembersScreen`'s button-reset variant). Only declarations identical across ≥2
+files are lifted; a genuinely one-off block stays inline (the master-plan
+guardrail: minimise repetition without exploding the API).
+
+## R11. `<NavRow>` shared component extracted
+
+**Supersedes the Non-requirement** that deferred this to a separate plan. The
+nav-row shape — a leading `<Icon size={20}>`, a title/subtitle text column
+(`.nav-row-title.row-title` + `.nav-row-sub.caption`), an optional trailing
+badge/count, and a trailing `chevron-right` icon, all wrapped in a
+`<Button variant="text" tone="ink" size="md">` — repeats verbatim across
+`SettingsScreen` (Invites, Privacy, …), `PrivacyScreen` (Your circle, Blocked),
+and `InvitesInboxScreen`.
+
+Extract `web/src/lib/shared/components/NavRow.svelte` (the `shared/` tier — an
+app-styled primitive like `<EmptyState>`, not a `basic/` framework primitive).
+Props: `icon: IconName`, `title: string`, `sub?: string`, `onclick?` **or**
+`href?` (navigation), `data-test?`, and a `trailing?` snippet for the
+badge/count slot (rendered between the text column and the chevron). The chevron
+is always rendered. The component wraps the existing `<Button>` so the tap
+target, focus, and look are unchanged; it owns the `.nav-row-*` layout that is
+currently duplicated and the inter-row divider border
+(`nav-row + nav-row { border-top: 1px solid var(--rule) }`), which re-homes the
+`PrivacyScreen` divider R9 strips. Co-located `NavRow.test.ts` covers behaviour
+(renders title/sub, fires `onclick`, exposes the trailing slot, accessible name
+from the title). The three screens migrate to `<NavRow>` and delete their
+duplicated nav-row CSS.
+
 ## Non-requirements (explicitly excluded)
 
-- **New shared components beyond `<EmptyState>`.** This plan globalises CSS and
-  reuses the *existing* `<Button>`; it does **not** extract `<NavRow>`,
-  `<Badge>`, `<Card>`, or `<Toast>` Svelte components. Those are follow-up
-  plans. (Replacing raw `<button>`s with the existing `<Button>` is reuse, not
-  new extraction, and is in scope per R4. The one exception is the minimal
-  `sage` filled-pill tone added to `<Button>` per R4 — an extension of the
-  existing primitive, not a new component.)
-- **`<NavRow>` extraction** — `SettingsScreen` / `PrivacyScreen` nav rows and
-  `PrivacyScreen` `div.nav-rows` keep their structure; only their visual CSS
-  moves to global. The component extraction is a separate plan.
+- **New shared components beyond `<EmptyState>` and `<NavRow>`.** This plan
+  globalises CSS and reuses the *existing* `<Button>`; beyond the `<NavRow>`
+  extraction added in R11, it does **not** extract `<Badge>`, `<Card>`, or
+  `<Toast>` Svelte components. Those are follow-up plans. (Replacing raw
+  `<button>`s with the existing `<Button>` is reuse, not new extraction, and is
+  in scope per R4. The `sage` filled-pill tone added to `<Button>` per R4 is an
+  extension of the existing primitive, not a new component.)
 - **`<Icon>` `color` prop** — `Icon` uses `stroke="currentColor"`; callers set
   `color` on an ancestor. No prop added. Icon *sizing* in `em` (R1) is applied
   where a task calls for it, but a wholesale Icon-component change to em-based

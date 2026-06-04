@@ -1419,3 +1419,229 @@ grep guard, runs the full toolchain, and does the visual canvas sweep.
   browser to open `design/Cairn - Design Canvas.html`, and Playwright cannot run
   here. The layout/proportion comparison against the canvas still needs a human
   pass before this branch ships.
+
+## Phase 7 — Separators, row/field, NavRow (R9–R11)
+
+### [ ] 7.1 Reconcile the master plan + `docs/ui.md` to borders-not-`<hr>`
+
+**Created:** 2026-06-04T06:37:11Z
+**Completed:**
+
+**Why:** The master plan still prescribes the opposite of what we're shipping —
+`plans/0000_implementation_order.md` step 9 bullet 4 says "replace
+`border-bottom`-as-separator with `<hr>`", and `docs/ui.md` has no separator
+convention while its "Row navigation pattern" example is stale. Cairn is
+pre-alpha with living docs; reconcile the spec **before** the code task so
+downstream steps don't read the stale prescription (the Phase 0 doc-first rule
+applied to appended work).
+
+**Prerequisites:** None (doc-only).
+
+**Decisions:**
+- Separators are presentational, not semantic: a divider between sibling rows
+  (data or action) is a CSS border (`1px solid var(--rule)`), never `<hr>`.
+  `<hr>` is invalid as a direct `<ul>` child and carries no useful document
+  semantics here (R9).
+- Master plan bullet 4 is rewritten to record the reversal in the same
+  "reconsidered" spirit R9/R10 of `0900` got — not deleted silently.
+
+**Files:**
+- `plans/0000_implementation_order.md` (modify — step 9, the fourth bullet
+  "Replace `border-bottom`-as-separator with `<hr>`", ~lines 232–238)
+- `docs/ui.md` (modify — add a short "Row separators" note in the row-patterns
+  area ~line 534; fix the stale "Row navigation pattern" snippet at ~538–542
+  that still shows `<span class="name">`, which the 0902 sweep moved to
+  `<h3>` / `.row-title`)
+
+**Steps:**
+1. Rewrite step 9 bullet 4 in `0000_implementation_order.md`: the `<hr>` sweep
+   is reversed — row/sheet/menu separators are CSS borders between siblings;
+   `<hr>` is not used (invalid in lists, no real semantics). One or two
+   sentences, matching the file's bullet style.
+2. In `docs/ui.md`, add a "Row separators" note: dividers are a `1px solid
+   var(--rule)` border on adjacent siblings (`.rows .row`, `.menu > li + li`,
+   `nav-row + nav-row`), not `<hr>`.
+3. In `docs/ui.md`, update the "Row navigation pattern" example so its markup
+   matches the post-0902 code (`.row-title` / `<h3>` instead of
+   `<span class="name">`).
+
+**Verify:** `grep -n 'hr' plans/0000_implementation_order.md` shows the bullet
+no longer prescribes `<hr>`; `docs/ui.md` carries the separator note. (Doc-only;
+no test layer.)
+
+### [ ] 7.2 Remove `<hr>` from the `ListOverflowSheet` action menu → CSS border
+
+**Created:** 2026-06-04T06:37:11Z
+**Completed:**
+
+**Why:** The action menu's five `<li role="separator" aria-hidden="true"><hr /></li>`
+elements (lines 98, 111, 124, 137, 174) are a validity hack — a stylistic line
+dressed as structure. R9 replaces them with a border between adjacent menu
+items.
+
+**Prerequisites:** Task 7.1 (the convention is now documented).
+
+**Decisions:**
+- Delete the five separator `<li>`s and the scoped `.menu hr` rule (line ~218).
+- Add `.menu > li + li { border-top: 1px solid var(--rule) }` so every adjacent
+  action row carries the divider — the original markup had a separator between
+  every action group, so a uniform `li + li` border reproduces it. Confirm the
+  confirm-block boundary (old line-174 separator) still reads correctly against
+  the design canvas.
+- This is the `surfaces.css` `.rows .row` idiom (R3) applied to the action
+  menu, which keeps its distinct `.menu` layout class (it is not a `.rows`
+  data-list — see R3).
+
+**Files:**
+- `web/src/lib/list/components/ListOverflowSheet.svelte` (modify)
+- `web/src/lib/list/components/ListOverflowSheet.test.ts` (modify — only if it
+  asserts on `role="separator"` / the separator `<li>`; rewrite to the
+  border-based shape per R8. If it doesn't reference them, it passes unchanged.)
+
+**Steps:**
+1. RED — If `ListOverflowSheet.test.ts` selects the separator `<li>` /
+   `role="separator"`, update those assertions to the new shape (e.g. assert the
+   menu renders N action items, not N+separators) and confirm the edited test
+   fails against the current markup.
+2. GREEN — Remove the five separator `<li>`s and the `.menu hr` rule; add
+   `.menu > li + li { border-top: 1px solid var(--rule) }`.
+3. GREEN — `pnpm test` green; `grep -n '<hr' web/src/lib/list/components/ListOverflowSheet.svelte`
+   returns nothing.
+
+**Verify:** `pnpm lint` · `pnpm check` · `pnpm test`
+
+### [ ] 7.3 Lift `.row` and `.field` layout blocks to global utilities
+
+**Created:** 2026-06-04T06:37:11Z
+**Completed:**
+
+**Why:** The flex row block and the form-field wrapper are copy-pasted across
+many files (R10). They are pure layout (so they passed R7's visual-only guard)
+but are exactly the duplication step 9 targets.
+
+**Prerequisites:** Phase 3 (`surfaces.css` exists and is wired in).
+
+**Decisions:**
+- Add to `surfaces.css`: `.row { display: flex; align-items: center;
+  gap: 0.75rem; padding: 0.875rem 1.125rem }` and `.field { display: flex;
+  flex-direction: column; gap: 0.5rem }`.
+- Each call site keeps only its genuine deltas as a scoped override:
+  `TrashScreen` (`gap: 0.625rem`, extra left padding, `min-height`),
+  `MembersScreen` (the button-reset variant: `background: transparent`,
+  border resets, `width: 100%`, `cursor`, `text-align`). Remove the now-redundant
+  identical declarations from each file.
+- Lift only declarations identical across ≥2 files; leave one-offs inline.
+- Behaviour is unchanged — no new logic; the existing Vitest/Playwright suite is
+  the regression net (R8).
+
+**Files:**
+- `web/src/lib/shared/styles/surfaces.css` (modify)
+- `.row` call sites (modify): `list/components/DeletedListsScreen.svelte`,
+  `item/components/TrashScreen.svelte`, `privacy/components/BlockedScreen.svelte`,
+  `privacy/components/CircleScreen.svelte`, `list/components/MembersScreen.svelte`
+- `.field` call sites (modify): `item/components/AddEditItemSheet.svelte`,
+  `list/components/CreateListSheet.svelte`,
+  `list/components/EditDescriptionSheet.svelte`,
+  `list/components/RenameListSheet.svelte`, `auth/components/LoginRequest.svelte`,
+  `privacy/components/CircleScreen.svelte`, `profile/components/ProfileSheet.svelte`,
+  `web/src/routes/(app)/profile/+page.svelte`,
+  `invite/components/InvitePickerSheet.svelte` (only if its e-mail row uses the
+  same `.field` block)
+
+**Steps:**
+1. Add the global `.row` and `.field` rules to `surfaces.css`.
+2. In each call site, delete the duplicated identical declarations, keeping only
+   genuine deltas (audit each — do not assume; some `.row`s differ).
+3. `pnpm test` green (no assertion changes expected — this is layout-only).
+
+**Verify:** `pnpm lint` · `pnpm check` · `pnpm test`
+
+### [ ] 7.4 Extract the `<NavRow>` shared component + Vitest test
+
+**Created:** 2026-06-04T06:37:11Z
+**Completed:**
+
+**Why:** The nav-row shape repeats verbatim across Settings/Privacy/InvitesInbox
+(R11). Extract it once so the structure has a single home, like `<EmptyState>`.
+
+**Prerequisites:** Phase 3/4 (`<Button>` exists with `variant="text"
+tone="ink"`; global `.row-title` / `.caption` roles exist).
+
+**Decisions:**
+- New `web/src/lib/shared/components/NavRow.svelte` (shared tier — app-styled
+  primitive, not `basic/`). Props: `icon: IconName`, `title: string`,
+  `sub?: string`, `onclick?: () => void` **or** `href?: string`,
+  `data-test?: string`, and a `trailing?: Snippet` slot rendered between the text
+  column and the chevron (for badge/count).
+- Internals: render `<Button variant="text" tone="ink" size="md">` containing
+  `<Icon name={icon} size={20} />`, a `.nav-row-text` column
+  (`<span class="nav-row-title row-title">{title}</span>` + optional
+  `<span class="nav-row-sub caption">{sub}</span>`), the optional `trailing`
+  snippet, and a trailing `<Icon name="chevron-right" size={18} />`. Tap target,
+  focus, and look are identical to today's hand-rolled rows.
+- Owns the previously-duplicated `.nav-row-text` / `.nav-row-title` /
+  `.nav-row-sub` layout and the inter-row divider:
+  `nav-row + nav-row { border-top: 1px solid var(--rule) }` (re-homes the
+  PrivacyScreen divider removed in 7.5). Whether the divider lives on a wrapping
+  element or via `:global` is decided in the task; keep it layout-only.
+- Accessible name comes from `title` (and the screen's existing `data-test`).
+
+**Files:**
+- `web/src/lib/shared/components/NavRow.svelte` (create)
+- `web/src/lib/shared/components/NavRow.test.ts` (create)
+
+**Steps:**
+1. RED — Write `NavRow.test.ts`: renders `title` and `sub`; clicking fires
+   `onclick`; the `trailing` snippet renders in the slot; the accessible name
+   derives from `title`. Confirm red (component doesn't exist).
+2. GREEN — Implement `NavRow.svelte` per Decisions.
+3. GREEN — `pnpm test` green.
+
+**Verify:** `pnpm lint` · `pnpm check` · `pnpm test`
+
+### [ ] 7.5 Migrate Settings/Privacy/InvitesInbox to `<NavRow>`; drop the dead `hr` reset
+
+**Created:** 2026-06-04T06:37:11Z
+**Completed:**
+
+**Why:** With `<NavRow>` extracted (7.4), the three screens' duplicated nav-row
+markup and CSS collapse to call sites. Migrating PrivacyScreen also removes the
+last `<hr>` in the codebase, so the global `hr` reset becomes dead and is
+deleted (R9).
+
+**Prerequisites:** Task 7.4 (`<NavRow>` exists); Task 7.2 (ListOverflowSheet
+`<hr>` already gone — this task removes the final one).
+
+**Decisions:**
+- Replace each hand-rolled nav-row `<Button>` block in `SettingsScreen`,
+  `PrivacyScreen`, and `InvitesInboxScreen` with `<NavRow …>`, passing the
+  badge/count via the `trailing` snippet where present
+  (`badge-soft` circle/blocked counts on Privacy; the invites count on
+  Settings). Delete the now-duplicated `.nav-row-*` scoped CSS from all three.
+- Delete the bare `<hr />` in `PrivacyScreen.svelte` (line ~137); the
+  inter-row divider is now the `nav-row + nav-row` border owned by `<NavRow>`.
+- Once `grep -rn '<hr' web/src` is empty, delete the global `hr { … }` rule in
+  `web/src/lib/shared/styles/reset.css` (lines 7–11) — it is dead.
+- Update each screen's `.test.ts` for selector-level changes only (the nav-row
+  markup is now `<NavRow>`-rendered); assertions stay semantically equivalent
+  (R8). `data-test` attributes pass through `<NavRow>`.
+
+**Files:**
+- `web/src/lib/settings/components/SettingsScreen.svelte` (+ `.test.ts`)
+- `web/src/lib/privacy/components/PrivacyScreen.svelte` (+ `.test.ts`)
+- `web/src/lib/invite/components/InvitesInboxScreen.svelte` (+ `.test.ts`)
+- `web/src/lib/shared/styles/reset.css` (modify — remove the `hr` rule)
+
+**Steps:**
+1. RED — Update the three screens' tests for the `<NavRow>` markup (selector
+   rewrites only); confirm red against the pre-migration markup where a selector
+   changed.
+2. GREEN — Migrate the three screens to `<NavRow>`, removing duplicated
+   `.nav-row-*` CSS and the PrivacyScreen `<hr />`.
+3. GREEN — Confirm `grep -rn '<hr' web/src` is empty, then delete the `hr` rule
+   from `reset.css`; `grep -rn 'hr {' web/src` is empty.
+4. GREEN — `./scripts/check.sh` green.
+
+**Verify:** `./scripts/check.sh` (and `--e2e` before the PR — note Playwright is
+not runnable in this environment, so write/adjust specs but report e2e as
+locally unrunnable).
