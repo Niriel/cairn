@@ -427,7 +427,12 @@ roles:
 - `.caption` — muted secondary / metadata line (1 rem, set apart by colour).
 - `.fine` — fine print: the one tier below the 1 rem floor (0.8 rem, `var(--stone)`)
   for attribution lines, the list-meta line, vote labels, and timestamps.
-- `.mono` — monospace (vote indicator, aggregate-score badge).
+- `.mono` — monospace, **numerics only**: the vote indicator, the
+  aggregate-score badge, and bare counts. It is for figures that benefit from
+  tabular alignment, not for prose. **Dates and ages are caption prose, never
+  mono** — `timeAgo()` output and the circle/blocked "when" labels render in
+  the `.caption` / `.fine` roles (a proportional face), because a relative date
+  is a sentence ("3 days ago"), not a tabular figure. There is no `.date` role.
 
 **Label vs. title — they are not the same look.** The upper-cased,
 `0.06em`-tracked small-stone treatment is the **form-label** look, owned by the
@@ -588,6 +593,21 @@ just without a CTA. Structure:
 
 Heading, body, and CTA are each optional — a screen supplies only the parts it
 needs (e.g. Trash and Blocked render the disc + heading with no CTA).
+
+### Shared components
+
+Recurring bits of markup live as shared components in
+`web/src/lib/shared/components/` rather than being re-rolled per screen. As
+well as `<EmptyState>` (above) and `<NavRow>` (the chevron nav-row), two more
+were extracted during this work:
+
+- **`<Badge>`** — the small pill/figure shown beside a name or count: tones
+  `ink` (solid dark), `soft` (muted fill), and `score` (the aggregate-score
+  badge, sage for positive and ember for negative; a score of zero renders no
+  badge). This reverses the earlier "no shared `<Badge>` in v1"
+  non-requirement — screens use `<Badge>` instead of hand-rolled badge spans.
+- **`<InviteCard>`** — the invite row used by the inbox list and the
+  single-invite banner, so both render identical invite markup.
 
 ## Not decided
 

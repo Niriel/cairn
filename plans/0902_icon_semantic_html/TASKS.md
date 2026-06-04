@@ -1826,10 +1826,10 @@ locally unrunnable).
 
 ## Phase 8 — Components: `<Badge>`, `<InviteCard>`, date prose (R12–R14)
 
-### [ ] 8.1 Reconcile docs — mono is numerics-only; dates are caption prose; record new components
+### [x] 8.1 Reconcile docs — mono is numerics-only; dates are caption prose; record new components
 
 **Created:** 2026-06-04T08:16:49Z
-**Completed:**
+**Completed:** 2026-06-04T09:32:18Z
 
 **Why:** `docs/ui.md`'s type-roles (added in task 0.1) list "'when' timestamps"
 and the circle/blocked `.sub` under `.mono`. R14 makes dates caption prose, so
@@ -1862,6 +1862,16 @@ pattern.
 
 **Verify:** `pnpm exec prettier --check "docs/ui.md"` (or note md is outside the
 Prettier config).
+
+**Notes:** As anticipated, `prettier --check` warns on `docs/ui.md` — but the
+file was already non-conforming **before** these edits (confirmed by stashing
+the change and re-running), so markdown is outside the project's effective
+Prettier scope, consistent with task 0.1's finding. No new style issue was
+introduced. `.mono`'s role already listed timestamps under `.fine` (not
+`.mono`) from the 0.1 reconciliation; the edit tightened `.mono` to
+numerics-only and added an explicit "dates are caption prose, never mono" note,
+plus a new **Shared components** subsection recording `<Badge>` and
+`<InviteCard>`.
 
 ### [ ] 8.2 Create `<Badge>` and migrate the badge sites + the Settings invites count
 
