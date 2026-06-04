@@ -1422,10 +1422,10 @@ grep guard, runs the full toolchain, and does the visual canvas sweep.
 
 ## Phase 7 — Separators, row/field, NavRow (R9–R11)
 
-### [ ] 7.1 Reconcile the master plan + `docs/ui.md` to borders-not-`<hr>`
+### [x] 7.1 Reconcile the master plan + `docs/ui.md` to borders-not-`<hr>`
 
 **Created:** 2026-06-04T06:37:11Z
-**Completed:**
+**Completed:** 2026-06-04T08:30:15Z
 
 **Why:** The master plan still prescribes the opposite of what we're shipping —
 `plans/0000_implementation_order.md` step 9 bullet 4 says "replace

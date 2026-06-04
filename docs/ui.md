@@ -537,7 +537,7 @@ When a list row has a primary label and a trailing chevron that both navigate to
 
 ```svelte
 <button class="row-nav" onclick={navigate}>
-  <span class="name">{item.name}</span>
+  <h3 class="row-title">{item.name}</h3>
   <span class="chevron"><Icon name="chevron-right" size={18} /></span>
 </button>
 ```
@@ -553,11 +553,15 @@ When a list row has a primary label and a trailing chevron that both navigate to
   padding: 0;
   cursor: pointer;
 }
-.name { flex: 1; min-width: 0; }
+.row-title { flex: 1; min-width: 0; }
 .chevron { flex-shrink: 0; }
 ```
 
 `align-items: flex-start` is required so the chevron stays at the top of a multi-line name rather than drifting to the vertical midpoint.
+
+### Row separators
+
+A divider between adjacent sibling rows — data rows, action-menu rows, or nav-rows — is **presentational, not semantic**: render it as a `1px solid var(--rule)` border on the adjacent siblings (`.rows .row`, `.menu > li + li`, `nav-row + nav-row`), never as an `<hr>`. `<hr>` is invalid as a direct child of `<ul>` and carries no useful document semantics between sibling rows, so the codebase uses no `<hr>` and keeps no global `hr` reset.
 
 ### Cursor convention
 
