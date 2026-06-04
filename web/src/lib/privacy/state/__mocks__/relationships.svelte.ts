@@ -6,10 +6,12 @@ export const relationships = $state<{
 	circle: CircleEntry[];
 	blocked: BlockedEntry[];
 	loaded: boolean;
+	loading: boolean;
 }>({
 	circle: [],
 	blocked: [],
-	loaded: false
+	loaded: false,
+	loading: false
 });
 
 export const loadRelationships = vi.fn(async (): Promise<void> => {});

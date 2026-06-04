@@ -6,6 +6,7 @@
 	import Icon from '$lib/basic/components/Icon.svelte';
 	import AppTopBar from '$lib/shared/components/AppTopBar.svelte';
 	import NavRow from '$lib/shared/components/NavRow.svelte';
+	import RefreshButton from '$lib/basic/components/RefreshButton.svelte';
 	import Snackbar from '$lib/shared/components/Snackbar.svelte';
 	import { relationships, loadRelationships } from '$lib/privacy/state/relationships.svelte';
 	import {
@@ -64,7 +65,16 @@
 </script>
 
 <div class="screen" data-test="privacy-screen">
-	<AppTopBar>Privacy</AppTopBar>
+	<AppTopBar>
+		Privacy
+		{#snippet right()}
+			<RefreshButton
+				data-test="privacy-refresh"
+				spinning={relationships.loading}
+				onclick={() => void loadRelationships()}
+			/>
+		{/snippet}
+	</AppTopBar>
 
 	<div class="content">
 		<section class="section">
@@ -116,38 +126,42 @@
 
 		<section class="section">
 			<h2 class="section-label">People</h2>
-			<div class="nav-rows">
-				<NavRow
-					title="Your circle"
-					sub="People you'll let invite you"
-					data-test="nav-circle"
-					onclick={() => void goto(resolve('/settings/circles'))}
-				>
-					{#snippet lead()}<Icon name="users" size={20} />{/snippet}
-					{#snippet trailing()}
-						{#if relationships.loaded}
-							<Badge tone="soft" data-test="circle-count">{relationships.circle.length}</Badge>
-						{/if}
-					{/snippet}
-				</NavRow>
-				<NavRow
-					title="Blocked"
-					sub="People who can never invite you"
-					data-test="nav-blocked"
-					onclick={() => void goto(resolve('/settings/blocked'))}
-				>
-					{#snippet lead()}<Icon name="slash" size={20} />{/snippet}
-					{#snippet trailing()}
-						{#if relationships.loaded}
-							<Badge tone="soft" data-test="blocked-count">{relationships.blocked.length}</Badge>
-						{/if}
-					{/snippet}
-				</NavRow>
-			</div>
+			{#if relationships.loading}
+				<div class="loading caption" data-test="privacy-loading">Loading…</div>
+			{:else}
+				<div class="nav-rows">
+					<NavRow
+						title="Your circle"
+						sub="People you'll let invite you"
+						data-test="nav-circle"
+						onclick={() => void goto(resolve('/settings/circles'))}
+					>
+						{#snippet lead()}<Icon name="users" size={20} />{/snippet}
+						{#snippet trailing()}
+							{#if relationships.loaded}
+								<Badge tone="soft" data-test="circle-count">{relationships.circle.length}</Badge>
+							{/if}
+						{/snippet}
+					</NavRow>
+					<NavRow
+						title="Blocked"
+						sub="People who can never invite you"
+						data-test="nav-blocked"
+						onclick={() => void goto(resolve('/settings/blocked'))}
+					>
+						{#snippet lead()}<Icon name="slash" size={20} />{/snippet}
+						{#snippet trailing()}
+							{#if relationships.loaded}
+								<Badge tone="soft" data-test="blocked-count">{relationships.blocked.length}</Badge>
+							{/if}
+						{/snippet}
+					</NavRow>
+				</div>
+			{/if}
 		</section>
 
-		<div class="privacy-note" data-test="privacy-note">
-			<Icon name="lock" size={16} />
+		<div class="privacy-note media" data-test="privacy-note">
+			<Icon name="lock" size={20} />
 			<span class="disclaimer"
 				>Your e-mail address is never shown to other people on Cairn — only your display name and
 				avatar.</span
@@ -180,6 +194,10 @@
 
 	.section-label {
 		padding: 1.375rem 1.125rem 0.5rem;
+	}
+
+	.loading {
+		padding: 0.5rem 1.125rem;
 	}
 
 	/* .card supplies the border + radius; overflow clips the divided options. */
@@ -261,13 +279,24 @@
 		margin: 0.75rem 1.125rem 0;
 	}
 
+	/* .media supplies the flex line (icon · text, centred, gap); this keeps only
+	   the card look. */
 	.privacy-note {
 		margin: 0 1.125rem 1.5rem;
 		padding: 0.875rem;
 		background: var(--paper-alt);
 		border-radius: 0.75rem;
-		display: flex;
-		align-items: flex-start;
-		gap: 0.625rem;
+	}
+
+	/* Without these, flexbox squishes the lock icon horizontally to make room
+	   for the wrapping text — the text column absorbs the shrink instead (the
+	   same flex:1/min-width:0 trick NavRow uses to keep its lead icon at size). */
+	.privacy-note :global(svg) {
+		flex-shrink: 0;
+	}
+
+	.privacy-note .disclaimer {
+		flex: 1;
+		min-width: 0;
 	}
 </style>

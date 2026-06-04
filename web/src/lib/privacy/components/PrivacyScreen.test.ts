@@ -15,12 +15,14 @@ vi.mock('$lib/shared/state/profile.svelte');
 vi.mock('$app/navigation');
 vi.mock('$app/paths');
 
-const { relationships } = await import('$lib/privacy/state/relationships.svelte');
+const { relationships, loadRelationships } =
+	await import('$lib/privacy/state/relationships.svelte');
 const { userSettings, setInvitePolicy } = await import('$lib/privacy/state/user-settings.svelte');
 
 afterEach(() => {
 	vi.clearAllMocks();
 	relationships.loaded = false;
+	relationships.loading = false;
 	relationships.circle = [];
 	relationships.blocked = [];
 	userSettings.loaded = false;
@@ -214,5 +216,27 @@ describe('PrivacyScreen', () => {
 		const { queryByDataTest } = render(PrivacyScreen);
 		expect(queryByDataTest('circle-count')).toBeNull();
 		expect(queryByDataTest('blocked-count')).toBeNull();
+	});
+
+	test('(o) refresh button re-fetches relationships (so stale count badges update)', async () => {
+		const { getByDataTest } = render(PrivacyScreen);
+		// The mount effect loads once; the refresh click is the second call.
+		expect(vi.mocked(loadRelationships)).toHaveBeenCalledTimes(1);
+		await fireEvent.click(getByDataTest('privacy-refresh'));
+		expect(vi.mocked(loadRelationships)).toHaveBeenCalledTimes(2);
+	});
+
+	test('(p) refresh button spins while relationships are loading', () => {
+		relationships.loading = true;
+		const { getByDataTest } = render(PrivacyScreen);
+		expect(getByDataTest('privacy-refresh')).toHaveProperty('disabled', true);
+	});
+
+	test('(q) shows Loading… in place of the People rows while relationships load', () => {
+		relationships.loading = true;
+		const { getByDataTest, queryByDataTest } = render(PrivacyScreen);
+		expect(getByDataTest('privacy-loading').textContent).toContain('Loading');
+		expect(queryByDataTest('nav-circle')).toBeNull();
+		expect(queryByDataTest('nav-blocked')).toBeNull();
 	});
 });
