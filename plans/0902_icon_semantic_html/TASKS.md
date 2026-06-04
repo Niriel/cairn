@@ -2033,10 +2033,10 @@ variant="pill">` Accept/Decline); R14 (date renders as `.caption`, not mono).
   `textContent`, all preserved. Added `InviteCard.test.ts` (4 cases: renders
   name/list/date, Accept/Decline fire their callbacks). 645 tests pass.
 
-### [ ] 8.4 Drop `.mono` from the circle/blocked date labels
+### [x] 8.4 Drop `.mono` from the circle/blocked date labels
 
 **Created:** 2026-06-04T08:16:49Z
-**Completed:**
+**Completed:** 2026-06-04T10:39:31Z
 
 **Why:** R14 — dates are caption prose, not mono. CircleScreen and BlockedScreen
 render their "since" labels as `.sub caption mono`; the mono is removed so they

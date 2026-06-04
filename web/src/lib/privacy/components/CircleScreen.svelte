@@ -69,7 +69,7 @@
 							/>
 							<div class="row-text">
 								<h3 class="display-name">{entry.displayName}</h3>
-								<span class="sub caption mono">{addedAtLabel(entry.createdAt)}</span>
+								<span class="sub caption">{addedAtLabel(entry.createdAt)}</span>
 							</div>
 							<Button
 								variant="pill"
