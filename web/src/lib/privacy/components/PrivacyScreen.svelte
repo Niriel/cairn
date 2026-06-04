@@ -4,6 +4,7 @@
 	import Button from '$lib/basic/components/Button.svelte';
 	import Icon from '$lib/basic/components/Icon.svelte';
 	import AppTopBar from '$lib/shared/components/AppTopBar.svelte';
+	import NavRow from '$lib/shared/components/NavRow.svelte';
 	import Snackbar from '$lib/shared/components/Snackbar.svelte';
 	import { relationships, loadRelationships } from '$lib/privacy/state/relationships.svelte';
 	import {
@@ -115,45 +116,36 @@
 		<section class="section">
 			<h2 class="section-label">People</h2>
 			<div class="nav-rows">
-				<Button
-					variant="text"
-					tone="ink"
-					size="md"
+				<NavRow
+					title="Your circle"
+					sub="People you'll let invite you"
 					data-test="nav-circle"
 					onclick={() => void goto(resolve('/settings/circles'))}
 				>
-					<Icon name="users" size={20} />
-					<span class="nav-row-text">
-						<span class="nav-row-title row-title">Your circle</span>
-						<span class="nav-row-sub caption">People you'll let invite you</span>
-					</span>
-					{#if relationships.loaded}
-						<span class="badge badge-soft" data-test="circle-count"
-							>{relationships.circle.length}</span
-						>
-					{/if}
-					<Icon name="chevron-right" size={18} />
-				</Button>
-				<hr />
-				<Button
-					variant="text"
-					tone="ink"
-					size="md"
+					{#snippet lead()}<Icon name="users" size={20} />{/snippet}
+					{#snippet trailing()}
+						{#if relationships.loaded}
+							<span class="badge badge-soft" data-test="circle-count"
+								>{relationships.circle.length}</span
+							>
+						{/if}
+					{/snippet}
+				</NavRow>
+				<NavRow
+					title="Blocked"
+					sub="People who can never invite you"
 					data-test="nav-blocked"
 					onclick={() => void goto(resolve('/settings/blocked'))}
 				>
-					<Icon name="slash" size={20} />
-					<span class="nav-row-text">
-						<span class="nav-row-title row-title">Blocked</span>
-						<span class="nav-row-sub caption">People who can never invite you</span>
-					</span>
-					{#if relationships.loaded}
-						<span class="badge badge-soft" data-test="blocked-count"
-							>{relationships.blocked.length}</span
-						>
-					{/if}
-					<Icon name="chevron-right" size={18} />
-				</Button>
+					{#snippet lead()}<Icon name="slash" size={20} />{/snippet}
+					{#snippet trailing()}
+						{#if relationships.loaded}
+							<span class="badge badge-soft" data-test="blocked-count"
+								>{relationships.blocked.length}</span
+							>
+						{/if}
+					{/snippet}
+				</NavRow>
 			</div>
 		</section>
 
@@ -270,25 +262,6 @@
 
 	.whats-a-circle {
 		margin: 0.75rem 1.125rem 0;
-	}
-
-	/* Full-bleed top/bottom rules band the nav-row group — single-instance
-	   hairline chrome (NavRow extraction is a separate plan). */
-	.nav-rows {
-		margin: 0;
-		border-top: 1px solid var(--rule);
-		border-bottom: 1px solid var(--rule);
-	}
-
-	.nav-row-text {
-		flex: 1;
-		min-width: 0;
-		display: flex;
-		flex-direction: column;
-	}
-
-	.nav-row-sub {
-		margin-top: 0.125rem;
 	}
 
 	.privacy-note {

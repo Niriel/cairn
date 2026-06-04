@@ -1721,10 +1721,10 @@ tone="ink"`; global `.row-title` / `.caption` roles exist).
   should wrap each group in a plain `<div class="nav-rows">`; no per-NavRow
   divider work is needed.
 
-### [ ] 7.5 Migrate Settings/Privacy to `<NavRow>`; drop the dead `hr` reset
+### [x] 7.5 Migrate Settings/Privacy to `<NavRow>`; drop the dead `hr` reset
 
 **Created:** 2026-06-04T06:37:11Z
-**Completed:**
+**Completed:** 2026-06-04T09:27:55Z
 
 **Why:** With `<NavRow>` extracted (7.4), the two screens' duplicated nav-row
 markup and CSS collapse to call sites. Migrating PrivacyScreen also removes the
@@ -1792,6 +1792,37 @@ points to it lives in SettingsScreen.
 **Verify:** `./scripts/check.sh` (and `--e2e` before the PR — note Playwright is
 not runnable in this environment, so write/adjust specs but report e2e as
 locally unrunnable).
+
+**Notes:**
+- **No test edits were needed.** Both screen `.test.ts` files select purely by
+  `data-test`, and those attributes pass through `<NavRow>` → `<Button>`
+  unchanged, so all 35 existing assertions stayed green without modification
+  (R8 satisfied). Same for the e2e specs (`auth`, `avatar`, `privacy`) — they
+  reference `signout` / `profile-chip` / `settings-invites` by `data-test`, all
+  preserved. Playwright not runnable in this environment; specs unchanged and
+  still valid, so e2e is locally unrun but no edits required.
+- **User corrections (override the task's profile-chip decision):** the task
+  said "the profile chip is **not** wrapped — it stays in `.profile-chip-section`
+  with its `border-bottom` only." The user instead asked to (a) add a **"Profile"**
+  `<h2>` heading to that first section and (b) wrap the chip in
+  `<div class="nav-rows">` so it bands like the other groups. Implemented both:
+  removed the now-redundant `.profile-chip-section` `border-bottom` (the global
+  `.nav-rows` band supplies top+bottom), extended the `h2` padding rule to
+  `.profile-chip-section h2`, and kept `.profile-chip-section` only as the h2
+  hook. The whole `{#if skeleton}{:else}<NavRow>{/if}` is inside the band so the
+  loading state bands too. Note the profile section is deliberately **not**
+  given the `.preference-group` class — tests (j-1)/(j-2) index
+  `section.preference-group` and expect `groups[0]` to be "People".
+- **User correction:** added `gap: 0.5rem` to SettingsScreen `.content`.
+- **Type narrowing across the snippet boundary:** `title={profile.displayName}`
+  type-checks in the outer `{:else}` (narrowed to non-null), but the `lead`
+  snippet is a closure, so inside it `profile.displayName` widens back to
+  `string | null`. Used `displayName={profile.displayName ?? ''}` on the Avatar
+  there; the `=== null` else-branch guarantees it is never actually empty.
+- `.nav-row-count` (the Settings invites count) stays scoped to SettingsScreen —
+  it styles caller-supplied `trailing` content, not NavRow-owned markup, so it
+  was kept (only the NavRow-owned `.nav-row-text` / `-title` / `-sub` were
+  deleted from both screens).
 
 ## Phase 8 — Components: `<Badge>`, `<InviteCard>`, date prose (R12–R14)
 

@@ -1,7 +1,7 @@
 <script lang="ts">
 	import Avatar from '$lib/shared/components/Avatar.svelte';
 	import AppTopBar from '$lib/shared/components/AppTopBar.svelte';
-	import Button from '$lib/basic/components/Button.svelte';
+	import NavRow from '$lib/shared/components/NavRow.svelte';
 	import Icon from '$lib/basic/components/Icon.svelte';
 	import type { IconName } from '$lib/basic/model/icon-paths';
 	import { profile } from '$lib/shared/state/profile.svelte';
@@ -36,69 +36,60 @@
 
 	<div class="content">
 		<section class="profile-chip-section">
-			{#if profile.displayName === null}
-				<div data-test="profile-chip-skeleton" class="skeleton">
-					<div class="skeleton-avatar"></div>
-					<div class="skeleton-name"></div>
-				</div>
-			{:else}
-				<Button
-					variant="text"
-					tone="ink"
-					size="md"
-					data-test="profile-chip"
-					onclick={() => goto(resolve('/profile'))}
-				>
-					<Avatar
-						displayName={profile.displayName}
-						size={44}
-						uid={profile.uid ?? ''}
-						avatarVersion={profile.avatarVersion}
-						data-test="profile-avatar"
-					/>
-					<span class="display-name row-title">{profile.displayName}</span>
-					<Icon name="chevron-right" size={18} />
-				</Button>
-			{/if}
+			<h2>Profile</h2>
+			<div class="nav-rows">
+				{#if profile.displayName === null}
+					<div data-test="profile-chip-skeleton" class="skeleton">
+						<div class="skeleton-avatar"></div>
+						<div class="skeleton-name"></div>
+					</div>
+				{:else}
+					<NavRow
+						title={profile.displayName}
+						data-test="profile-chip"
+						onclick={() => goto(resolve('/profile'))}
+					>
+						{#snippet lead()}
+							<Avatar
+								displayName={profile.displayName ?? ''}
+								size={44}
+								uid={profile.uid ?? ''}
+								avatarVersion={profile.avatarVersion}
+								data-test="profile-avatar"
+							/>
+						{/snippet}
+					</NavRow>
+				{/if}
+			</div>
 		</section>
 
 		<section class="preference-group">
 			<h2>People</h2>
-			<Button
-				variant="text"
-				tone="ink"
-				size="md"
-				data-test="settings-invites"
-				onclick={() => goto(resolve('/settings/invites'))}
-			>
-				<Icon name="inbox" size={20} />
-				<span class="nav-row-text">
-					<span class="nav-row-title row-title">Invites</span>
-					<span class="nav-row-sub caption"
-						>{invitations.inbox.length > 0
-							? invitations.inbox.length + ' pending'
-							: 'No pending invites'}</span
-					>
-				</span>
-				{#if invitations.inbox.length > 0}
-					<span class="nav-row-count caption mono">{invitations.inbox.length}</span>
-				{/if}
-				<Icon name="chevron-right" size={18} />
-			</Button>
-			<Button
-				variant="text"
-				tone="ink"
-				size="md"
-				data-test="settings-privacy"
-				onclick={() => goto(resolve('/settings/privacy'))}
-			>
-				<Icon name="shield" size={20} />
-				<span class="nav-row-text">
-					<span class="nav-row-title row-title">Privacy</span>
-					<span class="nav-row-sub caption">Who can invite you · circle · blocked</span>
-				</span>
-				<Icon name="chevron-right" size={18} />
-			</Button>
+			<div class="nav-rows">
+				<NavRow
+					title="Invites"
+					sub={invitations.inbox.length > 0
+						? invitations.inbox.length + ' pending'
+						: 'No pending invites'}
+					data-test="settings-invites"
+					onclick={() => goto(resolve('/settings/invites'))}
+				>
+					{#snippet lead()}<Icon name="inbox" size={20} />{/snippet}
+					{#snippet trailing()}
+						{#if invitations.inbox.length > 0}
+							<span class="nav-row-count caption mono">{invitations.inbox.length}</span>
+						{/if}
+					{/snippet}
+				</NavRow>
+				<NavRow
+					title="Privacy"
+					sub="Who can invite you · circle · blocked"
+					data-test="settings-privacy"
+					onclick={() => goto(resolve('/settings/privacy'))}
+				>
+					{#snippet lead()}<Icon name="shield" size={20} />{/snippet}
+				</NavRow>
+			</div>
 		</section>
 
 		<section class="preference-group">
@@ -146,31 +137,25 @@
 
 		<section class="preference-group">
 			<h2>Recovery</h2>
-			<Button
-				variant="text"
-				tone="ink"
-				size="md"
-				data-test="settings-deleted-lists"
-				onclick={() => goto(resolve('/settings/deleted-lists'))}
-			>
-				<Icon name="trash-2" size={20} />
-				<span class="nav-row-text">
-					<span class="nav-row-title row-title">Deleted lists</span>
-					<span class="nav-row-sub caption">Restore lists you've deleted</span>
-				</span>
-				<Icon name="chevron-right" size={18} />
-			</Button>
+			<div class="nav-rows">
+				<NavRow
+					title="Deleted lists"
+					sub="Restore lists you've deleted"
+					data-test="settings-deleted-lists"
+					onclick={() => goto(resolve('/settings/deleted-lists'))}
+				>
+					{#snippet lead()}<Icon name="trash-2" size={20} />{/snippet}
+				</NavRow>
+			</div>
 		</section>
 
 		<section class="preference-group">
 			<h2>Account</h2>
-			<Button variant="text" tone="ink" size="md" data-test="signout" onclick={signOut}>
-				<Icon name="log-out" size={20} />
-				<span class="nav-row-text">
-					<span class="nav-row-title row-title">Sign out</span>
-				</span>
-				<Icon name="chevron-right" size={18} />
-			</Button>
+			<div class="nav-rows">
+				<NavRow title="Sign out" data-test="signout" onclick={signOut}>
+					{#snippet lead()}<Icon name="log-out" size={20} />{/snippet}
+				</NavRow>
+			</div>
 		</section>
 	</div>
 </div>
@@ -187,15 +172,7 @@
 		overflow-y: auto;
 		display: flex;
 		flex-direction: column;
-	}
-
-	.profile-chip-section {
-		border-bottom: 1px solid var(--rule);
-	}
-
-	.display-name {
-		flex: 1;
-		text-align: left;
+		gap: 0.5rem;
 	}
 
 	.skeleton {
@@ -235,7 +212,8 @@
 		flex-direction: column;
 	}
 
-	.preference-group h2 {
+	.preference-group h2,
+	.profile-chip-section h2 {
 		padding: 1.375rem 1.125rem 0.5rem;
 	}
 
@@ -321,12 +299,8 @@
 		margin-top: 0.25rem;
 	}
 
-	.nav-row-text {
-		flex: 1;
-		display: flex;
-		flex-direction: column;
-	}
-
+	/* The invites count sits between the text column and NavRow's chevron;
+	   a small right margin separates it from the chevron. */
 	.nav-row-count {
 		margin-right: 0.25rem;
 	}
