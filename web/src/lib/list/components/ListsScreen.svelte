@@ -218,10 +218,6 @@
 
 	/* ── List rows ── */
 
-	.rows {
-		padding-top: 0.375rem;
-	}
-
 	.row {
 		padding: 0.875rem 1.125rem;
 	}
