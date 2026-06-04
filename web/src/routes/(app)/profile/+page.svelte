@@ -285,13 +285,6 @@
 		gap: 8px;
 	}
 
-	.field {
-		display: flex;
-		flex-direction: column;
-		gap: 8px;
-		margin-top: 28px;
-	}
-
 	.field-error {
 		margin: 6px 0 0;
 		font-size: 12px;

@@ -139,12 +139,6 @@
 		gap: 1.125rem;
 	}
 
-	.field {
-		display: flex;
-		flex-direction: column;
-		gap: 0.5rem;
-	}
-
 	/* The notes textarea is editorial serif copy — an annotated exception to the
 	   layout-only rule (it is body content the user is composing). */
 	.notes-field :global(textarea) {

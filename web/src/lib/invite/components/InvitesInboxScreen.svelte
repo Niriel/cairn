@@ -57,7 +57,7 @@
 			<ul class="list rows">
 				{#each invitations.inbox as entry (entry.id)}
 					<li class="row" data-test="inbox-row-{entry.id}">
-						<div class="row-top">
+						<div class="row-top media">
 							<Avatar
 								displayName={entry.inviterName}
 								size={36}
@@ -128,12 +128,6 @@
 		flex-direction: column;
 		gap: 0.75rem;
 		padding: 0.875rem 1.125rem;
-	}
-
-	.row-top {
-		display: flex;
-		align-items: center;
-		gap: 0.75rem;
 	}
 
 	.row-info {

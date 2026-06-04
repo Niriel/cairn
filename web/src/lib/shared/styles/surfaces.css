@@ -17,6 +17,29 @@
 	border-bottom: 1px solid var(--rule);
 }
 
+/* ── Media object ────────────────────────────────────────────────────
+   The horizontal "leading icon/avatar · text column · trailing action"
+   line — Nicole Sullivan's media object ("The media object saves hundreds
+   of lines of code", 2010). Deliberately lean: only the universal core
+   (flex + centre + the common gap). Padding, alignment overrides, and the
+   gap: 0.625rem minority stay scoped per consumer, so .media never clashes.
+   The .media-* / .media__* namespace is reserved for future variants
+   (e.g. .media-start for a flex-start line, .media-body for the text
+   column) — add one only when a second consumer needs it, not pre-minted. */
+.media {
+	display: flex;
+	align-items: center;
+	gap: 0.75rem;
+}
+
+/* ── Form field ──────────────────────────────────────────────────────
+   The label-over-control wrapper, stacked with a small gap. */
+.field {
+	display: flex;
+	flex-direction: column;
+	gap: 0.5rem;
+}
+
 /* ── Cards ───────────────────────────────────────────────────────────
    .card        — plain raised card on the page background.
    .card-alt    — tinted card (warm cream / slate), e.g. the invites banner.

@@ -126,7 +126,7 @@
 		<ul class="rows">
 			{#each items.rows as item (item.id)}
 				<li class="row" class:open={openId === item.id}>
-					<div class="row-inner">
+					<div class="row-inner media">
 						<button class="row-tap" data-test="row-{item.id}" onclick={() => toggleRow(item.id)}>
 							<span class="item-name row-title">{item.name}</span>
 							{#if item.score !== 0}
@@ -326,8 +326,6 @@
 	}
 
 	.row-inner {
-		display: flex;
-		align-items: center;
 		padding: 0.875rem 1.125rem 0.875rem 1.25rem;
 		gap: 0.625rem;
 		min-height: 3.5rem;

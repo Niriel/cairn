@@ -40,7 +40,7 @@
 	{:else}
 		<ul class="rows">
 			{#each listTrash.rows as row (row.id)}
-				<li class="row" data-test="deleted-list-row-{row.id}">
+				<li class="row media" data-test="deleted-list-row-{row.id}">
 					<div class="meta">
 						<h3 class="name">{row.name}</h3>
 						<span class="attribution caption"
@@ -80,9 +80,6 @@
 	}
 
 	.row {
-		display: flex;
-		align-items: center;
-		gap: 0.75rem;
 		padding: 0.875rem 1.125rem;
 	}
 

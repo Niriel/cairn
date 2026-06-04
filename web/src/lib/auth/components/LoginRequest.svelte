@@ -160,12 +160,6 @@
 		flex-direction: column;
 	}
 
-	.field {
-		display: flex;
-		flex-direction: column;
-		gap: 8px;
-	}
-
 	.inline-error {
 		margin-top: 8px;
 		color: var(--ember, #b00020);

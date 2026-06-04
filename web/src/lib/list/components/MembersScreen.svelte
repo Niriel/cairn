@@ -80,7 +80,7 @@
 					{#each rows as m (m.user_id)}
 						<li>
 							<button
-								class="row"
+								class="row media"
 								class:is-self={m.user_id === profile.uid}
 								data-test="member-row-{m.user_id}"
 								disabled={m.user_id === profile.uid}
@@ -167,9 +167,6 @@
 	}
 
 	.row {
-		display: flex;
-		align-items: center;
-		gap: 0.75rem;
 		padding: 0.875rem 1.125rem;
 		background: transparent;
 		border-top: none;

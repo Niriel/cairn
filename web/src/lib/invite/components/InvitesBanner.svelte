@@ -28,7 +28,7 @@
 {#if invitations.inbox.length === 1}
 	{@const entry = invitations.inbox[0]}
 	<div class="banner card-alt" data-test="invites-banner">
-		<div class="row">
+		<div class="row media">
 			<Avatar
 				displayName={entry.inviterName}
 				size={28}
@@ -81,8 +81,6 @@
 	}
 
 	.row {
-		display: flex;
-		align-items: center;
 		gap: 0.625rem;
 	}
 

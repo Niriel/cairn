@@ -87,7 +87,7 @@
 		<ul class="rows">
 			{#each lists.items as item (item.id)}
 				<li class="row" data-test="list-row-{item.id}">
-					<div class="row-top">
+					<div class="row-top media">
 						<Button
 							variant="text"
 							tone="ink"
@@ -227,8 +227,6 @@
 	}
 
 	.row-top {
-		display: flex;
-		align-items: center;
 		padding-bottom: 0.5rem;
 		border-bottom: 1px dashed var(--rule);
 	}

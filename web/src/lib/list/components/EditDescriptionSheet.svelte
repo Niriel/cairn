@@ -75,12 +75,6 @@
 </Sheet>
 
 <style>
-	.field {
-		display: flex;
-		flex-direction: column;
-		gap: 8px;
-	}
-
 	.actions {
 		display: flex;
 		gap: 10px;

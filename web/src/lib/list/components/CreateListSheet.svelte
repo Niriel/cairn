@@ -102,10 +102,4 @@
 		flex-direction: column;
 		gap: 0.75rem;
 	}
-
-	.field {
-		display: flex;
-		flex-direction: column;
-		gap: 0.5rem;
-	}
 </style>

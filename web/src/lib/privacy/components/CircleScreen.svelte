@@ -60,7 +60,7 @@
 			{#if relationships.circle.length > 0}
 				<ul class="circle-list rows">
 					{#each relationships.circle as entry (entry.otherUserId)}
-						<li class="row" data-test="circle-row-{entry.otherUserId}">
+						<li class="row media" data-test="circle-row-{entry.otherUserId}">
 							<Avatar
 								displayName={entry.displayName}
 								uid={entry.otherUserId}
@@ -152,9 +152,6 @@
 	}
 
 	.row {
-		display: flex;
-		align-items: center;
-		gap: 0.75rem;
 		padding: 0.875rem 1.125rem;
 	}
 
@@ -172,12 +169,6 @@
 	.add-card {
 		margin: 0.875rem 1.125rem 1.5rem;
 		padding: 0.875rem;
-	}
-
-	.field {
-		display: flex;
-		flex-direction: column;
-		gap: 0.5rem;
 	}
 
 	.add-input-row {

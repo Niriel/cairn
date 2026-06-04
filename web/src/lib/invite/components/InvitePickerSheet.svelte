@@ -123,7 +123,7 @@
 				<h2 class="section-label">Your circle</h2>
 				<ul class="rows">
 					{#each circleRows as row (row.otherUserId)}
-						<li class="row" data-test="invite-picker-circle-row-{row.otherUserId}">
+						<li class="row media" data-test="invite-picker-circle-row-{row.otherUserId}">
 							<Avatar
 								displayName={row.displayName}
 								size={32}
@@ -158,7 +158,7 @@
 				<h2 class="section-label">People you share other lists with</h2>
 				<ul class="rows">
 					{#each coMemberRows as row (row.userId)}
-						<li class="row" data-test="invite-picker-comember-row-{row.userId}">
+						<li class="row media" data-test="invite-picker-comember-row-{row.userId}">
 							<Avatar
 								displayName={row.displayName}
 								size={32}
@@ -249,9 +249,6 @@
 	}
 
 	.row {
-		display: flex;
-		align-items: center;
-		gap: 0.75rem;
 		padding: 0.75rem 0.25rem;
 	}
 

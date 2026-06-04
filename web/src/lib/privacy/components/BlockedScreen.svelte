@@ -34,7 +34,7 @@
 		{:else}
 			<ul class="blocked-list rows">
 				{#each relationships.blocked as entry (entry.otherUserId)}
-					<li class="row" data-test="blocked-row-{entry.otherUserId}">
+					<li class="row media" data-test="blocked-row-{entry.otherUserId}">
 						<Avatar
 							displayName={entry.displayName}
 							uid={entry.otherUserId}
@@ -75,9 +75,6 @@
 	}
 
 	.row {
-		display: flex;
-		align-items: center;
-		gap: 0.75rem;
 		padding: 0.875rem 1.125rem;
 	}
 

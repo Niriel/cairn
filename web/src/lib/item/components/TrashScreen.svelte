@@ -44,7 +44,7 @@
 	{:else}
 		<ul class="rows">
 			{#each itemTrash.rows as row (row.id)}
-				<li class="row" data-test="trash-row-{row.id}">
+				<li class="row media" data-test="trash-row-{row.id}">
 					<span class="row-icon">
 						<Icon name="rotate-ccw" size={16} />
 					</span>
@@ -98,8 +98,6 @@
 	}
 
 	.row {
-		display: flex;
-		align-items: center;
 		gap: 0.625rem;
 		padding: 0.875rem 1.125rem 0.875rem 1.25rem;
 		min-height: 3.5rem;

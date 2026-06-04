@@ -1523,10 +1523,10 @@ items.
 - The test file referenced no `role="separator"` / `<hr>`, so the RED step was a
   no-op and no test assertions changed.
 
-### [ ] 7.3 Lift the flex-line (`.media`) and `.field` layout blocks to global utilities
+### [x] 7.3 Lift the flex-line (`.media`) and `.field` layout blocks to global utilities
 
 **Created:** 2026-06-04T06:37:11Z
-**Completed:**
+**Completed:** 2026-06-04T08:57:01Z
 
 **Why:** The horizontal flex-line block and the form-field wrapper are
 copy-pasted across many files (R10). They are pure layout (so they passed R7's
@@ -1623,6 +1623,22 @@ visual-only guard) but are exactly the duplication step 9 targets.
 4. `pnpm test` green (no assertion changes expected — layout-only).
 
 **Verify:** `pnpm lint` · `pnpm check` · `pnpm test`
+
+**Notes:**
+- **`ProfileSheet` is a stale entry in the `.field` Files list** — it uses no
+  `class="field"` and has no `.field` rule, so there was nothing to lift. Left
+  untouched. (The other audited sites all lifted wholesale as predicted:
+  `AddEditItemSheet` / `CreateListSheet` were already `0.5rem`;
+  `EditDescriptionSheet` / `RenameListSheet` / `LoginRequest` / the profile route
+  were `8px` = `0.5rem`; the profile route's extra `margin-top: 28px` was dropped
+  per the task.)
+- `surfaces.css` is wired globally via `src/routes/+layout.svelte`, so `.media`
+  and `.field` reach every consumer (including the `(app)/profile` route).
+- All scoped gap deltas (`TrashScreen`, `ItemsScreen`, `InvitesBanner` at
+  `0.625rem`) keep their value: Svelte's scoped `.row.svelte-*` selector
+  outranks the plain global `.media`, so the delta wins as intended.
+- `svelte-check` reports 0 warnings — no unused-selector fallout from deleting
+  the redundant rules.
 
 ### [ ] 7.4 Extract the `<NavRow>` shared component + Vitest test
 
