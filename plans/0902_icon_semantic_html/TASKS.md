@@ -1953,10 +1953,10 @@ a proper badge.
   sits in `NavRow`'s `trailing` slot with the Button text-variant's gap, matching
   the Privacy counts.
 
-### [ ] 8.3 Create `<InviteCard>` and migrate the inbox rows + the single-invite banner
+### [x] 8.3 Create `<InviteCard>` and migrate the inbox rows + the single-invite banner
 
 **Created:** 2026-06-04T08:16:49Z
-**Completed:**
+**Completed:** 2026-06-04T10:34:39Z
 
 **Why:** The single-invitation presentation is hand-rolled twice
 (`InvitesInboxScreen` rows and `InvitesBanner`'s single-invite branch) and has
@@ -2012,6 +2012,26 @@ variant="pill">` Accept/Decline); R14 (date renders as `.caption`, not mono).
 4. `pnpm lint` · `pnpm check` · `pnpm test`.
 
 **Verify:** `pnpm lint` · `pnpm check` · `pnpm test`
+
+**Notes:**
+- **`InviteCard` takes `acceptDataTest` / `declineDataTest` props** rather than
+  baking the `data-test` in: the two consumers need different button selectors
+  (`inbox-accept-{id}` vs `invites-banner-accept`), so the prefix is threaded
+  through. The row/banner wrapper `data-test` (`inbox-row-{id}` /
+  `invites-banner`) stays on the consumer, as the existing tests expect.
+- **Converged structure, not just look.** The inbox previously rendered the list
+  name as a bare `<h3 class="list-name">` and the inviter as a `.caption` line;
+  the banner rendered both names as `<strong>` in a `.body` line. `InviteCard`
+  unifies on the banner's treatment — inviter + list name both `<strong>` inside
+  one `.body` paragraph, "invited you to" greyed. The list name is therefore **no
+  longer a heading** on the inbox screen (it never was on the banner). This is
+  the intended de-duplication; flagging the inbox's lost `<h3>` since it's a
+  semantic change beyond pure CSS.
+- **Banner gained the date and the larger avatar** per the converged-look
+  decision (28px → 36px, date now shown via `.caption`/`timeAgo`).
+- **No screen-test changes needed** — both suites key on `data-test` /
+  `textContent`, all preserved. Added `InviteCard.test.ts` (4 cases: renders
+  name/list/date, Accept/Decline fire their callbacks). 645 tests pass.
 
 ### [ ] 8.4 Drop `.mono` from the circle/blocked date labels
 

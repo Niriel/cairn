@@ -1,10 +1,9 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
-	import Avatar from '$lib/shared/components/Avatar.svelte';
 	import AppTopBar from '$lib/shared/components/AppTopBar.svelte';
-	import Button from '$lib/basic/components/Button.svelte';
 	import EmptyState from '$lib/shared/components/EmptyState.svelte';
+	import InviteCard from '$lib/invite/components/InviteCard.svelte';
 	import RefreshButton from '$lib/basic/components/RefreshButton.svelte';
 	import {
 		acceptInvitation,
@@ -12,7 +11,6 @@
 		invitations,
 		loadInbox
 	} from '$lib/invite/state/invitations.svelte';
-	import { timeAgo } from '$lib/shared/model/time-ago';
 
 	$effect(() => {
 		void loadInbox();
@@ -57,38 +55,13 @@
 			<ul class="list rows">
 				{#each invitations.inbox as entry (entry.id)}
 					<li class="row" data-test="inbox-row-{entry.id}">
-						<div class="row-top media">
-							<Avatar
-								displayName={entry.inviterName}
-								size={36}
-								uid={entry.inviterUid}
-								avatarVersion={entry.inviterAvatarVersion}
-							/>
-							<div class="row-info">
-								<p class="row-inviter caption">
-									<strong class="inviter-name">{entry.inviterName}</strong>
-									<span class="invited-label">invited you to</span>
-								</p>
-								<h3 class="list-name">{entry.listName}</h3>
-							</div>
-							<span class="when caption mono">{timeAgo(entry.createdAt)}</span>
-						</div>
-						<div class="buttons">
-							<Button
-								variant="pill"
-								tone="ink"
-								size="sm"
-								data-test="inbox-decline-{entry.id}"
-								onclick={() => void declineInvitation(entry.id)}>Decline</Button
-							>
-							<Button
-								variant="pill"
-								tone="sage"
-								size="sm"
-								data-test="inbox-accept-{entry.id}"
-								onclick={() => void handleAccept(entry.id)}>Accept</Button
-							>
-						</div>
+						<InviteCard
+							{entry}
+							acceptDataTest="inbox-accept-{entry.id}"
+							declineDataTest="inbox-decline-{entry.id}"
+							onAccept={() => void handleAccept(entry.id)}
+							onDecline={() => void declineInvitation(entry.id)}
+						/>
 					</li>
 				{/each}
 			</ul>
@@ -124,42 +97,6 @@
 	}
 
 	.row {
-		display: flex;
-		flex-direction: column;
-		gap: 0.75rem;
 		padding: 0.875rem 1.125rem;
-	}
-
-	.row-info {
-		flex: 1;
-		min-width: 0;
-	}
-
-	.row-inviter {
-		margin: 0;
-	}
-
-	/* The inviter name reads as ink against the stone caption line — emphasis
-	   colour on the <strong>, not drift. */
-	.inviter-name {
-		color: var(--ink);
-	}
-
-	.list-name {
-		margin-top: 0.125rem;
-	}
-
-	.when {
-		flex-shrink: 0;
-	}
-
-	.buttons {
-		display: flex;
-		gap: 0.5rem;
-	}
-
-	/* Both pills span the row equally; <Button> is inline-flex by default. */
-	.buttons > :global(button) {
-		flex: 1;
 	}
 </style>

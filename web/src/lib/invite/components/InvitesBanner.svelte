@@ -4,7 +4,7 @@
 	import Button from '$lib/basic/components/Button.svelte';
 	import Badge from '$lib/basic/components/Badge.svelte';
 	import Icon from '$lib/basic/components/Icon.svelte';
-	import Avatar from '$lib/shared/components/Avatar.svelte';
+	import InviteCard from '$lib/invite/components/InviteCard.svelte';
 	import {
 		acceptInvitation,
 		declineInvitation,
@@ -29,35 +29,13 @@
 {#if invitations.inbox.length === 1}
 	{@const entry = invitations.inbox[0]}
 	<div class="banner card-alt" data-test="invites-banner">
-		<div class="row media">
-			<Avatar
-				displayName={entry.inviterName}
-				size={28}
-				uid={entry.inviterUid}
-				avatarVersion={entry.inviterAvatarVersion}
-			/>
-			<p class="copy body">
-				<strong>{entry.inviterName}</strong>
-				<span class="grey">invited you to</span>
-				<strong>{entry.listName}</strong>
-			</p>
-		</div>
-		<div class="buttons">
-			<Button
-				variant="pill"
-				tone="ink"
-				size="sm"
-				data-test="invites-banner-decline"
-				onclick={() => void declineInvitation(entry.id)}>Decline</Button
-			>
-			<Button
-				variant="pill"
-				tone="sage"
-				size="sm"
-				data-test="invites-banner-accept"
-				onclick={() => void handleAccept(entry.id)}>Accept</Button
-			>
-		</div>
+		<InviteCard
+			{entry}
+			acceptDataTest="invites-banner-accept"
+			declineDataTest="invites-banner-decline"
+			onAccept={() => void handleAccept(entry.id)}
+			onDecline={() => void declineInvitation(entry.id)}
+		/>
 	</div>
 {:else if invitations.inbox.length > 1}
 	<div class="banner" data-test="invites-banner">
@@ -79,33 +57,6 @@
 	.banner {
 		margin: 0.5rem 1.125rem 0.875rem;
 		padding: 0.875rem;
-	}
-
-	.row {
-		gap: 0.625rem;
-	}
-
-	.copy {
-		flex: 1;
-		min-width: 0;
-		margin: 0;
-	}
-
-	/* "invited you to" recedes against the ink names — emphasis colour, not
-	   drift. */
-	.grey {
-		color: var(--stone);
-	}
-
-	.buttons {
-		display: flex;
-		gap: 0.5rem;
-		margin-top: 0.625rem;
-	}
-
-	/* Both pills span the row equally; <Button> is inline-flex by default. */
-	.buttons > :global(button) {
-		flex: 1;
 	}
 
 	.multi-text {
