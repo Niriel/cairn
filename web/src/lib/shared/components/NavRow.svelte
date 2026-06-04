@@ -1,0 +1,47 @@
+<script lang="ts">
+	import type { Snippet } from 'svelte';
+
+	import Button from '$lib/basic/components/Button.svelte';
+	import Icon from '$lib/basic/components/Icon.svelte';
+
+	type Props = {
+		lead: Snippet;
+		title: string;
+		sub?: string;
+		onclick?: () => void;
+		trailing?: Snippet;
+		'data-test'?: string;
+	};
+
+	let { lead, title, sub, onclick, trailing, ...rest }: Props = $props();
+</script>
+
+<!-- The .nav-row div is inert layout; the <Button> inside is the full-width
+     tap target. The class is the hook for the global .nav-rows band, which
+     draws both the outer band and the divider between adjacent rows. -->
+<div class="nav-row">
+	<Button variant="text" tone="ink" size="md" {onclick} data-test={rest['data-test']}>
+		{@render lead()}
+		<span class="nav-row-text">
+			<span class="nav-row-title row-title">{title}</span>
+			{#if sub}<span class="nav-row-sub caption">{sub}</span>{/if}
+		</span>
+		{#if trailing}{@render trailing()}{/if}
+		<Icon name="chevron-right" size={18} />
+	</Button>
+</div>
+
+<style>
+	/* The text column fills the gap between the lead visual and the trailing
+	   chevron; min-width:0 lets a long title truncate rather than overflow. */
+	.nav-row-text {
+		flex: 1;
+		min-width: 0;
+		display: flex;
+		flex-direction: column;
+	}
+
+	.nav-row-sub {
+		margin-top: 0.125rem;
+	}
+</style>

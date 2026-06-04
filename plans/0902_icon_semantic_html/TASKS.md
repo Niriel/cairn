@@ -1640,10 +1640,10 @@ visual-only guard) but are exactly the duplication step 9 targets.
 - `svelte-check` reports 0 warnings — no unused-selector fallout from deleting
   the redundant rules.
 
-### [ ] 7.4 Extract the `<NavRow>` shared component + Vitest test
+### [x] 7.4 Extract the `<NavRow>` shared component + Vitest test
 
 **Created:** 2026-06-04T06:37:11Z
-**Completed:**
+**Completed:** 2026-06-04T09:09:10Z
 
 **Why:** The nav-row shape repeats verbatim across Settings/Privacy/InvitesInbox
 (R11). Extract it once so the structure has a single home, like `<EmptyState>`.
@@ -1697,6 +1697,29 @@ tone="ink"`; global `.row-title` / `.caption` roles exist).
 3. GREEN — `pnpm test` green.
 
 **Verify:** `pnpm lint` · `pnpm check` · `pnpm test`
+
+**Notes:**
+- **Deviation (corrected decision):** the task's Decisions put the inter-row
+  divider in NavRow's *scoped* style as `.nav-row + .nav-row`, reasoning it
+  "matches between adjacent instances." That is wrong — Svelte's compiler sees
+  only one `.nav-row` in NavRow's single-row template, declares the sibling
+  selector unused, and **strips it from the emitted CSS** (confirmed by
+  compiling: the rule came out as `/* (unused) … */`). It is not just a
+  warning; the divider would never render. Caught when the user questioned the
+  selector.
+- **Fix:** moved the inter-row rule to the **global** `.nav-rows` band in
+  `surfaces.css` as `.nav-rows .nav-row + .nav-row { border-top: … }`,
+  mirroring the existing `.rows` / `.rows .row` divider model in the same file.
+  The `.nav-rows` container now owns the whole band (outer top/bottom rules +
+  inter-row dividers); NavRow keeps `.nav-row` only as the structural hook and
+  its scoped text-column layout. A scoped `<NavRows>` *component* would not have
+  fixed this either (child `.nav-row`s carry NavRow's hash, not NavRows'); only
+  global CSS or `:global()` works, and global CSS matches the established
+  pattern. User chose "global class only" — no `<NavRows>` component.
+- **Affects 7.5:** that task's "division of labour" (band draws outer, NavRow
+  draws inter-row) no longer holds — the global `.nav-rows` draws both. 7.5
+  should wrap each group in a plain `<div class="nav-rows">`; no per-NavRow
+  divider work is needed.
 
 ### [ ] 7.5 Migrate Settings/Privacy to `<NavRow>`; drop the dead `hr` reset
 

@@ -67,6 +67,23 @@
 	background: var(--paper-alt);
 }
 
+/* ── Nav-row band ────────────────────────────────────────────────────
+   Full-bleed band around a group of <NavRow>s, mirroring the .rows /
+   .rows .row divider model above: the container draws the rule above the
+   first row and below the last, plus a divider between adjacent rows. The
+   inter-row rule lives here (not scoped in NavRow) because Svelte prunes a
+   `.nav-row + .nav-row` selector it can't see a sibling for inside NavRow's
+   own single-row template. */
+.nav-rows {
+	margin: 0;
+	border-top: 1px solid var(--rule);
+	border-bottom: 1px solid var(--rule);
+}
+
+.nav-rows .nav-row + .nav-row {
+	border-top: 1px solid var(--rule);
+}
+
 /* ── Sheet handle ────────────────────────────────────────────────────
    The grab-pill at the top of a bottom sheet. 2.25rem wide; the 4px
    thickness is a fixed hairline-ish measure; the radius is a full pill.
