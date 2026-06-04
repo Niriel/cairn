@@ -72,9 +72,16 @@ $effect.root(() => {
 			lists.loading = true;
 			lists.error = null;
 			pgGet<List[]>(
-				// lists_select allows the deleter to read their own soft-deleted rows (needed for
-				// the PATCH WITH CHECK gate), so the client must filter them out explicitly.
-				'/lists?select=id,name,description,modified_at,item_count:lists_item_count,list_members(user_id,profiles(display_name,avatar_version))&list_members.deleted_at=is.null&deleted_at=is.null&order=modified_at.desc'
+				// Two client-side gates the lists_select RLS policy can't express on its own:
+				//   &deleted_at=is.null — lists_select lets the deleter read their own soft-deleted
+				//     rows (needed for the PATCH WITH CHECK gate), so filter them out here.
+				//   &lists_is_member=is.true — lists_select also lets an invitee read the row of a
+				//     list they have a pending invitation for (migration 0012, so the invite banner
+				//     can embed lists(name)); those un-accepted lists must NOT appear in the Lists
+				//     collection. The lists_is_member computed column (migration 0013) gates the
+				//     collection to lists you're actually a member of, leaving the banner embed
+				//     untouched.
+				'/lists?select=id,name,description,modified_at,item_count:lists_item_count,list_members(user_id,profiles(display_name,avatar_version))&list_members.deleted_at=is.null&deleted_at=is.null&lists_is_member=is.true&order=modified_at.desc'
 			)
 				.then((result) => {
 					lists.items = result;

@@ -79,6 +79,11 @@ test.describe.serial('invite flow', () => {
 		await expect(banner).toBeVisible();
 		await expect(banner).toContainText(`Invite test ${runId}`);
 
+		// The invited list lives in the banner only — it must NOT appear as a
+		// collection card until Bob accepts (lists_select lets him read the row
+		// for the banner embed, but the collection is gated to actual members).
+		await expect(bob.locator(`[data-test="list-row-${listId}"]`)).toHaveCount(0);
+
 		await bob.locator('[data-test="invites-banner-accept"]').click();
 		await expect(bob).toHaveURL(new RegExp(`/lists/${listId}$`));
 	});
