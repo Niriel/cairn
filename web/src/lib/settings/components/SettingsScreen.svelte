@@ -2,6 +2,7 @@
 	import Avatar from '$lib/shared/components/Avatar.svelte';
 	import AppTopBar from '$lib/shared/components/AppTopBar.svelte';
 	import NavRow from '$lib/shared/components/NavRow.svelte';
+	import Badge from '$lib/basic/components/Badge.svelte';
 	import Icon from '$lib/basic/components/Icon.svelte';
 	import type { IconName } from '$lib/basic/model/icon-paths';
 	import { profile } from '$lib/shared/state/profile.svelte';
@@ -77,7 +78,7 @@
 					{#snippet lead()}<Icon name="inbox" size={20} />{/snippet}
 					{#snippet trailing()}
 						{#if invitations.inbox.length > 0}
-							<span class="nav-row-count caption mono">{invitations.inbox.length}</span>
+							<Badge tone="primary">{invitations.inbox.length}</Badge>
 						{/if}
 					{/snippet}
 				</NavRow>
@@ -297,11 +298,5 @@
 
 	.preview-sub {
 		margin-top: 0.25rem;
-	}
-
-	/* The invites count sits between the text column and NavRow's chevron;
-	   a small right margin separates it from the chevron. */
-	.nav-row-count {
-		margin-right: 0.25rem;
 	}
 </style>

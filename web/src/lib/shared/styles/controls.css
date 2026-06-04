@@ -6,11 +6,11 @@
    class="badge badge-score mono positive|negative". */
 
 /* ── Badges ──────────────────────────────────────────────────────────
-   .badge       — the pill base: an inline-flex, centred pill.
-   .badge-ink   — filled dark count (ink background, paper text).
-   .badge-soft  — outlined muted count (paper-alt fill, rule border).
-   .badge-score — tonal only; pairs with .positive / .negative. Inherits the
-                  pill base and takes its font from .mono. */
+   .badge         — the pill base: an inline-flex, centred pill.
+   .badge-primary — filled earth/accent count (accent background, paper text).
+   .badge-soft    — outlined muted count (paper-alt fill, rule border).
+   .badge-score   — tonal only; pairs with .positive / .negative. Inherits the
+                    pill base and takes its font from .mono. */
 .badge {
 	display: inline-flex;
 	align-items: center;
@@ -24,8 +24,8 @@
 	flex-shrink: 0;
 }
 
-.badge-ink {
-	background: var(--ink);
+.badge-primary {
+	background: var(--accent);
 	color: var(--paper);
 }
 

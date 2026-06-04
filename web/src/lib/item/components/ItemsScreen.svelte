@@ -17,6 +17,7 @@
 
 	import TopBar from '$lib/shared/components/TopBar.svelte';
 	import Button from '$lib/basic/components/Button.svelte';
+	import Badge from '$lib/basic/components/Badge.svelte';
 	import IconButton from '$lib/basic/components/IconButton.svelte';
 	import MoreButton from '$lib/shared/components/MoreButton.svelte';
 	import UndoSnackbar from '$lib/shared/components/UndoSnackbar.svelte';
@@ -130,13 +131,9 @@
 						<button class="row-tap" data-test="row-{item.id}" onclick={() => toggleRow(item.id)}>
 							<span class="item-name row-title">{item.name}</span>
 							{#if item.score !== 0}
-								<span
-									class="score-badge badge badge-score mono"
-									class:positive={item.score > 0}
-									class:negative={item.score < 0}
-								>
+								<Badge tone="score" sign={item.score > 0 ? 'positive' : 'negative'}>
 									{item.score > 0 ? '+' : ''}{item.score}
-								</span>
+								</Badge>
 							{/if}
 						</button>
 						<VoteControl

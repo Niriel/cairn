@@ -2,6 +2,7 @@
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import Button from '$lib/basic/components/Button.svelte';
+	import Badge from '$lib/basic/components/Badge.svelte';
 	import Icon from '$lib/basic/components/Icon.svelte';
 	import AppTopBar from '$lib/shared/components/AppTopBar.svelte';
 	import NavRow from '$lib/shared/components/NavRow.svelte';
@@ -125,9 +126,7 @@
 					{#snippet lead()}<Icon name="users" size={20} />{/snippet}
 					{#snippet trailing()}
 						{#if relationships.loaded}
-							<span class="badge badge-soft" data-test="circle-count"
-								>{relationships.circle.length}</span
-							>
+							<Badge tone="soft" data-test="circle-count">{relationships.circle.length}</Badge>
 						{/if}
 					{/snippet}
 				</NavRow>
@@ -140,9 +139,7 @@
 					{#snippet lead()}<Icon name="slash" size={20} />{/snippet}
 					{#snippet trailing()}
 						{#if relationships.loaded}
-							<span class="badge badge-soft" data-test="blocked-count"
-								>{relationships.blocked.length}</span
-							>
+							<Badge tone="soft" data-test="blocked-count">{relationships.blocked.length}</Badge>
 						{/if}
 					{/snippet}
 				</NavRow>

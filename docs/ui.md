@@ -601,10 +601,14 @@ Recurring bits of markup live as shared components in
 well as `<EmptyState>` (above) and `<NavRow>` (the chevron nav-row), two more
 were extracted during this work:
 
-- **`<Badge>`** — the small pill/figure shown beside a name or count: tones
-  `ink` (solid dark), `soft` (muted fill), and `score` (the aggregate-score
-  badge, sage for positive and ember for negative; a score of zero renders no
-  badge). This reverses the earlier "no shared `<Badge>` in v1"
+- **`<Badge>`** (a `basic/` primitive, peer of `<Button>`) — the small
+  pill/figure shown beside a name or count: tones `primary` (filled
+  earth/accent — the attention/notification count, e.g. the Settings invites
+  count and the multi-invite banner; same `primary`↔`var(--accent)` mapping as
+  `<Button tone="primary">`), `soft` (outlined muted fill — informational
+  counts like the Privacy circle / blocked totals), and `score` (the
+  aggregate-score badge, sage for positive and ember for negative; a score of
+  zero renders no badge). This reverses the earlier "no shared `<Badge>` in v1"
   non-requirement — screens use `<Badge>` instead of hand-rolled badge spans.
 - **`<InviteCard>`** — the invite row used by the inbox list and the
   single-invite banner, so both render identical invite markup.

@@ -2,6 +2,7 @@
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import Button from '$lib/basic/components/Button.svelte';
+	import Badge from '$lib/basic/components/Badge.svelte';
 	import Icon from '$lib/basic/components/Icon.svelte';
 	import Avatar from '$lib/shared/components/Avatar.svelte';
 	import {
@@ -67,7 +68,7 @@
 			data-test="invites-banner-multi"
 			onclick={() => void goto(resolve('/settings/invites'))}
 		>
-			<span class="badge badge-ink">{invitations.inbox.length}</span>
+			<Badge tone="primary">{invitations.inbox.length}</Badge>
 			<h3 class="multi-text">{invitations.inbox.length} pending invites</h3>
 			<Icon name="chevron-right" size={18} />
 		</Button>

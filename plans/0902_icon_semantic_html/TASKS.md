@@ -1873,10 +1873,10 @@ numerics-only and added an explicit "dates are caption prose, never mono" note,
 plus a new **Shared components** subsection recording `<Badge>` and
 `<InviteCard>`.
 
-### [ ] 8.2 Create `<Badge>` and migrate the badge sites + the Settings invites count
+### [x] 8.2 Create `<Badge>` and migrate the badge sites + the Settings invites count
 
 **Created:** 2026-06-04T08:16:49Z
-**Completed:**
+**Completed:** 2026-06-04T09:53:49Z
 
 **Why:** The pill badge is rendered as raw `<span class="badge badge-* …">` at
 four sites, and the Settings invites count is plain mono text that should be a
@@ -1933,6 +1933,25 @@ a proper badge.
 4. `pnpm lint` · `pnpm check` · `pnpm test`.
 
 **Verify:** `pnpm lint` · `pnpm check` · `pnpm test`
+
+**Notes:**
+- **User correction — badge tones.** The task specified `ink` / `soft` /
+  `score` with the Settings invites count and the multi-invite banner as `ink`.
+  The user redirected: drop the `ink` tone entirely and use a filled
+  **earth/accent** tone instead, named `primary` (the established `<Button>`
+  tone-name convention — `accent` is only the raw colour token `var(--accent)`,
+  whereas component tones speak `primary`). Final tone set is now
+  **`primary` / `soft` / `score`**. Both former-`ink` sites (Settings count,
+  banner multi-count) use `tone="primary"`; the `.badge-ink` class was removed
+  from `controls.css` and a new `.badge-primary` (filled `var(--accent)`,
+  `var(--paper)` text) added.
+- **Doc reconciliation.** Updated the `docs/ui.md` "Shared components" note
+  (written in 8.1) to the new tone set and to record `<Badge>` as a `basic/`
+  primitive (peer of `<Button>`), not a `shared/` component.
+- `score-badge` class dropped from `ItemsScreen` — no test or CSS selected it.
+- `.nav-row-count` rule deleted from `SettingsScreen` as planned; the Badge
+  sits in `NavRow`'s `trailing` slot with the Button text-variant's gap, matching
+  the Privacy counts.
 
 ### [ ] 8.3 Create `<InviteCard>` and migrate the inbox rows + the single-invite banner
 
