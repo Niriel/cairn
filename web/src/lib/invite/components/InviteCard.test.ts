@@ -1,5 +1,5 @@
 import { fireEvent } from '@testing-library/svelte';
-import { describe, expect, test, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
 import { render } from '$lib/test/render';
 
@@ -20,6 +20,17 @@ const ENTRY: InboxEntry = {
 };
 
 describe('InviteCard', () => {
+	// timeAgo reads the wall clock; pin it just after the fixture's createdAt
+	// so the relative-date assertion stays deterministic.
+	beforeEach(() => {
+		vi.useFakeTimers();
+		vi.setSystemTime(new Date('2026-05-11T10:00:00Z'));
+	});
+
+	afterEach(() => {
+		vi.useRealTimers();
+	});
+
 	test('renders the inviter name and list name', () => {
 		const { container } = render(InviteCard, {
 			entry: ENTRY,
