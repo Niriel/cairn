@@ -413,10 +413,10 @@ re-derive them).
 
 **Verify:** `POSTGRES_PASSWORD=x AUTHENTICATOR_PASSWORD=x GOTRUE_PASSWORD=x JWT_SECRET=x docker compose config >/dev/null` (dev still valid) · `docker compose -f docker-compose.yml config 2>/dev/null | grep -c 'published:'` returns `0`
 
-### [ ] 3.2 Add `docker-compose.prod.yml`
+### [x] 3.2 Add `docker-compose.prod.yml`
 
 **Created:** 2026-06-10T13:55:00Z
-**Completed:**
+**Completed:** 2026-06-10T13:11:37Z
 
 **Why:** With the base now publishing nothing (Task 3.1), the prod override
 adds only what production needs: Caddy's public ports + prod Caddyfile, a
