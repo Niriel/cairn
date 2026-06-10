@@ -28,6 +28,10 @@ pre-commit:
       root: 'auth-proxy/'
       glob: 'auth-proxy/**/*.{ts,js}'
       run: pnpm exec eslint --no-error-on-unmatched-pattern {staged_files}
+    prettier-auth-proxy:
+      root: 'auth-proxy/'
+      glob: 'auth-proxy/**/*.{ts,js,json,yaml,yml}'
+      run: pnpm exec prettier --check --ignore-unknown {staged_files}
     sqlfluff:
       glob: '{db,scripts}/**/*.sql'
       run: sqlfluff lint {staged_files}
