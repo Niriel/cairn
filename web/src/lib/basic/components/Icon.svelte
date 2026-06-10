@@ -3,7 +3,9 @@
 
 	type Props = {
 		name: IconName;
-		size?: number;
+		// A bare number renders as px (e.g. 20 → width="20"); a unit string is
+		// rendered verbatim (e.g. "1em") so an icon can scale with its context.
+		size?: number | string;
 		'data-test'?: string;
 	};
 

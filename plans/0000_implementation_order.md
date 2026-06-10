@@ -229,6 +229,15 @@ in-flight branch for no gain.
      top-level CSS (or extract a shared component where the same
      pattern recurs). Accessibility benefit is real too — landmarks,
      heading hierarchy, and list semantics all become free.
+   - **Row/sheet/menu separators are CSS borders between siblings,
+     not `<hr>`.** [Reconsidered — the original prescription, "replace
+     `border-bottom`-as-separator with `<hr>`", was reversed in plan
+     0902, R9.] A divider between adjacent sibling rows is
+     presentational, not semantic: keep it as a `1px solid var(--rule)`
+     border on the adjacent siblings (`.rows .row`, `.menu > li + li`,
+     `nav-row + nav-row`). `<hr>` is not used — it is invalid as a
+     direct `<ul>` child and carries no useful document semantics here,
+     and the global `hr` reset is dropped once the last `<hr>` is gone.
 
    Aim is to minimise repetition without exploding the API; if a shape
    only appears once, keep it inline rather than minting a variant for

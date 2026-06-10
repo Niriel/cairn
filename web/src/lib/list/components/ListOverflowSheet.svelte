@@ -2,8 +2,9 @@
 	import { tick } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
-	import Sheet from '$lib/basic/components/Sheet.svelte';
+	import Button from '$lib/basic/components/Button.svelte';
 	import Icon from '$lib/basic/components/Icon.svelte';
+	import Sheet from '$lib/basic/components/Sheet.svelte';
 	import ButtonPair from '$lib/shared/components/ButtonPair.svelte';
 	import { deleteList, refreshLists } from '$lib/list/state/lists.svelte';
 	import { pgPatch } from '$lib/shared/http/postgrest';
@@ -76,63 +77,109 @@
 </script>
 
 <Sheet open={true} {onclose}>
-	<div class="handle"></div>
-	<div class="header">
-		<div class="list-name">{listName}</div>
-		<div class="meta">{meta}</div>
-	</div>
-	<button class="row" data-test="list-overflow-rename" onclick={() => (showRename = true)}>
-		<Icon name="pencil" size={18} />
-		<span class="label">Rename list</span>
-	</button>
-	<button
-		class="row"
-		data-test="list-overflow-edit-description"
-		onclick={() => (showEditDescription = true)}
-	>
-		<Icon name="feather" size={18} />
-		<span class="label">Edit description</span>
-	</button>
-	<button class="row" data-test="list-overflow-manage-members" onclick={goManageMembers}>
-		<Icon name="users" size={18} />
-		<span class="label">Manage members</span>
-	</button>
-	<button class="row" data-test="list-overflow-view-trash" onclick={onviewtrash}>
-		<Icon name="trash-2" size={18} />
-		<span class="label">View bin</span>
-	</button>
-	{#if confirmingLeave}
-		<div class="confirm">
-			<p class="confirm-copy">
-				Leave {listName}? You'll have to be re-invited to rejoin.
-			</p>
-			<ButtonPair>
-				{#snippet left()}
-					<button class="confirm-cancel" onclick={() => (confirmingLeave = false)}>Cancel</button>
-				{/snippet}
-				{#snippet right()}
-					<button
-						class="confirm-leave"
-						data-test="list-overflow-leave-confirm"
-						onclick={() => void handleLeave()}>Leave</button
-					>
-				{/snippet}
-			</ButtonPair>
-		</div>
-	{:else}
-		<button class="row" data-test="list-overflow-leave" onclick={() => (confirmingLeave = true)}>
-			<Icon name="log-out" size={18} />
-			<span class="label">Leave list</span>
-		</button>
-	{/if}
-	<button
-		class="row row-delete"
-		data-test="list-overflow-delete"
-		onclick={() => void handleDelete()}
-	>
-		<Icon name="trash" size={18} />
-		<span class="label">Delete list</span>
-	</button>
+	<div class="sheet-handle"></div>
+	<header class="header">
+		<h2 class="t-sheet">{listName}</h2>
+		<p class="meta caption">{meta}</p>
+	</header>
+	<ul class="menu">
+		<li>
+			<Button
+				variant="text"
+				tone="ink"
+				size="md"
+				data-test="list-overflow-rename"
+				onclick={() => (showRename = true)}
+			>
+				<Icon name="pencil" size={18} />
+				<span class="body">Rename list</span>
+			</Button>
+		</li>
+		<li>
+			<Button
+				variant="text"
+				tone="ink"
+				size="md"
+				data-test="list-overflow-edit-description"
+				onclick={() => (showEditDescription = true)}
+			>
+				<Icon name="feather" size={18} />
+				<span class="body">Edit description</span>
+			</Button>
+		</li>
+		<li>
+			<Button
+				variant="text"
+				tone="ink"
+				size="md"
+				data-test="list-overflow-manage-members"
+				onclick={goManageMembers}
+			>
+				<Icon name="users" size={18} />
+				<span class="body">Manage members</span>
+			</Button>
+		</li>
+		<li>
+			<Button
+				variant="text"
+				tone="ink"
+				size="md"
+				data-test="list-overflow-view-trash"
+				onclick={onviewtrash}
+			>
+				<Icon name="trash-2" size={18} />
+				<span class="body">View bin</span>
+			</Button>
+		</li>
+		{#if confirmingLeave}
+			<li class="confirm">
+				<p class="confirm-copy body">
+					Leave {listName}? You'll have to be re-invited to rejoin.
+				</p>
+				<ButtonPair>
+					{#snippet left()}
+						<Button variant="rect" tone="ink" size="md" onclick={() => (confirmingLeave = false)}
+							>Cancel</Button
+						>
+					{/snippet}
+					{#snippet right()}
+						<Button
+							variant="rect"
+							tone="destructive"
+							size="md"
+							data-test="list-overflow-leave-confirm"
+							onclick={() => void handleLeave()}>Leave</Button
+						>
+					{/snippet}
+				</ButtonPair>
+			</li>
+		{:else}
+			<li>
+				<Button
+					variant="text"
+					tone="ink"
+					size="md"
+					data-test="list-overflow-leave"
+					onclick={() => (confirmingLeave = true)}
+				>
+					<Icon name="log-out" size={18} />
+					<span class="body">Leave list</span>
+				</Button>
+			</li>
+		{/if}
+		<li>
+			<Button
+				variant="text"
+				tone="destructive"
+				size="md"
+				data-test="list-overflow-delete"
+				onclick={() => void handleDelete()}
+			>
+				<Icon name="trash" size={18} />
+				<span class="body">Delete list</span>
+			</Button>
+		</li>
+	</ul>
 </Sheet>
 
 {#if showRename}
@@ -148,93 +195,36 @@
 {/if}
 
 <style>
-	.handle {
-		width: 36px;
-		height: 4px;
-		border-radius: 99px;
-		background: var(--stone-lt);
-		margin: 0 auto 14px;
-	}
-
 	.header {
-		padding: 0 22px 14px;
+		padding: 0 1.375rem 0.875rem;
 		border-bottom: 1px solid var(--rule);
-	}
-
-	.list-name {
-		font-family: 'Newsreader Variable', Georgia, serif;
-		font-size: 18px;
-		font-weight: 500;
-		color: var(--ink);
 	}
 
 	.meta {
-		font-size: 12px;
-		color: var(--stone);
-		margin-top: 2px;
+		margin-top: 0.125rem;
 	}
 
-	.row {
-		display: flex;
-		align-items: center;
-		gap: 14px;
-		padding: 14px 22px;
+	.menu :global(button) {
+		padding: 0.875rem 1.375rem;
+		gap: 0.875rem;
+	}
+
+	/* Full-bleed band: a hairline above the first action and below the last,
+	   plus a divider between each adjacent pair. */
+	.menu {
+		border-top: 1px solid var(--rule);
 		border-bottom: 1px solid var(--rule);
-		width: 100%;
-		background: none;
-		border-left: none;
-		border-right: none;
-		border-top: none;
-		text-align: left;
-		cursor: pointer;
-		color: var(--ink);
-		font: inherit;
 	}
 
-	.row:last-of-type {
-		border-bottom: none;
-	}
-
-	.row-delete {
-		color: var(--ember);
-	}
-
-	.label {
-		font-size: 15px;
-		font-weight: 500;
+	.menu > li + li {
+		border-top: 1px solid var(--rule);
 	}
 
 	.confirm {
-		padding: 14px 22px;
-		border-bottom: 1px solid var(--rule);
+		padding: 0.875rem 1.375rem;
 	}
 
 	.confirm-copy {
-		margin: 0 0 10px;
-		font-size: 13.5px;
-		color: var(--ink);
-		line-height: 1.4;
-	}
-
-	.confirm-cancel,
-	.confirm-leave {
-		padding: 8px 14px;
-		border-radius: 999px;
-		font-size: 13px;
-		font-weight: 600;
-		font-family: inherit;
-		cursor: pointer;
-	}
-
-	.confirm-cancel {
-		border: 1px solid var(--rule);
-		background: transparent;
-		color: var(--stone);
-	}
-
-	.confirm-leave {
-		border: none;
-		background: var(--ember);
-		color: #fff;
+		margin: 0 0 0.625rem;
 	}
 </style>

@@ -56,10 +56,15 @@ Read everything in the plan directory (`REQUIREMENTS.md`,
   single file, not a three-file directory).
 - **For any plan that builds UI screens**: the relevant JSX
   functions in `design/cairn-screens.jsx` and `design/cairn-ui.jsx`
-  — compare the plan's pixel values, layout decisions, and component
-  structure against the design mockups. Flag discrepancies where the
-  plan specifies different dimensions, colours, copy, or component
-  structure than the JSX. Also check for inconsistencies *within*
+  — compare the plan's **layout, structure, proportions, and copy**
+  against the design mockups. The JSX is a layout/structure reference
+  only; its raw colors and typography are *not* the source of truth.
+  Colors and type come from the official design tokens and global CSS
+  (`tokens.css`, `typography.css`, and the conventions in `docs/ui.md`).
+  So flag two kinds of discrepancy: (a) the plan's layout/structure/copy
+  diverges from the JSX; and (b) the plan hard-codes a color or font
+  value (lifted from the JSX or invented) where it should reference an
+  official token / global rule. Also check for inconsistencies *within*
   the JSX itself (e.g., two mocks of the same screen disagree on
   ordering or copy) — the plan must pick a canonical answer when
   the design is ambiguous.
@@ -143,13 +148,18 @@ fact, so a thin one is still worth raising.
   doc is purely descriptive of an unbuilt area, expensive when
   the described thing is already shipped.
 - **Design spec deviations** — for UI plans, mismatches between
-  what the plan specifies and what the JSX in `design/` shows:
-  wrong font sizes, incorrect padding/margin values, wrong colors
-  or color variables, missing or extra UI elements, incorrect copy,
-  structural differences in component layout. Also raise
-  inconsistencies *within* the JSX (two mockups of the same screen
-  that contradict each other) when the plan hasn't resolved the
-  ambiguity — the executor will make an arbitrary choice.
+  what the plan specifies and the **layout** the JSX in `design/`
+  shows: incorrect padding/margin/proportion values, missing or
+  extra UI elements, incorrect copy, structural differences in
+  component layout. Colors and typography are *not* judged against
+  the JSX — they come from the official tokens and global CSS
+  (`tokens.css`, `typography.css`, `docs/ui.md`). Instead, raise the
+  inverse here: a plan that hard-codes a color or font value (whether
+  lifted from the JSX or invented) where it should reference an
+  official token / global rule. Also raise inconsistencies *within*
+  the JSX (two mockups of the same screen that contradict each other)
+  when the plan hasn't resolved the ambiguity — the executor will make
+  an arbitrary choice.
 - **UX concerns** — interactions that violate the principle of
   least surprise (unexpected behaviour, hidden state changes,
   silent failures), missing or unclear feedback, awkward flows

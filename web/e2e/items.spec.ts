@@ -184,6 +184,6 @@ test.describe.serial('items flow', () => {
 
 		await expect(page.locator('[data-test="items-empty"]')).toBeVisible();
 		await expect(page.locator('[data-test="items-empty"]')).toContainText('Nothing here yet');
-		await expect(page.locator('.empty-cta')).toContainText('Add the first item');
+		await expect(page.getByRole('button', { name: 'Add the first item' })).toBeVisible();
 	});
 });

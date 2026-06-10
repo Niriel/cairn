@@ -24,10 +24,10 @@
 
 ## Phase 1 — 0901: Form primitives (buttons + inputs)
 
-### [ ] 1.1 Plan and implement sub-step 0901 (Button extensions + TextInput / Textarea / Label + migration)
+### [x] 1.1 Plan and implement sub-step 0901 (Button extensions + TextInput / Textarea / Label + migration)
 
 **Created:** 2026-05-29T13:00:09Z
-**Completed:**
+**Completed:** 2026-05-30T07:44:05Z
 
 **Why:** Form primitives are the larger of the two refactor halves
 — ~25 raw `<button>` sites and ~11 raw `<input>` / `<textarea>`
@@ -173,23 +173,82 @@ the empty-state CTAs.
 
 ---
 
+## Phase 1b — Labels sweep (added during 0901 execution)
+
+### [x] 1.2 Audit every form and ensure all inputs have a `<Label>`
+
+**Created:** 2026-05-30T06:16:12Z
+**Completed:** 2026-05-30T07:49:16Z
+
+**Notes:** The 0901 sweep had already added `<Label>` + `.field` wrapping to every non-carve-out input. Confirmed audit results:
+- All nine `<TextInput>` / `<Textarea>` call sites have a `<Label>` sibling inside a `.field` div.
+- `AvatarSourceSheet.svelte` — two `sr-only` hidden file inputs triggered by buttons; explicit carve-out, no labels needed.
+- `InvitePickerSheet.svelte` — uses raw `<label class="section-label email-label" for="…">` as section heading; explicit carve-out per task decisions.
+No files were changed; `pnpm lint` · `pnpm check` · `pnpm test` all green.
+
+**Why:** During 0901 input migration it became clear that placeholder-only
+forms are the norm across the codebase (list sheets, auth, profile, invites)
+but the design direction is labels everywhere. Every `<TextInput>`,
+`<Textarea>`, and raw `<input>` / `<textarea>` that 0901 migrates or leaves
+in place should have a visible `<Label>` above it. This task audits the
+post-0901 state and adds the missing labels in a single sweep.
+
+**Prerequisites:** Task 1.1 (0901 merged) — all input primitives exist and
+the migration sweep is done; this task only adds `<Label>` wrappers to
+the remaining label-less inputs.
+
+**Decisions:**
+- Every input that lacks a `<Label>` in a user-facing form gets one. Use
+  `<Label for="…">` + an `id` on the input. Wrap the pair in
+  `<div class="field">` with `display: flex; flex-direction: column; gap: 8px`
+  (the pattern established in LoginRequest task 4.2 and the list sheets
+  task 4.3).
+- Label text: short noun phrase matching the field's purpose. If there's
+  already a placeholder, the label can be that word without the "(optional)"
+  suffix — move "optional" to a `<p class="hint">` below the field if needed.
+- Carve-outs: `InvitePickerSheet` email row (inline with submit — no space
+  for a label; placeholder "E-mail address" suffices); any search/filter
+  input that is purely icon-decorated. Document these explicitly.
+- `onkeydown` handlers passed to `<TextInput>` / `<Textarea>` must be
+  annotated as `(e: KeyboardEvent) =>` in call sites (ESLint
+  `no-unsafe-member-access` fires otherwise — discovered in task 4.3).
+
+**Files:** (audit first, then list — roughly)
+- All files touched by 0901 tasks 4.2–4.6 that still lack a `<Label>`
+- Any remaining `<input>` / `<textarea>` outside 0901's scope
+
+**Steps:**
+1. `grep -rn '<input\|<textarea\|<TextInput\|<Textarea' web/src --include='*.svelte'`
+   and for each hit confirm a sibling `<Label>` exists. Build a list of
+   label-less fields.
+2. For each label-less field: add `<Label for="…">` + `id` on the input,
+   wrap in `.field`, add scoped `.field` CSS if not already present.
+3. Annotate any bare `(e) =>` `onkeydown` handlers in the changed files
+   as `(e: KeyboardEvent) =>`.
+4. Run `pnpm lint` · `pnpm check` · `pnpm test` — must be green.
+5. Commit `feat(forms): add missing labels to all form inputs`.
+
+**Verify:** `pnpm lint` · `pnpm check` · `pnpm test`
+
+---
+
 ## Phase 2 — 0902: Icon colour prop + semantic HTML + `<EmptyState>`
 
-### [ ] 2.1 Plan and implement sub-step 0902 (Icon `color` prop + global typography + semantic-HTML sweep + `<EmptyState>`)
+### [ ] 2.1 Plan and implement sub-step 0902 (global typography + semantic-HTML sweep + `<EmptyState>`)
 
 **Created:** 2026-05-29T13:00:09Z
 **Completed:**
 
-**Why:** Completes the step-9 cleanup — `Icon` gains the `color`
-prop the audit calls for, the pure-colour wrapper spans go away,
-the recurring typography lifts to global rules keyed off semantic
-tags, the div-heavy markup turns into proper `<header>` / `<h1>` /
-`<h2>` / `<ul>` / `<li>` structures across every screen and sheet,
-and the duplicated empty-state visual collapses into a single
-`<EmptyState>` component. The result is a screen inventory built
-on semantic HTML with one source of truth for typography — which
-is what makes the post-step-9 plans (account deletion, admin,
-export, PWA, legal) cheap to add without retrofitting consistency.
+**Why:** Completes the step-9 cleanup — the recurring typography
+lifts to global rules keyed off semantic tags, the div-heavy markup
+turns into proper `<header>` / `<h1>` / `<h2>` / `<ul>` / `<li>`
+structures across every screen and sheet, and the duplicated
+empty-state visual collapses into a single `<EmptyState>` component.
+The result is a screen inventory built on semantic HTML with one
+source of truth for typography — which is what makes the post-step-9
+plans (account deletion, admin, export, PWA, legal) cheap to add
+without retrofitting consistency. (R9 and R10 were reconsidered
+during 0902 planning — see Non-requirements in 0900 REQUIREMENTS.md.)
 
 **Prerequisites:** Task 1.1 merged — `0900_refactor_css_components`
 contains the migrated form primitives. The semantic-HTML sweep is
@@ -201,16 +260,13 @@ markup-only on top of the migrated buttons / inputs; sequencing
 - Sub-branch is cut from the updated `0900_refactor_css_components`
   (post-0901 merge).
 - Scope (from REQUIREMENTS.md):
-  - R9: `<Icon>` gains `color?: string`, defaulting to
-    `'currentColor'`. The SVG `stroke` reads from the prop.
-    Precedent: `CairnGlyph.svelte` already has this exact shape.
-  - R10: every purely-cosmetic icon-colour wrapper (e.g.
-    `.row-icon` in `TrashScreen.svelte`) is removed; the colour
-    moves to `<Icon color="var(--…)" />`. Layout-bearing wrappers
-    (`.icon-wrap` in `DeleteItemSheet.svelte`, `.icon-disc` in
-    `LoginCheck.svelte`, the spin wrapper in
-    `RefreshButton.svelte`) **stay** — they carry sizing /
-    background / animation, not just colour.
+  - R9: **Reconsidered in 0902 — see 0900 REQUIREMENTS
+    Non-requirements.** `stroke="currentColor"` already handles
+    colour via CSS inheritance; no explicit prop is needed.
+  - R10: **Reconsidered in 0902 — see 0900 REQUIREMENTS
+    Non-requirements.** Without R9's prop, cosmetic colour
+    wrappers like `.row-icon` have no destination for their
+    colour and are left as-is.
   - R11: `web/src/lib/shared/styles/typography.css` gains rules
     keyed off semantic tags (`h1`, `h2`, `h3`, `section`, `ul` /
     `ol`, plus `.hint` and `.hint-error` for the input hint /
@@ -242,17 +298,18 @@ markup-only on top of the migrated buttons / inputs; sequencing
     `web/src/lib/shared/components/EmptyState.svelte` (per the
     PLAN tier-rule decision — empty-state is an application
     primitive, not framework-primitive). Props per REQUIREMENTS
-    R13: `variant: 'illustrated' | 'simple'` (default
-    `'illustrated'`), `icon`, optional `title` (required when
-    illustrated, omitted when simple), `body`, and an optional
-    CTA slot **or** `ctaLabel + onCta` pair (sub-plan's
-    exploration phase picks one — applies only to the
-    illustrated variant). Co-located Vitest test covers both
-    variants. The audited inventory:
-    - *Illustrated* — `ListsScreen.svelte`, `ItemsScreen.svelte`,
-      `InvitesInboxScreen.svelte`, `DeletedListsScreen.svelte`.
-    - *Simple* — `BlockedScreen.svelte` (the existing dashed-box
-      empty state at line 27–87).
+    R13: **no `variant` prop** — one illustrated shape used
+    everywhere; `icon` (or `iconContent` snippet), optional
+    `title`, optional `body`, and an optional `ctaLabel + onCta`
+    pair (CTA rendered only when both are supplied). Co-located
+    Vitest test covers the component. The audited inventory —
+    every screen below adopts the same illustrated look:
+    - `ListsScreen.svelte`, `ItemsScreen.svelte`,
+      `InvitesInboxScreen.svelte`, `DeletedListsScreen.svelte`,
+      `TrashScreen.svelte`.
+    - `BlockedScreen.svelte` (the existing dashed-box empty state
+      at line 27–87) is brought onto the same look, not kept as a
+      separate variant.
     - `CircleScreen` does **not** have an empty state — the
       earlier inventory claim was wrong; out of scope.
   - R14: existing component tests pass without assertion edits.
@@ -260,18 +317,15 @@ markup-only on top of the migrated buttons / inputs; sequencing
     searched for `.row` becomes one that uses `getByRole('listitem')`).
     Each migration task lists the matching `.test.ts` file in its
     Files list per CLAUDE.md "Tests out of sync".
-- **Order matters inside the sub-plan**: (a) `<Icon>` `color` prop +
-  Icon.test.ts update + the single canonical wrapper removal in
-  `TrashScreen.svelte` — small, isolated, low risk; surfaces any
-  hidden Icon-rendering coupling early. (b) lift typography rules
+- **Order matters inside the sub-plan**: (a) lift typography rules
   to `typography.css` — write the rules, then confirm the existing
   duplicated class rules in screens still cascade correctly (don't
-  remove them yet; the per-screen sweep does that). (c)
+  remove them yet; the per-screen sweep does that). (b)
   `<EmptyState>` extraction + Vitest test — primitive-first.
-  (d) `InvitePickerSheet.svelte` semantic refactor (canonical
-  case). (e) the rest of the screen / sheet sweep, one task per
-  file. (f) cleanup task that removes the now-dead duplicated
-  typography classes per screen.
+  (c) `InvitePickerSheet.svelte` semantic refactor (canonical
+  case). (d) the rest of the screen / sheet sweep, one task per
+  file. (e) empty-state migration tasks. (f) cleanup task that
+  removes the now-dead duplicated typography classes per screen.
 - The `.hint` / `.hint-error` rule that R6 left to 0902 lands
   with the typography lift (task b).
 - **Visual sweep against the design canvas** before merging.
@@ -307,11 +361,15 @@ markup-only on top of the migrated buttons / inputs; sequencing
 `0900_refactor_css_components` after merge. Open every screen
 listed in REQUIREMENTS R12 in the dev server and visually compare
 against `design/Cairn - Design Canvas.html` — no regression.
-`git grep -l "row-icon"` returns no results (R10 sweep complete).
 `git grep -l "class=\"section-label\""` returns no results (R11 +
-R12 sweep complete, the rule is now keyed off `<h2>`).
+R12 sweep complete, the rule is now keyed off `<h2>`; the two
+expected surviving uses — InvitePickerSheet email label carve-out
+and PrivacyScreen intentional override — are not file-level hits).
 Keyboard-traversal spot check: tab through the Invite picker
 sheet and the Members screen; focus order matches pre-refactor.
+Note: R9 and R10 were reconsidered in 0902 (see Non-requirements
+in 0900 REQUIREMENTS.md); `.row-icon` in TrashScreen is left as-is
+and `<Icon>` does not gain a `color` prop.
 
 ---
 
@@ -360,10 +418,12 @@ new input primitives (`<TextInput>`, `<Textarea>`, `<Label>`) and
 the new `<EmptyState>` are reachable from
 `web/src/lib/basic/components/` and
 `web/src/lib/shared/components/` respectively; `<Button>` accepts
-the new variant / tone / size / leadingIcon props; `<Icon>` accepts
-`color`; `web/src/lib/shared/styles/typography.css` carries the
+the new variant / tone / size / leadingIcon props;
+`web/src/lib/shared/styles/typography.css` carries the
 semantic-tag rules; and `git grep` for the migrated class names
-(`.row-icon`, `.empty-cta`, `.section-label`, `.panel-btn`,
-`.restore` as class definitions rather than carve-out call sites)
-returns either no results or only the carve-outs listed in
-REQUIREMENTS R7.
+(`.empty-cta`, `.section-label`, `.panel-btn`, `.restore` as class
+definitions rather than carve-out call sites) returns either no
+results or only the carve-outs listed in REQUIREMENTS R7. Note:
+`<Icon>` does not gain a `color` prop and `.row-icon` is not
+removed — both were reconsidered in 0902 (see Non-requirements in
+0900 REQUIREMENTS.md).

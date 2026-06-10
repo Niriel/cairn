@@ -43,18 +43,26 @@ Use judgement, and prefer the cheapest home for a fix.
 
 `design/Cairn - Design Canvas.html` (open in a browser to see every screen —
 high-fidelity mockups in iOS/Android, light/dark). The JSX in `design/` is a
-visual and structural reference — re-implement screens idiomatically in
-Svelte rather than porting React verbatim. Design tokens (`CAIRN_LIGHT` /
-`CAIRN_DARK` in `design/cairn-ui.jsx`) can be lifted directly.
+**layout and structure** reference — re-implement screens idiomatically in
+Svelte rather than porting React verbatim. Take the JSX's layout, proportions,
+component structure, and copy; do **not** lift its raw colors or typography.
+Colors and type come from the official design tokens and global CSS
+(`tokens.css`, `typography.css`, and the conventions in `docs/ui.md` →
+"Where CSS lives: layout local, visual global"). The shared design tokens
+(`CAIRN_LIGHT` / `CAIRN_DARK` in `design/cairn-ui.jsx`) are already reflected
+in `tokens.css` — reference the token, never a hard-coded hex.
 
 **Before writing plan tasks for any UI screen**, read the corresponding JSX in
 `design/cairn-screens.jsx` (or the relevant `design/*.jsx` file) and record
-the visual spec — font sizes, padding, colours, component structure — in the
-task's **Decisions** or **Reference** section. Skipping this step means the
-task will under-specify the UI and the implementation will need a separate
-visual-polish pass. Also read `docs/ui.md` for cross-screen layout conventions
-(TopBar styling, fixed-element positioning within `--app-max-w`, empty-state
-patterns) that aren't repeated in every task.
+the **layout spec** — structure, proportions, padding/positioning, component
+ordering, and copy — in the task's **Decisions** or **Reference** section.
+Record color and typography as the official token or global rule that applies
+(e.g. "section label → global `h2`", "border → `var(--rule)`"), not a value
+copied from the JSX. Skipping the layout step means the task will
+under-specify the UI and the implementation will need a separate visual-polish
+pass. Also read `docs/ui.md` for cross-screen layout conventions (TopBar
+styling, fixed-element positioning within `--app-max-w`, empty-state patterns)
+that aren't repeated in every task.
 
 ## Conventions
 

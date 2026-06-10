@@ -1,6 +1,9 @@
 <script lang="ts">
 	import { untrack } from 'svelte';
+	import Button from '$lib/basic/components/Button.svelte';
+	import Label from '$lib/basic/components/Label.svelte';
 	import Sheet from '$lib/basic/components/Sheet.svelte';
+	import Textarea from '$lib/basic/components/Textarea.svelte';
 	import { pgPatch } from '$lib/shared/http/postgrest';
 	import { refreshLists } from '$lib/list/state/lists.svelte';
 
@@ -35,93 +38,50 @@
 </script>
 
 <Sheet open={true} {onclose}>
-	<textarea
-		data-test="edit-description-textarea"
-		bind:value={description}
-		placeholder="Description (optional)"
-		onkeydown={(e) => {
-			if (e.key === 'Enter' && !e.shiftKey && !submitting) {
-				e.preventDefault();
-				void handleSave();
-			} else if (e.key === 'Escape') {
-				e.preventDefault();
-				onclose();
-			}
-		}}
-	></textarea>
+	<div class="field">
+		<Label for="edit-description-textarea">Description</Label>
+		<Textarea
+			id="edit-description-textarea"
+			data-test="edit-description-textarea"
+			bind:value={description}
+			minHeight="4rem"
+			placeholder="Optional"
+			onkeydown={(e: KeyboardEvent) => {
+				if (e.key === 'Enter' && !e.shiftKey && !submitting) {
+					e.preventDefault();
+					void handleSave();
+				} else if (e.key === 'Escape') {
+					e.preventDefault();
+					onclose();
+				}
+			}}
+		/>
+	</div>
 	{#if error}
-		<p data-test="edit-description-error">{error}</p>
+		<p class="hint hint-error" data-test="edit-description-error">{error}</p>
 	{/if}
 	<div class="actions">
-		<button type="button" class="btn-cancel" data-test="edit-description-cancel" onclick={onclose}
-			>Cancel</button
+		<Button type="button" tone="ink" data-test="edit-description-cancel" onclick={onclose}
+			>Cancel</Button
 		>
-		<button
+		<Button
 			type="button"
-			class="btn-save"
+			tone="primary"
 			data-test="edit-description-save"
 			disabled={submitting}
-			onclick={() => void handleSave()}>Save</button
+			onclick={() => void handleSave()}>Save</Button
 		>
 	</div>
 </Sheet>
 
 <style>
-	textarea {
-		width: 100%;
-		padding: 12px 14px;
-		border: 1px solid var(--rule);
-		border-radius: 12px;
-		background: var(--paper);
-		color: var(--ink);
-		font: inherit;
-		font-size: 16px;
-		min-height: 4rem;
-		resize: none;
-	}
-
-	textarea::placeholder {
-		color: var(--stone);
-	}
-
-	p {
-		margin: 0;
-		font-size: 13px;
-		color: var(--ember);
-	}
-
 	.actions {
 		display: flex;
 		gap: 10px;
 		margin-top: 12px;
 	}
 
-	.btn-cancel,
-	.btn-save {
+	.actions :global(button) {
 		flex: 1;
-		padding: 12px;
-		border-radius: 12px;
-		font: inherit;
-		font-size: 14px;
-		font-weight: 500;
-		cursor: pointer;
-	}
-
-	.btn-cancel {
-		border: 1px solid var(--rule);
-		background: var(--paper);
-		color: var(--ink);
-	}
-
-	.btn-save {
-		border: none;
-		background: var(--accent);
-		color: var(--paper);
-		font-weight: 600;
-	}
-
-	.btn-save:disabled {
-		opacity: 0.5;
-		cursor: default;
 	}
 </style>

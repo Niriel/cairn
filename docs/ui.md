@@ -146,6 +146,7 @@ Concretely:
 
 - **Route changes push history.** SvelteKit's router does this by default for `goto()` and `<a href>` — every screen transition (Lists → Items → Item details → Edit, etc.) adds an entry. Browser back and Android system back call `history.back()`, which SvelteKit handles as a route change in reverse. The in-app top-bar **←** also calls `history.back()` (never a hard-coded previous route), so it cannot disagree with system back.
 - **Dismissible overlays push history too.** Bottom sheets (delete-item confirmation, list overflow menu, invite picker, avatar source sheet), modal dialogs, the profile sheet, and the unfolded accordion panel all push a state on open and listen for `popstate` to close. The user expects back to close what they just opened; system back, the sheet's own Cancel, a tap on the backdrop, and pressing `Escape` on a hardware keyboard are then equivalent. Without this, back skips past the overlay and pops the user out of the screen entirely — the bug usually reported as _"the back button is broken."_
+  - **Implementation: a guard `$effect` must `untrack` the push.** Overlays install their entry with `pushHistoryGuard` (`$lib/shared/state/back-stack.svelte`) inside an `$effect`, and that call **must** be wrapped: `return untrack(() => pushHistoryGuard(() => close()))`. `pushHistoryGuard` calls SvelteKit's `pushState`, which *reads* SvelteKit's internal **reactive** history state; an un-`untrack`ed effect tracks that read, re-runs on the next history change, and re-pushes a fresh guard — stacking entries until no back affordance can escape (again _"the back button is broken,"_ this time stuck rather than skipping). `Sheet.svelte`, `Accordion.svelte`, and `ItemsScreen.svelte` follow the pattern; the `*.history-guard.test.ts` regressions lock it in (a mocked `pushState` reads a reactive flag and asserts a later history change does not re-push). Plain mocked-`pushState` tests can't catch this — the mock must read a reactive source.
 - **The Lists screen is the back-stack root.** Pressing back from there does nothing inside the running app. On Android-installed-PWA the OS handles it (typically closes the app), which is fine — we don't fight the platform. On iOS-installed-PWA (`display: standalone`) there is no system back gesture at all, so the in-app **←** is the only path; the design's top-bar arrow must always be reachable.
 - **The auth callback URL replaces history rather than pushing.** Hitting back from the first post-login screen must not return the user to `cairn.<domain>/auth/callback?token=…`, which is single-use. Use SvelteKit's `goto(target, { replaceState: true })` from the callback handler.
 - **Transient surfaces don't push history.** The 6-second undo snackbar dismisses on its own timer; it doesn't consume a back press. Pressing back during the snackbar does whatever back means at that point in the route — it doesn't dismiss the snackbar in lieu of navigating.
@@ -182,7 +183,7 @@ The **Sign out** action is the first row of the Account section. **Delete accoun
 
 ### Avatars
 
-Cairn renders the same `<Avatar>` everywhere a user appears (item attribution, members list, profile sheets, the Settings profile chip). The component branches on `profiles.avatar_version`: `0` (the default) renders the existing coloured initials disc; any positive integer renders an `<img>` with `src="/avatars/{uid}.webp?v={avatar_version}"`. See `avatars.md` for the storage decision, the cache-busting URL pattern, and the upload sidecar.
+Cairn renders the same `<Avatar>` everywhere a user appears (item attribution, members list, profile sheets, the Settings profile chip). The component branches on `profiles.avatar_version`: `0` (the default) renders the existing colored initials disc; any positive integer renders an `<img>` with `src="/avatars/{uid}.webp?v={avatar_version}"`. See `avatars.md` for the storage decision, the cache-busting URL pattern, and the upload sidecar.
 
 The user-facing flow lives in `design/cairn-avatar-screens.jsx`:
 
@@ -208,7 +209,7 @@ A small non-blocking panel sits _above_ the destructive button: _"Want a copy of
 
 After tapping the destructive button: a brief loading state, then a confirmation screen ("Your account has been deleted") with a single button back to the sign-in screen. The session cookie is cleared (the server's `DELETE /auth/session` endpoint sets `Max-Age=0` on the `cairn_session` cookie); the app is fully logged out.
 
-The "Deleted user" tombstone gets a specific visual treatment wherever an avatar would normally render: a flat gray disc, no initials. The muted-italic display-name treatment is scoped to the **Items accordion** in v1 — it appears on item attribution lines there, and a future revisit may extend it to the members list (rare — the tombstone is never an active member) and to bin-screen "deleted by …" attribution. The bin screens currently render the literal display name "Deleted user" in the standard `var(--stone-lt)` colour, same as any other deleted-by attribution.
+The "Deleted user" tombstone gets a specific visual treatment wherever an avatar would normally render: a flat gray disc, no initials. The muted-italic display-name treatment is scoped to the **Items accordion** in v1 — it appears on item attribution lines there, and a future revisit may extend it to the members list (rare — the tombstone is never an active member) and to bin-screen "deleted by …" attribution. The bin screens currently render the literal display name "Deleted user" in the standard `var(--stone-lt)` color, same as any other deleted-by attribution.
 
 For the data model behind all of this, see `account-deletion.md`.
 
@@ -220,7 +221,7 @@ The full feature is documented in `invites.md`; this section covers the UI surfa
 
 When the user has at least one pending invite, a single row appears at the top of the Lists screen, above the list of lists:
 
-- One pending invite: _"Alice invited you to **Stuff to read**"_ with two inline affordances — **Accept** (sage) and **Decline** (muted).
+- One pending invite: _"Alice invited you to **Stuff to read**"_ with two inline affordances — **Accept** (filled sage) and **Decline** (outlined).
 - More than one: _"3 pending invites"_ with a chevron; tapping opens the full inbox screen.
 
 The row uses a slightly tinted background (warm cream in light mode, slate-700 in dark) to distinguish it from list rows without competing for attention. It disappears entirely when the inbox is empty — invites are not a permanent UI element.
@@ -232,7 +233,7 @@ Reachable from Settings → Invites or by tapping the multi-invite row on the Li
 - Inviter's display name and avatar.
 - _"invited you to"_ in muted text.
 - The list name, in the same weight as a list-row title.
-- An **Accept** button (sage) and a **Decline** button (muted), side by side.
+- An **Accept** button (filled sage) and a **Decline** button (outlined), side by side.
 
 Accept navigates immediately into the list (the user is now a full member). Decline removes the row with no animation drama and no "Are you sure?" — the row is replaced by the next pending invite, or by an empty-state message if it was the last (_"No pending invites"_, gentle, friendly).
 
@@ -374,9 +375,115 @@ This applies to button pairs only. Single primary buttons (e.g. **Save** on the 
 
 These patterns were settled during implementation and must be followed on every new screen. They are not repeated in individual plan tasks — read this section when building any UI.
 
+### Where CSS lives: layout local, visual global
+
+The screen inventory was first prototyped by copy-pasting CSS out of the JSX
+design refs, which left every component carrying its own near-duplicate
+font/color rules. Those drift apart over time (member names at 14 px in one
+file, 15 px in another, 15.5 px in a third; section-label padding ranging
+4–18 px) and there is no single source of truth for any visual decision. The
+convention that replaces that mess:
+
+- **Layout stays local.** A component's scoped `<style>` block holds only
+  layout: flex/grid, `gap`, positioning, structural sizes, `overflow`, and the
+  spacing that arranges _this_ component's pieces. Layout is inherently about a
+  component's own composition, so it belongs with the component.
+- **Visual styling is global.** Color, `background`, border color,
+  `font-family`, `font-size`, `font-weight`, `letter-spacing`,
+  `text-transform`, and `line-height` live in the global stylesheets
+  (`typography.css`, `tokens.css`), keyed off the semantic tag (`h1`, `h2`,
+  `h3`, `ul`, `p`, …). A scoped rule that sets any of these is a code smell —
+  extract it. There is one home per visual role, and every screen inherits it.
+- **Variants are global classes, not scoped rules.** When two genuinely
+  different looks of the same tag are needed (say two `<ul>` treatments, or a
+  sheet-title `<h2>` versus a section-label `<h2>`), introduce a class for the
+  variant — but define that class _globally_ so any component can opt in. The
+  smell is never "a class exists"; it is "a _local_ rule defines a visual
+  look." A legitimate scoped block is layout-only; the moment it carries a
+  color or a font size, that declaration wants to be global — on the tag, or
+  on a global variant class.
+
+When homogenising or refactoring, do **not** anchor on "match each page's
+current look." Accidental drift should converge on one global value, accepting
+the deliberate visual changes that follow. The goal is one source of truth per
+visual role, not the preservation of per-page quirks.
+
+#### Type roles
+
+`typography.css` defines the full set of type roles. A screen reaches a visual
+look by using the matching tag or global class — never by setting `font-size`,
+`font-weight`, `letter-spacing`, or `text-transform` in a scoped block. The
+roles:
+
+- `h1` — screen / TopBar title (Newsreader serif).
+- `h2` — section title. Newsreader serif, 1.125 rem / 500 / `var(--ink-soft)`,
+  **normal-case** (see the label/title note below).
+- `h3` (+ `.row-title`) — sub-heading / row title weight.
+- `.t-hero` — empty-state heading (Newsreader, 1.5 rem).
+- `.t-sheet` — bottom-sheet title. Used on an `<h2>`; identical to the section
+  `h2` but with full `var(--ink)` for contrast on the sheet background.
+- `.identity-name` — a person's display name (members, inbox, profile).
+- `.body` — default body copy.
+- `.caption` — muted secondary / metadata line (1 rem, set apart by colour).
+- `.fine` — fine print: the one tier below the 1 rem floor (0.8 rem, `var(--stone)`)
+  for attribution lines, the list-meta line, vote labels, and timestamps.
+- `.mono` — monospace, **numerics only**: the vote indicator, the
+  aggregate-score badge, and bare counts. It is for figures that benefit from
+  tabular alignment, not for prose. **Dates and ages are caption prose, never
+  mono** — `timeAgo()` output and the circle/blocked "when" labels render in
+  the `.caption` / `.fine` roles (a proportional face), because a relative date
+  is a sentence ("3 days ago"), not a tabular figure. There is no `.date` role.
+
+**Label vs. title — they are not the same look.** The upper-cased,
+`0.06em`-tracked small-stone treatment is the **form-label** look, owned by the
+`<Label>` primitive (the caption above a form field). **Section titles (`h2`)
+are normal-case** — a serif heading (1.125 rem / 500 / `var(--ink-soft)`), not
+upper-cased and not tracked. The two were historically conflated under the word
+"label"; a section header is an `h2`, not a `<Label>`. Do not re-introduce
+uppercase section headers.
+
+### Semantic structure
+
+Markup carries meaning, so labelled content groups use real sectioning
+elements rather than anonymous `<div>`s:
+
+- A labelled content group is a `<section>` whose title is a bare `<h2>` (the
+  global `h2` role styles it; no class needed).
+- `<header>` is used **only** when the section intro carries more than the
+  title — e.g. a sheet whose head is a title plus a subtitle. A section with
+  just a title needs no `<header>`; the bare `<h2>` is the head.
+- `<footer>` holds trailing notes (a muted explanatory line at the end of a
+  section or sheet).
+- A single, unlabelled list is **not** sectioned — render the `<ul>`/rows
+  directly without a wrapping `<section>` or empty `<h2>`.
+- The TopBar middle slot stays a layout `<div>` holding the `<h1>` title and an
+  optional `<p>` subtitle as siblings — it is chrome, not a content section.
+
+### Units: rem for the type scale, em for local scaling, px for hairlines
+
+The Settings font-size control multiplies the root `font-size`
+(`:root { font-size: calc(16px * var(--font-size-scale)) }` in
+`typography.css`). For that control to do anything, sizes must be expressed
+relative to that root. A value hard-coded in px ignores the user's font-size
+choice entirely — which is why the control currently has no visible effect:
+the screens were prototyped in px. So:
+
+- **`rem`** — the default. Use it for `font-size` and for spacing/sizing that
+  should scale with the global type scale (text-block padding, gaps,
+  max-widths, most component dimensions). One source of truth: the root
+  font-size.
+- **`em`** — for a sub-element that should track its **local** font-size rather
+  than the global scale. The canonical case: an icon next to a text label
+  (e.g. inside a button) should grow and shrink with *that label*, so size it
+  in `em`. Likewise inline icon↔label gaps and padding that should hug text at
+  whatever size it renders.
+- **`px`** — for what must **not** scale with text: hairline borders
+  (`1px solid`), shadow offsets, and genuinely fixed structural measures. A 1px
+  rule is 1px at every font size.
+
 ### App shell width and fixed-position elements
 
-The app is constrained to `--app-max-w: 26rem` (≈ 416 px), centred with `margin-inline: auto`. This token lives in `tokens.css` and is referenced by `+layout.svelte`.
+The app is constrained to `--app-max-w: 26rem` (≈ 416 px), centered with `margin-inline: auto`. This token lives in `tokens.css` and is referenced by `+layout.svelte`.
 
 Fixed-position elements (`position: fixed`) are placed relative to the viewport, not the shell, so naïve `left: 0; right: 0` or `right: 16px` will escape the container on wide screens. The correct patterns:
 
@@ -393,7 +500,7 @@ These are already in `Sheet.svelte` and `Fab.svelte`. Any new fixed-position ele
 
 ### Full-height screens and vertical centring
 
-Screens that can show an empty state should be flex columns that fill the viewport so the empty state can be centred:
+Screens that can show an empty state should be flex columns that fill the viewport so the empty state can be centered:
 
 ```css
 .screen {
@@ -416,14 +523,14 @@ Screens that can show an empty state should be flex columns that fill the viewpo
 
 Every `<TopBar>` renders with:
 
-- Newsreader serif, 22 px, weight 500, letter-spacing −0.01 em for the title
+- Newsreader serif, 1.375 rem (22 px), weight 500, letter-spacing −0.01 em for the title
 - `min-height: 56px`; padding 12 px top / 18 px sides (plus safe-area insets)
 - `border-bottom: 1px solid var(--rule)`
 
 The TopBar uses `display: flex; align-items: center; gap: 10px`. The title div has `flex: 1; min-width: 0`, so the leading element and title are visually adjacent. Optional props:
 
 - **`left?: Snippet`** — rendered in the leading slot. When provided, it replaces the back button (`showBack` is ignored). Use this for root screens that need a brand element rather than a back arrow (e.g. `<CairnGlyph>` on the Lists screen).
-- **`sub?: string`** — a secondary line rendered directly below the title; 12 px, `var(--stone)`.
+- **`sub?: string`** — a secondary line rendered directly below the title; the `.caption` role (1 rem, `var(--stone)`).
 
 These styles live inside `TopBar.svelte` — callers do not re-apply them. Screens that are the navigation root (e.g. Lists) pass a `left` snippet instead of `showBack={false}`.
 
@@ -435,7 +542,7 @@ When a list row has a primary label and a trailing chevron that both navigate to
 
 ```svelte
 <button class="row-nav" onclick={navigate}>
-  <span class="name">{item.name}</span>
+  <h3 class="row-title">{item.name}</h3>
   <span class="chevron"><Icon name="chevron-right" size={18} /></span>
 </button>
 ```
@@ -451,11 +558,20 @@ When a list row has a primary label and a trailing chevron that both navigate to
   padding: 0;
   cursor: pointer;
 }
-.name { flex: 1; min-width: 0; }
+.row-title { flex: 1; min-width: 0; }
 .chevron { flex-shrink: 0; }
 ```
 
 `align-items: flex-start` is required so the chevron stays at the top of a multi-line name rather than drifting to the vertical midpoint.
+
+### Row separators
+
+A divider between adjacent sibling rows — data rows, action-menu rows, or nav-rows — is **presentational, not semantic**: render it as a `1px solid var(--rule)` border on the adjacent siblings (`.rows .row`, `.menu > li + li`, `nav-row + nav-row`), never as an `<hr>`. `<hr>` is invalid as a direct child of `<ul>` and carries no useful document semantics between sibling rows, so the codebase uses no `<hr>` and keeps no global `hr` reset.
+
+**An itemised group is fully ruled — a rule above the first item and one below the last, not just between.** Any set of repeated sibling rows (a list of items, an action menu, a run of nav-rows) reads as one closed band: a hairline opens the group above its first row and another closes it below its last, in addition to the inter-row dividers. Don't suppress the leading or trailing rule to "close against the screen edge" — that leaves the group looking unfinished and inconsistent with its neighbours. Two equivalent mechanisms produce the band:
+
+- **Container + per-row bottom** (the `.rows` data-list model): the container carries `border-top` and every row carries `border-bottom`, so the last row's own bottom rule closes the set. Every row gets a `border-bottom` — never a `:last-child { border-bottom: none }` exception.
+- **Container band + inter-row top** (the `.menu` / `.nav-rows` model): the container carries both `border-top` and `border-bottom` (the band), and `li + li` / `nav-row + nav-row` draws the dividers between.
 
 ### Cursor convention
 
@@ -464,18 +580,38 @@ When a list row has a primary label and a trailing chevron that both navigate to
 
 ### Empty-state copy and style
 
-Two patterns are used, depending on the screen's design spec.
+One pattern is used everywhere, implemented by the shared `<EmptyState>`
+component (`web/src/lib/shared/components/`). A single empty-state look across
+every screen is a deliberate consistency choice — utility screens (e.g.
+Blocked) use the same illustrated treatment as first-run screens (e.g. Lists),
+just without a CTA. Structure:
 
-**Simple empty state** — for utility screens with no illustration: two short lines, the first stating the fact ("No items yet."), the second giving the action ("Tap [icon] to create one."). Colour: `var(--stone)`. Font size: ≥ 22 px. Inline icon hints (the circular FAB replica) use `background: var(--accent); color: var(--paper)` and `border-radius: 50%`.
+- A centered 96 × 96 px circle: `background: var(--paper-alt); border: 1px dashed var(--stone-lt); border-radius: 99px`. Contains an icon (`<Icon>`) or a brand illustration (e.g. `<CairnGlyph size={44} color="var(--stone)" />`).
+- A heading: Newsreader 1.5 rem (24 px), weight 500, `var(--ink)`, letter-spacing −0.01 em.
+- Body copy: the `.body` role — 1 rem (16 px), `var(--ink-soft)`, line-height 1.5, max-width 280 px.
+- An optional CTA button: `background: var(--ink); color: var(--paper)`, border-radius 12 px, padding 12 px 22 px, weight 600, 0.875 rem (14 px), with a leading icon. Rendered only on screens with a primary first-run action (Lists, Items); omitted elsewhere.
 
-**Illustrated empty state** — for screens where the first-run experience warrants more visual weight (e.g. the Lists screen). Structure:
+Heading, body, and CTA are each optional — a screen supplies only the parts it
+needs (e.g. Trash and Blocked render the disc + heading with no CTA).
 
-- A centred 96 × 96 px circle: `background: var(--paper-alt); border: 1px dashed var(--stone-lt); border-radius: 99px`. Contains a brand illustration (e.g. `<CairnGlyph size={44} color="var(--stone)" />`).
-- A heading: Newsreader 24 px, weight 500, `var(--ink)`, letter-spacing −0.01 em.
-- Body copy: 14 px, `var(--ink-soft)`, line-height 1.5, max-width 280 px.
-- A CTA button: `background: var(--ink); color: var(--paper)`, border-radius 12 px, padding 12 px 22 px, weight 600, 14 px, with a leading icon.
+### Shared components
 
-Use the pattern specified by the screen's design JSX in `design/cairn-screens.jsx`.
+Recurring bits of markup live as shared components in
+`web/src/lib/shared/components/` rather than being re-rolled per screen. As
+well as `<EmptyState>` (above) and `<NavRow>` (the chevron nav-row), two more
+were extracted during this work:
+
+- **`<Badge>`** (a `basic/` primitive, peer of `<Button>`) — the small
+  pill/figure shown beside a name or count: tones `primary` (filled
+  earth/accent — the attention/notification count, e.g. the Settings invites
+  count and the multi-invite banner; same `primary`↔`var(--accent)` mapping as
+  `<Button tone="primary">`), `soft` (outlined muted fill — informational
+  counts like the Privacy circle / blocked totals), and `score` (the
+  aggregate-score badge, sage for positive and ember for negative; a score of
+  zero renders no badge). This reverses the earlier "no shared `<Badge>` in v1"
+  non-requirement — screens use `<Badge>` instead of hand-rolled badge spans.
+- **`<InviteCard>`** — the invite row used by the inbox list and the
+  single-invite banner, so both render identical invite markup.
 
 ## Not decided
 

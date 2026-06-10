@@ -4,7 +4,10 @@
 	import Avatar from '$lib/shared/components/Avatar.svelte';
 	import AppTopBar from '$lib/shared/components/AppTopBar.svelte';
 	import Snackbar from '$lib/shared/components/Snackbar.svelte';
+	import Button from '$lib/basic/components/Button.svelte';
 	import Icon from '$lib/basic/components/Icon.svelte';
+	import Label from '$lib/basic/components/Label.svelte';
+	import TextInput from '$lib/basic/components/TextInput.svelte';
 	import AvatarSourceSheet from '$lib/avatar/components/AvatarSourceSheet.svelte';
 	import AvatarCropScreen from '$lib/avatar/components/AvatarCropScreen.svelte';
 	import type { IconName } from '$lib/basic/model/icon-paths';
@@ -135,17 +138,7 @@
 </script>
 
 {#if viewState === 'edit'}
-	<AppTopBar showBack={false}>
-		{#snippet left()}
-			<button class="icon-btn" onclick={() => history.back()}>
-				<Icon name="x" size={22} />
-			</button>
-		{/snippet}
-		{#snippet right()}
-			<button class="save-btn" data-test="save-profile" onclick={saveName}>Save</button>
-		{/snippet}
-		Edit profile
-	</AppTopBar>
+	<AppTopBar showBack={true}>Edit profile</AppTopBar>
 
 	{#if showSourceSheet}
 		<AvatarSourceSheet
@@ -168,41 +161,46 @@
 				data-test="profile-avatar"
 			/>
 			<div class="avatar-actions">
-				<button
-					class="pill-btn ink"
+				<Button
+					variant="pill"
+					tone="ink"
+					size="sm"
+					leadingIcon="pencil"
 					data-test="change-picture"
 					onclick={() => (showSourceSheet = true)}
 				>
-					<Icon name="pencil" size={13} />
 					{profile.avatarVersion > 0 ? 'Change picture' : 'Add a picture'}
-				</button>
+				</Button>
 				{#if profile.avatarVersion > 0}
-					<button
-						class="pill-btn ember"
+					<Button
+						variant="pill"
+						tone="destructive"
+						size="sm"
 						data-test="remove-avatar"
 						onclick={removeAvatar}
-						disabled={removing}>Remove</button
+						disabled={removing}>Remove</Button
 					>
 				{/if}
 			</div>
 		</div>
 
-		<label class="field-label" for="display-name">Display name</label>
-		<input
-			id="display-name"
-			class="name-input"
-			data-test="display-name-input"
-			bind:value={nameValue}
-			onkeydown={(e) => {
-				if (e.key === 'Enter') {
-					e.preventDefault();
-					void saveName();
-				} else if (e.key === 'Escape') {
-					e.preventDefault();
-					history.back();
-				}
-			}}
-		/>
+		<div class="field">
+			<Label for="display-name">Display name</Label>
+			<TextInput
+				id="display-name"
+				data-test="display-name-input"
+				bind:value={nameValue}
+				onkeydown={(e: KeyboardEvent) => {
+					if (e.key === 'Enter') {
+						e.preventDefault();
+						void saveName();
+					} else if (e.key === 'Escape') {
+						e.preventDefault();
+						history.back();
+					}
+				}}
+			/>
+		</div>
 		{#if nameError}
 			<p class="field-error">{nameError}</p>
 		{/if}
@@ -212,6 +210,12 @@
 			<b>Where your picture appears.</b>
 			Next to your name on shared lists, in the members screen, and on items you've added. A photo, a
 			doodle, your cat — whatever you'd like other people in your lists to see.
+		</div>
+
+		<div class="save-row">
+			<Button variant="rect" tone="primary" size="md" data-test="save-profile" onclick={saveName}
+				>Save</Button
+			>
 		</div>
 	</div>
 
@@ -257,9 +261,9 @@
 			</div>
 			<div class="upload-title">{UPLOAD_TITLE[isUploadState]}</div>
 			<div class="upload-sub">{UPLOAD_SUB[isUploadState]}</div>
-			<button class="upload-action-btn" onclick={handleUploadAction}>
+			<Button variant="rect" tone="ink" size="md" onclick={handleUploadAction}>
 				{UPLOAD_ACTION_LABEL[isUploadState]}
-			</button>
+			</Button>
 		</div>
 	</div>
 {/if}
@@ -279,54 +283,6 @@
 	.avatar-actions {
 		display: flex;
 		gap: 8px;
-	}
-
-	.pill-btn {
-		padding: 8px 14px;
-		border-radius: 99px;
-		font-size: 13px;
-		font-weight: 600;
-		cursor: pointer;
-		font-family: inherit;
-		display: inline-flex;
-		align-items: center;
-		gap: 6px;
-	}
-
-	.pill-btn.ink {
-		border: 1px solid var(--ink);
-		background: var(--paper);
-		color: var(--ink);
-	}
-
-	.pill-btn.ember {
-		border: 1px solid var(--rule);
-		background: var(--paper);
-		color: var(--ember);
-	}
-
-	.field-label {
-		display: block;
-		margin-top: 28px;
-		font-size: 11.5px;
-		color: var(--stone);
-		font-weight: 600;
-		letter-spacing: 0.06em;
-		text-transform: uppercase;
-	}
-
-	.name-input {
-		display: block;
-		width: 100%;
-		margin-top: 6px;
-		padding: 12px 14px;
-		border: 1px solid var(--ink);
-		border-radius: 12px;
-		background: var(--paper);
-		font-size: 16px;
-		color: var(--ink);
-		font-family: inherit;
-		box-sizing: border-box;
 	}
 
 	.field-error {
@@ -353,6 +309,16 @@
 		line-height: 1.55;
 	}
 
+	/* Save sits at the foot of the form, full-width, where people expect the
+	   primary commit action. */
+	.save-row {
+		margin-top: 28px;
+	}
+
+	.save-row :global(button) {
+		width: 100%;
+	}
+
 	.icon-btn {
 		background: none;
 		border: none;
@@ -362,18 +328,6 @@
 		display: flex;
 		align-items: center;
 		justify-content: center;
-	}
-
-	.save-btn {
-		padding: 8px 14px;
-		border: none;
-		border-radius: 10px;
-		background: var(--ink);
-		color: var(--paper);
-		font-size: 13px;
-		font-weight: 600;
-		cursor: pointer;
-		font-family: inherit;
 	}
 
 	.upload-body {
@@ -428,16 +382,7 @@
 		max-width: 280px;
 	}
 
-	.upload-action-btn {
+	.upload-body :global(button) {
 		margin-top: 28px;
-		padding: 11px 22px;
-		border: none;
-		border-radius: 12px;
-		background: var(--ink);
-		color: var(--paper);
-		font-size: 14px;
-		font-weight: 600;
-		cursor: pointer;
-		font-family: inherit;
 	}
 </style>

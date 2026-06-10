@@ -28,21 +28,28 @@ export const relationships = $state<{
 	circle: CircleEntry[];
 	blocked: BlockedEntry[];
 	loaded: boolean;
+	loading: boolean;
 }>({
 	circle: [],
 	blocked: [],
-	loaded: false
+	loaded: false,
+	loading: false
 });
 
 export async function loadRelationships(): Promise<void> {
 	const me = profile.uid;
 	if (!me) return;
-	const rows = await pgGet<RelationshipRow[]>(
-		`/relationships?user_id=eq.${me}&select=other_user_id,status,created_at,profiles!other_user_id(display_name,avatar_version)`
-	);
-	relationships.circle = rows.filter((r) => r.status === 'circle').map(toCircleEntry);
-	relationships.blocked = rows.filter((r) => r.status === 'blocked').map(toBlockedEntry);
-	relationships.loaded = true;
+	relationships.loading = true;
+	try {
+		const rows = await pgGet<RelationshipRow[]>(
+			`/relationships?user_id=eq.${me}&select=other_user_id,status,created_at,profiles!other_user_id(display_name,avatar_version)`
+		);
+		relationships.circle = rows.filter((r) => r.status === 'circle').map(toCircleEntry);
+		relationships.blocked = rows.filter((r) => r.status === 'blocked').map(toBlockedEntry);
+		relationships.loaded = true;
+	} finally {
+		relationships.loading = false;
+	}
 }
 
 export async function addCircleByEmail(email: string): Promise<AddCircleResult> {

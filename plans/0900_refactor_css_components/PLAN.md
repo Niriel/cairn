@@ -232,6 +232,14 @@ representative paths:
   `TopBar.svelte` (confirm only).
 - **0902 — icon-colour migration**: `TrashScreen.svelte`
   (canonical), plus any others surfaced during the sweep.
+- **0902 — `<hr>` separator sweep**: The app uses `border-bottom`
+  on row elements (buttons, list items, sheet rows) as separators
+  throughout. These should be `<hr>` elements — the separator
+  belongs to the document flow, not the element's box. The global
+  `hr` reset rule (`border: none; border-top: 1px solid var(--rule);
+  margin: 0`) was added in 0901. The 0902 sweep replaces every
+  remaining `border-bottom`-as-separator with an explicit `<hr>`
+  and removes the now-dead CSS rules.
 
 The corresponding `.test.ts` for every migrated component is
 expected to keep passing without assertion edits other than the
