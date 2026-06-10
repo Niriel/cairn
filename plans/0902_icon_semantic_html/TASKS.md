@@ -1,0 +1,2105 @@
+# Tasks
+
+## Reference skills and docs
+
+- **`docs/ui.md`** — "Where CSS lives: layout local, visual global", "Units:
+  rem / em / px", the empty-state pattern, the TopBar spec.
+- **`PLAN.md` (this directory)** — the canonical **Type scale**, **Surfaces**,
+  and **Controls** tables. Sweep tasks reference these instead of repeating the
+  role values inline.
+- **`docs/frontend-layout.md`** — tier rules (`basic/` vs `shared/`); test
+  files next to SvelteKit route files omit the `+` prefix.
+- **`docs/testing.md`** — Vitest for component behaviour.
+- **`docs/quality.md`** — lint / format / type-check toolchain.
+- **`design/Cairn - Design Canvas.html`** — **layout** reference for the visual
+  sweep; colors/type are intentionally homogenised, not matched to the JSX.
+
+### Standing rules for every Phase 5 sweep task
+
+1. **Semantic first.** Apply the R5 element-type mappings. Keep the class name
+   on the new element through the sweep so test selectors keep working; dead
+   classes are removed in Phase 6. **Sectioning:** wrap each labelled content
+   group in `<section>` with its title as a bare `<h2>` (no `<header>` around a
+   lone heading); use `<header>` only where the intro carries more than the
+   title (sheet title + subtitle), and `<footer>` for trailing notes
+   (cascade-note, "What's this?" link). A single unlabelled list is not
+   sectioned. Where a section label both titles a group *and* labels a single
+   input (the InvitePicker "By e-mail" caption), use the `<Label>` primitive.
+2. **Strip scoped visual.** Delete every `font-*`, `letter-spacing`,
+   `text-transform`, `line-height`, text `color`, `background`, and
+   `border*-color` declaration from the scoped `<style>`, replacing it by the
+   global role/class from PLAN.md (a tag, or a class added to the markup).
+3. **Units.** Convert remaining (layout) values to rem; use em for
+   icon-beside-label sizing/gaps; leave hairline `1px` borders and shadows in
+   px.
+4. **Empty state.** If the file has a bespoke empty-state block, migrate it to
+   `<EmptyState>` and delete the `.empty*` CSS.
+5. **Tests.** Update the `.test.ts` for element-type/selector changes; keep
+   assertions behaviourally equivalent.
+6. **Verify:** `pnpm lint` · `pnpm check` · `pnpm test`.
+
+---
+
+## Phase 0 — Reconcile docs
+
+### [x] 0.1 Finish the `docs/ui.md` rem + role reconciliation
+
+**Created:** 2026-06-03T00:00:00Z
+**Completed:** 2026-06-03T09:45:35Z
+
+**Why:** `docs/ui.md` gained the two governing conventions ("Where CSS lives",
+"Units") during planning, but several of its concrete specs still quote px
+(TopBar title "22 px"; empty-state heading "24 px", body "14 px"; the
+CSS-convention examples). Once `typography.css` is rem with named roles, the
+doc and the code must agree, or the next UI plan references stale px.
+
+**Prerequisites:** none (doc-only).
+
+**Decisions:**
+- Convert the canonical pixel specs in `docs/ui.md` to rem with the px value in
+  parentheses for orientation, e.g. "1.375 rem (22 px)". Touch: the TopBar spec
+  ("Newsreader serif, 22 px, …"), the empty-state spec (96 × 96 disc — px stays
+  for the fixed disc; heading 1.5 rem (24 px); body 0.875 rem (14 px)), and any
+  other quoted type size.
+- Add a short "Type roles" list to the "Where CSS lives" area naming the global
+  roles (`h1`, `h2`, `h3` (+ `.row-title`), `.t-hero`, `.t-sheet`,
+  `.list-title`, `.identity-name`, `.body`, `.caption`, `.mono`) so the doc
+  names the source of truth that `typography.css` implements.
+- **Record the label/title split.** Note that the upper-cased, `0.06em`-tracked
+  small-stone treatment is the **form-label** look (the `<Label>` primitive)
+  and that **section titles (`h2`) are normal-case** (a small heading,
+  0.8125rem/600/`--ink-soft`) — they are *not* upper-cased. The two were
+  conflated under the word "label"; the doc must state the section-title look
+  so later screens don't re-introduce uppercase section headers.
+- **Reconcile the Decline affordance.** `docs/ui.md` describes the invite
+  affordance as "Accept (sage) and Decline (muted)" in both the "Inbox row on
+  the Lists screen" and "Invites inbox screen" sections. Task 4.2 converges
+  Decline onto the outlined `ink` pill (0901 collapsed `neutral`→`ink`, so
+  there is no muted tone to keep). Update the wording in both sections to match
+  (e.g. "Accept (filled sage) and Decline (outlined)") so the doc and the
+  shipped look agree.
+- Add a short **"Semantic structure"** convention under the CSS-conventions
+  section so later screens inherit it: a labelled content group is a
+  `<section>` with its title as a bare `<h2>`; `<header>` is used only when the
+  section intro carries more than the title (sheet title + subtitle); `<footer>`
+  holds trailing notes; a single unlabelled list is not sectioned. Note the
+  TopBar middle slot stays a layout `<div>` holding the `<h1>` title and an
+  optional `<p>` subtitle as siblings.
+- Disc dimensions (96 px) and hairline borders stay px per the Units rule.
+
+**Files:**
+- `docs/ui.md` (modify)
+
+**Steps:**
+1. Update the TopBar visual spec and the empty-state spec to rem (px in
+   parentheses).
+2. Add the "Type roles" list under the CSS-conventions section, and the
+   label/title split note (uppercase = form labels via `<Label>`; section
+   titles are normal-case small headings).
+3. Add the "Semantic structure" (`<section>` / `<header>` / `<footer>`)
+   convention under the CSS-conventions section.
+4. Update the Decline wording in the "Inbox row" and "Invites inbox screen"
+   sections to match the converged outlined-ink pill (no longer "muted").
+5. No code or tests in this task. `pnpm lint`/`pnpm check` not required for a
+   markdown-only change, but run `pnpm exec prettier --check docs/ui.md` if
+   markdown is in the Prettier glob.
+
+**Verify:** `pnpm exec prettier --check "docs/ui.md"` (or note if md is outside
+the Prettier config).
+
+**Notes:** `docs/` is outside the Prettier-managed scope — there is no root
+`package.json` or `.prettierrc`; the config lives in `web/` and `web`'s
+`format` script (`prettier --write .`) only covers `web/`. Running
+`prettier --check` against `docs/ui.md` reports warnings, but the diff is
+entirely in **untouched** sections (an `*emphasis*` → `_emphasis_` on the
+`em`-units line, and the indentation of the `.row-nav` CSS code block). None of
+the four edited regions introduce new style issues, so the pre-existing
+formatting was left as-is rather than reformatting unrelated content.
+
+---
+
+## Phase 1 — Typography lift
+
+### [x] 1.1 Add global `h2` and `ul / ol` rules to `typography.css`
+
+**Created:** 2026-05-30T08:24:10Z
+**Completed:** 2026-05-31T03:13:59Z
+
+**Note (added in rewrite):** This task shipped the global `h1/h2/h3/ul/ol`
+rules in **px**. Phase 3 re-opens `typography.css` to convert those values to
+rem and add the wider role set (`.t-hero`, `.t-sheet`, `.list-title`,
+`.identity-name`, `.body`, `.caption`, `.mono`). The task below is preserved as
+historical record; do not re-execute it.
+
+**Why:** Every `div.section-label → h2` migration is safe only when the global
+`h2` rule already covers the typography, so the per-file `.section-label` CSS
+can be removed without a styling gap. Similarly `div.rows → ul` relies on `ul`
+having no browser-default padding/margin/bullets.
+
+**Files:** `web/src/lib/shared/styles/typography.css` (modified — added global
+`h1`, `h2`, `h3`, and `ul, ol` reset).
+
+**Verify:** `pnpm lint` · `pnpm check` · `pnpm test` (all green at completion).
+
+---
+
+## Phase 2 — `<EmptyState>` extraction
+
+### [x] 2.1 Extract `<EmptyState>` and write Vitest tests
+
+**Created:** 2026-05-30T08:24:10Z
+**Completed:** 2026-05-31T08:14:28Z
+
+**Why:** Six screens each render an empty-state block, most copy-pasting the
+same illustrated markup. Extracting a single single-shape `<EmptyState>`
+(disc + optional heading/body/CTA, props `icon` / `iconContent` / `iconSize` /
+`title` / `body` / `ctaLabel` / `onCta` / `data-test`) unifies them and makes
+each Phase 5 empty-state migration a small replace.
+
+**Files:** `web/src/lib/shared/components/EmptyState.svelte` (created),
+`web/src/lib/shared/components/EmptyState.test.ts` (created).
+
+**Note (added in rewrite):** Phase 3 converts EmptyState's scoped visual CSS to
+rem and the `.t-hero` / `.body` roles. Its visual CSS legitimately lives in the
+component (it is the empty-state home) — an allowed exception to the
+layout-only rule.
+
+**Verify:** `pnpm lint` · `pnpm check` · `pnpm test` (all green at completion).
+
+---
+
+## Phase 3 — Global visual system
+
+### [x] 3.1 Rewrite `typography.css` in rem with the full role set
+
+**Created:** 2026-06-03T00:00:00Z
+**Completed:** 2026-06-03T09:49:32Z
+
+**Why:** This is the single source of truth for every type role. All Phase 5
+sweeps delete scoped type and rely on these rules, so they must exist and be
+correct first. Converting to rem is what makes the Settings font-size control
+work (R1).
+
+**Prerequisites:** Task 0.1 (doc names the roles).
+
+**Decisions:**
+- Convert the existing `h1`/`h2`/`h3` rules to rem: `h1` 1.375rem, `h2`
+  0.8125rem, `h3` 0.9375rem (values + other props per PLAN.md → Type scale).
+  Keep the `ul, ol` reset.
+- **`h2` is a normal-case section title, not a form label.** Rewrite it as
+  0.8125rem / 600 / `--ink-soft` / **`text-transform: none`** / `letter-spacing:
+  normal` / **`margin: 0`**. Do **not** carry over the old `text-transform:
+  uppercase` + `0.06em` tracking — that is the form-label look and lives only on
+  the `<Label>` primitive (`basic/components/Label.svelte`, unchanged). Adding
+  `margin: 0` matches `h1`/`h3` and stops bare-`<h2>` section titles from
+  picking up the browser-default heading margins once their scoped margin resets
+  are stripped. (This de-upper-cases every section title app-wide — deliberate.)
+- Write the `h3` row-name rule as **`h3, .row-title { … }`** (one rule, two
+  selectors): the `<h3>` tag for row names *not* inside a control, and the
+  `.row-title` **class** for row names that must sit inside a tap-target button
+  (where a heading tag is invalid HTML — see tasks 5.3/5.4). Same values
+  (0.9375rem/600/`--ink`/margin 0).
+- Add the new role classes from PLAN.md → Type scale: `.t-hero`, `.t-sheet`,
+  `.list-title`, `.identity-name`, `.body`, `.caption`, `.mono`. Exact values
+  in the PLAN table.
+- **Pin the font-family stacks** (the PLAN table abbreviates them as "serif" /
+  "JetBrains Mono"): the serif roles (`h1`, `.t-hero`, `.t-sheet`,
+  `.list-title`) use `'Newsreader Variable', Georgia, serif` — the *variable*
+  family that is actually `@import`-ed (not bare `'Newsreader'`, which several
+  out-of-scope files have drifted to); `.mono` uses `'JetBrains Mono',
+  ui-monospace, monospace`, matching the existing VoteControl/ItemsScreen usage.
+- `.t-sheet` (and `.t-hero` on `CircleExplainerSheet`'s `<h2>`) override the
+  global `h2` when applied to a sheet header's `<h2 class="t-sheet">` — class
+  beats tag for the properties the class declares (font-family/size/weight/
+  colour), so no `!important` needed. Crucially, because `h2` is now normal-case
+  with normal tracking (above), there is **no** `text-transform`/`letter-spacing`
+  left on the tag for these classes to leak from — the earlier risk of a sheet
+  title rendering UPPERCASE is removed at the root. (`.t-hero` still sets its own
+  `-0.01em`; `.t-sheet` inherits normal tracking, which is correct for it.)
+- Do **not** add a bare global `p` rule (would clobber component paragraphs);
+  body text opts in via `.body` / `.caption`.
+- Keep `.hint`, `.disclaimer`, `.explainer` as-is for now (they are existing
+  global text helpers); note any overlap with `.caption` in Notes for a later
+  pass — do not merge in this task.
+
+**Files:**
+- `web/src/lib/shared/styles/typography.css` (modify)
+
+**Steps:**
+1. Rewrite the heading rules in rem and append the new role classes per the
+   PLAN table.
+2. `pnpm lint` (Prettier on CSS) · `pnpm check`.
+3. `pnpm test` — no markup changed yet, so all existing tests stay green.
+   (Visual values change, but Vitest asserts behaviour, not pixels.)
+
+**Verify:** `pnpm lint` · `pnpm check` · `pnpm test`
+
+**Notes:** `.hint` (13px/`--stone`), `.disclaimer` (12px/`--stone`), and
+`.explainer` (13px/`--stone`) overlap meaningfully with the new `.caption`
+(0.75rem/`--stone`/lh 1.5) — same colour, near-identical size, all muted
+secondary copy. Left as-is per the task decision; flagged here as a candidate
+for a later collapse (they differ today only in px-vs-rem and per-helper margin
+defaults, which a future pass could fold into `.caption` + layout-local
+margins). `pnpm lint` runs ESLint only in this repo's `lint` script (Prettier
+is a separate `format:check`); ran `prettier --check` on `typography.css`
+explicitly — clean. Pre-existing cSpell editor warnings on the `@import`
+`wght.css` lines (1–2) are untouched and unrelated.
+
+### [x] 3.2 Create `surfaces.css` and wire global imports
+
+**Created:** 2026-06-03T00:00:00Z
+**Completed:** 2026-06-03T10:00:26Z
+
+**Why:** The row-divider, card, raised-surface, and sheet-handle looks are
+re-declared across ~10 files. Centralising them lets every sweep delete its
+copy and add a class instead (R3).
+
+**Prerequisites:** Task 3.1.
+
+**Decisions:**
+- Create `web/src/lib/shared/styles/surfaces.css` with: the `.rows` /
+  `.rows .row` divider model, `.card`, `.card-alt`, `.card-dashed`,
+  `.surface-alt`, `.sheet-handle` — values per PLAN.md → Surfaces. Radii
+  converge to `0.75rem`; hairline borders stay `1px`.
+- The divider is keyed off `.rows` only; **every list container is renamed to
+  `class="rows"` in its Phase 5 sweep** (`.list`, `.circle-list`,
+  `.blocked-list` included), so this one rule covers them all. (This supersedes
+  the parent plan's `border-bottom`→`<hr>` decision — see R3.) `<hr>` is kept
+  only for ListOverflowSheet's action menu (task 5.2), not for data lists.
+- Find the global-CSS import site (where `typography.css` and `tokens.css` are
+  imported — check `web/src/routes/+layout.svelte` and any `app.css`). Import
+  `surfaces.css` there, after `tokens.css` and `typography.css`.
+
+**Files:**
+- `web/src/lib/shared/styles/surfaces.css` (create)
+- the global import site (modify) — likely `web/src/routes/+layout.svelte`
+
+**Steps:**
+1. Write `surfaces.css` per the PLAN table.
+2. Add the import at the global site (confirm the existing pattern first).
+3. `pnpm lint` · `pnpm check` · `pnpm test` (no markup uses the classes yet;
+   all green).
+
+**Verify:** `pnpm lint` · `pnpm check` · `pnpm test`
+
+**Notes:** PLAN → Surfaces gives only the convergence targets (card radius
+0.75rem, handle width 2.25rem); the remaining values were read off the existing
+declarations — `.rows .row` divider is `1px solid var(--rule)` (MembersScreen /
+ListsScreen), the sheet handle is `4px` tall / `99px` (pill) radius /
+`var(--stone-lt)` / `margin: 0 auto 14px` (AvatarSourceSheet, ListOverflowSheet,
+identical), `.card-alt` tint is `var(--paper-alt)` + `1px solid var(--rule)`
+(InvitesBanner), `.card-dashed` is `var(--paper-alt)` + `1px dashed
+var(--stone-lt)` (ListsScreen). The handle keeps its `margin: 0 auto 14px`
+(centring + body gap) in the class so the per-file `.handle` rule deletes
+wholesale in Phase 5. **User correction:** dropped the "converges 36/40px →"
+style narration from the comments — comments describe what a surface *is*, not
+the drift being left behind.
+
+### [x] 3.3 Create `controls.css` (badges) and wire its import
+
+**Created:** 2026-06-03T00:00:00Z
+**Completed:** 2026-06-03T10:15:57Z
+
+**Why:** Count, status, and score badges are re-declared in InvitesBanner,
+PrivacyScreen, and ItemsScreen. One set of badge rules removes the drift (R4).
+
+**Prerequisites:** Task 3.2 (import pattern established).
+
+**Decisions:**
+- Create `web/src/lib/shared/styles/controls.css` with `.badge` base and
+  `.badge-ink`, `.badge-soft`, `.badge-score` (+`.positive`/`.negative`) per
+  PLAN.md → Controls. `.badge-score.positive` = `color: var(--sage); background:
+  var(--sage-bg)`, `.negative` = the ember pair; the base supplies the pill
+  radius. Import alongside `surfaces.css`.
+- **`.badge-score` is tonal only — it does not set the font.** The aggregate
+  score is monospace; that font is the `.mono` role's job (PLAN type scale lists
+  "`.score-badge` text" under `.mono`). So the ItemsScreen element carries
+  `class="badge badge-score mono positive|negative"` (task 5.4) — `.badge-score`
+  must not silently drop the monospace by omitting it.
+- **The global `.badge` is an inline-flex pill — keep it off ProfileSheet's
+  circle/blocked label.** That label (`<span class="badge circle">` today) is
+  centred block text, not a pill. Task 5.9 strips its `badge` class and renders
+  it as `.caption .mono`; nothing in this task should make it match the global
+  pill.
+- Also add `.toast-error` — the persistent error toast duplicated byte-for-byte
+  in `TrashScreen` / `DeletedListsScreen`. Include both the visual (color
+  `--ember`, background `--paper`, `1px solid var(--ember)`, `border-radius:
+  0.75rem`, `text-align: center`, font-size in rem) **and** the shared
+  fixed-position pattern (`position: fixed`; the shell-aware
+  `left/right: max(0px, calc(50% - var(--app-max-w) / 2 + 0.75rem))`;
+  `bottom: calc(env(safe-area-inset-bottom) + 18px)`; `z-index: 200`) since it
+  is a self-contained transient surface.
+- Pill buttons are **not** styled here — they become `<Button>` in Phase 4.
+
+**Files:**
+- `web/src/lib/shared/styles/controls.css` (create)
+- the global import site (modify)
+
+**Steps:**
+1. Write `controls.css`; add the import.
+2. `pnpm lint` · `pnpm check` · `pnpm test`.
+
+**Verify:** `pnpm lint` · `pnpm check` · `pnpm test`
+
+**Notes:** Converged badge values off the existing declarations: `.badge` base
+is the inline-flex pill (`min-width`/`height: 1.25rem`, `font-size: 0.75rem`,
+weight 600, radius 99px) from PrivacyScreen's count badge; `.badge-ink` is
+InvitesBanner's dark count (ink/paper); `.badge-soft` is the muted outlined
+count (paper-alt + rule). Two deliberate convergences flow from "base supplies
+the pill radius": the score badge (was `6px` radius) and InvitesBanner's count
+(was a `32px` disc) both become the 1.25rem pill. Used the bare `--sage-bg` /
+`--ember-bg` tokens (they exist in `tokens.css`), dropping the old hex fallbacks
+the scoped rules carried. `.toast-error` converts to rem (`0.75rem` shell
+offset, `0.875rem` type, `0.75rem` radius) but keeps the `+ 18px` safe-area
+bottom offset per the task. No markup uses the classes yet — wired in Phase 5.
+
+### [x] 3.4 Convert `EmptyState` to rem and the global roles
+
+**Created:** 2026-06-03T00:00:00Z
+**Completed:** 2026-06-03T10:26:57Z
+
+**Why:** EmptyState shipped in px (22–24 px heading, 14 px body). To match the
+homogenised scale it uses the `.t-hero` and `.body` roles (or rem values
+identical to them) and converts spacing to rem (R1, R6).
+
+**Prerequisites:** Task 3.1.
+
+**Decisions:**
+- The heading uses `.t-hero` (serif 1.5rem/500) and the body uses `.body`
+  (0.875rem/`--ink-soft`/1.5) — either by adding the classes to the markup or
+  by matching the rem values in the scoped block. Prefer adding the classes so
+  there is one source of truth; the disc dimensions (96 px) and dashed border
+  stay (disc is fixed; border is a hairline). Convert the disc `margin-bottom`,
+  body `max-width`, and paddings to rem.
+- EmptyState's remaining visual CSS (the disc) is an allowed exception per R7 —
+  it is the empty-state home.
+
+**Files:**
+- `web/src/lib/shared/components/EmptyState.svelte` (modify)
+- `web/src/lib/shared/components/EmptyState.test.ts` (modify if selectors
+  reference removed classes — unlikely; tests assert behaviour)
+
+**Steps:**
+1. Apply `.t-hero` / `.body` to the heading/body; convert spacing to rem.
+2. `pnpm lint` · `pnpm check` · `pnpm test`.
+
+**Verify:** `pnpm lint` · `pnpm check` · `pnpm test`
+
+**Notes:** Kept the `.empty-heading` / `.empty-body` layout classes on the
+markup (now `class="empty-heading t-hero"` / `class="empty-body body"`) rather
+than removing them — `EmptyState.test.ts` selects on those class names, and
+they now carry only local spacing (margins, `max-width`). Type lives entirely
+on the `.t-hero` / `.body` roles. Spacing converted to rem (`2.5rem 2.25rem`
+padding, `1.5rem` disc gap, `0.625rem` heading gap, `1.75rem` body gap,
+`17.5rem` max-width); the 96px disc and hairline dashed border stay px.
+
+### [x] 3.5 Add a `sage` filled-pill tone to `<Button>`
+
+**Created:** 2026-06-03T00:00:00Z
+**Completed:** 2026-06-03T10:36:44Z
+
+**Why:** Task 4.2 replaces the hand-rolled Accept/Decline pills with `<Button>`,
+but the design renders **Accept as a filled sage button** (`background:
+var(--sage); color: #fff` — `design/cairn-invite-screens.jsx`, `docs/ui.md` →
+"Accept (sage)"). `<Button>` today exposes tones `primary | ink | destructive`
+(`Button.svelte`), and its `pill` variant is outlined-only — none of which can
+produce a filled sage pill. This task adds the one missing tone so 4.2 can use
+it instead of stalling on the absent tone.
+
+**Prerequisites:** None (Button already exists from 0901). Read `Button.svelte`
+to match the existing `Variant`/`Tone`/`Size` structure and the `class:tone-*`
+binding pattern.
+
+**Decisions:**
+- Add `'sage'` to the `Tone` union and a matching `class:tone-sage={tone ===
+  'sage'}` binding on the `<button>`.
+- The `pill` variant renders the `sage` tone **filled**, unlike every other
+  pill tone (which stay outlined): `.pill.tone-sage { background: var(--sage);
+  color: var(--paper); border: none }`. The filled-only-for-sage asymmetry is
+  intentional — sage is the single affirmative "go" action.
+- For completeness add the rect and text analogues so the tone is fully
+  defined: `.rect.tone-sage { background: var(--sage); color: var(--paper) }`
+  and `.text.tone-sage { color: var(--sage) }`. (Only the pill is consumed by
+  this plan, but a half-defined tone is a smell.)
+- Use `var(--paper)` for the foreground, not a literal `#fff`, so it tracks the
+  theme (the hand-rolled pill's `#fff` was a token-bypass).
+
+**Reference:** `Button.svelte` for the variant/tone class pattern;
+`docs/ui.md` → "Invites inbox screen" for the Accept-is-sage contract.
+
+**Files:**
+- `web/src/lib/basic/components/Button.svelte` (modify)
+- `web/src/lib/basic/components/Button.test.ts` (modify)
+
+**Steps:**
+1. RED — In `Button.test.ts`, add a case rendering `<Button variant="pill"
+   tone="sage">` and assert it carries the `tone-sage` (and `pill`) class.
+   Confirm it fails (tone not yet in the union / no class emitted).
+2. GREEN — Add `'sage'` to `Tone`, the `class:tone-sage` binding, and the
+   three tone rules above. Re-run and confirm green.
+3. `pnpm lint` · `pnpm check` · `pnpm test`.
+
+**Verify:** `pnpm lint` · `pnpm check` · `pnpm test`
+
+**Notes:**
+- **No `typography.css` edit needed.** The task anticipated a stale `.centre` /
+  "task 3.10" reference in the `h1` comment, but the 3.1 rewrite already
+  replaced it with a clean comment (`/* Screen titles — the TopBar <h1> is the
+  one canonical page-level heading. */`). Grep confirms no `.centre` or `3.10`
+  survives anywhere in the file.
+- **Dropped `line-height: 1.1` rather than moving it onto a scoped `.middle h1`.**
+  The decision allowed keeping it only "if intentional and differs from the
+  global; otherwise drop it." The global `h1` sets no line-height (browser
+  default ~1.2); a TopBar title is near-always single-line, so 1.1 buys nothing
+  visible and would trip the Phase 6 layout-only grep guard (which flags
+  `line-height:`), forcing an annotation for no benefit. Dropped per "otherwise
+  drop it." `.middle` now carries only `flex: 1; min-width: 0`.
+- No test changes: `TopBar.test.ts` keys on `data-test` and text content, never
+  the `.centre`/`.middle` class.
+
+---
+
+## Phase 4 — Shared chrome + `<Button>` reuse
+
+### [x] 4.1 TopBar — `<h1>` title, trim scoped type
+
+**Created:** 2026-06-03T00:00:00Z
+**Completed:** 2026-06-03T10:40:17Z
+
+**Why:** TopBar's title is the only canonical page-level heading and its type
+duplicates the global `h1`. Promoting it to `<h1>` and deleting the scoped font
+properties is the cleanest single instance of the whole plan. TopBar is fully
+handled here and not revisited in Phase 5.
+
+**Prerequisites:** Task 3.1 (global `h1` in rem).
+
+**Decisions:**
+- The middle slot currently wraps **both** the title (`{@render children()}`)
+  and the optional `.sub`, inside one `<div class="centre">`
+  (`TopBar.svelte:33-36`). Do **not** turn that wrapper into the `<h1>` — that
+  would nest the subtitle `<p>` inside the heading, which is invalid (an `<h1>`
+  cannot contain a `<p>`). Instead keep the wrapper as a layout `<div>` and put
+  the title and subtitle as **siblings** inside it:
+  ```svelte
+  <div class="middle">
+    <h1>{@render children()}</h1>
+    {#if sub}<p class="sub caption">{sub}</p>{/if}
+  </div>
+  ```
+- **Rename the class `centre` → `middle`** (the `left` / `middle` / `right`
+  triad). Class names are code, so they take US spelling — and `middle` reads
+  better than `center`, which implies the slot is centring something. Update
+  the scoped rule, the markup, and the stale `.centre` mention in
+  `typography.css` (the comment at the `h1` rule, which also references a
+  non-existent "task 3.10").
+- On the new `<h1>`: it inherits the global `h1` type — add no scoped font
+  properties. `line-height: 1.1` from the old `.centre` rule may move onto the
+  scoped `h1`/`.middle` layout only if it is intentional and differs from the
+  global; otherwise drop it.
+- `.middle` keeps only layout: `flex: 1; min-width: 0`.
+- `.sub` (the `<div>` → `<p class="sub caption">`): move its type to `.caption`
+  (0.75rem/`--stone`); keep only layout (`margin-top`) scoped, converted to rem.
+- TopBar's `header` `background: var(--paper)` and `border-bottom: 1px solid
+  var(--rule)` are single-instance app chrome — they may stay scoped (R "single
+  instance chrome"). Convert the `padding`/`gap`/`min-height` to rem where they
+  are not safe-area `env()` calc.
+
+**Files:**
+- `web/src/lib/shared/components/TopBar.svelte` (modify)
+- `web/src/lib/shared/styles/typography.css` (modify — drop the stale `.centre`
+  comment reference)
+- `web/src/lib/shared/components/TopBar.test.ts` (modify if it queries
+  `.centre` — a grep shows it does not today, so likely no change)
+
+**Steps:**
+1. Apply the element + CSS changes above (sibling `<h1>` + `<p>`, class rename,
+   scoped-type removal).
+2. Update `TopBar.test.ts` selectors if needed.
+3. `pnpm lint` · `pnpm check` · `pnpm test`.
+
+**Verify:** `pnpm lint` · `pnpm check` · `pnpm test`
+
+### [x] 4.2 Replace hand-rolled pills with `<Button>` (InvitesInboxScreen + InvitesBanner)
+
+**Created:** 2026-06-03T00:00:00Z
+**Completed:** 2026-06-03T10:47:19Z
+
+**Why:** Both files hand-roll `.btn-accept` / `.btn-decline` (diverging
+13/13.5 px, own radius/colors) while InvitePickerSheet already uses the shared
+`<Button variant="pill">`. Reusing `<Button>` deletes the duplicated button CSS
+(R4). The rest of these two files' sweep is task 5.6.
+
+**Prerequisites:** Task 3.5 (`<Button>` has the `sage` filled-pill tone). Read
+`Button.svelte` to confirm the `variant`, `tone`, and `size` props.
+
+**Decisions:**
+- Replace each `<button class="btn-accept">Accept</button>` with
+  `<Button variant="pill" tone="sage" size="sm" …>` (filled sage, matching the
+  design) and each `<button class="btn-decline">Decline</button>` with
+  `<Button variant="pill" tone="ink" size="sm" …>` (outlined). "Decline" is the
+  backward/less-committal action and goes left per the button-pair rule.
+  Preserve all `data-test`, `onclick`, and disabled wiring.
+- Decline's current muted-stone outline converges onto the outlined `ink` pill
+  — a deliberate homogenisation change (the parent plan collapsed `neutral` →
+  `ink`, so there is no separate muted tone, and reintroducing one is out of
+  scope).
+- Delete the `.btn-accept` / `.btn-decline` scoped CSS. Keep `.buttons`
+  (layout: flex/gap) and convert its gap to rem. Both buttons today are
+  full-width (`flex: 1`); preserve that via the layout wrapper (e.g. `.buttons
+  > :global(button) { flex: 1 }`) since `<Button>` is inline-flex by default.
+
+**Files:**
+- `web/src/lib/invite/components/InvitesInboxScreen.svelte` (modify)
+- `web/src/lib/invite/components/InvitesInboxScreen.test.ts` (modify if button
+  selectors change)
+- `web/src/lib/invite/components/InvitesBanner.svelte` (modify)
+- `web/src/lib/invite/components/InvitesBanner.test.ts` (modify if needed)
+
+**Steps:**
+1. Swap the buttons in both files; delete the `.btn-*` CSS.
+2. Update tests (the buttons likely keyed by `data-test`, so minimal).
+3. `pnpm lint` · `pnpm check` · `pnpm test`.
+
+**Verify:** `pnpm lint` · `pnpm check` · `pnpm test`
+
+### [x] 4.3 Scale a button's `leadingIcon` with its label (em-sized `Icon`)
+
+**Created:** 2026-06-03T13:00:00Z
+**Completed:** 2026-06-03T13:03:11Z
+
+**Why:** Task 5.4's side work converted `<Button>`'s size tiers to rem (md =
+1rem, sm = 0.8rem `.fine`), so button **labels** now track the Settings
+text-size control. But the optional `leadingIcon` is still rendered by `Icon`
+at a fixed pixel size (`Button.svelte`'s `iconSize` = `sm ? 14 : 16`, passed to
+`Icon`'s numeric `size`, which becomes a bare `width`/`height` in px — see
+`Icon.svelte:13-15`). The result: at larger text-size settings the label grows
+but the plus/trash/pencil glyph beside it stays put, an increasingly obvious
+mismatch. The plan's own Units rule already says "use em for icon-beside-label
+sizing" — this is the one place the primitive still violates it.
+
+**Prerequisites:** Task 5.4 (Button size tiers are rem). Read `Icon.svelte` and
+`Button.svelte` (the `iconSize` derived value + the `<Icon>` render at the top
+of the `<button>`).
+
+**Decisions:**
+- **Scope: the in-`Button` leading icon only.** Standalone `<Icon>` calls that
+  are genuinely fixed-size affordances (TopBar controls, the more-vertical row
+  chevron, FAB glyph, etc.) are out of scope — they are deliberate tap-target
+  sizing, not icon-beside-label text. This task fixes only the glyph that sits
+  inline with a scaling label inside `<Button>`.
+- **Extend `Icon`'s `size` to accept a unit string.** Change `size?: number` →
+  `size?: number | string` (default stays `20`). The `<svg width={size}
+  height={size}>` already renders a string verbatim, so passing `size="1em"`
+  yields `width="1em"` — a CSS-unit value SVG honours, and one a Vitest test can
+  assert on the rendered attribute. A bare number keeps rendering px, so every
+  existing caller is unaffected.
+- **`Button` passes `"1em"` for its leading icon.** Replace the px `iconSize`
+  derivation with the literal `"1em"` so the glyph is exactly one label-line tall
+  and scales with the (rem-based) label. `1em` matches the old md icon (16px at a
+  1rem button) and is within ~1px of the old sm icon — no meaningful visual
+  regression at the default size, correct scaling above it. Remove the now-unused
+  `iconSize` `$derived` (and its `size`-prop dependency for icon purposes; `size`
+  still drives font-size/padding).
+- Leave the `gap` between icon and label as-is (already rem from 5.4); optionally
+  note whether it should be em for tighter coupling, but do not change it here.
+
+**Reference:** `docs/ui.md` → "Units: rem / em / px" (the icon-beside-label = em
+rule); `Button.svelte` `iconSize`; `Icon.svelte:4-15`.
+
+**Files:**
+- `web/src/lib/basic/components/Icon.svelte` (modify — widen `size` type)
+- `web/src/lib/basic/components/Button.svelte` (modify — pass `"1em"`, drop
+  `iconSize`)
+- `web/src/lib/basic/components/Button.test.ts` (modify — assert the leading
+  icon renders at `1em`)
+- `web/src/lib/basic/components/Icon.test.ts` (modify if present — a string
+  `size` still renders verbatim)
+
+**Steps:**
+1. RED — In `Button.test.ts`, render a `<Button leadingIcon="plus">` and assert
+   the rendered `<svg>` has `width="1em"` (and `height="1em"`). Confirm it fails
+   (today it is `16`/`14`). Note: `Icon` is sometimes mocked in suites — assert
+   against the real `Icon` here (do not mock it in this case).
+2. GREEN — Widen `Icon`'s `size` to `number | string`; have `Button` pass
+   `"1em"` for `leadingIcon` and remove the `iconSize` derivation. Re-run; green.
+3. `pnpm lint` · `pnpm check` · `pnpm test`.
+
+**Verify:** `pnpm lint` · `pnpm check` · `pnpm test`
+
+---
+
+## Phase 5 — Per-component sweeps
+
+Each task follows the **Standing rules** at the top of this file. Per-file
+**Decisions** below only call out what is specific or surprising.
+
+### [x] 5.1 InvitePickerSheet — canonical sweep
+
+**Created:** 2026-06-03T00:00:00Z
+**Completed:** 2026-06-03T10:54:54Z
+
+**Why:** Fullest set of transformations in one file (header, two section
+labels, two list groups, name + sub, an e-mail form). Establishes the playbook
+and proves the global roles/classes compose with a real component.
+
+**Prerequisites:** Phase 3 complete.
+
+**Decisions:**
+- `<div class="header">` → `<header>`; `.title` div → `<h2 class="title t-sheet">`;
+  `.subtitle` div → `<p class="subtitle caption">`. (A `<header>` + `<h2>` was
+  already partly started in the working tree — finish it.)
+- **Section structure.** This sheet has three content groups — "Your circle",
+  "People you share other lists with", and the by-e-mail field. Wrap each in a
+  `<section>`. The first two are lone-title groups: `<div class="section-label">`
+  → a bare `<h2 class="section-label">` (global `h2`; drop the scoped font
+  props, keep padding as layout, in rem) followed by its `<ul>` — **no**
+  `<header>`. The e-mail group is handled below.
+- `<div class="rows">` → `<ul class="rows">`; `<div class="row">` →
+  `<li class="row">`; rely on the global `.rows`/`.rows .row` divider — delete
+  the scoped `border-top`/`:last-child border-bottom`.
+- `<div class="name">` → `<h3 class="name">` (drop scoped 14 px → global 15px).
+  These rows are **not** tap targets (the Invite control is the action), so the
+  name is genuinely not inside a control — `<h3>` is valid here.
+- `<div class="sub">` → `<span class="sub caption">`.
+- **Unify the two "Invite" buttons.** The circle rows already use
+  `<Button variant="pill" tone="ink" size="sm">`, but the co-member rows still
+  hand-roll a raw `<button class="invite-btn">` (no scoped CSS — renders as a
+  default browser button; 0901 migrated only the circle row, leaving this one).
+  Swap it to the same `<Button variant="pill" tone="ink" size="sm">` so both
+  "Invite" buttons match; preserve its `data-test` and `onclick`. Delete any
+  `.invite-btn` rule (there is none today).
+- `.email-section` → a `<section>` kept as layout; its
+  `background: var(--paper-alt)` becomes the `.surface-alt` class on the
+  element; `border-top` stays a hairline (`1px` px). Its "By e-mail" caption is
+  both the section's intro **and** the label for the one e-mail input, so
+  replace `<label class="section-label email-label" for="…">` with the
+  `<Label for="invite-picker-email-input">By e-mail</Label>` primitive
+  (`$lib/basic/components/Label.svelte` — it already renders the section-label
+  look as a real `<label>`). Delete the `.email-label` scoped rule. **No global
+  `.section-label` class is introduced.**
+- `.invited` check uses `color: var(--sage)` — that is a state color on an
+  icon wrapper; move it to a tiny global helper or keep as an annotated
+  exception (decide and note).
+
+**Files:**
+- `web/src/lib/invite/components/InvitePickerSheet.svelte` (modify)
+- `web/src/lib/invite/components/InvitePickerSheet.test.ts` (modify)
+
+**Verify:** `pnpm lint` · `pnpm check` · `pnpm test`
+
+**Notes:**
+- **No test changes needed.** `InvitePickerSheet.test.ts` selects only by
+  `data-test` and asserts `textContent` — none of the element-type changes
+  (div→section/ul/li, div→h3, label→`<Label>`) touch those selectors, so all 6
+  tests stayed green unchanged.
+- **`.invited` sage colour kept as an annotated scoped exception** (per the
+  task's "decide and note"): it is a genuine per-row state colour on the
+  affirmative tick, not drift — no global helper warranted for one instance.
+- **`<Label>` layout shim.** The primitive renders a bare inline `<label>`; the
+  old `.email-label` relied on `padding-bottom` for the gap to the input. Added
+  a scoped `.email-section :global(label) { display: block; margin-bottom: 0.5rem }`
+  layout rule so the label sits as a block with the gap preserved.
+- `.title` and `.name` classes are left on the `<h2>`/`<h3>` markup (now
+  rule-less, their look comes from `.t-sheet`/global `h3`) — dead classes to be
+  swept in task 6.1 per the standing rules.
+
+### [x] 5.2 ListOverflowSheet + AvatarSourceSheet
+
+**Created:** 2026-06-03T00:00:00Z
+**Completed:** 2026-06-03T11:03:35Z
+
+**Why:** Both have a `<div class="header">` → `<header>` with a serif title
+→ `.t-sheet`, and `ListOverflowSheet` has a `<div class="rows">` of `<Button>`
+items → `<ul>` with each `<Button>` wrapped in `<li>`. Both have a sheet
+handle → global `.sheet-handle`.
+
+**Prerequisites:** Phase 3; task 5.1 (playbook).
+
+**Decisions:**
+- ListOverflowSheet: `.list-name` div → `<h2 class="t-sheet">`; `.meta` div →
+  `<p class="caption">`; `.label` (button row label) drops scoped font (15px →
+  it is a row label; use `h3` semantics only if it is a heading, else keep as
+  plain text styled by `.body` — it is a menu item label, use `.body`).
+  **The `<div class="rows">` becomes `<ul class="menu">`, NOT `<ul class="rows">`.**
+  This is an `<hr>`-separated *action menu*, not the per-row-border data-list
+  model, so it must not carry the global `.rows` class (which would add a
+  container `border-top` directly under the header's `border-bottom`). Move the
+  existing `.rows :global(button)` layout rule onto `.menu :global(button)`, and
+  update any test selector querying `.rows` here. `<hr>` between items inside a
+  `<ul>` is invalid as a direct `<ul>` child — wrap:
+  `<li role="separator" aria-hidden="true"><hr /></li>`; add a layout rule to
+  zero its list padding. Handle div → `.sheet-handle` (delete scoped handle
+  CSS).
+- AvatarSourceSheet: `.header` → `<header>`; `.title` → `<h2 class="t-sheet">`;
+  `.subtitle` (already `explainer subtitle`) → `<p class="subtitle caption">`
+  (drop the now-redundant explainer if `.caption` covers it — keep `.explainer`
+  only if its value differs; note the choice). Handle → `.sheet-handle`.
+  `.divider` hairline stays px.
+
+**Files:**
+- `web/src/lib/list/components/ListOverflowSheet.svelte` (+ `.test.ts`)
+- `web/src/lib/avatar/components/AvatarSourceSheet.svelte` (+ `.test.ts`)
+
+**Verify:** `pnpm lint` · `pnpm check` · `pnpm test`
+
+**Notes:**
+- **No test changes needed** for either file — both suites key on `data-test`
+  / `getByText` / input selectors, none of which the element-type changes
+  touch. ListOverflowSheet (10) + AvatarSourceSheet (3) stayed green unchanged.
+- **Both headers became `<header>`** (not bare `<h2>` + sibling): each carries
+  title + subtitle (list-name + meta; "Profile picture" + the format line), so
+  the standing-rule "intro carries more than the title" branch applies.
+- **Menu labels use `.body`, and the `.label` class was dropped** rather than
+  kept rule-less — no test referenced it, so there was no selector to preserve
+  (cleaner than leaving a Phase-6 dead class). `.confirm-copy` likewise gained
+  `.body` and kept only its margin.
+- **AvatarSourceSheet dropped `.explainer`** in favour of `.caption` (same
+  `--stone`, near-identical size); the buttons/`.divider` structure was left
+  as-is — the task scoped this file to header/title/subtitle/handle only, not a
+  full menu-list conversion.
+- The `.menu hr` separators get a scoped hairline (`border-top: 1px solid
+  var(--rule)`); this is the action-menu divider, kept in px per the Units rule
+  and not the data-list `.rows` model.
+- **Plan-file fix:** the 5.1 commit (e70a96c) accidentally dropped this task's
+  `### [ ] 5.2 …` heading line (the body survived, orphaned). Restored here and
+  marked done. Flagging since it already landed in a commit.
+
+### [x] 5.3 MembersScreen
+
+**Created:** 2026-06-03T00:00:00Z
+**Completed:** 2026-06-03T12:29:01Z
+
+**Why:** Full suite: section label, rows, row (a `<button>`), avatar + name +
+sub + action. `.name` matches `h3` already (good convergence check).
+
+**Prerequisites:** Phase 3; task 5.1.
+
+**Decisions:**
+- Wrap the labelled members group in a `<section>` whose bare `<h2>` is its
+  title (no `<header>` — lone title). `<div class="section-label">` →
+  `<h2 class="section-label">` (padding only, rem). `<div class="rows">` →
+  `<ul class="rows">`. Each `<button class="row">`
+  → `<li class="row"><button …></li>` **or** keep `<button class="row">` as the
+  list item if the row is the whole tap target — if so, use a `<li>` wrapper to
+  stay valid inside `<ul>`. The row's `background: transparent` / `border:
+  none` button-reset stays as layout-ish reset (it is not a visual look, it is
+  un-styling a button) — keep but convert to the minimum. Divider via global
+  `.rows .row`.
+- `<div class="name">` → `<span class="name row-title">` (delete scoped 15px;
+  the `.row-title` class carries the h3 row-name look). **Not an `<h3>`** — the
+  name sits inside the row's tap-target `<button>`, where a heading is invalid
+  HTML and would be folded into the button's accessible name. `<div
+  class="sub">` → `<span class="sub caption">` (12px → 0.75rem global).
+
+**Files:**
+- `web/src/lib/list/components/MembersScreen.svelte` (+ `.test.ts`)
+
+**Verify:** `pnpm lint` · `pnpm check` · `pnpm test`
+
+**Notes:**
+- **Row markup:** kept `class="row"` on the `<button>` (the whole tap target)
+  and wrapped it in a bare `<li>` — the second of the task's two options. This
+  preserves all the scoped button layout/reset and lets the global `.rows .row`
+  descendant selector key the divider off the button. Dropped the scoped
+  `border-bottom` and the `.row:last-of-type { border-bottom: none }`; the last
+  row now keeps a bottom border, the deliberate divider-model convergence.
+- **No test changes needed** — the suite keys only on `data-test` and
+  `textContent`, neither of which the div→section/ul/li/h2/span changes touch.
+  All 8 tests stayed green (full suite 624 passed).
+- **`.info` made a flex column** so the now-`<span>` name/sub still stack (they
+  were block `<div>`s before).
+- **`.name` rule deleted** (type now on global `.row-title`); the `name` class
+  is left on the markup as a dead class for Phase 6, per the standing rules.
+- **`.loading` also swept** (not called out in the task): dropped its `--stone`
+  colour onto `.caption` and converted padding to rem, consistent with standing
+  rule 2 and the other Phase 5 screens.
+- **`.sub` → `.caption`** per the task. Noting `.fine` (the newer 0.8rem
+  sub-floor metadata role, added after this plan was written) would arguably
+  suit the "Joined …" / "Created the list" metadata line better; left as
+  `.caption` to respect the task's explicit choice — a candidate for the Phase 6
+  visual sweep.
+
+### [x] 5.4 ItemsScreen
+
+**Created:** 2026-06-03T00:00:00Z
+**Completed:** 2026-06-03T12:54:49Z
+
+**Why:** `div.rows` → `ul`, `div.row` → `li`; row-inner stays a layout div. Has
+the score badge (→ `.badge-score`), the notes block (serif-italic — exception),
+member-vote mono values (→ `.mono`), attribution (→ `.caption`), and an
+empty-state with a CTA.
+
+**Prerequisites:** Phase 3; task 5.1.
+
+**Decisions:**
+- `.row` → `<li class="row">`; `class:open` moves to the `<li>`; `.row.open`
+  background → `.surface-alt` toggled, or a scoped layout-free state class that
+  only sets background via the global token (this is a *state* background —
+  acceptable as a scoped one-liner referencing the token, annotate). `row-inner`
+  stays a div.
+- `.item-name` (a `<span>` inside the `<button class="row-tap">`) →
+  `<span class="item-name row-title">` (15.5px → 15px global via `.row-title`).
+  **Keep it a `<span>`, not an `<h3>`** — it sits inside the row's tap-target
+  button, where a heading is invalid HTML. The `.row.open .item-name` weight
+  bump 600 is a state — keep as a scoped state rule on the class, annotate, or
+  accept default. `.score-badge` → `<span class="badge badge-score mono">` (+
+  positive/negative); delete its scoped color/bg/radius/font. The `.mono` class
+  is **required** — `.badge-score` is tonal only and would otherwise drop the
+  monospace the score has today (PLAN type scale puts the score-badge font under
+  `.mono`). `.badge-score.positive` sets `color: var(--sage); background:
+  var(--sage-bg)` and `.negative` the ember pair; the badge takes the `.badge`
+  base's pill radius (99px), converging the current 6px — a deliberate change. `.notes` → `.body` plus a
+  scoped `font-family: …serif; font-style: italic` (annotated exception, see
+  PLAN open question). `.member-vote` → `.caption`; `.mv-val` → `.mono` (+
+  positive/negative state color). `.attribution` → `.caption`; the tombstone
+  span keeps its scoped italic serif (annotated exception).
+- Empty state → `<EmptyState icon="feather" title=… body=… ctaLabel=… onCta=…>`
+  (read current copy). Delete `.empty*` CSS.
+- The undo `.undo-snackbar` is ItemsScreen-specific chrome; convert its type to
+  `.caption`/rem, keep positioning layout; its `background: var(--ink); color:
+  var(--paper)` is a single-instance toast — annotate as exception or migrate to
+  `<Snackbar>` if trivial (do not force a component extraction).
+
+**Files:**
+- `web/src/lib/item/components/ItemsScreen.svelte` (+ `.test.ts`)
+
+**Verify:** `pnpm lint` · `pnpm check` · `pnpm test`
+
+**Notes:**
+- **No test changes needed** — the suite keys on `data-test`/`textContent`/class
+  presence (`tombstone`); none of the div→ul/li, span-role, or EmptyState
+  changes touch those. Full suite stayed green (624 passed).
+- **`item-name` row title is the scaling fix the user spotted:** it was hardcoded
+  `15.5px` (frozen, ignored the Settings text-size control) while `.notes` was
+  `1rem` (scaled) — hence "only descriptions resize". Now on the global
+  `.row-title` role (1rem), so titles scale too. The open-state weight bump
+  (500→600) was dropped — `.row-title` is 600, so accepting the default per the
+  task's "accept default" option; the open row stays distinct via its
+  `.surface-alt`-equivalent tint + expanded panel.
+- **`.row.open` tint** kept as an annotated scoped one-liner referencing
+  `--paper-alt` (genuine toggled state); **`.item-panel`** moved to the global
+  `.surface-alt` class (always-on tint). Score badge → `.badge badge-score mono`;
+  member-vote values → `.mono`; `.notes` → `.body` + annotated serif-italic;
+  attribution/member-vote already carried `.fine`. Empty block → `<EmptyState>`.
+  Undo snackbar kept as annotated single-instance inverted-chrome toast, type/px
+  → rem.
+- **Side work — `Button.svelte` size tiers converted px → rem (user-directed).**
+  Reviewing the panel Edit/Delete pills, the user flagged that *all* `<Button>`
+  sizes were hardcoded px and so never tracked the text-size control. Converted
+  every variant's `font-size`/padding/gap/radius to rem, tying the tiers to the
+  type scale: **`md` = 1rem** (body floor), **`sm` = 0.8rem** (the `.fine`
+  small-print role). Confirmed **every pill call site (13) passes `size="sm"`** —
+  pill is never `md`, so `.pill.size-md` is currently dead (left in place,
+  font now 1rem, for API completeness). This is a shared-primitive change beyond
+  5.4's stated scope and the Phase 6 guard excludes `basic/Button`; flagging for
+  the user (own commit if desired).
+- **Known remaining gap (flagged, not fixed):** `Icon` renders bare numeric
+  `width`/`height` (px), so a button's `leadingIcon` stays a fixed size while
+  the label now scales — visible at large text-size settings. Fixing means
+  sizing the SVG in `em` (an `Icon`-primitive change, app-wide). Left for a
+  follow-up decision.
+
+### [x] 5.5 ListsScreen
+
+**Created:** 2026-06-03T00:00:00Z
+**Completed:** 2026-06-03T13:16:30Z
+
+**Why:** `div.row` per list, with a `.row-top` (name + overflow) and an
+expandable `.desc`. The list name is the hero → `.list-title`. Has the
+illustrated empty-state with a `<CairnGlyph>` disc + CTA.
+
+**Prerequisites:** Phase 3; task 5.1.
+
+**Decisions:**
+- `<div class="list">` → `<ul class="rows">` (rename `.list` → `.rows` so the
+  global `.rows`/`.rows .row` divider applies; move any `.list`-specific layout
+  onto `.rows` and update test selectors that query `.list`); each
+  `<div class="row">` → `<li class="row">` (keep `class:last`). `.row-top`,
+  `.desc`, `.desc-text` stay layout divs/buttons.
+- `<span class="name">` (inside the row-nav `<Button variant="text">`) **stays a
+  `<span class="name list-title">`** — `.list-title` carries the serif
+  1.0625rem/600 look; delete the scoped font block. Do **not** promote it to an
+  `<h3>`: it lives inside the nav button (the row's tap target), where a heading
+  is invalid HTML and would be folded into the button's accessible name. The
+  class, not the tag, carries the hero look. `.desc` → `.body` (13.5px → 0.875rem) with the no-desc italic/`--stone`
+  kept as a scoped state (annotate) or a `.caption` swap. `.see-toggle` and
+  `.meta` → `.caption`; `.dot` color → keep as a one-liner referencing
+  `--stone-lt` (tiny, annotate) or fold into `.caption` context.
+- Empty state → `<EmptyState>` with the `iconContent` snippet holding
+  `<CairnGlyph size={44} color="var(--stone)" />`, plus `ctaLabel`/`onCta`
+  (read current copy). Delete `.empty*` CSS.
+
+**Files:**
+- `web/src/lib/list/components/ListsScreen.svelte` (+ `.test.ts`)
+
+**Verify:** `pnpm lint` · `pnpm check` · `pnpm test`
+
+**Notes:**
+- **User correction — list name now matches the item name, not the serif hero.**
+  The task specified the list name → `.list-title` (serif 1.0625rem). The user
+  asked for it to "look identical to the item name", so it carries `.row-title`
+  (1rem / 600 / `--ink`, sans) instead. **Consequence:** `.list-title` lost its
+  only consumer, so (per a follow-up user instruction) the role was **retired** —
+  deleted from `typography.css` and removed from the `docs/ui.md` type-roles
+  list. The historical references in this plan's `PLAN.md` / `REQUIREMENTS.md`
+  are left as planning record.
+- **User addition — dashed separator under each list title.** The user wanted the
+  ItemsScreen "expanded item" look (`.item-panel`'s `border-top: 1px dashed
+  var(--rule)`) under the list title too. Added `border-bottom: 1px dashed
+  var(--rule)` + `padding-bottom: 0.5rem` to `.row-top`, and bumped `.desc`
+  `margin-top` to `0.5rem` for symmetric breathing room. Hairline stays px (Units
+  rule); the `border-bottom:` shorthand is not matched by the Phase 6 guard
+  (which only flags `border-*-color:`), same as the existing item-panel rule, so
+  no annotation needed.
+- **`.see-toggle` → `.fine` (0.8rem), not the task's `.caption`.** The task
+  predates the `.fine` role (commit `49f077d`); `.meta` had already been migrated
+  to `.fine` in the markup, so `.see-toggle` uses `.fine` for consistency with
+  the adjacent meta line — `.caption` (now the 1rem floor) would have blown the
+  inline "(see more)" hint up to body size.
+- **Empty state → `<EmptyState>`** via the `iconContent` snippet holding
+  `<CairnGlyph size={44} color="var(--stone)" />`. The CTA's old
+  `data-test="lists-empty-cta"` is gone (EmptyState's CTA Button has no per-call
+  data-test), so test (b) now asserts the CTA via
+  `empty.querySelector('button')` + its label text — behaviourally equivalent.
+- `.list` → `<ul class="rows">`, `.row` → `<li class="row">` (global divider;
+  kept `.row.last` border-suppression per the task). `.name` font block dropped
+  (role-driven); `.desc` → `.body`; no-desc italic/`--stone` kept as annotated
+  state; `.dot` `--stone-lt` kept as annotated one-liner.
+- **User bug fix — `.desc` row jumped on expand.** With `align-items: baseline`,
+  adding the smaller `(see less)` toggle grew the flex line via baseline
+  ascent/descent maths (worsened by the collapsed `overflow:hidden` baseline
+  quirk), pushing content below down a few px. Switched `.desc` to
+  `align-items: flex-start` so the row height = the text line and the shorter
+  toggle can't change it; top-align also keeps the toggle beside the first line
+  when an expanded description wraps. Single-line trade-off: the smaller toggle
+  sits a touch above the text baseline. (A future inline-toggle refactor —
+  toggle in the text flow rather than a flex sibling — would give baseline
+  reading without the height coupling.)
+
+### [x] 5.6 InvitesInboxScreen + InvitesBanner
+
+**Created:** 2026-06-03T00:00:00Z
+**Completed:** 2026-06-03T15:05:59Z
+
+**Why:** Finish the two invite components whose pills were swapped in task 4.2:
+semantic markup, type → roles, empty state. `InvitesBanner.row` is a carve-out
+(layout div, not a list item).
+
+**Prerequisites:** Phase 3; tasks 4.2, 5.1.
+
+**Decisions:**
+- InvitesInboxScreen: `<div class="list">` → `<ul class="rows">` (rename
+  `.list` → `.rows` so the global `.rows`/`.rows .row` divider applies; update
+  test selectors querying `.list`); `<div class="row">` → `<li class="row">`
+  (inner `.row-top`/`.row-info` stay divs). `.list-name` → `<h3>`; `.row-inviter`
+  → `.caption`; `.inviter-name` weight via a scoped state or `<strong>`; `.when`
+  → `.caption .mono`. Drop the per-file `.row.first`/`.row` border hacks (global
+  divider). Empty
+  state → `<EmptyState icon="inbox" title="No pending invites" body=…>` (reword
+  the `<br/>` body into one sentence). Delete `.empty*` and `.loading` color
+  (→ `.caption`).
+- InvitesBanner: `.banner` → use `.card-alt` (delete its scoped bg/border/
+  radius; keep margin/padding layout in rem). `.row` stays a `<div>` (carve-out:
+  action buttons are its sibling, not inside it). `.copy` → `.body`; `.bold`/
+  `.grey` → `<strong>` / `.caption` or scoped state. `.count-badge` → `.badge
+  .badge-ink`; `.multi-text` → `<h3>`.
+
+**Files:**
+- `web/src/lib/invite/components/InvitesInboxScreen.svelte` (+ `.test.ts`)
+- `web/src/lib/invite/components/InvitesBanner.svelte` (+ `.test.ts`)
+
+**Verify:** `pnpm lint` · `pnpm check` · `pnpm test`
+
+**Notes:**
+- **No test changes needed** for either file — both suites key on
+  `data-test` / `textContent` / `getByText`, none of which the
+  div→ul/li/h3, EmptyState, or badge changes touch. All tests stayed green
+  (625 passed across the full suite).
+- **InvitesInboxScreen empty state** → `<EmptyState icon="inbox" …>` with the
+  `<br/>` body rewritten into one sentence; deleted the bespoke `.empty*` CSS
+  and the now-unused `Icon` import. `.list` → `<ul class="list rows">`, `.row`
+  → `<li class="row">`, dropped `class:first` and the scoped
+  `border-bottom`/`.row.first border-top` (global `.rows` divider). `.list-name`
+  → `<h3>`, `.row-inviter` → `<p class="caption">`, `.inviter-name` → `<strong>`
+  with an annotated ink-emphasis colour, `.when` → `.caption .mono`, `.intro`
+  and `.loading` → `.caption`.
+- **InvitesBanner** `.banner` → `.card-alt` (dropped scoped bg/border/radius,
+  kept margin/padding as rem layout). `.copy` → `<p class="body">` with `.bold`
+  spans → `<strong>`; `.grey` kept as an annotated emphasis colour. `.count-badge`
+  (a 32px disc) → `.badge .badge-ink` (deliberate convergence to the 1.25rem pill
+  base, per task 3.3). `.multi-text` → `<h3>`. The `.row` carve-out stayed a
+  `<div>`.
+
+### [x] 5.7 TrashScreen + DeletedListsScreen
+
+**Created:** 2026-06-03T00:00:00Z
+**Completed:** 2026-06-03T15:10:02Z
+
+**Why:** Same `div.rows` + `div.row` pattern (icon + text + restore button),
+the same `.error` toast (identical in both), and heading-only empty states.
+
+**Prerequisites:** Phase 3; task 5.1.
+
+**Decisions:**
+- `<div class="rows">` → `<ul class="rows">`; `<div class="row">` →
+  `<li class="row">` (`class:first` moves to `<li>`; the global divider
+  replaces the `.row.first border-top`). `.name` → `<h3>` (15.5px/500 and 15px
+  → global 15px/600). `.attribution` → `<span class="caption">`. TrashScreen's
+  `.row-icon` color wrapper stays (cosmetic, allowed). `.loading` color →
+  `.caption`.
+- The `.error` toast is byte-identical in both → apply the global
+  `.toast-error` class created in task 3.3 (`<div class="toast-error">`) and
+  delete the scoped `.error` rule from both files. Keep it a plain
+  `{#if …error}` element — do **not** migrate to `<Snackbar>` (its 6 s
+  auto-dismiss + `open`/`onclose` wiring would change the persistent-error
+  behaviour). No scoped `color`/`background`/`border-color`/positioning left
+  behind.
+- Empty states → `<EmptyState icon="trash-2" title=… iconSize={44}>` (no body,
+  no CTA) and `<EmptyState icon="trash-2" title="No deleted lists." iconSize={44}>`.
+  Delete `.empty*` CSS.
+
+**Files:**
+- `web/src/lib/item/components/TrashScreen.svelte` (+ `.test.ts`)
+- `web/src/lib/list/components/DeletedListsScreen.svelte` (+ `.test.ts`)
+
+**Verify:** `pnpm lint` · `pnpm check` · `pnpm test`
+
+**Notes:**
+- **No test changes needed** — both suites key on `data-test` only (rows,
+  empty, error, restore). All 625 tests stayed green.
+- Both screens: `.rows`/`.row` divs → `<ul class="rows">`/`<li class="row">`,
+  dropped `class:first` and the scoped `border-bottom`/`.row.first border-top`
+  for the global `.rows` divider. `.name` → `<h3>` (TrashScreen's 15.5px/500 and
+  DeletedLists' 15px/600 both converge on global 15px/600), `.attribution` and
+  `.loading` → `.caption`. Empty states → `<EmptyState icon="trash-2"
+  iconSize={44}>` (deleting the bespoke `.empty*` CSS; the disc converges from
+  80px to EmptyState's fixed 96px). The byte-identical `.error` toast → the
+  global `.toast-error` class. TrashScreen's `.row-icon` colour wrapper kept
+  (cosmetic, allowed). The dead `.name` class is left on the markup for Phase 6.
+
+### [x] 5.8 CircleScreen + BlockedScreen
+
+**Created:** 2026-06-03T00:00:00Z
+**Completed:** 2026-06-03T15:14:16Z
+
+**Why:** Both authored in **rem** but with their own divergent values
+(0.72/0.78/0.9375 rem) and a dashed-box pattern. They converge onto the global
+roles and `.card-dashed`. BlockedScreen's one-off empty state unifies onto
+`<EmptyState>`.
+
+**Prerequisites:** Phase 3; task 5.1.
+
+**Decisions:**
+- **Section structure.** CircleScreen has one labelled group: wrap "People in
+  your circle · {count}" + its `<ul>` in a `<section>` whose `<div
+  class="section-header">` → a bare `<h2>` (the count is inline in the title, so
+  it stays a lone heading — no `<header>`; drop the diverging 0.75rem/0.04em →
+  global `h2` 0.72rem/0.06em). The `.intro` block (explainer + "What's this?")
+  is *screen* intro under the TopBar, not a section header — keep it a layout
+  `<div>`. The `.add-card` is an unlabelled add form (its own `<Label>`), not a
+  section — keep it a block. **BlockedScreen has no section label** — its
+  `.description` is screen intro and its `.blocked-list` is a single unlabelled
+  list, so it gets **no** `<section>` wrapper.
+- Both: `.display-name` (span) → `<h3>`. `.sub` → `.caption .mono` (it is a
+  monospace count/since line; if `--stone-lt` vs `--stone` matters it is drift →
+  use `.caption`). Rename `.circle-list` / `.blocked-list` → `class="rows"` so
+  the global `.rows`/`.rows .row` divider applies; drop the per-file
+  `.row:first-child border-top` / `.row border-bottom` hacks; update test
+  selectors querying `.circle-list` / `.blocked-list`. `.description` /
+  `.intro-text` → `.caption` / `.body`; the `.whats-this` link stays a
+  `<Button variant="link">`.
+- CircleScreen `.add-card` → `.card-dashed` (delete scoped border/bg/radius;
+  keep margin/padding layout in rem).
+- BlockedScreen `.empty-state` (dashed box) → `<EmptyState icon="slash"
+  title="You haven't blocked anyone." iconSize={44}>` (no body/CTA). Delete
+  `.empty-state` + `.empty-state p` CSS. This is the deliberate unification.
+
+**Files:**
+- `web/src/lib/privacy/components/CircleScreen.svelte` (+ `.test.ts`)
+- `web/src/lib/privacy/components/BlockedScreen.svelte` (+ `.test.ts`)
+
+**Verify:** `pnpm lint` · `pnpm check` · `pnpm test`
+
+**Notes:**
+- **No test changes needed** — CircleScreen's one selector (`data-test="circle-list"`)
+  was preserved by moving it onto the new `<section>` wrapper (which renders under
+  the same `{#if relationships.loaded}` gate, so the loading-gate test still holds);
+  BlockedScreen's test queries `input`. All 625 tests stayed green.
+- CircleScreen: the labelled group is now `<section data-test="circle-list">` with
+  a bare `<h2 class="section-header">` (the count stays inline in the title, so no
+  `<header>`) — the old uppercase 0.75rem/0.04em treatment is dropped for the
+  normal-case global `h2`. `.add-card` → `.card-dashed`; `.intro-text` → `.caption`;
+  `.field` gap 8px → 0.5rem.
+- Both screens: `.circle-list`/`.blocked-list` → `class="… rows"` (global divider,
+  dropped the `.row:first-child border-top` + `.row border-bottom`), `.display-name`
+  → `<h3>`, `.sub` → `.caption .mono` (its old `--stone-lt` was drift vs the global
+  `--stone`). BlockedScreen's `.description` → `.caption` and its dashed-box empty
+  state → `<EmptyState icon="slash" iconSize={44} …>` (the deliberate unification;
+  removed the now-unused `Icon` import). Dead `.circle-list`/`.blocked-list`/
+  `.display-name` classes left on the markup for Phase 6.
+
+### [x] 5.9 AddEditItemSheet + DeleteItemSheet + CreateListSheet + CircleExplainerSheet + ProfileSheet
+
+**Created:** 2026-06-03T00:00:00Z
+**Completed:** 2026-06-03T16:47:42Z
+
+**Why:** Five sheets. Titles → `.t-sheet`/`.t-hero`; ProfileSheet name →
+`.identity-name`; handles → `.sheet-handle`; the explainer hero converges to
+`.t-hero`.
+
+**Prerequisites:** Phase 3; task 5.1.
+
+**Decisions:**
+- AddEditItemSheet: `.title` (19px serif) → `<h2 class="t-sheet">`; `.sub` →
+  `<p class="caption">`; `.cancel-btn` font/colour → minimal reset (keep layout);
+  `.notes-field textarea` serif is an editorial exception (annotate). `.optional`
+  label override (weight/transform/colour) → keep minimal or a small global
+  helper; note.
+- DeleteItemSheet: `.heading` (19px serif) → `<h2 class="t-sheet">` (converges
+  19→18px); `.body` (13px explanatory copy) → `<p class="body">`. The
+  `.icon-wrap` (40×40 ember disc: `background: var(--ember-bg)`,
+  `color: var(--ember)`, `border-radius`) is a **layout-bearing** wrapper, not a
+  pure-colour one — it stays as an annotated exception (per the parent plan's
+  "layout-bearing icon wrappers stay" non-requirement). `.content` / `.text` /
+  `.actions` stay layout; convert px gaps/margins to rem. The Cancel/Delete
+  buttons are already `<Button>` (no change). No empty state.
+- CreateListSheet: title comes from the `<Sheet>`; only `form`/`.field` layout
+  here — convert `gap` to rem; nothing visual to strip. Likely a confirm-only
+  task.
+- CircleExplainerSheet: scoped `h2` (25.6px) → `<h2 class="t-hero">`; `p` →
+  `.body`; `.point-title` → `<h3>` or `.caption`-bold; `.point-body` →
+  `.caption`; `.privacy-footer` → `.card-alt` (delete bg/radius; keep padding
+  layout). It uses bare `h2`/`p` element selectors in scope — replace with
+  classes so global roles apply.
+- ProfileSheet: `.name` → `<h2 class="identity-name">` (or `<p class="identity-name">`
+  per current element; keep centred via a layout rule). The `.badge.circle` /
+  `.badge.blocked` element is **not** a pill — it is a centred, monospace
+  sage/ember **text label** under the name (`display: block`, no bg/border/
+  radius). Do **not** map it to `.badge` / `.badge-score` (the `.badge` base is
+  `inline-flex` + `border-radius: 99px`, which would turn it into an inline pill
+  and break its centring). **Drop the `badge` class
+  name from this element** (it would otherwise match the new global `.badge`
+  inline-flex pill from task 3.3 and break the centred-text look). Render it as
+  `<span class="circle">` / `<span class="blocked">` carrying `.caption .mono`
+  with `text-align: center` as scoped layout, and the sage/ember `color` as an
+  annotated scoped state one-liner (`.circle { color: var(--sage) }` / `.blocked
+  { color: var(--ember) }`). The test keys on `data-test="state-badge"`, so keep
+  that attribute. `.handle` → `.sheet-handle`. `.action-card` → `.card`.
+  `.subtitle` opacity → `.caption`.
+
+**Files:**
+- `web/src/lib/item/components/AddEditItemSheet.svelte` (+ `.test.ts`)
+- `web/src/lib/item/components/DeleteItemSheet.svelte` (+ `.test.ts`)
+- `web/src/lib/list/components/CreateListSheet.svelte` (+ `.test.ts` if any)
+- `web/src/lib/privacy/components/CircleExplainerSheet.svelte` (+ `.test.ts` if any)
+- `web/src/lib/profile/components/ProfileSheet.svelte` (+ `.test.ts`)
+
+**Verify:** `pnpm lint` · `pnpm check` · `pnpm test`
+
+**Notes:**
+- **No test changes needed** — all five suites key on `data-test` / `form` /
+  `getByText` (ProfileSheet keeps `data-test="state-badge"`). All 625 tests
+  stayed green.
+- **AddEditItemSheet:** the title block became a `<header>` (title + subtitle) →
+  `<h2 class="t-sheet">` + `<p class="caption">`. The notes textarea keeps its
+  editorial serif (annotated; dropped the hardcoded 14px so it scales). `.optional`
+  kept as an annotated per-label weight/colour override. All px gaps → rem.
+- **DeleteItemSheet:** `.heading` → `<h2 class="t-sheet">`, `.body` → `<p class="body">`.
+  The `.icon-wrap` ember disc stays as an annotated layout-bearing exception
+  (dropped the `#fef2f2` hex fallback for the bare `--ember-bg` token). px → rem.
+- **CreateListSheet:** confirm-only — title comes from `<Sheet>`; just the `.field`
+  gap 8px → 0.5rem.
+- **CircleExplainerSheet:** bare `h2`/`p` element selectors replaced with role
+  classes — `<h2 class="t-hero">`, intro `<p class="body">`, `.point-title` →
+  `<h3>`, `.point-body` → `.caption`, `.privacy-footer` → `.card-alt .caption`
+  (the footer gains card-alt's hairline border, a deliberate surfaces convergence).
+- **ProfileSheet:** `.handle` → `.sheet-handle`; `.name` → `<h2 class="identity-name">`
+  (centred via the kept `.name` layout rule); the state label is **not** a pill —
+  dropped the `badge` class (which would now match the global inline-flex `.badge`),
+  rendered as `<span class="state-label … caption mono">` with the sage/ember
+  `color` as an annotated per-state one-liner. `.action-card` → `+ .card` (kept
+  `overflow:hidden` to clip the inner button); `.subtitle` opacity → `.caption`.
+
+### [x] 5.10 SettingsScreen + PrivacyScreen
+
+**Created:** 2026-06-03T00:00:00Z
+**Completed:** 2026-06-03T17:27:42Z
+
+**Why:** Both already use `<h2>` for section labels (good); the work is to strip
+their many scoped type/border/background rules onto global roles + `.card` /
+`.surface-alt` / `.badge`, normalise rem, and leave the bespoke control chrome
+(theme/size pickers, segmented radio) as scoped **layout** only.
+
+**Prerequisites:** Phase 3; task 5.1.
+
+**Decisions:**
+- **Section structure (both).** Each `.preference-group` (Settings: People,
+  Appearance, Text size, Recovery, Account) and each Privacy group (Who can
+  invite you, People) is a labelled content group → wrap it in a `<section>`
+  with its title as a bare `<h2>` (lone titles, no `<header>`). PrivacyScreen's
+  `.cascade-note` ("N pending invites have been declined…") is trailing
+  explanatory content at the foot of the invite-policy section → put it in a
+  `<footer>` inside that `<section>`.
+- SettingsScreen: `.preference-group h2` → drop the duplicated font props (global
+  `h2`), keep padding (rem). `.display-name` / `.nav-row-title` → `<h3>`.
+  `.nav-row-sub` / `.preview-sub` → `.caption`. `.nav-row-count` →
+  `.caption .mono`. `.preview-label` ("Preview", 11px) is a **sub-label inside**
+  the Text-size section, not a section title — do **not** make it an `<h2>` (that
+  would imply a nested section). Render it with the same small-label look via the
+  `<Label>` primitive (no `for`), consistent with the e-mail-caption resolution;
+  if that reads wrong, fall back to a `.caption`. `.theme-option` / `.size-card`
+  / `.size-preview` / `.size-option`: move border/bg/colour/font to `.card` /
+  `.surface-alt` + state classes; keep grid/sizing/padding as scoped layout
+  (rem). The selected-state colour swaps stay as scoped state rules referencing
+  tokens (annotate) — they are genuine state, not drift. `.skeleton-*` shimmer
+  backgrounds are layout/animation chrome — keep.
+- PrivacyScreen: `.section-label` `<h2>` already matches — drop font props, keep
+  padding (rem). `.option-title` → `<h3>`; `.option-sub`/`.cascade-note`/
+  `.nav-row-sub` → `.caption`. `.segmented-control` / `.nav-rows` borders →
+  global rule or `.card`. `.option.selected` bg → `.surface-alt` state. `.badge`
+  → `.badge .badge-soft`. `.radio-dot` / `.dot-fill` keep sizing/border as
+  scoped layout (they are control chrome) but move their colour to tokens via a
+  state class (annotate). `div.nav-rows` keeps its structure (NavRow extraction
+  is a separate plan — Non-requirement); only its visual moves out.
+
+**Files:**
+- `web/src/lib/settings/components/SettingsScreen.svelte` (+ `.test.ts` if any)
+- `web/src/lib/privacy/components/PrivacyScreen.svelte` (+ `.test.ts` if any)
+
+**Verify:** `pnpm lint` · `pnpm check` · `pnpm test`
+
+**Notes:**
+- **Deviation — titles inside tap-targets are `.row-title`, not `<h3>`.** The
+  task said `.display-name` / `.nav-row-title` / `.option-title` → `<h3>`, but
+  every one of these sits **inside** an interactive control (the profile-chip
+  `<Button>`, the nav-row `<Button>`s, the radio `<button class="option">`),
+  where a heading element is invalid HTML and folds into the control's
+  accessible name — exactly the case tasks 5.3–5.5 resolved with the `.row-title`
+  class (the shared `h3, .row-title` rule from 3.1). Used `.row-title` for all of
+  them; valid HTML, identical look.
+- **No test changes needed.** SettingsScreen's structural tests assert
+  `section.preference-group` + its `<h2>` (both kept); PrivacyScreen keys on
+  `data-test`. All 625 tests stayed green.
+- **`.preview-label` → `.caption`, not `<Label>`.** A bare `<label>` with no
+  associated control (the "Preview" caption labels a region, not an input) would
+  trip a11y-label-has-associated-control — took the task's explicit `.caption`
+  fallback. Rendered the size-preview's secondary line as `<p class="preview-sub
+  caption">` (the inline `font-size` demo px wins over the role's 1rem, by design).
+- **SettingsScreen surfaces:** `.theme-option` → `+ .card`, `.size-card` →
+  `.card-alt`, `.size-preview` → `.card`; selected-state colour swaps and the
+  segmented size buttons kept as annotated scoped control-chrome/state. Section
+  `<h2>`s lost their uppercase 11.5px treatment for the normal-case global `h2`.
+  px → rem throughout (skeleton shimmer chrome left as-is).
+- **PrivacyScreen:** `.segmented-control` → `+ .card`; count `.badge` →
+  `.badge .badge-soft` (deleted the scoped badge rule); `.option-sub`/`.nav-row-sub`
+  → `.caption`; `.cascade-note` wrapped in a `<footer>` (trailing note) as
+  `.caption`. `.option.selected` tint and the radio-dot/dot-fill control chrome
+  kept scoped (annotated; already token-based). `.nav-rows` full-bleed
+  top/bottom rules kept as annotated single-instance hairline band (NavRow
+  extraction is a separate plan). `.privacy-note` callout left as single-instance
+  scoped chrome.
+
+---
+
+## Phase 6 — Cleanup, layout-only guard, full check
+
+### [x] 6.1 Remove dead classes, enforce layout-only, full check + visual sweep
+
+**Created:** 2026-06-03T00:00:00Z
+**Completed:** 2026-06-04T06:06:33Z
+
+**Why:** After the sweeps, classes kept only to preserve test selectors
+(`.section-label` on `<h2>`, etc.) and any now-empty scoped rules are dead. This
+task removes them, then enforces the plan's acceptance criterion (R7) with a
+grep guard, runs the full toolchain, and does the visual canvas sweep.
+
+**Prerequisites:** All Phase 3–5 tasks complete.
+
+**Decisions:**
+- Remove `class="section-label"` from `<h2>` elements where the class is no
+  longer needed by a test or a layout rule; delete empty scoped rules. (No
+  global `.section-label` class exists — section titles get their look from the
+  `h2` tag; the one e-mail caption that is a form label uses the `<Label>`
+  primitive, not a kept `.section-label` class. Confirm no stray
+  `class="section-label"` survives on a non-`<h2>` element.)
+- **Layout-only guard.** Scope the grep to **only the `.svelte` files this
+  branch touched** — *not* all of `web/src/lib`, which includes untouched
+  primitives (`basic/Button`, `TextInput`, `Textarea`, `Sheet`, `Snackbar`,
+  `Accordion`, `VoteControl`, …) and untouched `shared/` components (`Avatar`,
+  `AppTopBar`, `NavRow`, …) that legitimately carry visual CSS and have no
+  annotation. Drive it off the branch diff so the set is exactly the swept files:
+  ```
+  git diff --name-only main...HEAD -- 'web/src/lib/**/*.svelte' \
+    | xargs grep -nE '(font-family|font-size|font-weight|letter-spacing|text-transform|line-height):|(color|background|border[a-z-]*-color):[^;]*var\(--(ink|ink-soft|stone|stone-lt|sage|sage-bg|ember|ember-bg|paper|paper-alt|rule|accent)\)'
+  ```
+  The type props (`font-*`, `letter-spacing`, `text-transform`, `line-height`)
+  always match; `color`/`background`/`border-*-color` match **only** when the
+  value references a visual token — so value-less layout resets
+  (`background: none` / `transparent`, `color: inherit`) are correctly *not*
+  flagged. Every remaining hit must be an annotated exception:
+  EmptyState's disc; the serif-italic `.notes`/tombstone editorial type;
+  single-instance TopBar / sheet / undo-snackbar chrome; the persistent
+  `.toast-error` (globalised); kept cosmetic icon-colour wrappers
+  (`TrashScreen .row-icon { color: var(--stone) }`, left per the reconsidered
+  parent R10); and genuinely-dynamic state-colour one-liners (the open-row
+  weight/background, ProfileSheet `.circle`/`.blocked`, vote `.positive`/
+  `.negative`). Each exception carries an inline comment naming why.
+- Confirm `1px` hairline borders and `env()`/shadow values are the only
+  remaining px in scoped blocks (Units rule).
+
+**Files:**
+- All Phase 5 files (modify) + a short exceptions list captured in this task's
+  Notes.
+
+**Steps:**
+1. Remove dead classes and empty rules across the migrated files.
+2. Run the grep guard; resolve or annotate every hit.
+3. `./scripts/check.sh` — must be green. If user-visible flows changed
+   materially, also `./scripts/check.sh --e2e`.
+4. Open `design/Cairn - Design Canvas.html` and compare every touched screen
+   for **layout/proportion** (not colour/type, which are intentionally
+   homogenised): row spacing, sheet-header padding, empty-state rhythm, card
+   radii, button pairs.
+
+**Verify:** `./scripts/check.sh`
+
+**Notes:**
+
+- **No dead classes or empty rules found.** The three surviving
+  `.section-label` rules (InvitePickerSheet, PrivacyScreen, MembersScreen) all
+  carry layout `padding`, so they are live layout-only rules, not test-only
+  husks. All three sit on `<h2>` elements; no stray `class="section-label"` on a
+  non-`<h2>` element. The grep for empty `{}` blocks matched only JS arrow
+  bodies, never CSS.
+
+- **Annotations added** to the three swept-file exceptions that the Phase-5
+  sweeps left un-commented: `TopBar` header chrome + `.icon-btn`,
+  and `TrashScreen .row-icon`. Comments are self-explanatory (they name the
+  *why* directly rather than citing plan-internal labels — per a user
+  correction mid-task, an earlier draft referencing "R10" was rewritten).
+
+- **One px→rem fix:** `TopBar .icon-btn` padding `4px` → `0.25rem` (scaling
+  chrome, brought in line with the Units rule and the sibling sheet
+  cancel-button convention).
+
+- **Layout-only guard — swept-file exceptions (each carries an inline
+  comment):**
+  - `EmptyState` — the fixed 96px dashed disc.
+  - `ItemsScreen` — `.row.open` tint, serif-italic `.notes`, tombstone
+    attribution, `.mv-val.positive/.negative` vote signs, the single-instance
+    `.undo-snackbar` inverted chrome.
+  - `AddEditItemSheet` — serif notes textarea, `.optional` label weight.
+  - `DeleteItemSheet` — the 40px ember icon-disc affordance.
+  - `ProfileSheet` — `.state-label.circle/.blocked` state colours.
+  - `ListsScreen` — `.desc.no-desc` placeholder, `.dot` separator (+ one inline
+    `style="color: var(--stone)"` on the `MoreButton` glyph — a cosmetic icon
+    tint that inline-style can't carry a comment for; left as-is).
+  - `InvitePickerSheet`/`InvitesBanner`/`InvitesInboxScreen` — emphasis/state
+    colours on names and the affirmative tick.
+  - `PrivacyScreen`/`SettingsScreen` — segmented-control + radio chrome (track,
+    selected-cell ink, dot), all annotated as genuine selected-state.
+  - `TopBar` — single-instance bar chrome.
+  - `TrashScreen` — `.row-icon` cosmetic stone tint.
+
+- **Guard noise from the full branch diff.** Driving the grep off
+  `main...HEAD` also surfaces files this branch touched for reasons *outside*
+  the semantic-HTML sweep, which the decision's "swept files only" framing
+  assumed would be excluded: the `basic/` primitives (`Button`, `Label`,
+  `TextInput`, `Textarea`) that legitimately *own* visual CSS, and the auth /
+  avatar screens (`LoginCheck`, `LoginRequest`, `DevShortcuts`,
+  `AvatarCropScreen`) which were never part of Phase 5's role/rem migration and
+  still hold their original visual CSS and px units. These are out of this
+  task's scope; they are correctly un-annotated.
+
+- **Benign type-prop matches left un-annotated:** `font-family: inherit` button
+  resets in `MembersScreen` and `PrivacyScreen` are normalisation (the opposite
+  of drift) and sit inside already-annotated control blocks.
+
+- **Visual canvas sweep (step 4) NOT performed** — this environment has no
+  browser to open `design/Cairn - Design Canvas.html`, and Playwright cannot run
+  here. The layout/proportion comparison against the canvas still needs a human
+  pass before this branch ships.
+
+## Phase 7 — Separators, row/field, NavRow (R9–R11)
+
+### [x] 7.1 Reconcile the master plan + `docs/ui.md` to borders-not-`<hr>`
+
+**Created:** 2026-06-04T06:37:11Z
+**Completed:** 2026-06-04T08:30:15Z
+
+**Why:** The master plan still prescribes the opposite of what we're shipping —
+`plans/0000_implementation_order.md` step 9 bullet 4 says "replace
+`border-bottom`-as-separator with `<hr>`", and `docs/ui.md` has no separator
+convention while its "Row navigation pattern" example is stale. Cairn is
+pre-alpha with living docs; reconcile the spec **before** the code task so
+downstream steps don't read the stale prescription (the Phase 0 doc-first rule
+applied to appended work).
+
+**Prerequisites:** None (doc-only).
+
+**Decisions:**
+- Separators are presentational, not semantic: a divider between sibling rows
+  (data or action) is a CSS border (`1px solid var(--rule)`), never `<hr>`.
+  `<hr>` is invalid as a direct `<ul>` child and carries no useful document
+  semantics here (R9).
+- Master plan bullet 4 is rewritten to record the reversal in the same
+  "reconsidered" spirit R9/R10 of `0900` got — not deleted silently.
+
+**Files:**
+- `plans/0000_implementation_order.md` (modify — step 9, the fourth bullet
+  "Replace `border-bottom`-as-separator with `<hr>`", ~lines 232–238)
+- `docs/ui.md` (modify — add a short "Row separators" note in the row-patterns
+  area ~line 534; fix the stale "Row navigation pattern" snippet at ~538–542
+  that still shows `<span class="name">`, which the 0902 sweep moved to
+  `<h3>` / `.row-title`)
+
+**Steps:**
+1. Rewrite step 9 bullet 4 in `0000_implementation_order.md`: the `<hr>` sweep
+   is reversed — row/sheet/menu separators are CSS borders between siblings;
+   `<hr>` is not used (invalid in lists, no real semantics). One or two
+   sentences, matching the file's bullet style.
+2. In `docs/ui.md`, add a "Row separators" note: dividers are a `1px solid
+   var(--rule)` border on adjacent siblings (`.rows .row`, `.menu > li + li`,
+   `nav-row + nav-row`), not `<hr>`.
+3. In `docs/ui.md`, update the "Row navigation pattern" example so its markup
+   matches the post-0902 code (`.row-title` / `<h3>` instead of
+   `<span class="name">`).
+
+**Verify:** `grep -n 'hr' plans/0000_implementation_order.md` shows the bullet
+no longer prescribes `<hr>`; `docs/ui.md` carries the separator note. (Doc-only;
+no test layer.)
+
+### [x] 7.2 Remove `<hr>` from the `ListOverflowSheet` action menu → CSS border
+
+**Created:** 2026-06-04T06:37:11Z
+**Completed:** 2026-06-04T08:38:56Z
+
+**Why:** The action menu's five `<li role="separator" aria-hidden="true"><hr /></li>`
+elements (lines 98, 111, 124, 137, 174) are a validity hack — a stylistic line
+dressed as structure. R9 replaces them with a border between adjacent menu
+items.
+
+**Prerequisites:** Task 7.1 (the convention is now documented).
+
+**Decisions:**
+- Delete the five separator `<li>`s and the scoped `.menu hr` rule (line ~218).
+- Add `.menu > li + li { border-top: 1px solid var(--rule) }` so every adjacent
+  action row carries the divider — the original markup had a separator between
+  every action group, so a uniform `li + li` border reproduces it. Confirm the
+  confirm-block boundary (old line-174 separator) still reads correctly against
+  the design canvas.
+- This is the `surfaces.css` `.rows .row` idiom (R3) applied to the action
+  menu, which keeps its distinct `.menu` layout class (it is not a `.rows`
+  data-list — see R3).
+
+**Files:**
+- `web/src/lib/list/components/ListOverflowSheet.svelte` (modify)
+- `web/src/lib/list/components/ListOverflowSheet.test.ts` (modify — only if it
+  asserts on `role="separator"` / the separator `<li>`; rewrite to the
+  border-based shape per R8. If it doesn't reference them, it passes unchanged.)
+
+**Steps:**
+1. RED — If `ListOverflowSheet.test.ts` selects the separator `<li>` /
+   `role="separator"`, update those assertions to the new shape (e.g. assert the
+   menu renders N action items, not N+separators) and confirm the edited test
+   fails against the current markup.
+2. GREEN — Remove the five separator `<li>`s and the `.menu hr` rule; add
+   `.menu > li + li { border-top: 1px solid var(--rule) }`.
+3. GREEN — `pnpm test` green; `grep -n '<hr' web/src/lib/list/components/ListOverflowSheet.svelte`
+   returns nothing.
+
+**Verify:** `pnpm lint` · `pnpm check` · `pnpm test`
+
+**Notes:**
+- **Deviation (band, at user's request):** rather than only an inter-row
+  `li + li` border, the `.menu` now also carries a full-bleed band — a hairline
+  above the first action and below the last (`border-top` + `border-bottom` on
+  `.menu`) — to match the `.nav-rows` band look (R11). The `li + li` divider is
+  kept for the inter-row hairlines.
+- **Bug fixed (user-reported, in-area):** the Leave-list confirm pair had
+  mismatched font sizes — Cancel was `size="md"`, Leave `size="sm"`. Both are
+  now `size="md"`, matching the ButtonPair convention used elsewhere (e.g.
+  `PostAcceptPromptSheet`). The `<hr>`-era markup had hidden this.
+- The test file referenced no `role="separator"` / `<hr>`, so the RED step was a
+  no-op and no test assertions changed.
+
+### [x] 7.3 Lift the flex-line (`.media`) and `.field` layout blocks to global utilities
+
+**Created:** 2026-06-04T06:37:11Z
+**Completed:** 2026-06-04T08:57:01Z
+
+**Why:** The horizontal flex-line block and the form-field wrapper are
+copy-pasted across many files (R10). They are pure layout (so they passed R7's
+visual-only guard) but are exactly the duplication step 9 targets.
+
+**Prerequisites:** Phase 3 (`surfaces.css` exists and is wired in).
+
+**Decisions:**
+- **`class="row"` carries two concepts — do not conflate them.** `.row` is the
+  list-item / divider unit (`.rows .row { border-bottom }`, R3): one per `<li>`,
+  on every list — leave it unchanged. The *horizontal flex line* (leading
+  icon/avatar · text · trailing action — a media object) is a **separate** thing:
+  it is the `<li class="row">` itself in the five simple sites, but a *child*
+  (`.row-inner` / `.row-top`) in the expandable rows. **Never lift the flex-line
+  layout onto the global `.row`** — it would flex the expandable
+  `<li class="row">` wrappers in ItemsScreen / ListsScreen / InvitesInboxScreen
+  and lay their stacked inner panel/description out side-by-side, breaking them.
+- Add a **lean** `.media` to `surfaces.css` holding **only** the universal core:
+  `display: flex; align-items: center; gap: 0.75rem`. Padding is **not** lifted
+  (it varies per site); the `gap: 0.625rem` minority and any alignment override
+  stay scoped deltas. Keeping `.media` this minimal is what stops it clashing
+  with any consumer.
+- Above the rule, add a comment crediting the media-object pattern — Nicole
+  Sullivan, "The media object saves hundreds of lines of code" (2010) — and
+  noting that the `.media-*` / `.media__*` namespace is reserved for future
+  variants (`.media-start` for a `flex-start` line, `.media-body` for the text
+  column), to be added only when a second consumer needs them (not pre-minted).
+- Apply `.media` to every flex line, keeping each site's genuine deltas scoped:
+  - `DeletedListsScreen`, `BlockedScreen`, `CircleScreen` — `<li class="row">` →
+    `class="row media"` (delete the lifted `display`/`align-items`/`gap`; keep
+    padding).
+  - `MembersScreen` — the `<button class="row">` (the tap target inside the
+    `<li>`) → `class="row media"`; keep the button-reset deltas
+    (`background: transparent`, border resets, `width`, `cursor`, `text-align`,
+    `font-family: inherit`).
+  - `TrashScreen` — `<li class="row">` → `class="row media"`; keep
+    `gap: 0.625rem` and the extra left padding (`0.875rem 1.125rem 0.875rem
+    1.25rem`).
+  - `ItemsScreen` — leave the outer `<li class="row">` as the divider unit; add
+    `.media` to the inner line: `class="row-inner media"`; keep its
+    `gap: 0.625rem`, left padding, and `min-height: 3.5rem`.
+  - `ListsScreen` — leave the outer `<li class="row">`; add `.media` to the
+    inner line: `class="row-top media"`; keep its `padding-bottom` + dashed
+    `border-bottom`.
+  - `InvitesInboxScreen` — leave the outer `<li class="row">` (it is a column
+    wrapper); add `.media` to `.row-top` (`class="row-top media"`); keep its gap.
+  - `InvitesBanner` — its `.row` is a flex-line `<div>` carve-out (not a list
+    item) → add `.media`; keep `gap: 0.625rem`.
+  - `InvitePickerSheet` — `<li class="row">` is a flat flex line (not expandable)
+    → `class="row media"`; keep its `padding: 0.75rem 0.25rem`.
+- Add `.field { display: flex; flex-direction: column; gap: 0.5rem }` to
+  `surfaces.css`. Audit each `.field` site's actual values first; delete the
+  local declaration only where identical, keeping genuine deltas scoped.
+  **Audit done for the three never-swept-in-Phase-5 sites — all lift wholesale:**
+  `EditDescriptionSheet` and `RenameListSheet` are identical bar `gap: 8px`
+  (= `0.5rem`, the intended px→rem). `web/src/routes/(app)/profile/+page.svelte`
+  adds `margin-top: 28px` — **drop it too**: homogenisation takes priority over
+  that one gap, so delete its local `.field` rule wholesale as well. (If the
+  spacing is wanted back later, re-add it by hand — a flex gap, a spacer, or a
+  wrapper.) Note that route is otherwise un-swept (scoped type/colour from a
+  prior plan, out of 0902 scope) — 7.3 touches only its `.field`.
+- Behaviour is unchanged — no new logic; the existing Vitest/Playwright suite is
+  the regression net (R8). No test selector changes expected — the inner lines
+  keep their `.row-inner` / `.row-top` names and merely gain `.media` alongside.
+
+**Files:**
+- `web/src/lib/shared/styles/surfaces.css` (modify — add `.media` + `.field`)
+- flex-line sites (modify): `list/components/DeletedListsScreen.svelte`,
+  `item/components/TrashScreen.svelte`, `privacy/components/BlockedScreen.svelte`,
+  `privacy/components/CircleScreen.svelte`, `list/components/MembersScreen.svelte`,
+  `item/components/ItemsScreen.svelte`, `list/components/ListsScreen.svelte`,
+  `invite/components/InvitesInboxScreen.svelte`,
+  `invite/components/InvitesBanner.svelte`,
+  `invite/components/InvitePickerSheet.svelte`
+- `.field` sites (modify): `item/components/AddEditItemSheet.svelte`,
+  `list/components/CreateListSheet.svelte`,
+  `list/components/EditDescriptionSheet.svelte`,
+  `list/components/RenameListSheet.svelte`, `auth/components/LoginRequest.svelte`,
+  `privacy/components/CircleScreen.svelte`, `profile/components/ProfileSheet.svelte`,
+  `web/src/routes/(app)/profile/+page.svelte`,
+  `invite/components/InvitePickerSheet.svelte` (e-mail row, only if it uses the
+  same `.field` block)
+
+**Steps:**
+1. Add the global `.media` (lean core + credit/namespace comment) and `.field`
+   rules to `surfaces.css`.
+2. For each flex-line site, add `.media` to the **actual flex line** (the `<li>`
+   in simple sites, the inner `.row-inner` / `.row-top` in expandable ones —
+   never the expandable outer `<li class="row">`), delete the now-redundant
+   `display`/`align-items`/`gap` declarations, and keep genuine deltas. Audit
+   each — do not assume.
+3. For each `.field` site, delete the duplicated declarations only where
+   identical to the global; keep deltas.
+4. `pnpm test` green (no assertion changes expected — layout-only).
+
+**Verify:** `pnpm lint` · `pnpm check` · `pnpm test`
+
+**Notes:**
+- **`ProfileSheet` is a stale entry in the `.field` Files list** — it uses no
+  `class="field"` and has no `.field` rule, so there was nothing to lift. Left
+  untouched. (The other audited sites all lifted wholesale as predicted:
+  `AddEditItemSheet` / `CreateListSheet` were already `0.5rem`;
+  `EditDescriptionSheet` / `RenameListSheet` / `LoginRequest` / the profile route
+  were `8px` = `0.5rem`; the profile route's extra `margin-top: 28px` was dropped
+  per the task.)
+- `surfaces.css` is wired globally via `src/routes/+layout.svelte`, so `.media`
+  and `.field` reach every consumer (including the `(app)/profile` route).
+- All scoped gap deltas (`TrashScreen`, `ItemsScreen`, `InvitesBanner` at
+  `0.625rem`) keep their value: Svelte's scoped `.row.svelte-*` selector
+  outranks the plain global `.media`, so the delta wins as intended.
+- `svelte-check` reports 0 warnings — no unused-selector fallout from deleting
+  the redundant rules.
+
+### [x] 7.4 Extract the `<NavRow>` shared component + Vitest test
+
+**Created:** 2026-06-04T06:37:11Z
+**Completed:** 2026-06-04T09:09:10Z
+
+**Why:** The nav-row shape repeats verbatim across Settings/Privacy/InvitesInbox
+(R11). Extract it once so the structure has a single home, like `<EmptyState>`.
+
+**Prerequisites:** Phase 3/4 (`<Button>` exists with `variant="text"
+tone="ink"`; global `.row-title` / `.caption` roles exist).
+
+**Decisions:**
+- New `web/src/lib/shared/components/NavRow.svelte` (shared tier — app-styled
+  primitive, not `basic/`). Props: `lead: Snippet` (the leading visual — the
+  caller passes `<Icon size={20}>` for menu rows or `<Avatar>` for the profile
+  chip; a single snippet mechanism, **no `icon`-name prop**), `title: string`,
+  `sub?: string`, `onclick?: () => void` (no `href` — `<Button>` renders a
+  `<button>`, not an `<a>`; callers navigate with `goto(resolve(…))` in the
+  handler), `data-test?: string`, and a `trailing?: Snippet` slot rendered
+  between the text column and the chevron (for badge/count).
+- Internals: render `<Button variant="text" tone="ink" size="md">` containing
+  `{@render lead()}` (the caller-supplied leading `<Icon size={20}>` / `<Avatar>`),
+  a `.nav-row-text` column
+  (`<span class="nav-row-title row-title">{title}</span>` + optional
+  `<span class="nav-row-sub caption">{sub}</span>`), the optional `trailing`
+  snippet, and a trailing `<Icon name="chevron-right" size={18} />`. Tap target,
+  focus, and look are identical to today's hand-rolled rows.
+- **NavRow's root is a `<div class="nav-row">` wrapping the `<Button>`** (the
+  Button stays the full-width tap target; the `.nav-row` div is inert layout).
+  The class must sit on this NavRow-rendered element so its scoped
+  `nav-row + nav-row { border-top: 1px solid var(--rule) }` rule matches between
+  adjacent instances — it can't go on the child `<Button>`'s root, which is
+  outside NavRow's style scope. Owns the previously-duplicated `.nav-row-text` /
+  `.nav-row-title` / `.nav-row-sub` layout and that inter-row divider (re-homes
+  the PrivacyScreen `<hr>` removed in 7.5); keep it layout-only.
+- **Add a global `.nav-rows` container class to `surfaces.css`** for the
+  full-bleed band: `border-top` + `border-bottom` (`1px solid var(--rule)`),
+  full margin (`margin: 0`). Each nav-row group wraps its `<NavRow>`s in
+  `<div class="nav-rows">` to get the band (applied in 7.5, **band everywhere**).
+  Division of labour: `.nav-rows` draws the band (above first / below last);
+  NavRow draws the inter-row rule between adjacent `.nav-row`s.
+- Accessible name comes from `title` (and the screen's existing `data-test`).
+
+**Files:**
+- `web/src/lib/shared/components/NavRow.svelte` (create)
+- `web/src/lib/shared/components/NavRow.test.ts` (create)
+- `web/src/lib/shared/styles/surfaces.css` (modify — add the `.nav-rows` band
+  container class)
+
+**Steps:**
+1. RED — Write `NavRow.test.ts`: renders `title` and `sub`; the `lead` and
+   `trailing` snippets render in their slots; clicking fires `onclick`; the
+   accessible name derives from `title`. Confirm red (component doesn't exist).
+2. GREEN — Implement `NavRow.svelte` per Decisions.
+3. GREEN — `pnpm test` green.
+
+**Verify:** `pnpm lint` · `pnpm check` · `pnpm test`
+
+**Notes:**
+- **Deviation (corrected decision):** the task's Decisions put the inter-row
+  divider in NavRow's *scoped* style as `.nav-row + .nav-row`, reasoning it
+  "matches between adjacent instances." That is wrong — Svelte's compiler sees
+  only one `.nav-row` in NavRow's single-row template, declares the sibling
+  selector unused, and **strips it from the emitted CSS** (confirmed by
+  compiling: the rule came out as `/* (unused) … */`). It is not just a
+  warning; the divider would never render. Caught when the user questioned the
+  selector.
+- **Fix:** moved the inter-row rule to the **global** `.nav-rows` band in
+  `surfaces.css` as `.nav-rows .nav-row + .nav-row { border-top: … }`,
+  mirroring the existing `.rows` / `.rows .row` divider model in the same file.
+  The `.nav-rows` container now owns the whole band (outer top/bottom rules +
+  inter-row dividers); NavRow keeps `.nav-row` only as the structural hook and
+  its scoped text-column layout. A scoped `<NavRows>` *component* would not have
+  fixed this either (child `.nav-row`s carry NavRow's hash, not NavRows'); only
+  global CSS or `:global()` works, and global CSS matches the established
+  pattern. User chose "global class only" — no `<NavRows>` component.
+- **Affects 7.5:** that task's "division of labour" (band draws outer, NavRow
+  draws inter-row) no longer holds — the global `.nav-rows` draws both. 7.5
+  should wrap each group in a plain `<div class="nav-rows">`; no per-NavRow
+  divider work is needed.
+
+### [x] 7.5 Migrate Settings/Privacy to `<NavRow>`; drop the dead `hr` reset
+
+**Created:** 2026-06-04T06:37:11Z
+**Completed:** 2026-06-04T09:27:55Z
+
+**Why:** With `<NavRow>` extracted (7.4), the two screens' duplicated nav-row
+markup and CSS collapse to call sites. Migrating PrivacyScreen also removes the
+last `<hr>` in the codebase, so the global `hr` reset becomes dead and is
+deleted (R9). **InvitesInboxScreen is not in scope** — it renders data rows
+(invite cards on `<li class="row">`), not nav-rows; the "Invites" nav-row that
+points to it lives in SettingsScreen.
+
+**Prerequisites:** Task 7.4 (`<NavRow>` exists); Task 7.2 (ListOverflowSheet
+`<hr>` already gone — this task removes the final one).
+
+**Decisions:**
+- Replace each hand-rolled nav-row `<Button>` block with `<NavRow …>`:
+  `SettingsScreen` (Invites, Privacy, Deleted lists, Sign out) and
+  `PrivacyScreen` (Your circle, Blocked). Pass the badge/count via the
+  `trailing` snippet where present (`badge-soft` circle/blocked counts on
+  Privacy; the invites count on Settings). Each migrated row passes its leading
+  `<Icon size={20}>` via NavRow's `lead` snippet. Delete the now-duplicated
+  `.nav-row-*` scoped CSS from both.
+- **Migrate SettingsScreen's profile chip too** (the loaded branch only): it
+  becomes `<NavRow title={profile.displayName} data-test="profile-chip"
+  onclick={…}>` with `<Avatar size={44} data-test="profile-avatar" …>` passed as
+  the `lead` snippet and no `sub`. Keep the `{#if profile.displayName === null}`
+  skeleton branch and the `.profile-chip-section` `border-bottom` scoped — only
+  the loaded `<Button>` turns into a `<NavRow>`.
+- **Expected new divider:** SettingsScreen's People group (Invites + Privacy)
+  gains an inter-row hairline from NavRow's `nav-row + nav-row` divider — it has
+  none today. This is the deliberate homogenisation (R11) so the group reads
+  like Privacy's, **not** a regression to suppress. Single-row sections
+  (Recovery, Account) and the profile chip (own section) get no divider.
+- **Band everywhere — wrap each nav-row group in `<div class="nav-rows">`** (the
+  global band class added in 7.4). PrivacyScreen already has a
+  `<div class="nav-rows">` — keep the wrapper but **delete its scoped
+  `border-top` / `border-bottom` band rule** (lines ~277–281; the global class
+  now supplies it). SettingsScreen has no wrapper — add a `<div class="nav-rows">`
+  around the NavRows in each labelled group (People: Invites + Privacy; Recovery:
+  Deleted lists; Account: Sign out), inside the `<section>` after its `<h2>`.
+  These groups gain the full-bleed band, including the single-row Recovery /
+  Account groups (deliberate, the iOS-style grouped-list look). The profile chip
+  is **not** wrapped — it stays in `.profile-chip-section` with its
+  `border-bottom` only.
+- Delete the bare `<hr />` in `PrivacyScreen.svelte` (line ~137); the
+  inter-row divider is now the `nav-row + nav-row` border owned by `<NavRow>`.
+- Once `grep -rn '<hr' web/src` is empty, delete the global `hr { … }` rule in
+  `web/src/lib/shared/styles/reset.css` (lines 7–11) — it is dead.
+- Update each screen's `.test.ts` for selector-level changes only (the nav-row
+  markup is now `<NavRow>`-rendered); assertions stay semantically equivalent
+  (R8). `data-test` attributes pass through `<NavRow>`.
+
+**Files:**
+- `web/src/lib/settings/components/SettingsScreen.svelte` (+ `.test.ts`)
+- `web/src/lib/privacy/components/PrivacyScreen.svelte` (+ `.test.ts`)
+- `web/src/lib/shared/styles/reset.css` (modify — remove the `hr` rule)
+
+**Steps:**
+1. RED — Update the two screens' tests for the `<NavRow>` markup (selector
+   rewrites only); confirm red against the pre-migration markup where a selector
+   changed.
+2. GREEN — Migrate the two screens to `<NavRow>`, removing duplicated
+   `.nav-row-*` CSS and the PrivacyScreen `<hr />`.
+3. GREEN — Confirm `grep -rn '<hr' web/src` is empty, then delete the `hr` rule
+   from `reset.css`; `grep -rn 'hr {' web/src` is empty.
+4. GREEN — `./scripts/check.sh` green.
+
+**Verify:** `./scripts/check.sh` (and `--e2e` before the PR — note Playwright is
+not runnable in this environment, so write/adjust specs but report e2e as
+locally unrunnable).
+
+**Notes:**
+- **No test edits were needed.** Both screen `.test.ts` files select purely by
+  `data-test`, and those attributes pass through `<NavRow>` → `<Button>`
+  unchanged, so all 35 existing assertions stayed green without modification
+  (R8 satisfied). Same for the e2e specs (`auth`, `avatar`, `privacy`) — they
+  reference `signout` / `profile-chip` / `settings-invites` by `data-test`, all
+  preserved. Playwright not runnable in this environment; specs unchanged and
+  still valid, so e2e is locally unrun but no edits required.
+- **User corrections (override the task's profile-chip decision):** the task
+  said "the profile chip is **not** wrapped — it stays in `.profile-chip-section`
+  with its `border-bottom` only." The user instead asked to (a) add a **"Profile"**
+  `<h2>` heading to that first section and (b) wrap the chip in
+  `<div class="nav-rows">` so it bands like the other groups. Implemented both:
+  removed the now-redundant `.profile-chip-section` `border-bottom` (the global
+  `.nav-rows` band supplies top+bottom), extended the `h2` padding rule to
+  `.profile-chip-section h2`, and kept `.profile-chip-section` only as the h2
+  hook. The whole `{#if skeleton}{:else}<NavRow>{/if}` is inside the band so the
+  loading state bands too. Note the profile section is deliberately **not**
+  given the `.preference-group` class — tests (j-1)/(j-2) index
+  `section.preference-group` and expect `groups[0]` to be "People".
+- **User correction:** added `gap: 0.5rem` to SettingsScreen `.content`.
+- **Type narrowing across the snippet boundary:** `title={profile.displayName}`
+  type-checks in the outer `{:else}` (narrowed to non-null), but the `lead`
+  snippet is a closure, so inside it `profile.displayName` widens back to
+  `string | null`. Used `displayName={profile.displayName ?? ''}` on the Avatar
+  there; the `=== null` else-branch guarantees it is never actually empty.
+- `.nav-row-count` (the Settings invites count) stays scoped to SettingsScreen —
+  it styles caller-supplied `trailing` content, not NavRow-owned markup, so it
+  was kept (only the NavRow-owned `.nav-row-text` / `-title` / `-sub` were
+  deleted from both screens).
+
+## Phase 8 — Components: `<Badge>`, `<InviteCard>`, date prose (R12–R14)
+
+### [x] 8.1 Reconcile docs — mono is numerics-only; dates are caption prose; record new components
+
+**Created:** 2026-06-04T08:16:49Z
+**Completed:** 2026-06-04T09:32:18Z
+
+**Why:** `docs/ui.md`'s type-roles (added in task 0.1) list "'when' timestamps"
+and the circle/blocked `.sub` under `.mono`. R14 makes dates caption prose, so
+the doc must be corrected before the code task, or a later screen re-monos a
+date. Also record that `<Badge>` (R12) and `<InviteCard>` (R13) now exist
+(reversing the `<Badge>` Non-requirement). Doc-first, per the Phase 0 / 7.1
+pattern.
+
+**Prerequisites:** None (doc-only).
+
+**Decisions:**
+- In `docs/ui.md`, change the `.mono` role description to **numerics only**
+  (vote values, the score badge, counts) and state that **dates render as
+  caption prose** (`.caption` / `.fine`), never mono — `timeAgo()` and the
+  circle/blocked labels are prose, not tabular numerals. No `.date` role is
+  introduced.
+- Note in the components/conventions area that the shared `<Badge>` (tones
+  `ink` / `soft` / `score`±) and `<InviteCard>` exist, so later screens reuse
+  them rather than re-rolling badge spans or invite markup.
+
+**Files:**
+- `docs/ui.md` (modify)
+
+**Steps:**
+1. Update the `.mono` type-role wording and add the "dates are caption prose"
+   note.
+2. Record `<Badge>` / `<InviteCard>` in the components/conventions area.
+3. No code/tests. Run `pnpm exec prettier --check "docs/ui.md"` (or note md is
+   outside the Prettier scope, per task 0.1's finding).
+
+**Verify:** `pnpm exec prettier --check "docs/ui.md"` (or note md is outside the
+Prettier config).
+
+**Notes:** As anticipated, `prettier --check` warns on `docs/ui.md` — but the
+file was already non-conforming **before** these edits (confirmed by stashing
+the change and re-running), so markdown is outside the project's effective
+Prettier scope, consistent with task 0.1's finding. No new style issue was
+introduced. `.mono`'s role already listed timestamps under `.fine` (not
+`.mono`) from the 0.1 reconciliation; the edit tightened `.mono` to
+numerics-only and added an explicit "dates are caption prose, never mono" note,
+plus a new **Shared components** subsection recording `<Badge>` and
+`<InviteCard>`.
+
+### [x] 8.2 Create `<Badge>` and migrate the badge sites + the Settings invites count
+
+**Created:** 2026-06-04T08:16:49Z
+**Completed:** 2026-06-04T09:53:49Z
+
+**Why:** The pill badge is rendered as raw `<span class="badge badge-* …">` at
+four sites, and the Settings invites count is plain mono text that should be a
+badge (R12). One `<Badge>` component removes the duplication and makes the count
+a proper badge.
+
+**Prerequisites:** Task 3.3 (the global `.badge*` classes exist in
+`controls.css`); task 7.5 (Settings/Privacy nav-rows are `<NavRow>`s whose
+`trailing` slot carries the counts — 8.2 swaps the raw count spans there for
+`<Badge>`s).
+
+**Decisions:**
+- New `web/src/lib/basic/components/Badge.svelte` (the `basic/` tier — a generic
+  control primitive, peer of `<Button>`). Props: `tone: 'ink' | 'soft' |
+  'score'`, `sign?: 'positive' | 'negative'`, `data-test?`, `children`. Renders
+  `<span class="badge badge-{tone} …">{children}</span>` re-using the global
+  `.badge*` classes — **no new visual CSS**. For `tone="score"` it also adds
+  `.mono` and the `sign` class (`positive` / `negative`); `ink` / `soft` add no
+  mono.
+- **Tone semantics:** `ink` = attention/notification count (InvitesBanner
+  multi-count; the **Settings invites count**, promoted from `.nav-row-count`
+  mono text). `soft` = informational count (Privacy circle / blocked). `score` =
+  the ItemsScreen aggregate.
+- **Migrations** (these files' Phase 5 tasks are done — modifying the files is
+  fine; do not edit the completed task blocks):
+  - `ItemsScreen` — `<span class="score-badge badge badge-score mono …">` →
+    `<Badge tone="score" sign={…}>` (keep `score-badge` only if a test selects
+    it; the `mono` + `positive`/`negative` now come from Badge).
+  - `InvitesBanner` multi-count — `<span class="badge badge-ink">` →
+    `<Badge tone="ink">`.
+  - `PrivacyScreen` circle / blocked counts — `<span class="badge badge-soft">`
+    → `<Badge tone="soft">` (these now sit in NavRow's `trailing` slot per 7.5).
+  - `SettingsScreen` invites count — replace the `<span class="nav-row-count
+    caption mono">` with `<Badge tone="ink">` in NavRow's `trailing` slot;
+    delete the now-dead `.nav-row-count` rule.
+
+**Files:**
+- `web/src/lib/basic/components/Badge.svelte` (create)
+- `web/src/lib/basic/components/Badge.test.ts` (create)
+- `web/src/lib/item/components/ItemsScreen.svelte` (+ `.test.ts` if it selects
+  the badge)
+- `web/src/lib/invite/components/InvitesBanner.svelte` (+ `.test.ts` if needed)
+- `web/src/lib/privacy/components/PrivacyScreen.svelte` (+ `.test.ts` —
+  `circle-count` / `blocked-count` `data-test` must pass through `<Badge>`)
+- `web/src/lib/settings/components/SettingsScreen.svelte` (+ `.test.ts` if it
+  selects the count)
+
+**Steps:**
+1. RED — `Badge.test.ts`: renders `children`; applies `badge-{tone}`;
+   `tone="score"` + `sign` applies `mono` + `positive`/`negative`. Confirm red.
+2. GREEN — Implement `Badge.svelte`.
+3. GREEN — Migrate the five sites; preserve every `data-test`; update tests for
+   the element change. Re-run green.
+4. `pnpm lint` · `pnpm check` · `pnpm test`.
+
+**Verify:** `pnpm lint` · `pnpm check` · `pnpm test`
+
+**Notes:**
+- **User correction — badge tones.** The task specified `ink` / `soft` /
+  `score` with the Settings invites count and the multi-invite banner as `ink`.
+  The user redirected: drop the `ink` tone entirely and use a filled
+  **earth/accent** tone instead, named `primary` (the established `<Button>`
+  tone-name convention — `accent` is only the raw colour token `var(--accent)`,
+  whereas component tones speak `primary`). Final tone set is now
+  **`primary` / `soft` / `score`**. Both former-`ink` sites (Settings count,
+  banner multi-count) use `tone="primary"`; the `.badge-ink` class was removed
+  from `controls.css` and a new `.badge-primary` (filled `var(--accent)`,
+  `var(--paper)` text) added.
+- **Doc reconciliation.** Updated the `docs/ui.md` "Shared components" note
+  (written in 8.1) to the new tone set and to record `<Badge>` as a `basic/`
+  primitive (peer of `<Button>`), not a `shared/` component.
+- `score-badge` class dropped from `ItemsScreen` — no test or CSS selected it.
+- `.nav-row-count` rule deleted from `SettingsScreen` as planned; the Badge
+  sits in `NavRow`'s `trailing` slot with the Button text-variant's gap, matching
+  the Privacy counts.
+
+### [x] 8.3 Create `<InviteCard>` and migrate the inbox rows + the single-invite banner
+
+**Created:** 2026-06-04T08:16:49Z
+**Completed:** 2026-06-04T10:34:39Z
+
+**Why:** The single-invitation presentation is hand-rolled twice
+(`InvitesInboxScreen` rows and `InvitesBanner`'s single-invite branch) and has
+drifted — different avatar sizes and no date on the banner (R13). One shared
+component removes the duplication and the inconsistency.
+
+**Prerequisites:** Task 4.2 / 5.6 (both screens already use `<Button
+variant="pill">` Accept/Decline); R14 (date renders as `.caption`, not mono).
+
+**Decisions:**
+- New `web/src/lib/invite/components/InviteCard.svelte` (the `invite/` domain
+  tier). **Presentational only** — props: `entry` (id, `inviterName`,
+  `inviterUid`, `inviterAvatarVersion`, `listName`, `createdAt`) plus
+  `onAccept: () => void` and `onDecline: () => void`. The `acceptInvitation` /
+  `declineInvitation` / `goto` logic stays in each consumer's handler.
+- Renders: `<Avatar size={36}>` + an inviter line (`<strong>{inviterName}</strong>`
+  + "invited you to" + the list name) + the date `<span class="caption">{timeAgo(entry.createdAt)}</span>`
+  (**not** mono) + the Accept/Decline pill pair (`tone="sage"` / `tone="ink"`,
+  Decline left per the button-pair rule). Owns its internal layout (the media
+  line + the button row); the flex line uses `.media` (R10).
+- **Converged look:** avatar size is **36px** in both places (the banner's 28px
+  converges up); the date shows in **both** (the banner gains it).
+- **Consumers:**
+  - `InvitesInboxScreen` — replace the per-row markup with
+    `{#each invitations.inbox as entry}<li class="row"><InviteCard {entry}
+    onAccept={() => void handleAccept(entry.id)} onDecline={() => void
+    declineInvitation(entry.id)} /></li>{/each}` inside `<ul class="rows">`.
+    Delete the now-duplicated `.row-top` / `.row-info` / `.row-inviter` /
+    `.when` / `.buttons` markup and CSS.
+  - `InvitesBanner` — the single-invite branch renders one `<InviteCard>` inside
+    the `.card-alt` wrapper, wiring its own `handleAccept` / `declineInvitation`.
+    The **multi-invite** branch is unchanged in nature (a nav-link carrying an
+    `ink` count `<Badge>` per 8.2). Delete the single-invite `.row` / `.copy` /
+    `.buttons` markup and CSS now living in `<InviteCard>`.
+- Preserve the existing `data-test`s (`inbox-row-{id}`, `inbox-accept-{id}` /
+  `inbox-decline-{id}`, `invites-banner-accept` / `-decline`) — thread them
+  through `InviteCard` props or keep them on the consumer's wrapper as the tests
+  require (check each `.test.ts`).
+
+**Files:**
+- `web/src/lib/invite/components/InviteCard.svelte` (create)
+- `web/src/lib/invite/components/InviteCard.test.ts` (create)
+- `web/src/lib/invite/components/InvitesInboxScreen.svelte` (+ `.test.ts`)
+- `web/src/lib/invite/components/InvitesBanner.svelte` (+ `.test.ts`)
+
+**Steps:**
+1. RED — `InviteCard.test.ts`: renders the inviter name, list name, and date;
+   Accept fires `onAccept`, Decline fires `onDecline`. Confirm red.
+2. GREEN — Implement `InviteCard.svelte`.
+3. GREEN — Migrate both consumers; delete the duplicated markup/CSS; update the
+   two screens' tests for the new structure (selector-level, behaviour
+   preserved). Re-run green.
+4. `pnpm lint` · `pnpm check` · `pnpm test`.
+
+**Verify:** `pnpm lint` · `pnpm check` · `pnpm test`
+
+**Notes:**
+- **`InviteCard` takes `acceptDataTest` / `declineDataTest` props** rather than
+  baking the `data-test` in: the two consumers need different button selectors
+  (`inbox-accept-{id}` vs `invites-banner-accept`), so the prefix is threaded
+  through. The row/banner wrapper `data-test` (`inbox-row-{id}` /
+  `invites-banner`) stays on the consumer, as the existing tests expect.
+- **Converged structure, not just look.** The inbox previously rendered the list
+  name as a bare `<h3 class="list-name">` and the inviter as a `.caption` line;
+  the banner rendered both names as `<strong>` in a `.body` line. `InviteCard`
+  unifies on the banner's treatment — inviter + list name both `<strong>` inside
+  one `.body` paragraph, "invited you to" greyed. The list name is therefore **no
+  longer a heading** on the inbox screen (it never was on the banner). This is
+  the intended de-duplication; flagging the inbox's lost `<h3>` since it's a
+  semantic change beyond pure CSS.
+- **Banner gained the date and the larger avatar** per the converged-look
+  decision (28px → 36px, date now shown via `.caption`/`timeAgo`).
+- **No screen-test changes needed** — both suites key on `data-test` /
+  `textContent`, all preserved. Added `InviteCard.test.ts` (4 cases: renders
+  name/list/date, Accept/Decline fire their callbacks). 645 tests pass.
+
+### [x] 8.4 Drop `.mono` from the circle/blocked date labels
+
+**Created:** 2026-06-04T08:16:49Z
+**Completed:** 2026-06-04T10:39:31Z
+
+**Why:** R14 — dates are caption prose, not mono. CircleScreen and BlockedScreen
+render their "since" labels as `.sub caption mono`; the mono is removed so they
+match the other five date sites. (The InvitesInbox date is handled by
+`<InviteCard>` in 8.3.) Task 5.8 shipped these with mono and is frozen — this is
+a new correction task, not an edit to 5.8.
+
+**Prerequisites:** None (independent CSS/markup change).
+
+**Decisions:**
+- In `CircleScreen.svelte` and `BlockedScreen.svelte`, remove the `mono` class
+  from the `addedAtLabel` / `blockedAtLabel` date `<span>`s — they become
+  `class="sub caption"`. No other change; the label text and layout are
+  untouched.
+
+**Files:**
+- `web/src/lib/privacy/components/CircleScreen.svelte` (+ `.test.ts` if it
+  selects on `mono` — unlikely)
+- `web/src/lib/privacy/components/BlockedScreen.svelte` (+ `.test.ts` if needed)
+
+**Steps:**
+1. Remove the `mono` class from the two date label spans.
+2. `pnpm lint` · `pnpm check` · `pnpm test` (behaviour unchanged — tests key on
+   `data-test`/text, so green without assertion edits).
+
+**Verify:** `pnpm lint` · `pnpm check` · `pnpm test`
+
+### [x] 8.5 Fix avatar baseline misalignment (photos vs initials)
+
+**Created:** 2026-06-04T08:16:49Z
+**Completed:** 2026-06-04T11:05:02Z
+
+**Why:** On the Lists screen the per-list member avatars are misaligned — photo
+avatars render higher than initials avatars (R15). `Avatar.svelte` renders both
+the `<img>` and the initials `<span>` as `display: inline-flex` with no
+`vertical-align`, so in an inline context they align to the line's baseline; the
+initials span's baseline is its text baseline while the `<img>`'s is its bottom
+edge, so the two sit at different heights. ListsScreen wraps each avatar in a
+plain inline `<span style="margin-left: -6px">` (the overlap stack), so the
+avatar is inline content and the mismatch shows. Other screens place `<Avatar>`
+as a direct flex child, where `align-items: center` governs and the bug is
+hidden — which is why only the Lists stack is affected.
+
+**Prerequisites:** None.
+
+**Decisions:**
+- Add `vertical-align: middle;` to the shared avatar style (`sharedStyle`) in
+  `Avatar.svelte`, so all three branches (tombstone span, photo `<img>`, initials
+  `<span>`) align consistently in any inline context. It is a no-op where the
+  avatar is a flex item (the other screens), so there is no risk to them — the
+  one change fixes the bug app-wide.
+- No markup change to ListsScreen is needed; the root cause is in the component.
+
+**Files:**
+- `web/src/lib/shared/components/Avatar.svelte` (modify)
+
+**Steps:**
+1. Add `vertical-align: middle;` to `sharedStyle`.
+2. `pnpm lint` · `pnpm check` · `pnpm test` — existing Avatar tests stay green
+   (they assert markup/attributes, not layout).
+
+**Note:** Baseline alignment is not unit-testable (jsdom has no layout engine);
+verify visually / via Playwright on the Lists-screen avatar stack. State e2e as
+locally unrunnable per the environment.
+
+**Verify:** `pnpm lint` · `pnpm check` · `pnpm test`

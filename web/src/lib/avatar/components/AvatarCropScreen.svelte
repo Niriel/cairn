@@ -1,4 +1,5 @@
 <script lang="ts">
+	import Button from '$lib/basic/components/Button.svelte';
 	import Icon from '$lib/basic/components/Icon.svelte';
 	import AppTopBar from '$lib/shared/components/AppTopBar.svelte';
 
@@ -96,7 +97,35 @@
 		ctx.arc(CANVAS_SIZE / 2, CANVAS_SIZE / 2, CIRCLE_R, 0, Math.PI * 2);
 		ctx.stroke();
 		ctx.restore();
-		previewUrl = canvasEl.toDataURL('image/jpeg', 0.7);
+
+		// Preview reflects the actual saved output: the cropped circle region only,
+		// without the dimming overlay or guide ring drawn above.
+		const pv = document.createElement('canvas');
+		pv.width = EXPORT_SIZE;
+		pv.height = EXPORT_SIZE;
+		const pvCtx = pv.getContext('2d');
+		if (pvCtx) {
+			renderCrop(pvCtx);
+			previewUrl = pv.toDataURL('image/jpeg', 0.7);
+		}
+	}
+
+	// Draw only the image, mapping the crop circle's bounding box to fill the
+	// whole EXPORT_SIZE×EXPORT_SIZE output — so the saved avatar is the cropped
+	// region, not the framed cropping UI (no dim overlay, no guide ring).
+	function renderCrop(target: CanvasRenderingContext2D) {
+		if (!loadedImg) return;
+		const cropOrigin = CANVAS_SIZE / 2 - CIRCLE_R; // top-left of the circle's bbox
+		const f = EXPORT_SIZE / (CIRCLE_R * 2); // bbox (280px) → export (256px)
+		target.clearRect(0, 0, EXPORT_SIZE, EXPORT_SIZE);
+		target.save();
+		target.translate(
+			(CANVAS_SIZE / 2 + panX - cropOrigin) * f,
+			(CANVAS_SIZE / 2 + panY - cropOrigin) * f
+		);
+		target.scale(scale * f, scale * f);
+		target.drawImage(loadedImg, -loadedImg.width / 2, -loadedImg.height / 2);
+		target.restore();
 	}
 
 	function handlePointerDown(e: PointerEvent) {
@@ -131,7 +160,7 @@
 		offscreen.height = EXPORT_SIZE;
 		const offCtx = offscreen.getContext('2d');
 		if (offCtx) {
-			offCtx.drawImage(canvasEl, 0, 0, CANVAS_SIZE, CANVAS_SIZE, 0, 0, EXPORT_SIZE, EXPORT_SIZE);
+			renderCrop(offCtx);
 		}
 		// offCtx is null in some test environments; fall back to the main canvas
 		const exportTarget = offCtx ? offscreen : canvasEl;
@@ -147,9 +176,6 @@
 			</button>
 		{/snippet}
 		Crop
-		{#snippet right()}
-			<button class="save-btn" data-test="crop-save" onclick={handleSave}>Save</button>
-		{/snippet}
 	</AppTopBar>
 
 	<div class="content">
@@ -171,7 +197,7 @@
 			<span class="corner bottom right"></span>
 		</div>
 
-		<p class="hint">
+		<p class="explainer">
 			Drag to position. Pinch to zoom.<br />
 			We'll save it as a 256 × 256 square — small, fast, and easy to back up.
 		</p>
@@ -188,6 +214,12 @@
 				{/each}
 			</div>
 		</div>
+
+		<div class="save-row">
+			<Button variant="rect" tone="primary" size="md" data-test="crop-save" onclick={handleSave}
+				>Save</Button
+			>
+		</div>
 	</div>
 </div>
 
@@ -196,8 +228,8 @@
 		display: flex;
 		flex-direction: column;
 		height: 100%;
-		background: #1a1614;
-		color: var(--paper);
+		background: var(--paper);
+		color: var(--ink);
 	}
 
 	.content {
@@ -257,12 +289,9 @@
 		border-right: 2px solid rgba(255, 255, 255, 0.7);
 	}
 
-	.hint {
+	.explainer {
 		margin-top: 18px;
-		font-size: 13px;
-		color: var(--stone);
-		text-align: center;
-		line-height: 1.5;
+		color: var(--ink-soft);
 	}
 
 	.preview-row {
@@ -312,15 +341,14 @@
 		align-items: center;
 	}
 
-	.save-btn {
-		padding: 8px 14px;
-		border: none;
-		border-radius: 10px;
-		background: var(--ink);
-		color: var(--paper);
-		font-size: 13px;
-		font-weight: 600;
-		cursor: pointer;
-		font-family: inherit;
+	/* Save sits at the foot of the form, full-width, where people expect the
+	   primary commit action — not tucked in the top corner. */
+	.save-row {
+		margin-top: 22px;
+		width: 100%;
+	}
+
+	.save-row :global(button) {
+		width: 100%;
 	}
 </style>

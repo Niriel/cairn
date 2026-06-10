@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { tick } from 'svelte';
+	import { tick, untrack } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { pgGet } from '$lib/shared/http/postgrest';
@@ -16,9 +16,12 @@
 	import { TOMBSTONE_UID } from '$lib/shared/model/constants';
 
 	import TopBar from '$lib/shared/components/TopBar.svelte';
+	import Button from '$lib/basic/components/Button.svelte';
+	import Badge from '$lib/basic/components/Badge.svelte';
 	import IconButton from '$lib/basic/components/IconButton.svelte';
 	import MoreButton from '$lib/shared/components/MoreButton.svelte';
 	import UndoSnackbar from '$lib/shared/components/UndoSnackbar.svelte';
+	import EmptyState from '$lib/shared/components/EmptyState.svelte';
 	import Avatar from '$lib/shared/components/Avatar.svelte';
 	import Fab from '$lib/basic/components/Fab.svelte';
 	import Icon from '$lib/basic/components/Icon.svelte';
@@ -66,9 +69,15 @@
 
 	$effect(() => {
 		if (!isOpen) return;
-		return pushHistoryGuard(() => {
-			openId = null;
-		});
+		// untrack: pushHistoryGuard → pushState reads SvelteKit's internal
+		// history state, which would otherwise re-track this effect and re-push
+		// a fresh guard on every change — stacking history entries until neither
+		// the TopBar back nor the browser back can escape the pile.
+		return untrack(() =>
+			pushHistoryGuard(() => {
+				openId = null;
+			})
+		);
 	});
 
 	function toggleRow(id: string) {
@@ -104,36 +113,27 @@
 	</TopBar>
 
 	{#if items.loading}
-		<div class="content loading" data-test="items-loading">Loading…</div>
+		<div class="content loading caption" data-test="items-loading">Loading…</div>
 	{:else if items.rows.length === 0}
-		<div class="content empty" data-test="items-empty">
-			<div class="empty-circle">
-				<Icon name="feather" size={32} />
-			</div>
-			<div class="empty-heading">Nothing here yet</div>
-			<p class="empty-body">
-				Drop the first stone — add an item with a name and (optionally) a note.
-			</p>
-			<button class="empty-cta" onclick={() => (addSheetOpen = true)}>
-				<Icon name="plus" size={15} />
-				Add the first item
-			</button>
-		</div>
+		<EmptyState
+			data-test="items-empty"
+			icon="feather"
+			title="Nothing here yet"
+			body="Drop the first stone — add an item with a name and (optionally) a note."
+			ctaLabel="Add the first item"
+			onCta={() => (addSheetOpen = true)}
+		/>
 	{:else}
-		<div class="rows">
+		<ul class="rows">
 			{#each items.rows as item (item.id)}
-				<div class="row" class:open={openId === item.id}>
-					<div class="row-inner">
+				<li class="row" class:open={openId === item.id}>
+					<div class="row-inner media">
 						<button class="row-tap" data-test="row-{item.id}" onclick={() => toggleRow(item.id)}>
-							<span class="item-name">{item.name}</span>
+							<span class="item-name row-title">{item.name}</span>
 							{#if item.score !== 0}
-								<span
-									class="score-badge"
-									class:positive={item.score > 0}
-									class:negative={item.score < 0}
-								>
+								<Badge tone="score" sign={item.score > 0 ? 'positive' : 'negative'}>
 									{item.score > 0 ? '+' : ''}{item.score}
-								</span>
+								</Badge>
 							{/if}
 						</button>
 						<VoteControl
@@ -142,14 +142,14 @@
 						/>
 					</div>
 					{#if openId === item.id}
-						<div data-test="item-panel" class="item-panel">
+						<div data-test="item-panel" class="item-panel surface-alt">
 							{#if item.notes}
-								<div class="notes">{item.notes}</div>
+								<div class="notes body">{item.notes}</div>
 							{/if}
 							{#if item.member_votes.length > 0}
 								<div class="member-votes">
 									{#each item.member_votes as mv (mv.user_id)}
-										<span class="member-vote">
+										<span class="member-vote fine">
 											<Avatar
 												displayName={mv.display_name}
 												size={18}
@@ -158,7 +158,7 @@
 											/>
 											<span class="mv-name">{mv.display_name}</span>
 											<span
-												class="mv-val"
+												class="mv-val mono"
 												class:positive={mv.value > 0}
 												class:negative={mv.value < 0}
 											>
@@ -168,7 +168,7 @@
 									{/each}
 								</div>
 							{/if}
-							<div class="attribution">
+							<div class="attribution fine">
 								Added by <strong
 									data-test="attribution-creator-{item.id}"
 									class:tombstone={item.created_by === TOMBSTONE_UID}>{item.created_by_name}</strong
@@ -184,34 +184,36 @@
 								{/if}
 							</div>
 							<div class="panel-actions">
-								<button
-									class="panel-btn destructive"
+								<Button
+									variant="pill"
+									tone="destructive"
+									size="sm"
+									leadingIcon="trash"
 									data-test="panel-delete-{item.id}"
+									style="flex: 1"
 									onclick={() => {
 										deleteSheetItem = item;
 										openId = null;
-									}}
+									}}>Delete</Button
 								>
-									<Icon name="trash" size={14} />
-									Delete
-								</button>
-								<button
-									class="panel-btn"
+								<Button
+									variant="pill"
+									tone="ink"
+									size="sm"
+									leadingIcon="pencil"
 									data-test="panel-edit-{item.id}"
+									style="flex: 1"
 									onclick={() => {
 										editSheetItem = item;
 										openId = null;
-									}}
+									}}>Edit</Button
 								>
-									<Icon name="pencil" size={14} />
-									Edit
-								</button>
 							</div>
 						</div>
 					{/if}
-				</div>
+				</li>
 			{/each}
-		</div>
+		</ul>
 	{/if}
 
 	{#if !items.pendingDelete}
@@ -301,93 +303,29 @@
 
 	.content {
 		flex: 1;
-		padding: 16px;
+		padding: 1rem;
 	}
 
 	.loading {
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		color: var(--stone);
-	}
-
-	.empty {
-		display: flex;
-		flex-direction: column;
-		align-items: center;
-		justify-content: center;
-		padding: 40px 36px;
-		text-align: center;
-	}
-
-	.empty-circle {
-		width: 80px;
-		height: 80px;
-		border-radius: 99px;
-		background: var(--paper-alt, var(--paper));
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		margin-bottom: 22px;
-		border: 1px dashed var(--stone);
-		color: var(--stone);
-	}
-
-	.empty-heading {
-		font-family: 'Newsreader Variable', Georgia, serif;
-		font-size: 22px;
-		font-weight: 500;
-		color: var(--ink);
-		letter-spacing: -0.01em;
-		margin-bottom: 8px;
-	}
-
-	.empty-body {
-		font-size: 13.5px;
-		color: var(--ink-soft);
-		line-height: 1.5;
-		margin-bottom: 22px;
-		max-width: 240px;
-		margin-top: 0;
-	}
-
-	.empty-cta {
-		display: inline-flex;
-		align-items: center;
-		gap: 8px;
-		padding: 11px 20px;
-		border: none;
-		border-radius: 12px;
-		background: var(--ink);
-		color: var(--paper);
-		font: inherit;
-		font-size: 14px;
-		font-weight: 600;
-		cursor: pointer;
 	}
 
 	.rows {
-		padding-bottom: 90px;
+		padding-bottom: 5.625rem;
 	}
 
-	.row {
-		border-bottom: 1px solid var(--rule);
-	}
-
-	.row:last-child {
-		border-bottom: none;
-	}
-
+	/* Open-row tint — a genuine toggled state, so the background lives here as a
+	   scoped one-liner referencing the surface token rather than as a class. */
 	.row.open {
-		background: var(--paper-alt, var(--paper));
+		background: var(--paper-alt);
 	}
 
 	.row-inner {
-		display: flex;
-		align-items: center;
-		padding: 14px 18px 14px 20px;
-		gap: 10px;
-		min-height: 56px;
+		padding: 0.875rem 1.125rem 0.875rem 1.25rem;
+		gap: 0.625rem;
+		min-height: 3.5rem;
 	}
 
 	.row-tap {
@@ -395,7 +333,7 @@
 		min-width: 0;
 		display: flex;
 		align-items: center;
-		gap: 10px;
+		gap: 0.625rem;
 		background: none;
 		border: none;
 		padding: 0;
@@ -405,75 +343,48 @@
 	}
 
 	.item-name {
-		font-size: 15.5px;
-		color: var(--ink);
-		line-height: 1.35;
 		white-space: nowrap;
 		overflow: hidden;
 		text-overflow: ellipsis;
-		font-weight: 500;
 	}
 
+	/* Collapsed rows truncate to one line; an open row shows the full name,
+	   wrapping (and breaking long unbroken tokens) instead of clipping. */
 	.row.open .item-name {
-		font-weight: 600;
-	}
-
-	.score-badge {
-		font-size: 11px;
-		font-weight: 600;
-		font-family: 'JetBrains Mono', ui-monospace, monospace;
-		padding: 2px 6px;
-		border-radius: 6px;
-		flex-shrink: 0;
-	}
-
-	.score-badge.positive {
-		color: var(--sage);
-		background: var(--sage-bg, #f0fdf4);
-	}
-
-	.score-badge.negative {
-		color: var(--ember);
-		background: var(--ember-bg, #fef2f2);
+		white-space: normal;
+		overflow: visible;
+		text-overflow: clip;
+		overflow-wrap: anywhere;
 	}
 
 	.item-panel {
-		padding: 4px 22px 18px;
+		padding: 0.25rem 1.375rem 1.125rem;
 		border-top: 1px dashed var(--rule);
-		background: var(--paper-alt, var(--paper));
 	}
 
+	/* Editorial serif-italic for free-text notes — an annotated exception to the
+	   global type roles (.body supplies size/colour/leading). */
 	.notes {
-		margin-top: 14px;
+		margin-top: 0.875rem;
 		font-family: 'Newsreader Variable', Georgia, serif;
 		font-style: italic;
-		font-size: 14px;
-		line-height: 1.55;
-		color: var(--ink-soft);
 	}
 
 	.member-votes {
-		margin-top: 14px;
+		margin-top: 0.875rem;
 		display: flex;
 		flex-wrap: wrap;
-		gap: 10px;
+		gap: 0.625rem;
 		align-items: center;
 	}
 
 	.member-vote {
 		display: inline-flex;
 		align-items: center;
-		gap: 6px;
-		font-size: 12.5px;
-		color: var(--ink-soft);
+		gap: 0.375rem;
 	}
 
-	.mv-val {
-		font-family: 'JetBrains Mono', ui-monospace, monospace;
-		font-weight: 600;
-		color: var(--stone);
-	}
-
+	/* Per-member vote sign — state colour on the .mono value. */
 	.mv-val.positive {
 		color: var(--sage);
 	}
@@ -483,17 +394,16 @@
 	}
 
 	.attribution {
-		margin-top: 14px;
-		font-size: 11.5px;
-		color: var(--stone);
-		line-height: 1.5;
+		margin-top: 0.875rem;
 	}
 
+	/* Name emphasis within the muted attribution line. */
 	.attribution strong {
 		color: var(--ink-soft);
 		font-weight: 600;
 	}
 
+	/* Tombstone (deleted-user) name — editorial serif-italic exception. */
 	.attribution strong.tombstone {
 		font-style: italic;
 		font-weight: normal;
@@ -502,51 +412,32 @@
 	}
 
 	.panel-actions {
-		margin-top: 14px;
+		margin-top: 0.875rem;
 		display: flex;
-		gap: 8px;
+		gap: 0.5rem;
 	}
 
-	.panel-btn {
-		flex: 1;
-		padding: 10px 12px;
-		border: 1px solid var(--rule);
-		border-radius: 10px;
-		background: var(--paper);
-		color: var(--ink);
-		font: inherit;
-		font-size: 13px;
-		font-weight: 500;
-		cursor: pointer;
-		display: inline-flex;
-		align-items: center;
-		justify-content: center;
-		gap: 6px;
-	}
-
-	.panel-btn.destructive {
-		color: var(--ember);
-	}
-
+	/* Single-instance undo toast — its inverted ink/paper chrome is bespoke to
+	   this screen (not the globalised .toast-error error banner). */
 	.undo-snackbar {
 		position: fixed;
-		left: max(0px, calc(50% - var(--app-max-w) / 2 + 12px));
-		right: max(0px, calc(50% - var(--app-max-w) / 2 + 12px));
+		left: max(0px, calc(50% - var(--app-max-w) / 2 + 0.75rem));
+		right: max(0px, calc(50% - var(--app-max-w) / 2 + 0.75rem));
 		bottom: calc(env(safe-area-inset-bottom) + 18px);
 		display: flex;
 		align-items: center;
-		gap: 10px;
-		padding: 14px 16px;
+		gap: 0.625rem;
+		padding: 0.875rem 1rem;
 		background: var(--ink);
 		color: var(--paper);
-		border-radius: 12px;
+		border-radius: 0.75rem;
 		box-shadow: 0 4px 16px rgba(0, 0, 0, 0.18);
 		z-index: 200;
 	}
 
 	.snackbar-text {
 		flex: 1;
-		font-size: 13.5px;
+		font-size: 0.875rem;
 		overflow: hidden;
 		white-space: nowrap;
 		text-overflow: ellipsis;

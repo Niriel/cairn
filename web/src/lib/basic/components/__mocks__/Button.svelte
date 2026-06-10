@@ -2,7 +2,10 @@
 	import type { Snippet } from 'svelte';
 
 	type Props = {
-		variant?: 'primary' | 'ghost' | 'destructive';
+		variant?: 'rect' | 'pill' | 'text' | 'link';
+		tone?: 'primary' | 'ink' | 'destructive';
+		size?: 'sm' | 'md';
+		leadingIcon?: string;
 		disabled?: boolean;
 		type?: 'button' | 'submit';
 		onclick?: () => void;

@@ -43,7 +43,8 @@
 <div class="dev-shortcuts">
 	{#each DEV_USERS as user (user.name)}
 		<Button
-			variant="ghost"
+			variant="text"
+			tone="ink"
 			disabled={sending}
 			data-test={`dev-login-${user.name}`}
 			onclick={() => onDevLogin(user.email)}

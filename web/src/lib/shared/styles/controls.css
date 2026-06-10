@@ -1,0 +1,64 @@
+/* Controls: badges and the persistent error toast. One home per look;
+   components add the class and keep only layout local.
+
+   Visual only (background, border, radius, type). The aggregate-score badge is
+   tonal here and gets its monospace from the .mono role — so a score badge is
+   class="badge badge-score mono positive|negative". */
+
+/* ── Badges ──────────────────────────────────────────────────────────
+   .badge         — the pill base: an inline-flex, centred pill.
+   .badge-primary — filled earth/accent count (accent background, paper text).
+   .badge-soft    — outlined muted count (paper-alt fill, rule border).
+   .badge-score   — tonal only; pairs with .positive / .negative. Inherits the
+                    pill base and takes its font from .mono. */
+.badge {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	min-width: 1.25rem;
+	height: 1.25rem;
+	padding: 0 0.375rem;
+	border-radius: 99px;
+	font-size: 0.75rem;
+	font-weight: 600;
+	flex-shrink: 0;
+}
+
+.badge-primary {
+	background: var(--accent);
+	color: var(--paper);
+}
+
+.badge-soft {
+	background: var(--paper-alt);
+	border: 1px solid var(--rule);
+	color: var(--stone);
+}
+
+.badge-score.positive {
+	color: var(--sage);
+	background: var(--sage-bg);
+}
+
+.badge-score.negative {
+	color: var(--ember);
+	background: var(--ember-bg);
+}
+
+/* ── Error toast ─────────────────────────────────────────────────────
+   A persistent, self-dismissed-by-state error banner pinned to the bottom of
+   the shell. Self-contained: visual plus the shell-aware fixed positioning. */
+.toast-error {
+	position: fixed;
+	left: max(0px, calc(50% - var(--app-max-w) / 2 + 0.75rem));
+	right: max(0px, calc(50% - var(--app-max-w) / 2 + 0.75rem));
+	bottom: calc(env(safe-area-inset-bottom) + 18px);
+	z-index: 200;
+	padding: 0.875rem 1rem;
+	color: var(--ember);
+	background: var(--paper);
+	border: 1px solid var(--ember);
+	border-radius: 0.75rem;
+	font-size: 0.875rem;
+	text-align: center;
+}

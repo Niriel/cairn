@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { Snippet } from 'svelte';
+	import { untrack, type Snippet } from 'svelte';
 
 	import Icon from '$lib/basic/components/Icon.svelte';
 	import { pushHistoryGuard } from '$lib/shared/state/back-stack.svelte';
@@ -25,7 +25,11 @@
 	$effect(() => {
 		if (!expanded) return;
 		if (!pushesHistory) return;
-		return pushHistoryGuard(() => oncollapse());
+		// untrack: pushHistoryGuard → pushState reads SvelteKit's internal
+		// history state, which would otherwise re-track this effect and re-push
+		// a fresh guard on every change, stacking history entries the back
+		// button can't escape (see Sheet.svelte for the same fix).
+		return untrack(() => pushHistoryGuard(() => oncollapse()));
 	});
 
 	function toggle() {

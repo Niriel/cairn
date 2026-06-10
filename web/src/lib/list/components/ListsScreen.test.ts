@@ -70,8 +70,11 @@ describe('ListsScreen', () => {
 		lists.items = [];
 		lists.loading = false;
 		const { queryByDataTest } = render(ListsScreen);
-		expect(queryByDataTest('lists-empty')).not.toBeNull();
-		expect(queryByDataTest('lists-empty-cta')).not.toBeNull();
+		const empty = queryByDataTest('lists-empty');
+		expect(empty).not.toBeNull();
+		const cta = empty?.querySelector('button');
+		expect(cta).not.toBeNull();
+		expect(cta?.textContent).toContain('Create your first list');
 	});
 
 	test('(c) renders one row per list item', () => {

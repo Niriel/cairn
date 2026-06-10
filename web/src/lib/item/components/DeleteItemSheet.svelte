@@ -1,6 +1,7 @@
 <script lang="ts">
-	import Sheet from '$lib/basic/components/Sheet.svelte';
+	import Button from '$lib/basic/components/Button.svelte';
 	import Icon from '$lib/basic/components/Icon.svelte';
+	import Sheet from '$lib/basic/components/Sheet.svelte';
 	import { softDeleteItem } from '$lib/item/state/items.svelte';
 	import type { Item } from '$lib/item/model/item';
 
@@ -38,20 +39,18 @@
 			<Icon name="trash" size={18} />
 		</div>
 		<div class="text">
-			<div class="heading" data-test="delete-heading">Delete "{item.name}"?</div>
-			<div class="body">{bodyText}</div>
+			<h2 class="heading t-sheet" data-test="delete-heading">Delete "{item.name}"?</h2>
+			<p class="body">{bodyText}</p>
 		</div>
 	</div>
 	<div class="actions">
-		<button type="button" class="btn-cancel" data-test="delete-cancel" onclick={oncancel}
-			>Cancel</button
-		>
-		<button
+		<Button type="button" tone="ink" data-test="delete-cancel" onclick={oncancel}>Cancel</Button>
+		<Button
 			type="button"
-			class="btn-delete"
+			tone="destructive"
 			data-test="delete-confirm"
 			disabled={deleting}
-			onclick={() => void handleDelete()}>Delete</button
+			onclick={() => void handleDelete()}>Delete</Button
 		>
 	</div>
 </Sheet>
@@ -59,16 +58,19 @@
 <style>
 	.content {
 		display: flex;
-		gap: 14px;
+		gap: 0.875rem;
 		align-items: flex-start;
-		margin-bottom: 16px;
+		margin-bottom: 1rem;
 	}
 
+	/* Layout-bearing icon wrapper: a 40px ember disc holding the trash glyph. Its
+	   ember tint/colour is part of the affordance, not strippable drift — an
+	   annotated exception to the layout-only rule. */
 	.icon-wrap {
 		width: 40px;
 		height: 40px;
-		border-radius: 12px;
-		background: var(--ember-bg, #fef2f2);
+		border-radius: 0.75rem;
+		background: var(--ember-bg);
 		color: var(--ember);
 		display: flex;
 		align-items: center;
@@ -76,52 +78,16 @@
 		flex-shrink: 0;
 	}
 
-	.heading {
-		font-family: 'Newsreader Variable', Georgia, serif;
-		font-size: 19px;
-		font-weight: 500;
-		color: var(--ink);
-		letter-spacing: -0.005em;
-	}
-
 	.body {
-		margin-top: 6px;
-		font-size: 13px;
-		color: var(--ink-soft);
-		line-height: 1.5;
+		margin-top: 0.375rem;
 	}
 
 	.actions {
 		display: flex;
-		gap: 10px;
+		gap: 0.625rem;
 	}
 
-	.btn-cancel,
-	.btn-delete {
+	.actions :global(button) {
 		flex: 1;
-		padding: 12px;
-		border-radius: 12px;
-		font: inherit;
-		font-size: 14px;
-		font-weight: 500;
-		cursor: pointer;
-	}
-
-	.btn-cancel {
-		border: 1px solid var(--rule);
-		background: var(--paper);
-		color: var(--ink);
-	}
-
-	.btn-delete {
-		border: none;
-		background: var(--ember);
-		color: #fff;
-		font-weight: 600;
-	}
-
-	.btn-delete:disabled {
-		opacity: 0.5;
-		cursor: default;
 	}
 </style>

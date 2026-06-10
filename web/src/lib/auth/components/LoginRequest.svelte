@@ -5,6 +5,8 @@
 	import { resolve } from '$app/paths';
 
 	import Button from '$lib/basic/components/Button.svelte';
+	import Label from '$lib/basic/components/Label.svelte';
+	import TextInput from '$lib/basic/components/TextInput.svelte';
 	import { sendMagicLink } from '$lib/auth/model/auth-client';
 	import { isDevLoginShortcutEnabled } from '$lib/auth/model/dev-shortcut';
 	import { setPendingLogin } from '$lib/auth/state/pending-login.svelte';
@@ -65,18 +67,19 @@
 	<div class="tagline">here's the way,<br />you'll like this</div>
 
 	<form class="form" onsubmit={onSubmit}>
-		<label class="label" for="login-email-input">E-mail</label>
-		<input
-			id="login-email-input"
-			class="email-input"
-			type="email"
-			required
-			autocomplete="email"
-			inputmode="email"
-			data-test="login-email"
-			value={email}
-			oninput={onEmailInput}
-		/>
+		<div class="field">
+			<Label for="login-email-input">E-mail</Label>
+			<TextInput
+				type="email"
+				id="login-email-input"
+				bind:value={email}
+				required
+				autocomplete="email"
+				inputmode="email"
+				data-test="login-email"
+				oninput={onEmailInput}
+			/>
+		</div>
 
 		{#if inlineError}
 			<div class="inline-error" data-test="login-error">{inlineError}</div>
@@ -85,15 +88,17 @@
 		<div class="submit-row">
 			<Button
 				type="submit"
-				variant="primary"
+				variant="rect"
+				tone="primary"
 				disabled={!emailValid || sending}
 				data-test="login-submit"
+				style="flex: 1"
 			>
 				Send me a magic link
 			</Button>
 		</div>
 
-		<div class="hint">
+		<div class="disclaimer">
 			No password. We'll e-mail you a link to continue.<br />
 			Your data lives on a small server in Germany.
 		</div>
@@ -155,23 +160,6 @@
 		flex-direction: column;
 	}
 
-	.label {
-		font-size: 13px;
-		color: var(--stone);
-		font-weight: 500;
-	}
-
-	.email-input {
-		margin-top: 8px;
-		padding: 14px;
-		border: 1px solid var(--rule);
-		border-radius: 12px;
-		background: var(--paper-alt);
-		color: var(--ink);
-		font: inherit;
-		font-size: 16px;
-	}
-
 	.inline-error {
 		margin-top: 8px;
 		color: var(--ember, #b00020);
@@ -183,19 +171,7 @@
 		display: flex;
 	}
 
-	.submit-row :global(button) {
-		flex: 1;
-		padding: 14px;
-		border-radius: 12px;
-		font-size: 15px;
-		font-weight: 600;
-	}
-
-	.hint {
+	.disclaimer {
 		margin-top: 18px;
-		font-size: 12px;
-		color: var(--stone);
-		text-align: center;
-		line-height: 1.5;
 	}
 </style>

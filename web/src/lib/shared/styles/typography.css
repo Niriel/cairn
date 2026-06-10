@@ -5,3 +5,134 @@
 	--font-size-scale: 1;
 	font-size: calc(16px * var(--font-size-scale));
 }
+
+/* Input-rail helper text: sits below a <TextInput> or <Textarea>.
+   Pair with .hint-error to flip the colour to ember (validation error). */
+.hint {
+	font-size: 1rem;
+	color: var(--stone);
+	margin-top: 0;
+	margin-bottom: 6px;
+}
+
+.hint.hint-error {
+	color: var(--ember);
+}
+
+/* Small muted centred copy for legal / security / privacy notices.
+   Callers add their own margin-top for spacing. */
+.disclaimer {
+	font-size: 1rem;
+	color: var(--stone);
+	text-align: center;
+	line-height: 1.5;
+	margin-top: 0;
+	margin-bottom: 0;
+}
+
+/* Muted how-it-works copy that explains app behaviour (not legal/privacy).
+   No forced centering — inherits alignment from its container. */
+.explainer {
+	font-size: 1rem;
+	color: var(--stone);
+	line-height: 1.5;
+	margin-top: 0;
+	margin-bottom: 0;
+}
+
+/* Screen titles — the TopBar <h1> is the one canonical page-level heading. */
+h1 {
+	font-family: 'Newsreader Variable', Georgia, serif;
+	font-size: 1.375rem;
+	font-weight: 500;
+	letter-spacing: -0.01em;
+	color: var(--ink);
+	margin: 0;
+}
+
+/* Section titles — a normal-case serif heading, NOT a form label. The
+   upper-cased, tracked, small-stone look belongs to the <Label> primitive (form
+   sub-labels like "NAME"/"NOTES"); section titles are quiet serif headings.
+   margin: 0 stops bare <h2> titles picking up browser-default heading margins
+   once scoped resets are stripped. */
+h2 {
+	font-family: 'Newsreader Variable', Georgia, serif;
+	font-size: 1.125rem;
+	font-weight: 500;
+	color: var(--ink-soft);
+	letter-spacing: normal;
+	text-transform: none;
+	margin: 0;
+}
+
+/* Row names. The <h3> tag for names NOT inside a control; the .row-title class
+   (same rule) for names that must sit inside a tap-target button, where a
+   heading tag would be invalid HTML. */
+h3,
+.row-title {
+	font-size: 1rem;
+	font-weight: 600;
+	color: var(--ink);
+	margin: 0;
+}
+
+/* Cairn lists are flex/grid scaffolds, not bulleted content. */
+ul,
+ol {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+}
+
+/* Empty-state hero heading. */
+.t-hero {
+	font-family: 'Newsreader Variable', Georgia, serif;
+	font-size: 1.5rem;
+	font-weight: 500;
+	letter-spacing: -0.01em;
+	color: var(--ink);
+}
+
+/* Bottom-sheet title: a section h2 with stronger contrast for the sheet's
+   background. Used on an <h2>, so it overrides only the colour. */
+.t-sheet {
+	color: var(--ink);
+}
+
+/* A person's display name (members, inbox, profile). */
+.identity-name {
+	font-size: 1.125rem;
+	font-weight: 600;
+	color: var(--ink);
+}
+
+/* Default body copy. */
+.body {
+	font-size: 1rem;
+	color: var(--ink-soft);
+	line-height: 1.5;
+}
+
+/* Muted secondary / metadata line. Same 1rem floor as body — it is set apart
+   by colour (--stone), not by being tiny. Genuinely-small text is the job of
+   the Text-size setting, not a hardcoded sub-1rem role. */
+.caption {
+	font-size: 1rem;
+	color: var(--stone);
+	line-height: 1.5;
+}
+
+/* Fine print — the one tier deliberately below the 1rem floor (0.8rem).
+   Genuinely-secondary metadata that reads fine small: attribution lines, the
+   list-meta line ("2 items · 5 days ago"), vote labels, timestamps. Like
+   .caption, set apart by --stone; distinguished from it by being smaller. */
+.fine {
+	font-size: 0.8rem;
+	color: var(--stone);
+	line-height: 1.5;
+}
+
+/* Monospace — vote indicator, aggregate-score badge, counts. */
+.mono {
+	font-family: 'JetBrains Mono', ui-monospace, monospace;
+}

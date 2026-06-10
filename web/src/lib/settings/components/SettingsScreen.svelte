@@ -1,6 +1,8 @@
 <script lang="ts">
 	import Avatar from '$lib/shared/components/Avatar.svelte';
 	import AppTopBar from '$lib/shared/components/AppTopBar.svelte';
+	import NavRow from '$lib/shared/components/NavRow.svelte';
+	import Badge from '$lib/basic/components/Badge.svelte';
 	import Icon from '$lib/basic/components/Icon.svelte';
 	import type { IconName } from '$lib/basic/model/icon-paths';
 	import { profile } from '$lib/shared/state/profile.svelte';
@@ -35,63 +37,60 @@
 
 	<div class="content">
 		<section class="profile-chip-section">
-			{#if profile.displayName === null}
-				<div data-test="profile-chip-skeleton" class="skeleton">
-					<div class="skeleton-avatar"></div>
-					<div class="skeleton-name"></div>
-				</div>
-			{:else}
-				<button
-					class="profile-chip"
-					data-test="profile-chip"
-					onclick={() => goto(resolve('/profile'))}
-				>
-					<Avatar
-						displayName={profile.displayName}
-						size={44}
-						uid={profile.uid ?? ''}
-						avatarVersion={profile.avatarVersion}
-						data-test="profile-avatar"
-					/>
-					<span class="display-name">{profile.displayName}</span>
-					<Icon name="chevron-right" size={18} />
-				</button>
-			{/if}
+			<h2>Profile</h2>
+			<div class="nav-rows">
+				{#if profile.displayName === null}
+					<div data-test="profile-chip-skeleton" class="skeleton">
+						<div class="skeleton-avatar"></div>
+						<div class="skeleton-name"></div>
+					</div>
+				{:else}
+					<NavRow
+						title={profile.displayName}
+						data-test="profile-chip"
+						onclick={() => goto(resolve('/profile'))}
+					>
+						{#snippet lead()}
+							<Avatar
+								displayName={profile.displayName ?? ''}
+								size={44}
+								uid={profile.uid ?? ''}
+								avatarVersion={profile.avatarVersion}
+								data-test="profile-avatar"
+							/>
+						{/snippet}
+					</NavRow>
+				{/if}
+			</div>
 		</section>
 
 		<section class="preference-group">
 			<h2>People</h2>
-			<button
-				class="nav-row"
-				data-test="settings-invites"
-				onclick={() => goto(resolve('/settings/invites'))}
-			>
-				<Icon name="inbox" size={20} />
-				<span class="nav-row-text">
-					<span class="nav-row-title">Invites</span>
-					<span class="nav-row-sub"
-						>{invitations.inbox.length > 0
-							? invitations.inbox.length + ' pending'
-							: 'No pending invites'}</span
-					>
-				</span>
-				{#if invitations.inbox.length > 0}
-					<span class="nav-row-count">{invitations.inbox.length}</span>
-				{/if}
-				<Icon name="chevron-right" size={18} />
-			</button>
-			<button
-				class="nav-row"
-				data-test="settings-privacy"
-				onclick={() => goto(resolve('/settings/privacy'))}
-			>
-				<Icon name="shield" size={20} />
-				<span class="nav-row-text">
-					<span class="nav-row-title">Privacy</span>
-					<span class="nav-row-sub">Who can invite you · circle · blocked</span>
-				</span>
-				<Icon name="chevron-right" size={18} />
-			</button>
+			<div class="nav-rows">
+				<NavRow
+					title="Invites"
+					sub={invitations.inbox.length > 0
+						? invitations.inbox.length + ' pending'
+						: 'No pending invites'}
+					data-test="settings-invites"
+					onclick={() => goto(resolve('/settings/invites'))}
+				>
+					{#snippet lead()}<Icon name="inbox" size={20} />{/snippet}
+					{#snippet trailing()}
+						{#if invitations.inbox.length > 0}
+							<Badge tone="primary">{invitations.inbox.length}</Badge>
+						{/if}
+					{/snippet}
+				</NavRow>
+				<NavRow
+					title="Privacy"
+					sub="Who can invite you · circle · blocked"
+					data-test="settings-privacy"
+					onclick={() => goto(resolve('/settings/privacy'))}
+				>
+					{#snippet lead()}<Icon name="shield" size={20} />{/snippet}
+				</NavRow>
+			</div>
 		</section>
 
 		<section class="preference-group">
@@ -100,7 +99,7 @@
 				{#each themes as t (t.value)}
 					{@const sel = preferences.theme === t.value}
 					<button
-						class="theme-option"
+						class="theme-option card"
 						class:selected={sel}
 						aria-pressed={sel}
 						data-test="theme-{t.value}"
@@ -115,7 +114,7 @@
 
 		<section class="preference-group">
 			<h2>Text size</h2>
-			<div class="size-card">
+			<div class="size-card card-alt">
 				{#each fontSizes as f (f.value)}
 					{@const sel = preferences.fontSize === f.value}
 					<button
@@ -128,40 +127,36 @@
 					>
 				{/each}
 			</div>
-			<div class="size-preview">
-				<div class="preview-label">Preview</div>
+			<div class="size-preview card">
+				<p class="preview-label caption">Preview</p>
 				<div class="preview-title" style="font-size: {currentSize.px + 1}px">Bringing Up Baby</div>
-				<div class="preview-sub" style="font-size: {currentSize.px - 2}px">
+				<p class="preview-sub caption" style="font-size: {currentSize.px - 2}px">
 					1938 · screwball · Hawks. Cary Grant + Katharine Hepburn + a leopard.
-				</div>
+				</p>
 			</div>
 		</section>
 
 		<section class="preference-group">
 			<h2>Recovery</h2>
-			<button
-				class="nav-row"
-				data-test="settings-deleted-lists"
-				onclick={() => goto(resolve('/settings/deleted-lists'))}
-			>
-				<Icon name="trash-2" size={20} />
-				<span class="nav-row-text">
-					<span class="nav-row-title">Deleted lists</span>
-					<span class="nav-row-sub">Restore lists you've deleted</span>
-				</span>
-				<Icon name="chevron-right" size={18} />
-			</button>
+			<div class="nav-rows">
+				<NavRow
+					title="Deleted lists"
+					sub="Restore lists you've deleted"
+					data-test="settings-deleted-lists"
+					onclick={() => goto(resolve('/settings/deleted-lists'))}
+				>
+					{#snippet lead()}<Icon name="trash-2" size={20} />{/snippet}
+				</NavRow>
+			</div>
 		</section>
 
 		<section class="preference-group">
 			<h2>Account</h2>
-			<button class="nav-row" data-test="signout" onclick={signOut}>
-				<Icon name="log-out" size={20} />
-				<span class="nav-row-text">
-					<span class="nav-row-title">Sign out</span>
-				</span>
-				<Icon name="chevron-right" size={18} />
-			</button>
+			<div class="nav-rows">
+				<NavRow title="Sign out" data-test="signout" onclick={signOut}>
+					{#snippet lead()}<Icon name="log-out" size={20} />{/snippet}
+				</NavRow>
+			</div>
 		</section>
 	</div>
 </div>
@@ -178,37 +173,14 @@
 		overflow-y: auto;
 		display: flex;
 		flex-direction: column;
-	}
-
-	.profile-chip-section {
-		border-bottom: 1px solid var(--rule);
-	}
-
-	.profile-chip {
-		display: flex;
-		align-items: center;
-		gap: 12px;
-		padding: 16px 18px;
-		width: 100%;
-		background: transparent;
-		border: none;
-		cursor: pointer;
-		color: var(--ink);
-	}
-
-	.display-name {
-		flex: 1;
-		text-align: left;
-		font-size: 15px;
-		font-weight: 600;
-		color: var(--ink);
+		gap: 0.5rem;
 	}
 
 	.skeleton {
 		display: flex;
 		align-items: center;
-		gap: 12px;
-		padding: 16px 18px;
+		gap: 0.75rem;
+		padding: 1rem 1.125rem;
 	}
 
 	.skeleton-avatar {
@@ -241,39 +213,34 @@
 		flex-direction: column;
 	}
 
-	.preference-group h2 {
-		font-size: 11.5px;
-		font-weight: 600;
-		text-transform: uppercase;
-		letter-spacing: 0.06em;
-		color: var(--stone);
-		padding: 22px 18px 8px;
-		margin: 0;
+	.preference-group h2,
+	.profile-chip-section h2 {
+		padding: 1.375rem 1.125rem 0.5rem;
 	}
 
 	/* Appearance grid */
 	.theme-grid {
 		display: grid;
 		grid-template-columns: 1fr 1fr 1fr;
-		gap: 8px;
-		padding: 0 18px;
+		gap: 0.5rem;
+		padding: 0 1.125rem;
 	}
 
+	/* .card supplies border + radius + paper bg; the rest is control chrome:
+	   the centred icon+label layout and the small control-label type. */
 	.theme-option {
 		display: flex;
 		flex-direction: column;
 		align-items: center;
-		gap: 6px;
-		padding: 14px 8px;
-		border: 1px solid var(--rule);
-		border-radius: 12px;
-		background: transparent;
+		gap: 0.375rem;
+		padding: 0.875rem 0.5rem;
 		color: var(--stone);
-		font-size: 12.5px;
+		font-size: 0.8rem;
 		font-weight: 500;
 		cursor: pointer;
 	}
 
+	/* Selected is genuine state, not drift: the option fills and inks up. */
 	.theme-option.selected {
 		border-color: var(--ink);
 		background: var(--paper-alt);
@@ -281,24 +248,23 @@
 		font-weight: 600;
 	}
 
-	/* Text size card + preview */
+	/* Text size card + preview — .card-alt / .card give the surfaces; layout only here. */
 	.size-card {
 		display: flex;
 		align-items: flex-end;
 		justify-content: space-between;
-		gap: 6px;
-		padding: 14px 12px;
-		margin: 0 18px;
-		border: 1px solid var(--rule);
-		border-radius: 12px;
-		background: var(--paper-alt);
+		gap: 0.375rem;
+		padding: 0.875rem 0.75rem;
+		margin: 0 1.125rem;
 	}
 
+	/* Segmented control chrome: each cell is an unstyled button; the selected
+	   cell inks up (genuine state). */
 	.size-option {
 		flex: 1;
 		text-align: center;
-		padding: 8px 0;
-		border-radius: 8px;
+		padding: 0.5rem 0;
+		border-radius: 0.5rem;
 		border: none;
 		background: transparent;
 		color: var(--stone);
@@ -314,21 +280,16 @@
 	}
 
 	.size-preview {
-		margin: 14px 18px 0;
-		padding: 14px;
-		border: 1px solid var(--rule);
-		border-radius: 12px;
+		margin: 0.875rem 1.125rem 0;
+		padding: 0.875rem;
 	}
 
 	.preview-label {
-		font-size: 11px;
-		color: var(--stone);
-		font-weight: 600;
-		letter-spacing: 0.06em;
-		text-transform: uppercase;
-		margin-bottom: 6px;
+		margin-bottom: 0.375rem;
 	}
 
+	/* The preview demonstrates the chosen size (inline font-size); weight/colour
+	   are the demo's own chrome. */
 	.preview-title {
 		font-weight: 600;
 		color: var(--ink);
@@ -336,51 +297,6 @@
 	}
 
 	.preview-sub {
-		color: var(--stone);
-		margin-top: 4px;
-		line-height: 1.45;
-	}
-
-	.nav-row {
-		display: flex;
-		align-items: center;
-		gap: 12px;
-		padding: 12px 18px;
-		width: 100%;
-		background: transparent;
-		border: none;
-		cursor: pointer;
-		color: var(--stone);
-		text-align: left;
-	}
-
-	.nav-row-text {
-		flex: 1;
-		display: flex;
-		flex-direction: column;
-	}
-
-	.nav-row-title {
-		font-size: 15px;
-		font-weight: 600;
-		color: var(--ink);
-	}
-
-	.nav-row-sub {
-		font-size: 12px;
-		color: var(--stone);
-		margin-top: 2px;
-	}
-
-	.nav-row > :global(svg:last-of-type) {
-		color: var(--stone-lt);
-	}
-
-	.nav-row-count {
-		font-size: 12px;
-		color: var(--stone);
-		font-weight: 600;
-		font-family: monospace;
-		margin-right: 4px;
+		margin-top: 0.25rem;
 	}
 </style>

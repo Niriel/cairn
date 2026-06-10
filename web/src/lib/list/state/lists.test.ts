@@ -97,6 +97,22 @@ describe('lists store', () => {
 		});
 		expect(capturedUrl).toContain('&deleted_at=is.null');
 	});
+
+	test('(f) query gates on &lists_is_member=is.true so invited-but-unaccepted lists are excluded', async () => {
+		let capturedUrl: string | undefined;
+		server.use(
+			http.get('*/api/lists', ({ request }) => {
+				capturedUrl = request.url;
+				return HttpResponse.json([LIST_A]);
+			})
+		);
+		sessionMod.setSignedIn({ id: TEST_UID, email: 'dev@example.test' });
+		await tick();
+		await vi.waitFor(() => {
+			expect(listsMod.lists.items).toHaveLength(1);
+		});
+		expect(capturedUrl).toContain('&lists_is_member=is.true');
+	});
 });
 
 async function setupWithLists(data = [LIST_A, LIST_B]) {
