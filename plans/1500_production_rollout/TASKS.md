@@ -610,8 +610,15 @@ pass so both Node sidecars share one bar, rather than adding a gate to
   any issues the first `pnpm lint` surfaces in the existing sidecar source
   until it's clean (no rule disables to force it through).
 - Wire both packages into `check.sh`: add a `cd sidecar && pnpm lint` step,
-  and an `auth-proxy` block doing install (frozen) + lint + test, keeping the
-  ordering and `ok`/`fail` output style consistent with the existing blocks.
+  and an `auth-proxy` block doing install (frozen) + **format:check** + lint +
+  test, keeping the ordering and `ok`/`fail` output style consistent with the
+  existing blocks.
+- **`auth-proxy` already has Prettier** (its own `.prettierrc` mirroring
+  `web/`'s, plus `format`/`format:check` scripts — added when the package was
+  scaffolded). Run `cd auth-proxy && pnpm format:check` in the `check.sh`
+  block so CI enforces formatting, not just the `prettier-auth-proxy`
+  pre-commit hook. (`sidecar/` has no Prettier config, so there's no sidecar
+  `format:check` to add here — its retrofit in this task is ESLint only.)
 
 **Files:**
 - `scripts/check.sh` (modify)
@@ -624,8 +631,8 @@ pass so both Node sidecars share one bar, rather than adding a gate to
    `cd sidecar && pnpm install && pnpm lint`; fix any reported issues until
    green.
 2. GREEN — In `scripts/check.sh`, add `cd sidecar && pnpm lint` and an
-   `auth-proxy` install/lint/test block alongside the existing sidecar
-   block.
+   `auth-proxy` install/format:check/lint/test block alongside the existing
+   sidecar block.
 3. Run `./scripts/check.sh` and confirm it now lints **and** tests both
    `sidecar` and `auth-proxy` and is green end-to-end.
 
