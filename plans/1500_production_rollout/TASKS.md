@@ -23,10 +23,10 @@ Canonical references reused throughout:
 
 ## Phase 0 — reconcile docs
 
-### [ ] 0.1 Reconcile the deployment docs with the real prototype shape
+### [x] 0.1 Reconcile the deployment docs with the real prototype shape
 
 **Created:** 2026-06-10T11:38:29Z
-**Completed:**
+**Completed:** 2026-06-10T12:27:55Z
 
 **Why:** `docs/deployment.md` currently shows the Caddyfile and compose as
 pseudocode with two factual errors, and `docs/architecture.md` asserts a
