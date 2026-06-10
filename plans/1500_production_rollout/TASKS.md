@@ -541,10 +541,10 @@ auth-proxy handles the response-side cookie plant; Caddy just routes to it.
 
 ## Phase 5 — secrets template
 
-### [ ] 5.1 Add `.env.prod.example`
+### [x] 5.1 Add `.env.prod.example`
 
 **Created:** 2026-06-10T11:38:29Z
-**Completed:**
+**Completed:** 2026-06-10T13:20:30Z
 
 **Why:** The real `.env.prod` is created on the VPS and never committed; a
 committed template documents every variable and how to generate secrets,
