@@ -112,6 +112,10 @@
 			/>
 		{/if}
 	</form>
+
+	<footer class="legal fine">
+		<a href={resolve('/imprint')} data-test="login-imprint-link">Imprint</a>
+	</footer>
 </div>
 
 <Snackbar
@@ -173,5 +177,15 @@
 
 	.disclaimer {
 		margin-top: 18px;
+	}
+
+	.legal {
+		margin-top: 32px;
+		text-align: center;
+	}
+
+	.legal a {
+		color: var(--stone);
+		text-decoration: none;
 	}
 </style>

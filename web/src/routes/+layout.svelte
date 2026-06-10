@@ -12,6 +12,7 @@
 		SIGNED_IN_REDIRECT_PATHS,
 		isSegmentMatch
 	} from '$lib/shared/model/auth-paths';
+	import { PUBLIC_CONTENT_PATHS } from '$lib/shared/model/public-paths';
 	import { bootSession, session } from '$lib/shared/state/session.svelte';
 	import '$lib/shared/styles/tokens.css';
 	import '$lib/shared/styles/reset.css';
@@ -21,6 +22,13 @@
 	import '$lib/shared/state/preferences.svelte';
 
 	let { children }: { children: Snippet } = $props();
+
+	// Paths a signed-out visitor may view without being bounced to
+	// /auth/login: the auth-flow pages plus the static public content
+	// pages (imprint/legal). Kept as two lists because auth-paths.ts is
+	// mirrored in the auth-proxy; see public-paths.ts.
+	const signedOutMayView = (pathname: string) =>
+		isSegmentMatch(pathname, PUBLIC_AUTH_PATHS) || isSegmentMatch(pathname, PUBLIC_CONTENT_PATHS);
 
 	// Paint-race guard. `$effect` fires AFTER the next paint, so if we
 	// only relied on the redirects below, the wrong route's children
@@ -39,8 +47,7 @@
 	// keeps the two redirects from racing.
 	const showBootScreen = $derived(
 		session.current.status === 'unknown' ||
-			(session.current.status === 'signed-out' &&
-				!isSegmentMatch(page.url.pathname, PUBLIC_AUTH_PATHS)) ||
+			(session.current.status === 'signed-out' && !signedOutMayView(page.url.pathname)) ||
 			(session.current.status === 'signed-in' &&
 				isSegmentMatch(page.url.pathname, SIGNED_IN_REDIRECT_PATHS))
 	);
@@ -51,7 +58,7 @@
 
 	$effect(() => {
 		if (session.current.status === 'signed-out') {
-			if (isSegmentMatch(page.url.pathname, PUBLIC_AUTH_PATHS)) return;
+			if (signedOutMayView(page.url.pathname)) return;
 			void goto(resolve('/auth/login'), { replaceState: true });
 			return;
 		}

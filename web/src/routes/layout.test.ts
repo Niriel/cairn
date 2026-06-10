@@ -84,6 +84,16 @@ describe('+layout.svelte (auth guard)', () => {
 		}
 	);
 
+	test('(e2) signed-out on /imprint (public content path): children render, no redirect', async () => {
+		session.current = { status: 'signed-out' };
+		setUrl('/imprint');
+		const { queryByDataTest } = render(Layout, { children: childStub });
+		await tick();
+		expect(queryByDataTest('layout-children')).not.toBeNull();
+		expect(queryByDataTest('boot-screen')).toBeNull();
+		expect(vi.mocked(goto)).not.toHaveBeenCalled();
+	});
+
 	test('(f) signed-out on /auth/loginx (sibling-prefix): redirects (segment-anchored predicate)', async () => {
 		session.current = { status: 'signed-out' };
 		setUrl('/auth/loginx');
