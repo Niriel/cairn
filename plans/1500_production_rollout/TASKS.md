@@ -473,10 +473,21 @@ live in `docker-compose.override.yml`, which prod never loads.
 
 ## Phase 4 — production Caddyfile
 
-### [ ] 4.1 Add `caddy/Caddyfile.prod`
+### [x] 4.1 Add `caddy/Caddyfile.prod`
 
 **Created:** 2026-06-10T11:38:29Z
-**Completed:**
+**Completed:** 2026-06-10T13:15:39Z
+
+**Notes:** The Decisions sketched the cookie->bearer translation loosely as
+`header_regexp Cookie cairn_session=([^;]+)` + `request_header Authorization
+"Bearer {http.regexp.1}"`. `header_regexp` is a *matcher*, not a standalone
+directive, so it must be written as a named matcher: `@cookie header_regexp
+token Cookie cairn_session=([^;]+)` with the capture referenced as
+`{http.regexp.token.1}`. Same behaviour the Decision intended — `caddy
+validate` confirms. Routing is structured as mutually-exclusive `handle`/
+`handle_path` blocks in source order (avatar writes before reads) with a
+final unmatched `handle { reverse_proxy web:80 }` catch-all, so the
+fall-through is explicit rather than relying on Caddy's directive ordering.
 
 **Why:** The production reverse proxy: automatic TLS, security headers, and
 the path routing + the stock cookie→bearer halves of the shim. The

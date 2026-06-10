@@ -1,0 +1,65 @@
+# Production reverse proxy for Cairn. Automatic TLS via ACME (cert persists
+# in the caddy_data volume), security headers, and the path routing that
+# fronts the self-hosted stack. The response-side cookie plant lives in the
+# auth-proxy; Caddy handles the request-side cookie->bearer translation for
+# the data plane (PostgREST + sidecar writes) and routes /auth to the proxy.
+#
+# Prefix-stripping is asymmetric and deliberate:
+#   /api/*      strip /api  (PostgREST expects the bare path; mirrors dev Vite)
+#   /auth/<ep>  NO strip     (auth-proxy matches /auth/...-shaped lists and
+#                             strips /auth itself before calling GoTrue)
+#   /avatars*   writes: NO strip (sidecar routes on the /avatars prefix)
+#               reads:  strip /avatars (file_server serves from the volume root)
+cairn.{$DOMAIN} {
+	encode gzip
+
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "no-referrer"
+	}
+
+	# Data plane: /api/* -> PostgREST, prefix stripped. The session cookie is
+	# translated into the Authorization: Bearer header PostgREST expects.
+	handle_path /api/* {
+		@cookie header_regexp token Cookie cairn_session=([^;]+)
+		request_header @cookie Authorization "Bearer {http.regexp.token.1}"
+		reverse_proxy postgrest:3000
+	}
+
+	# Auth plane: explicit allow-list of GoTrue endpoints -> auth-proxy, with
+	# NO prefix strip. The SvelteKit client routes (/auth/login|check|callback)
+	# are NOT listed here, so they fall through to `web`. A blanket
+	# `handle_path /auth/*` would strip /auth and break both the proxy's
+	# segment matching and the callback page (the subtlest prod-only failure).
+	@gotrue path /auth/magiclink* /auth/verify* /auth/token* /auth/user* /auth/session*
+	handle @gotrue {
+		reverse_proxy auth-proxy:3002
+	}
+
+	# Avatar writes -> sidecar, prefix preserved (the sidecar routes on
+	# /avatars). Same cookie->bearer translation as the data plane.
+	@avatar_writes {
+		method POST DELETE
+		path /avatars*
+	}
+	handle @avatar_writes {
+		@avatar_cookie header_regexp token Cookie cairn_session=([^;]+)
+		request_header @avatar_cookie Authorization "Bearer {http.regexp.token.1}"
+		reverse_proxy sidecar:3001
+	}
+
+	# Avatar reads -> file_server from the volume, prefix stripped, far-future
+	# immutable caching (avatar_version is the cache buster).
+	handle_path /avatars/* {
+		root * /srv/cairn/avatars
+		file_server
+		header Cache-Control "public, max-age=31536000, immutable"
+	}
+
+	# Everything else (the SPA, the /auth client routes, and the GoTrue
+	# magic-link template at /gotrue/templates/*) -> the web container.
+	handle {
+		reverse_proxy web:80
+	}
+}
