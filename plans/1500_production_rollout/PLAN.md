@@ -1,4 +1,4 @@
-# Plan: Production rollout (prototype scope)
+# Plan: Production rollout (alpha scope)
 
 Create the production deployment artifacts and stand the current Cairn
 build up at `https://cairn.lynnscape.eu` so it can be shown to people now,
@@ -9,7 +9,7 @@ for later phases.
 ## Context
 
 Cairn's build is at step 9 of `plans/0000_implementation_order.md`
-(steps 1–9 merged). The user wants a closed prototype live now. The
+(steps 1–9 merged). The user wants the alpha live now. The
 infrastructure is already provisioned (this session's `deploy-prep` work,
 since archived off-repo): a hardened Hetzner CX23 (Ubuntu 24.04, Docker),
 `cairn.lynnscape.eu` resolving to it (A + AAAA), and a Gandi sender mailbox
@@ -43,7 +43,7 @@ replace-response plugin — rejected because stock/plugin Caddy cannot lift
 a JSON field into a `Set-Cookie` and strip body fields reliably; (C) a
 tiny Node auth-proxy sidecar between Caddy and GoTrue that reuses the
 *exact* tested dev logic and the shared `auth-paths.ts`. We pick **(C)**
-for the prototype: lowest correctness risk, zero dev/prod drift by reusing
+for the alpha: lowest correctness risk, zero dev/prod drift by reusing
 the single narrowing module, and it leans on a Node-sidecar pattern the
 stack already runs in prod (the avatar `sidecar/`, which `architecture.md`
 itself blesses). This *does* deviate from the doc's "no separate Node
@@ -52,7 +52,7 @@ service for auth" line; the deviation is recorded explicitly in
 actually cares about (JS never holds the JWT), and names option (A) as the
 long-term convergence target once the behaviour is proven (R2, R3).
 
-**Open signup for the demo, but env-driven and safe-by-default.** The user
+**Open signup, but env-driven and safe-by-default.** The user
 chose open signup so a URL is all a guest needs (the production spec's
 `DISABLE_SIGNUP=true` creates a chicken-and-egg: a brand-new person can't
 self-bootstrap a magic link). To avoid baking an unsafe value into the
@@ -114,8 +114,8 @@ loopback Postgres publish above lets the script work without exposing
 Postgres to the internet (R8).
 
 **Minimal imprint now, full legal later.** `0000` flags the German
-Impressum as a *public-launch* blocker. For a closed, unadvertised
-prototype the risk is far lower, but a one-page operator/contact stub is
+Impressum as a *public-launch* blocker. For an unadvertised early
+alpha the risk is far lower, but a one-page operator/contact stub is
 cheap insurance if the URL leaks. The full step-14 surface (Privacy, Terms,
 OSS attributions, …) is out of scope (R9).
 
@@ -211,10 +211,10 @@ checks rather than unit tests. Phase 0 lands the doc reconciliation first.
 8. **Phase 8 — deploy + smoke test.** The on-box sequence and end-to-end
    verification. Operational, executed with the user. (R6, R8, R10)
 
-A later **production-hardening** phase (appended when the prototype
-graduates) covers the deferred work: flip `DISABLE_SIGNUP` back, Restic
-backups + Storage Box, and the auth-proxy → Caddy-module convergence. Not
-written now.
+A later **production-hardening** phase (appended as the alpha matures)
+covers the deferred work: Restic backups + Storage Box, and the
+auth-proxy → Caddy-module convergence. Open signup stays on by default;
+locking it down is an option, not a planned step. Not written now.
 
 ## Reference docs and skills
 

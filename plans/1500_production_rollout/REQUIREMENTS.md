@@ -1,12 +1,12 @@
-# Requirements: Production rollout (prototype scope)
+# Requirements: Production rollout (alpha scope)
 
 Stand the current Cairn build (steps 1–9) up on the provisioned Hetzner
-box at `https://cairn.lynnscape.eu` so it can be shown to people as a
-closed prototype. This creates the production deployment artifacts that
+box at `https://cairn.lynnscape.eu` so people can use it as a live alpha.
+This creates the production deployment artifacts that
 step 15 of `plans/0000_implementation_order.md` calls for, but at reduced
 scope: later-step features (account deletion, admin, data export, PWA, the
-full legal surface) and operational hardening (backups, invite-only
-enforcement) are explicitly deferred. The `0000` step-15 checkbox stays
+full legal surface) and operational hardening (backups) are explicitly
+deferred. The `0000` step-15 checkbox stays
 unticked until that remaining work lands.
 
 ## R1. Caddy fronts everything with automatic TLS on a single origin
@@ -76,7 +76,7 @@ GoTrue runs with `GOTRUE_SITE_URL=https://cairn.lynnscape.eu`,
 (`mail.gandi.net:587` STARTTLS, user/from `no-reply@lynnscape.eu`). The
 signup posture is env-driven: the committed compose defaults to the safe
 `GOTRUE_DISABLE_SIGNUP=true`, and only the on-box `.env.prod` may relax it
-(the prototype sets it `false` for open demo signup).
+(the alpha sets it `false` for open signup).
 
 ## R6. The magic-link email is link-only and actually delivered
 
@@ -118,7 +118,7 @@ a stub, not the full step-14 legal hub. The fields hold real operator
 details (not placeholders) before the URL is shown to anyone. User-facing
 copy is British English.
 
-## R10. The prototype deploy is reproducible and verified end-to-end
+## R10. The alpha deploy is reproducible and verified end-to-end
 
 The deploy follows a documented sequence (clone → `.env.prod` →
 `up -d --build` → migrate → smoke test). Before deploy, `./scripts/check.sh`
@@ -132,18 +132,18 @@ two-account invite/circle flow works.
 ## Non-requirements (explicitly excluded)
 
 - **Restic backups + Hetzner Storage Box** — no Storage Box purchased and
-  no real data yet; a manual `pg_dump` around the demo suffices. Deferred
+  no real data yet; a manual `pg_dump` around the alpha suffices. Deferred
   to the production-hardening phase.
 - **Full legal/About surface (step 14)** — only the minimal R9 imprint
   stub ships now; Privacy/Terms/OSS-attribution/etc. are step 14.
 - **Account deletion (10), admin (11), data export (12), PWA shell (13)** —
-  unbuilt; the prototype is shown without them.
-- **Invite-only enforcement during the prototype** — signup is
-  deliberately open for the demo (R5); the production default
-  (`DISABLE_SIGNUP=true`) and in-app invite-only posture are restored
-  before any public launch.
+  unbuilt; the alpha ships without them.
+- **Invite-only enforcement** — signup is deliberately open (R5) so real
+  users can sign themselves up. The compose's `DISABLE_SIGNUP=true` default
+  is only a fail-closed guard for a missing variable; an in-app invite-only
+  posture is available as a future option, not a planned launch gate.
 - **Custom Caddy Go module for the shim** — the architecture's long-term
   home for the shim; the auth-proxy sidecar is the deliberate interim
   (see PLAN Decisions).
-- **Ticking step 15 in `0000`** — this is a prototype subset; the box
+- **Ticking step 15 in `0000`** — this is an alpha subset; the box
   stays unticked until the deferred production work lands.

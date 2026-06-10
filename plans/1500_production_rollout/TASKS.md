@@ -23,7 +23,7 @@ Canonical references reused throughout:
 
 ## Phase 0 — reconcile docs
 
-### [x] 0.1 Reconcile the deployment docs with the real prototype shape
+### [x] 0.1 Reconcile the deployment docs with the real alpha shape
 
 **Created:** 2026-06-10T11:38:29Z
 **Completed:** 2026-06-10T12:27:55Z
@@ -31,7 +31,7 @@ Canonical references reused throughout:
 **Why:** `docs/deployment.md` currently shows the Caddyfile and compose as
 pseudocode with two factual errors, and `docs/architecture.md` asserts a
 shim design (in-Caddy, no Node auth service) that this plan deliberately
-does not follow for the prototype. Cairn's docs are canonical for
+does not follow for the alpha. Cairn's docs are canonical for
 downstream plans; landing the doc edits first stops later work referencing
 a stale spec.
 
@@ -60,7 +60,7 @@ a stale spec.
    makes false — don't just append a note:
    - The "JWT storage" section currently ends "Caddy is the right home for
      this shim … **We do not introduce a separate Node service to handle
-     auth.**" Qualify it: the interim prototype *does* run a Node `auth-proxy`
+     auth.**" Qualify it: the interim alpha *does* run a Node `auth-proxy`
      sidecar (rationale: reuse of the tested dev logic + zero drift via the
      shared `auth-paths.ts`); the in-Caddy Go module remains the convergence
      target.
@@ -560,8 +560,9 @@ identical for GoTrue + PostgREST), `DOMAIN=lynnscape.eu`,
 `SMTP_HOST=mail.gandi.net`, `SMTP_PORT=587`,
 `SMTP_USER=no-reply@lynnscape.eu`, `SMTP_PASS=`,
 `SMTP_FROM=no-reply@lynnscape.eu`, `DISABLE_SIGNUP=false` (with a comment:
-prototype-only; flip to `true`/remove before public launch), and a
-commented `# MIGRATE_AUTH_USERS_TIMEOUT=120`. No `VITE_*` vars.
+open signup is intended for the live alpha so real users can sign up; the
+compose's `true` default is only a fail-closed guard for a missing var),
+and a commented `# MIGRATE_AUTH_USERS_TIMEOUT=120`. No `VITE_*` vars.
 - **`.gitignore` must be widened or the template can't be committed.** The
   current rules are `.env` / `.env.*` / `!.env.example`. `.env.prod.example`
   matches `.env.*`, and the negation un-ignores **only** the exact file
@@ -590,7 +591,7 @@ commented `# MIGRATE_AUTH_USERS_TIMEOUT=120`. No `VITE_*` vars.
 **Created:** 2026-06-10T11:38:29Z
 **Completed:**
 
-**Why:** A closed prototype on a publicly-resolvable domain warrants a
+**Why:** A live alpha on a publicly-resolvable domain warrants a
 minimal operator/contact page (German DDG §5 minimum) as cheap insurance if
 the URL leaks. Not the full step-14 legal surface.
 
@@ -689,12 +690,12 @@ pass so both Node sidecars share one bar, rather than adding a gate to
 
 ## Phase 8 — deploy + smoke test
 
-### [ ] 8.1 Deploy to the box and verify the prototype end-to-end
+### [ ] 8.1 Deploy to the box and verify the alpha end-to-end
 
 **Created:** 2026-06-10T11:38:29Z
 **Completed:**
 
-**Why:** The point of the plan — get the prototype live at
+**Why:** The point of the plan — get the alpha live at
 `https://cairn.lynnscape.eu` and prove the full sign-in → use path works
 with real e-mail and TLS. Operational; run with the user.
 
