@@ -234,10 +234,10 @@ the remaining label-less inputs.
 
 ## Phase 2 — 0902: Icon colour prop + semantic HTML + `<EmptyState>`
 
-### [ ] 2.1 Plan and implement sub-step 0902 (global typography + semantic-HTML sweep + `<EmptyState>`)
+### [x] 2.1 Plan and implement sub-step 0902 (global typography + semantic-HTML sweep + `<EmptyState>`)
 
 **Created:** 2026-05-29T13:00:09Z
-**Completed:**
+**Completed:** 2026-06-10T08:51:56Z
 
 **Why:** Completes the step-9 cleanup — the recurring typography
 lifts to global rules keyed off semantic tags, the div-heavy markup
