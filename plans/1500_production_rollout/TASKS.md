@@ -329,10 +329,18 @@ shortcut and any `VITE_DEV_LOGIN_*` literal are absent from the shipped JS.
 
 ## Phase 3 — compose restructure + production compose
 
-### [ ] 3.1 Restructure compose: prod-safe base + auto-loaded dev override
+### [x] 3.1 Restructure compose: prod-safe base + auto-loaded dev override
 
 **Created:** 2026-06-10T13:55:00Z
-**Completed:**
+**Completed:** 2026-06-10T13:09:21Z
+
+**Notes:** Merged dev config is identical to the pre-refactor baseline
+except for the *order* of caddy's two volume mounts (`avatars` now lists
+before `Caddyfile` because the base mount precedes the override's) — both
+mounts present, distinct targets, no behavioural change. Compose merges
+`volumes` by appending across `-f` files, so this ordering can't be made
+byte-identical without moving the Caddyfile mount back into the base, which
+would defeat the split.
 
 **Why:** Docker Compose **concatenates** `ports` lists (and merges
 `depends_on` maps) across `-f` files, so a prod override *cannot* unexpose a

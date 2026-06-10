@@ -1,0 +1,52 @@
+# Dev overlay — auto-loaded by a bare `docker compose up`. It restores the
+# full local stack on top of the prod-safe base (docker-compose.yml): the
+# published ports, the dev-only `static`/`mailpit` services, and GoTrue's
+# dev mailer/site config. Prod (docker-compose.prod.yml) is invoked with
+# explicit `-f` files and does NOT auto-load this override.
+services:
+  postgres:
+    ports:
+      - "5432:5432"
+
+  postgrest:
+    ports:
+      - "3000:3000"
+
+  gotrue:
+    environment:
+      # GoTrue reads this without the GOTRUE_ prefix (envconfig quirk).
+      API_EXTERNAL_URL: http://localhost:9999
+      GOTRUE_SITE_URL: http://localhost:5173
+      GOTRUE_URI_ALLOW_LIST: http://localhost:5173
+      GOTRUE_DISABLE_SIGNUP: "false"
+      GOTRUE_MAILER_AUTOCONFIRM: "true"
+      GOTRUE_SMTP_HOST: mailpit
+      GOTRUE_SMTP_PORT: "1025"
+      GOTRUE_SMTP_ADMIN_EMAIL: dev@cairn.local
+      GOTRUE_SMTP_SENDER_NAME: Cairn
+      GOTRUE_MAILER_TEMPLATES_MAGIC_LINK: http://static/gotrue/templates/magic_link.html
+    ports:
+      - "9999:9999"
+    depends_on:
+      mailpit:
+        condition: service_started
+      static:
+        condition: service_started
+
+  static:
+    image: nginx:alpine
+    volumes:
+      - ./web/static:/usr/share/nginx/html:ro
+
+  mailpit:
+    image: axllent/mailpit:latest
+    ports:
+      - "8025:8025"
+      - "1025:1025"
+    restart: unless-stopped
+
+  caddy:
+    ports:
+      - "8080:80"
+    volumes:
+      - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro
