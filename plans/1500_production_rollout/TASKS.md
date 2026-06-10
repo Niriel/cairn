@@ -87,10 +87,10 @@ editor-only, not a CI gate — confirm no editor squiggles on new terms)
 
 ## Phase 1 — auth-proxy sidecar (the cookie/JWT shim)
 
-### [ ] 1.1 Scaffold the `auth-proxy` package with a drift-guarded narrowing copy
+### [x] 1.1 Scaffold the `auth-proxy` package with a drift-guarded narrowing copy
 
 **Created:** 2026-06-10T11:38:29Z
-**Completed:**
+**Completed:** 2026-06-10T12:38:04Z
 
 **Why:** The production shim is a new Node sidecar. Standing up its package
 skeleton and the shared-narrowing copy (with a guard so it can't drift from
@@ -156,6 +156,28 @@ the canonical `auth-paths.ts`) is the foundation the shim logic builds on.
    and a `/healthz` route. Re-run `pnpm test`; the drift guard is green.
 
 **Verify:** `cd auth-proxy && pnpm install && pnpm test` · `pnpm lint`
+
+**Notes:**
+- **Drift guard uses the fs-text fallback**, not a cross-package import. The
+  guard reads both files with `fs` and diffs the parsed `export const NAME =
+  [...]` array declarations — this avoids cross-package TS resolution in both
+  vitest *and* the typed ESLint config (importing the out-of-project canonical
+  file would have tripped `no-floating-promises`'s `projectService`). It still
+  catches a new/removed/changed array in either file; an anchor assertion pins
+  the known five names so an empty-vs-empty parse can't masquerade as agreement.
+- **Toolchain pinned to web's versions, not sidecar's** (eslint 10,
+  typescript-eslint 8, typescript 6, vitest 4) since the eslint config is
+  modelled on `web/eslint.config.js` and needs the typed-rules stack. `express`
+  / `supertest` match sidecar.
+- **Split `tsconfig.json` (lint/typecheck, `noEmit`, includes `test/`) from
+  `tsconfig.build.json`** (emits `dist/`, `src/` only) so `projectService` lints
+  the tests while `pnpm build` ships only runtime code.
+- **Added `test/healthz.test.ts`** (not in the Files list) to exercise the
+  `/healthz` route and justify the `supertest` devDep; mirrors `sidecar/`.
+- **One justified `eslint-disable-next-line no-console`** on the startup banner
+  in `server.ts` (same log `sidecar/` emits; sidecar is just unlinted today).
+- Deferred to Task 1.2 as planned: `src/index.ts` currently only mounts
+  `/healthz` — the shim middleware lands next.
 
 ### [ ] 1.2 Implement the shim logic and its contract tests
 

@@ -71,6 +71,24 @@
    screen. The banner should appear on the main lists screen and disappear once
    the name is changed.
 
+9. [ ] **Replace the interim `auth-proxy` Node sidecar with the in-Caddy shim**
+   — the production cookie↔JWT shim currently runs as a standalone Node service
+   (`auth-proxy/`, added in plan 1500), which ports the dev Vite-proxy logic
+   (`web/vite.config.ts`) into a long-running process. This is deliberately
+   interim and feels hacky: it's a *second* Node service whose only job is auth
+   translation, and `docs/architecture.md` ("JWT storage") explicitly states the
+   shim should live *inside Caddy* with no separate Node auth service. The
+   convergence target is a small custom Caddy Go module (or a Caddy-native
+   equivalent) that plants the HttpOnly `cairn_session` cookie on
+   `/auth/verify`/`/auth/token`, strips tokens from the response body, and
+   attaches the bearer on `/auth/user` — folding `auth-proxy`'s responsibilities
+   into the reverse proxy that already routes `/auth/*`. When that lands: delete
+   the `auth-proxy/` package, drop its service from `docker-compose.prod.yml`,
+   remove its `/auth/*` route in `caddy/Caddyfile.prod`, and reconcile
+   `docs/architecture.md` back to the no-Node-auth-service stance. Keep the
+   shared `auth-paths.ts` as the single source of truth for the narrowing lists
+   regardless of where the shim runs.
+
 5. [ ] **Font size setting must scale the whole app, not just the container
    width** — the Settings font-size preference (XS/S/M/L/XL, stored in
    `localStorage`) currently only affects `--app-max-w`. All pixel values in
