@@ -24,6 +24,10 @@ pre-commit:
       root: 'web/'
       glob: 'web/**/*.{ts,svelte}'
       run: pnpm check
+    eslint-auth-proxy:
+      root: 'auth-proxy/'
+      glob: 'auth-proxy/**/*.{ts,js}'
+      run: pnpm exec eslint --no-error-on-unmatched-pattern {staged_files}
     sqlfluff:
       glob: '{db,scripts}/**/*.sql'
       run: sqlfluff lint {staged_files}
@@ -41,4 +45,7 @@ pre-push:
       run: ./scripts/test-db.sh
     vitest:
       root: 'web/'
+      run: pnpm test
+    vitest-auth-proxy:
+      root: 'auth-proxy/'
       run: pnpm test
