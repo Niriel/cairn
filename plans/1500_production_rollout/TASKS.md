@@ -179,10 +179,10 @@ the canonical `auth-paths.ts`) is the foundation the shim logic builds on.
 - Deferred to Task 1.2 as planned: `src/index.ts` currently only mounts
   `/healthz` — the shim middleware lands next.
 
-### [ ] 1.2 Implement the shim logic and its contract tests
+### [x] 1.2 Implement the shim logic and its contract tests
 
 **Created:** 2026-06-10T11:38:29Z
-**Completed:**
+**Completed:** 2026-06-10T12:57:03Z
 
 **Why:** This is the load-bearing piece — the production translation
 between the HttpOnly `cairn_session` cookie and GoTrue's bearer/JSON, which
@@ -250,6 +250,36 @@ rationale and the `Secure`-prod-only rule.
    `src/server.ts`. Re-run `pnpm test` — green.
 
 **Verify:** `cd auth-proxy && pnpm test` · `pnpm lint`
+
+**Notes:**
+- **Implemented with global `fetch` + `redirect: 'manual'`** (the decision's
+  fetch option, not raw `http.request`). undici auto-decompresses, so dropping
+  `Accept-Encoding` upstream + stripping `content-encoding`/`content-length` on
+  the way out yields identity JSON to parse. `getSetCookie()` is used to
+  re-emit multiple upstream `Set-Cookie` headers individually (the comma-joining
+  `Headers.forEach` would corrupt them).
+- **`express.raw({ type: () => true })` mounted at `/auth`** buffers the request
+  body for verbatim forwarding; mounting at `/auth` keeps `req.originalUrl` (the
+  `/auth/...` shape the narrowing lists match) while `req.url` is already
+  `/auth`-stripped for the upstream call — mirrors the dev `rewrite`. The shim
+  lives in `src/index.ts`; `src/server.ts` was already wired to it in Task 1.1.
+- **Side work — `tsconfig.build.json` needed an explicit `rootDir: "src"`.**
+  Under TypeScript 6, `tsc` errored (TS5011) and emitted to `dist/src/…`, which
+  would have broken the Dockerfile's `CMD ["node","dist/server.js"]`. Fixed so
+  the build emits `dist/server.js`. Verified `pnpm build` produces the right
+  layout (this is the prod-image path, beyond the task's stated Verify).
+- **Type-safety fixes (no rule disables):** request body converted via
+  `Uint8Array.from` to satisfy fetch's `BodyInit` typing; `expires_in` narrowed
+  to `number` before stringifying (`no-base-to-string`); in the test, `res.body`
+  and the `set-cookie` array are read through typed/`unknown`-narrowed locals,
+  and a `capturedAuthHeader()` helper sidesteps TS narrowing `lastReq` to `null`
+  after the mid-test reset.
+- **`/auth/login|check|callback` are not handled here** — by design the prod
+  Caddyfile (Task 4.1) only routes the GoTrue endpoints to this proxy and lets
+  the SvelteKit client routes fall through to `web`, so the dev proxy's
+  `PUBLIC_AUTH_PATHS` bypass has no analogue in the sidecar.
+- cspell flagged a placeholder token in the test (editor-only, not a CI gate);
+  renamed to a dotted `xxx.yyy.zzz` to keep the editor clean.
 
 ## Phase 2 — web container
 
