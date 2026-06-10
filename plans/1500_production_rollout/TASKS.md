@@ -283,10 +283,10 @@ rationale and the `Secure`-prod-only rule.
 
 ## Phase 2 — web container
 
-### [ ] 2.1 Add `web/Dockerfile` + `.dockerignore` (prod build drops dev-login)
+### [x] 2.1 Add `web/Dockerfile` + `.dockerignore` (prod build drops dev-login)
 
 **Created:** 2026-06-10T11:38:29Z
-**Completed:**
+**Completed:** 2026-06-10T13:05:14Z
 
 **Why:** The prod stack expects `build: ./web` — a container serving the
 static SvelteKit bundle. It must build in production mode so the dev-login
