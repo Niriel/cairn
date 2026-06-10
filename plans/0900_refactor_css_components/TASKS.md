@@ -375,10 +375,36 @@ and `<Icon>` does not gain a `color` prop.
 
 ## Phase 3 — Wrap up
 
-### [ ] 3.1 Final verification and merge to main
+### [x] 3.1 Final verification and merge to main
 
 **Created:** 2026-05-29T13:00:09Z
-**Completed:**
+**Completed:** 2026-06-10T09:00:00Z
+
+**Notes:**
+- `./scripts/check.sh` (Prettier, ESLint, sqlfluff, shellcheck, shfmt,
+  svelte-check, pgTAP, web Vitest, sidecar Vitest) green on the merged
+  `0900_refactor_css_components`.
+- Playwright e2e green on **chromium and firefox** (48/48). **webkit
+  could not run in this environment** — Playwright reports missing
+  system libraries (`libicu74`, `libjpeg-turbo8`, `gstreamer1.0-libav`;
+  needs `sudo playwright install-deps`). The same specs pass on the two
+  runnable engines, so this is an environment limitation, not a
+  regression. Run webkit before any release build where it matters.
+- Two stale post-refactor test assertions were fixed during 0902's
+  test pass (committed on the 0902 branch before merge): `InviteCard.test.ts`
+  pinned the wall clock with fake timers (the fixture date had crossed
+  `timeAgo`'s 30-day relative→absolute threshold), and `items.spec.ts`
+  targets the empty-state CTA by button role instead of the removed
+  `.empty-cta` class.
+- **Expectation divergence (not a defect):** task 2.1's Verify note
+  predicted `git grep class="section-label"` would return nothing.
+  Three files (`InvitePickerSheet`, `MembersScreen`, `PrivacyScreen`)
+  keep `<h2 class="section-label">` with a local `.section-label` CSS
+  rule — but those rules set **only padding** (layout), while the
+  typography is driven by the global `<h2>` rule. That is exactly the
+  `docs/ui.md` "layout local, visual global" doctrine, so the merged
+  code is correct; only the prediction in 2.1's note was pessimistic.
+  No code change needed.
 
 **Why:** Confirms the full step-9 refactor is coherent end-to-end —
 both sub-branches merged, every test layer green, no visual

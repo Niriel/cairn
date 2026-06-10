@@ -190,7 +190,7 @@ in-flight branch for no gain.
    sheet (state-driven actions), members screen, list overflow menu
    (Rename / Edit description / Manage members / View bin / Leave list / Delete list).
 
-9. [ ] **Refactoring pass: factor out repeating CSS into components.**
+9. [x] **Refactoring pass: factor out repeating CSS into components.**
    Audit-driven cleanup once the screen inventory from steps 4–8 is
    stable. The same handful of CSS blocks (outlined-pill buttons,
    chip-shaped panel actions, empty-state CTAs, `.row-icon`
