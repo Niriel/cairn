@@ -166,10 +166,10 @@ so the title needed an explicit `.nav-row.destructive .nav-row-title { color:
 var(--ember); }` override — the lead/chevron icons already inherit `--ember`
 from the Button via `currentColor`.
 
-### [ ] 2.2 Add the "Delete account" row to Settings + route stub
+### [x] 2.2 Add the "Delete account" row to Settings + route stub
 
 **Created:** 2026-06-11T12:57:18Z
-**Completed:**
+**Completed:** 2026-06-11T13:22:36Z
 
 **Why:** Settings → Account must expose the entry point to the delete flow,
 below "Sign out" (left-of-pair = backward/destructive ordering). The row
@@ -219,6 +219,14 @@ prefer the per-line escape instead; the stub is the cleaner option here.)
    `svelte-check` (catches the not-yet-created-route trap in-task).
 
 **Verify:** `pnpm test` · `pnpm check` · `pnpm lint`
+
+**Notes:** User reminder (invocation arg) — every NavRow under "Account"
+should have a top and bottom rule, like under People or Recovery. Satisfied
+by placing the new row inside the existing Account `.nav-rows` band below
+"Sign out": the global `.nav-rows` rule (`surfaces.css:77`) draws a rule above
+the first row and below the last, plus a divider between adjacent rows, so each
+of the two rows is now bounded top and bottom — matching the two-row People
+band. No new CSS needed.
 
 ## Phase 3 — Delete-account screen + teardown
 

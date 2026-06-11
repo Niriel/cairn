@@ -156,6 +156,14 @@
 				<NavRow title="Sign out" data-test="signout" onclick={signOut}>
 					{#snippet lead()}<Icon name="log-out" size={20} />{/snippet}
 				</NavRow>
+				<NavRow
+					title="Delete account"
+					data-test="delete-account"
+					tone="destructive"
+					onclick={() => goto(resolve('/settings/delete-account'))}
+				>
+					{#snippet lead()}<Icon name="trash" size={20} />{/snippet}
+				</NavRow>
 			</div>
 		</section>
 	</div>
