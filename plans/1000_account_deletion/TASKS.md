@@ -16,10 +16,10 @@
 
 ## Phase 0 — reconcile docs
 
-### [ ] 0.1 Correct the false "Export before delete — done" claim
+### [x] 0.1 Correct the false "Export before delete — done" claim
 
 **Created:** 2026-06-11T12:57:18Z
-**Completed:**
+**Completed:** 2026-06-11T13:02:11Z
 
 **Why:** `docs/account-deletion.md` → "Future work" asserts export is
 "done". Export is step 12 and unbuilt; leaving the claim makes downstream
