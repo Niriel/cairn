@@ -101,13 +101,27 @@ running.
 
 ### Production (docker-compose.prod.yml)
 
-In production, `GOTRUE_SITE_URL` is the real domain
-(e.g. `https://cairn.example.com`). The relative path form
-`/gotrue/templates/magic_link.html` is correct there: GoTrue prepends the site
-URL and the static file is served by the production web container (or Caddy,
-whichever handles static assets). No `static` sidecar is needed in production.
+In production, use the **internal** URL form — point GoTrue straight at the
+`web` container on the Compose network:
 
-The production compose file is step 14's responsibility and is not covered here.
+```yaml
+GOTRUE_MAILER_TEMPLATES_MAGIC_LINK: http://web/gotrue/templates/magic_link.html
+```
+
+The `web` container serves the built static bundle (including
+`build/gotrue/templates/magic_link.html`) on `:80`, so this resolves without
+leaving the internal network. **Prefer this over the relative-path form**
+(`/gotrue/templates/magic_link.html`, which GoTrue would resolve against
+`GOTRUE_SITE_URL = https://cairn.${DOMAIN}`): the relative form makes the
+template fetch depend on the public TLS cert being issued. On a cold box, the
+first sign-in can race ACME — if Caddy hasn't yet obtained the Let's Encrypt
+cert, GoTrue's HTTPS fetch of the template fails, it silently falls back to its
+built-in default, and the email ships with the six-digit OTP code. The internal
+`http://web/...` URL sidesteps the cert entirely. No `static` sidecar is needed
+in production.
+
+The production compose file is step 15's responsibility (the
+`1500_production_rollout` plan) and now exists as `docker-compose.prod.yml`.
 
 ## Troubleshooting
 

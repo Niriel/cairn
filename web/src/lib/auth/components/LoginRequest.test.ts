@@ -204,4 +204,11 @@ describe('LoginRequest', () => {
 		const { container } = render(LoginRequest);
 		expect(container.querySelector('header')).toBeNull();
 	});
+
+	test('(o) renders a discreet imprint link pointing at /imprint', () => {
+		const { getByDataTest } = render(LoginRequest);
+		const link = getByDataTest('login-imprint-link') as HTMLAnchorElement;
+		expect(link.tagName).toBe('A');
+		expect(link.getAttribute('href')).toBe('/imprint');
+	});
 });

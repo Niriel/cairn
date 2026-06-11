@@ -30,7 +30,8 @@ see `.claude/commands/write-plan.md` for the numbering and file-format
 conventions); tick the box in `0000_…` once the matching sub-plan is
 merged.
 
-Cairn is **pre-alpha**. The docs in `docs/` are living
+Cairn is in **alpha** — it's now live at `https://cairn.lynnscape.eu`
+(see "We are going live" below). The docs in `docs/` are living
 specifications, not holy tablets — when a plan finds a better
 design than the doc describes, the right move is often to update
 the doc (sometimes via a Phase 0 in the plan) rather than to wedge
@@ -38,6 +39,20 @@ a contradiction into the plan. As more of the spec lands in code,
 doc edits increasingly imply code/migration/test edits too —
 something purely descriptive today may be load-bearing tomorrow.
 Use judgement, and prefer the cheapest home for a fix.
+
+**We are going live.** The `1500_production_rollout` plan stands up a
+real deployment at `https://cairn.lynnscape.eu` (Hetzner VPS, public
+TLS, real e-mail), so there is now a **production environment** to keep
+in mind alongside dev — not just a local stack. Practically this means:
+prod and dev now diverge by design (`docker-compose.yml` is the
+prod-safe base, `docker-compose.override.yml` is dev-only, and
+`docker-compose.prod.yml` is the production overlay — see
+`docs/deployment.md`); changes that touch the stack, auth shim, secrets,
+or public surface can affect real users and a live box, so weigh them
+accordingly; and "it works in dev" is no longer the whole story —
+mind the prod-only paths (the `auth-proxy` cookie/JWT shim, ACME/TLS,
+SMTP, the dev-login gating). When in doubt about a production-facing
+change, flag it.
 
 ## Visual reference
 

@@ -106,166 +106,40 @@ The repo lives on the VPS at `/home/cairn/cairn`. Updates are `git pull && docke
 
 ### Production compose overrides
 
-`docker-compose.prod.yml` layers on top of the dev compose:
+The split between dev and prod is structural rather than override-by-override: **`docker-compose.yml` is the prod-safe base** — it publishes *no* ports and defines only the services common to both environments. The dev-only pieces (every published port, the `static` nginx and `mailpit` services, the dev GoTrue env) live in **`docker-compose.override.yml`**, which Compose auto-loads for a bare `docker compose up` but which production never loads. **`docker-compose.prod.yml`** then adds only what production needs on top of the base. Both files are real and kept in sync by this plan — read them rather than a pseudocode copy here.
 
-```yaml
-services:
-  postgres:
-    ports: []                   # don't expose Postgres to the internet
-    restart: unless-stopped
-
-  postgrest:
-    ports: []                   # only Caddy reaches it
-    restart: unless-stopped
-
-  gotrue:
-    ports: []                   # only Caddy reaches it
-    environment:
-      GOTRUE_SMTP_HOST: ${SMTP_HOST}
-      GOTRUE_SMTP_PORT: ${SMTP_PORT}
-      GOTRUE_SMTP_USER: ${SMTP_USER}
-      GOTRUE_SMTP_PASS: ${SMTP_PASS}
-      GOTRUE_SMTP_ADMIN_EMAIL: ${SMTP_FROM}
-      GOTRUE_MAILER_AUTOCONFIRM: "false"      # require email verification
-      GOTRUE_SITE_URL: https://cairn.${DOMAIN}
-      GOTRUE_URI_ALLOW_LIST: https://cairn.${DOMAIN}/auth/callback
-    restart: unless-stopped
-
-  mailpit:
-    profiles: ["dev"]           # excluded in production
-
-  web:
-    build: ./web
-    # the SvelteKit static bundle, served by a tiny nginx inside the image
-    ports: []
-    restart: unless-stopped
-
-  sidecar:
-    build: ./sidecar
-    # the avatar upload sidecar (see avatars.md); validates, resizes to
-    # 256x256 WebP, writes /srv/cairn/avatars/{uid}.webp, calls
-    # bump_avatar_version on PostgREST.
-    ports: []
-    volumes:
-      - /srv/cairn/avatars:/srv/cairn/avatars   # read-write
-    environment:
-      POSTGREST_URL: http://postgrest:3000
-      GOTRUE_JWT_SECRET: ${JWT_SECRET}
-    restart: unless-stopped
-    depends_on: [postgrest]
-
-  caddy:
-    image: caddy:2
-    ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - ./caddy/Caddyfile.prod:/etc/caddy/Caddyfile:ro
-      - /srv/cairn/avatars:/srv/cairn/avatars:ro   # static avatar serving
-      - caddy_data:/data
-      - caddy_config:/config
-    environment:
-      DOMAIN: ${DOMAIN}
-      JWT_COOKIE_NAME: cairn_session
-    restart: unless-stopped
-
-volumes:
-  caddy_data:
-  caddy_config:
-```
-
-Started with:
+The production overlay (`docker-compose.prod.yml`) is started with:
 
 ```bash
-docker compose -f docker-compose.yml -f docker-compose.prod.yml --env-file .env.prod up -d
+docker compose -f docker-compose.yml -f docker-compose.prod.yml --env-file .env.prod up -d --build
 ```
+
+The services in the production stack:
+
+- **postgres / postgrest / gotrue** — internal only; reached by service name on the Compose network. Postgres additionally publishes `127.0.0.1:5432:5432` (loopback only) so `scripts/migrate.sh` can reach it from the host; it is not internet-reachable.
+- **auth-proxy** — the Node sidecar that performs the response-side half of the cookie/JWT shim (cookie-plant + token-strip), reusing the dev-proxy logic and the shared `auth-paths.ts` narrowing lists. Caddy routes `/auth/*` to it; it forwards to `gotrue:9999`. See `architecture.md` → "JWT storage".
+- **web** — the SvelteKit static bundle, built in production mode and served by Caddy inside the image (see `web/Dockerfile`). Also serves `/gotrue/templates/*`.
+- **sidecar** — the avatar upload sidecar on port `3001` (see `avatars.md`); validates, resizes to 256×256 WebP, writes `/srv/cairn/avatars/{uid}.webp`, calls `bump_avatar_version` on PostgREST.
+- **caddy** — the only public entry point, publishing `80`/`443`, terminating TLS, and mounting `caddy/Caddyfile.prod`.
 
 Notes:
 
-- **No internal services are exposed.** Postgres, PostgREST, GoTrue, and the web container have empty `ports` lists in production. Caddy is the only public entry point.
+- **No internal services are exposed.** The base publishes nothing; the prod overlay publishes only Caddy's `80`/`443` and Postgres's loopback `5432`. (Docker-published ports bypass ufw's `INPUT` filter, so "publish nothing by default" is the safe posture — see Task 3.1 in the rollout plan.)
 - **`GOTRUE_SITE_URL` is the web origin**, not the API. The magic-link callback lands in the browser, not in a deep link.
-- **Mailpit is excluded** via the `profiles` mechanism — it's a dev tool and has no place in production.
+- **Mailpit and the `static` sidecar are dev-only** — they live in `docker-compose.override.yml` and are absent from the prod stack.
 - **`GOTRUE_MAILER_AUTOCONFIRM: false`** flips the safety back on: signing up requires clicking a confirmation email. Magic-link login is unaffected.
 
 ### The Caddyfile
 
-`caddy/Caddyfile.prod` — single origin, path routing, cookie shim:
+The canonical production reverse-proxy config is the real `caddy/Caddyfile.prod` in the repo — read it rather than a pseudocode copy here. Its shape, single origin `cairn.{$DOMAIN}` with automatic Let's Encrypt TLS:
 
-```
-cairn.{$DOMAIN} {
-    encode gzip
+- `encode gzip` and the security headers (HSTS `max-age=31536000; includeSubDomains`, `X-Content-Type-Options: nosniff`, `Referrer-Policy: no-referrer`).
+- **`/api/*`** → `postgrest:3000` via `handle_path` (strips the `/api` prefix), with the stock cookie→bearer translation (`header_regexp Cookie cairn_session=([^;]+)` → `Authorization: Bearer …`).
+- **`/auth/*`** → an **explicit allow-list** of the GoTrue endpoints (`/auth/magiclink* /auth/verify* /auth/token* /auth/user* /auth/session*`) → `reverse_proxy auth-proxy:3002`, with **no** prefix strip (the sidecar matches against `/auth/…`-shaped lists and strips `/auth` itself). A blanket `handle_path /auth/*` would break the SvelteKit client routes (`/auth/login|check|callback`) and the sidecar's narrowing — the subtlest prod-only failure. The response-side cookie-plant + token-strip happens inside the `auth-proxy` sidecar, not Caddy.
+- **`/avatars/*.webp`** (GET) → `file_server` over the avatars volume with a one-year immutable `Cache-Control`; `POST/DELETE /avatars*` → `sidecar:3001` with the same cookie→bearer translation.
+- **Everything else** (including `/gotrue/templates/*`) → `web:80`.
 
-    header {
-        Strict-Transport-Security "max-age=31536000; includeSubDomains"
-        X-Content-Type-Options "nosniff"
-        Referrer-Policy "no-referrer"
-    }
-
-    # ── API: /api/* → PostgREST, with cookie → bearer translation ──
-    handle_path /api/* {
-        @hasSession header_regexp Cookie cairn_session=([^;]+)
-        request_header Authorization "Bearer {http.regexp.1}"
-        reverse_proxy postgrest:3000
-    }
-
-    # ── Auth: /auth/* → GoTrue, with response-side JWT → cookie translation ──
-    handle_path /auth/* {
-        reverse_proxy gotrue:9999 {
-            @loginResponse status 200
-            # When GoTrue returns a JSON body containing access_token,
-            # strip it out and re-emit it as an HttpOnly cookie.
-            handle_response @loginResponse {
-                # (Pseudocode — the actual implementation uses a small
-                # caddy-server response handler module that JSON-parses
-                # the body, sets:
-                #
-                #   Set-Cookie: cairn_session=<jwt>;
-                #               HttpOnly; Secure; SameSite=Lax;
-                #               Path=/; Max-Age=2592000
-                #
-                # and forwards the rest of the body unchanged.)
-            }
-        }
-    }
-
-    # ── Logout: DELETE /auth/session clears the cookie ──
-    @delete_session {
-        method DELETE
-        path /auth/session
-    }
-    handle @delete_session {
-        header Set-Cookie "cairn_session=; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=0"
-        respond 204
-    }
-
-    # ── Avatars: GET /avatars/*.webp → static files; POST /avatars and
-    #            DELETE /avatars/me → the avatar sidecar (see avatars.md) ──
-    @avatar_static {
-        method GET
-        path /avatars/*.webp
-    }
-    handle @avatar_static {
-        root * /srv/cairn
-        header Cache-Control "public, max-age=31536000, immutable"
-        file_server
-    }
-    @avatar_sidecar path /avatars /avatars/me
-    handle @avatar_sidecar {
-        # Same cookie → bearer translation as /api/*; the sidecar gates
-        # uploads on the user's JWT (see avatars.md).
-        @hasSession header_regexp Cookie cairn_session=([^;]+)
-        request_header Authorization "Bearer {http.regexp.1}"
-        reverse_proxy avatars:8080
-    }
-
-    # ── Web app: everything else ──
-    handle {
-        reverse_proxy web:80
-    }
-}
-```
-
-The cookie-shim block is shown in pseudocode because the exact Caddy syntax depends on which response-handler plugin we use; the canonical version lives in the repo. The behaviour is the contract: **the JavaScript in the browser never sees the JWT**, and PostgREST sees a normal `Authorization: Bearer …` header.
+The behaviour is the contract: **the JavaScript in the browser never sees the JWT**, and PostgREST sees a normal `Authorization: Bearer …` header.
 
 ### `.env.prod`
 
@@ -290,10 +164,11 @@ Once the stack is up:
 
 ```bash
 cd /home/cairn/cairn
-./scripts/migrate.sh   # uses .env.prod automatically
+ln -s .env.prod .env   # migrate.sh sources .env, not .env.prod
+./scripts/migrate.sh
 ```
 
-Same script as in development, against the production Postgres. There is no production seed data — the database starts empty and the first user to sign up is genuinely the first user.
+Same script as in development, against the production Postgres. Two prerequisites the script assumes: it sources **`.env`** (not `.env.prod`) — so symlink `.env → .env.prod` on the box first — and it connects with the host's `psql` to `localhost:5432`, which is why the prod compose publishes Postgres on the loopback `127.0.0.1:5432` (the only published port besides Caddy's). Install `postgresql-client` on the box if `psql` isn't present, and on a cold box bump `MIGRATE_AUTH_USERS_TIMEOUT=120` for the first run. There is no production seed data — the database starts empty and the first user to sign up is genuinely the first user.
 
 ## Backups
 

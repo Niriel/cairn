@@ -1,0 +1,85 @@
+# Production overlay — invoked explicitly with
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml ...
+# Naming the files explicitly suppresses the auto-load of
+# docker-compose.override.yml, so none of the dev-only services/ports
+# (static, mailpit, public Postgres/PostgREST/GoTrue) reach production.
+# This overlay adds only what prod needs on top of the prod-safe base.
+services:
+  postgres:
+    # Loopback-only publish so migrate.sh can reach localhost:5432. This is
+    # the only published port besides Caddy's, and binding to 127.0.0.1 keeps
+    # it off the internet even though Docker bypasses ufw's INPUT filter.
+    ports:
+      - "127.0.0.1:5432:5432"
+    restart: unless-stopped
+
+  gotrue:
+    environment:
+      # GoTrue reads this without the GOTRUE_ prefix (envconfig quirk).
+      API_EXTERNAL_URL: https://cairn.${DOMAIN}/auth
+      GOTRUE_SITE_URL: https://cairn.${DOMAIN}
+      GOTRUE_URI_ALLOW_LIST: https://cairn.${DOMAIN}/auth/callback
+      # E-mail action links resolve as externalURL.ResolveReference(URLPath).
+      # The default URLPath is the absolute path "/verify", which DISCARDS the
+      # "/auth" segment of API_EXTERNAL_URL (an absolute-path reference replaces
+      # the base path), yielding https://cairn.<domain>/verify — a path Caddy
+      # routes to the SPA, not the auth-proxy ("Not found: /verify"). Pin the
+      # paths to "/auth/verify" so they resolve to the /auth/verify* prefix the
+      # Caddyfile @gotrue allow-list forwards to the auth-proxy. Magic-link
+      # specifically uses URLPaths.Recovery (GoTrue MagicLinkMail); the others
+      # are set so the invite/confirm/email-change flows route the same way.
+      GOTRUE_MAILER_URLPATHS_INVITE: /auth/verify
+      GOTRUE_MAILER_URLPATHS_CONFIRMATION: /auth/verify
+      GOTRUE_MAILER_URLPATHS_RECOVERY: /auth/verify
+      GOTRUE_MAILER_URLPATHS_EMAIL_CHANGE: /auth/verify
+      GOTRUE_DISABLE_SIGNUP: "${DISABLE_SIGNUP:-true}"
+      GOTRUE_MAILER_AUTOCONFIRM: "false"
+      GOTRUE_SMTP_HOST: ${SMTP_HOST}
+      GOTRUE_SMTP_PORT: "${SMTP_PORT}"
+      GOTRUE_SMTP_USER: ${SMTP_USER}
+      GOTRUE_SMTP_PASS: ${SMTP_PASS}
+      GOTRUE_SMTP_ADMIN_EMAIL: ${SMTP_FROM}
+      GOTRUE_SMTP_SENDER_NAME: Cairn
+      # Internal URL — GoTrue fetches the template container-to-container,
+      # avoiding the cert-not-issued OTP fallback at first send.
+      GOTRUE_MAILER_TEMPLATES_MAGIC_LINK: http://web/gotrue/templates/magic_link.html
+    restart: unless-stopped
+
+  auth-proxy:
+    build: ./auth-proxy
+    environment:
+      GOTRUE_URL: http://gotrue:9999
+      PORT: "3002"
+      COOKIE_SECURE: "true"
+      COOKIE_MAX_AGE: "604800"
+    depends_on:
+      - gotrue
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3002/healthz', r => process.exit(r.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))"]
+      interval: 5s
+      timeout: 3s
+      retries: 3
+    restart: unless-stopped
+
+  web:
+    build: ./web
+    depends_on:
+      - postgrest
+    restart: unless-stopped
+
+  caddy:
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      DOMAIN: ${DOMAIN}
+    volumes:
+      - ./caddy/Caddyfile.prod:/etc/caddy/Caddyfile:ro
+      - avatars:/srv/cairn/avatars:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    restart: unless-stopped
+
+volumes:
+  caddy_data:
+  caddy_config:
