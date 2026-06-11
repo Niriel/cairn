@@ -237,20 +237,28 @@ Test restore at least once after setting up backups, and again every six months.
 
 ## Releases
 
-A release is: commit and push to `main`, SSH to the VPS, pull, restart.
+A release is: commit and push to `main`, SSH to the VPS, pull, migrate, rebuild, swap.
 
 ```bash
 ssh cairn@<vps>
 cd cairn
 git pull
-./scripts/migrate.sh                # if there are new migrations
-docker compose -f docker-compose.yml -f docker-compose.prod.yml \
-               --env-file .env.prod build web   # rebuild the static bundle
-docker compose -f docker-compose.yml -f docker-compose.prod.yml \
-               --env-file .env.prod up -d
+./scripts/migrate.sh       # if there are new migrations
+./scripts/rebuild.sh       # rebuild the static bundle from the fresh checkout
+./scripts/swap-image.sh    # bring the rebuilt image into service
 ```
 
-`docker compose up -d` only restarts containers whose configuration or image has changed, so this is fast — the database, auth, and API stay running while the web bundle swaps in.
+The last two steps wrap the prod `docker compose … build web` / `up -d`
+invocations so the long `-f … -f … --env-file .env.prod` incantation lives in
+one place; both refuse to run unless `.env.prod` is present (their "you're on
+the prod box" guard). They are deliberately separate commands — **`git pull`
+alone changes only the source on disk; the live site keeps serving the old
+bundle until `rebuild.sh` bakes a new one and `swap-image.sh` swaps it in.**
+Forgetting the rebuild is the usual reason a freshly-merged screen or Settings
+row "doesn't show up" after a deploy. See the header comments in
+`scripts/rebuild.sh` and `scripts/swap-image.sh` for the full rationale.
+
+`swap-image.sh` runs `docker compose up -d`, which only restarts containers whose configuration or image has changed, so this is fast — the database, auth, and API stay running while the web bundle swaps in.
 
 The web bundle is built inside the `web` container (the Dockerfile runs `pnpm install && pnpm build`). This means a release is reproducible from the git checkout alone — no separate build pipeline, no artifact store, no host-side Node install. If `git pull` brings down web changes, the rebuild includes them; if it doesn't, the existing image is reused.
 
