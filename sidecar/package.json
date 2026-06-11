@@ -5,7 +5,8 @@
   "main": "dist/server.js",
   "packageManager": "pnpm@10.11.0",
   "scripts": {
-    "build": "tsc",
+    "build": "tsc -p tsconfig.build.json",
+    "lint": "eslint .",
     "test": "vitest run"
   },
   "dependencies": {
@@ -16,12 +17,17 @@
     "sharp": "^0.33.5"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@types/express": "^4.17.21",
     "@types/multer": "^1.4.12",
     "@types/node": "^20.17.10",
     "@types/supertest": "^6.0.2",
+    "eslint": "^10.3.0",
+    "eslint-config-prettier": "^10.1.8",
+    "globals": "^17.6.0",
     "supertest": "^7.0.0",
     "typescript": "^5.7.2",
+    "typescript-eslint": "^8.59.2",
     "vitest": "^2.1.8"
   }
 }

@@ -17,55 +17,66 @@ const upload = multer({
 const avatarsDir = process.env.AVATARS_DIR ?? '/srv/cairn/avatars';
 const postgrestUrl = process.env.POSTGREST_URL;
 
+// Express can't await these handlers, so fire-and-forget the promise; each
+// resolves the response itself and routes failures through next() (see the
+// auth-proxy `void handler()` idiom).
 router.post(
   '/',
   requireAuth,
   upload.single('file'),
-  async (req: Request, res: Response, next: NextFunction) => {
-    try {
-      if (!req.file) {
-        res.status(400).json({ error: 'No file uploaded' });
-        return;
-      }
-
-      const { buffer } = req.file;
-      await checkMagicBytes(buffer);
-      await checkDecodedBounds(buffer);
-
-      const resized = await sharp(buffer)
-        .resize(256, 256, { fit: 'cover' })
-        .webp({ quality: 80 })
-        .toBuffer();
-
-      const dest = path.join(avatarsDir, `${req.uid}.webp`);
-      const tmp = `${dest}.tmp`;
-      await writeFile(tmp, resized);
-      await rename(tmp, dest);
-
-      const token = req.headers.authorization!.slice(7);
-      const pgRes = await fetch(`${postgrestUrl}/rpc/bump_avatar_version`, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        body: '{}',
-      });
-
-      if (!pgRes.ok) {
-        res.status(502).json({ error: 'version bump failed' });
-        return;
-      }
-
-      const version = (await pgRes.json()) as number;
-      res.status(200).json({ version, url: `/avatars/${req.uid}.webp?v=${version}` });
-    } catch (err) {
-      next(err);
-    }
-  },
+  (req: Request, res: Response, next: NextFunction) => void uploadAvatar(req, res, next),
 );
 
-router.delete('/me', requireAuth, async (req: Request, res: Response, next: NextFunction) => {
+router.delete(
+  '/me',
+  requireAuth,
+  (req: Request, res: Response, next: NextFunction) => void deleteAvatar(req, res, next),
+);
+
+async function uploadAvatar(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    if (!req.file) {
+      res.status(400).json({ error: 'No file uploaded' });
+      return;
+    }
+
+    const { buffer } = req.file;
+    await checkMagicBytes(buffer);
+    await checkDecodedBounds(buffer);
+
+    const resized = await sharp(buffer)
+      .resize(256, 256, { fit: 'cover' })
+      .webp({ quality: 80 })
+      .toBuffer();
+
+    const dest = path.join(avatarsDir, `${req.uid}.webp`);
+    const tmp = `${dest}.tmp`;
+    await writeFile(tmp, resized);
+    await rename(tmp, dest);
+
+    const token = req.headers.authorization!.slice(7);
+    const pgRes = await fetch(`${postgrestUrl}/rpc/bump_avatar_version`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: '{}',
+    });
+
+    if (!pgRes.ok) {
+      res.status(502).json({ error: 'version bump failed' });
+      return;
+    }
+
+    const version = (await pgRes.json()) as number;
+    res.status(200).json({ version, url: `/avatars/${req.uid}.webp?v=${version}` });
+  } catch (err) {
+    next(err);
+  }
+}
+
+async function deleteAvatar(req: Request, res: Response, next: NextFunction): Promise<void> {
   const file = path.join(avatarsDir, `${req.uid}.webp`);
   try {
     await unlink(file);
@@ -76,7 +87,7 @@ router.delete('/me', requireAuth, async (req: Request, res: Response, next: Next
     }
   }
   res.status(200).json({ ok: true });
-});
+}
 
 // Error handler: multer size limit, magic-byte check, decoded-bounds check
 router.use((err: NodeJS.ErrnoException, _req: Request, res: Response, _next: NextFunction) => {

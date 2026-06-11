@@ -654,10 +654,10 @@ the URL leaks. Not the full step-14 legal surface.
 
 ## Phase 7 — CI wiring
 
-### [ ] 7.1 Lint both Node sidecars and wire them into `scripts/check.sh`
+### [x] 7.1 Lint both Node sidecars and wire them into `scripts/check.sh`
 
 **Created:** 2026-06-10T13:55:00Z
-**Completed:**
+**Completed:** 2026-06-11T09:17:54Z
 
 **Why:** The new `auth-proxy` package has its own lint/test that must run in
 the project-wide quality gate so a shim regression (or an `auth-paths.ts`
@@ -707,6 +707,29 @@ pass so both Node sidecars share one bar, rather than adding a gate to
    `sidecar` and `auth-proxy` and is green end-to-end.
 
 **Verify:** `./scripts/check.sh`
+
+**Notes:**
+- **Type-checked lint needs tests in the typed graph (side work beyond
+  listed Files).** Mirroring auth-proxy's `recommendedTypeChecked` config
+  meant the project service rejected `sidecar/test/*.ts` (not in any
+  tsconfig). Rather than drop to non-type-checked rules, I mirrored
+  auth-proxy's tsconfig split: `sidecar/tsconfig.json` now has `noEmit:true`
+  and includes both `src/` and `test/` (for typecheck/lint), and a new
+  `sidecar/tsconfig.build.json` (extends it, `noEmit:false`, `rootDir:src`,
+  `src/` only) drives the build. Knock-on edits: `build` script →
+  `tsc -p tsconfig.build.json`, and the Dockerfile now copies both tsconfigs.
+  Verified the prod build still emits only `src/` (no `dist/test/`).
+- **Lint surfaced three real findings in pre-existing sidecar source**, all
+  fixed without rule disables by adopting the auth-proxy `void handler()`
+  idiom: `@typescript-eslint/no-misused-promises` on the async
+  `requireAuth` middleware and the two async route handlers in `avatars.ts`
+  (async functions can't be passed where Express expects a void return).
+  Extracted each into a named `Promise<void>` function and call it via
+  `void fn(req, res, next)` from a sync wrapper.
+- **`no-console` warning on the startup banner** in `sidecar/src/server.ts`
+  silenced with the same inline `// eslint-disable-next-line no-console`
+  comment auth-proxy already uses (a warning wouldn't fail `eslint .`, but
+  silencing it keeps both sidecars on one clean bar).
 
 ## Phase 8 — deploy + smoke test
 

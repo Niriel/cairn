@@ -78,8 +78,23 @@ if (cd web && pnpm test) >/dev/null; then ok "vitest"; else fail "vitest"; fi
 echo "==> sidecar: install (frozen)"
 if (cd sidecar && pnpm install --frozen-lockfile) >/dev/null; then ok "sidecar pnpm install"; else fail "sidecar pnpm install"; fi
 
+echo "==> sidecar: lint"
+if (cd sidecar && pnpm lint); then ok "sidecar eslint"; else fail "sidecar eslint"; fi
+
 echo "==> sidecar: unit tests"
 if (cd sidecar && pnpm test) >/dev/null; then ok "sidecar vitest"; else fail "sidecar vitest"; fi
+
+echo "==> auth-proxy: install (frozen)"
+if (cd auth-proxy && pnpm install --frozen-lockfile) >/dev/null; then ok "auth-proxy pnpm install"; else fail "auth-proxy pnpm install"; fi
+
+echo "==> auth-proxy: format check"
+if (cd auth-proxy && pnpm format:check) >/dev/null; then ok "auth-proxy prettier"; else fail "auth-proxy prettier"; fi
+
+echo "==> auth-proxy: lint"
+if (cd auth-proxy && pnpm lint); then ok "auth-proxy eslint"; else fail "auth-proxy eslint"; fi
+
+echo "==> auth-proxy: unit tests"
+if (cd auth-proxy && pnpm test) >/dev/null; then ok "auth-proxy vitest"; else fail "auth-proxy vitest"; fi
 
 if [ "$run_e2e" -eq 1 ]; then
   echo "==> web: e2e (playwright)"

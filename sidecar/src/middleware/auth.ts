@@ -1,12 +1,12 @@
 import { jwtVerify } from 'jose';
-import type { RequestHandler } from 'express';
+import type { RequestHandler, Request, Response, NextFunction } from 'express';
 
 if (!process.env.GOTRUE_JWT_SECRET) throw new Error('GOTRUE_JWT_SECRET is required');
 const secret = new TextEncoder().encode(process.env.GOTRUE_JWT_SECRET);
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-export const requireAuth: RequestHandler = async (req, res, next) => {
+async function verifyAuth(req: Request, res: Response, next: NextFunction): Promise<void> {
   const header = req.headers.authorization;
   if (!header?.startsWith('Bearer ')) {
     res.status(401).json({ error: 'Unauthorized' });
@@ -30,4 +30,10 @@ export const requireAuth: RequestHandler = async (req, res, next) => {
 
   req.uid = sub;
   next();
+}
+
+// Express can't await the handler, so fire-and-forget the promise; verifyAuth
+// resolves the response itself and never rejects (see the auth-proxy idiom).
+export const requireAuth: RequestHandler = (req, res, next) => {
+  void verifyAuth(req, res, next);
 };
