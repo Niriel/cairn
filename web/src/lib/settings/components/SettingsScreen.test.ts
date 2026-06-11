@@ -194,4 +194,20 @@ describe('SettingsScreen', () => {
 		expect(vi.mocked(goto)).toHaveBeenCalledOnce();
 		expect(vi.mocked(goto)).toHaveBeenCalledWith(vi.mocked(resolve)('/settings/deleted-lists'));
 	});
+
+	test('(l) Delete account row renders in the Account section', () => {
+		const { queryByDataTest } = render(SettingsScreen);
+		const row = queryByDataTest('delete-account');
+		expect(row).not.toBeNull();
+		expect(row?.textContent).toContain('Delete account');
+	});
+
+	test('(m) clicking Delete account row navigates to /settings/delete-account', async () => {
+		const { goto } = await import('$app/navigation');
+		const { resolve } = await import('$app/paths');
+		const { getByDataTest } = render(SettingsScreen);
+		await fireEvent.click(getByDataTest('delete-account'));
+		expect(vi.mocked(goto)).toHaveBeenCalledOnce();
+		expect(vi.mocked(goto)).toHaveBeenCalledWith(vi.mocked(resolve)('/settings/delete-account'));
+	});
 });

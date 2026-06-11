@@ -2,7 +2,7 @@
 // docs/frontend-layout.md, so the URL prefix is read from the same
 // VITE_AUTH_BASE env var that pins `auth-client.ts`'s URLs — matching
 // contracts via env instead of via import.
-const AUTH_BASE = import.meta.env.VITE_AUTH_BASE ?? '/auth';
+export const AUTH_BASE = import.meta.env.VITE_AUTH_BASE ?? '/auth';
 
 export type AuthUser = { id: string; email: string };
 

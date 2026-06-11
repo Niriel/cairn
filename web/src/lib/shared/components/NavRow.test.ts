@@ -70,4 +70,20 @@ describe('NavRow', () => {
 		const { container } = render(NavRow, { lead, title: 'Privacy' });
 		expect(container.querySelector('button')?.textContent).toContain('Privacy');
 	});
+
+	test('(j) tone="destructive" marks the row and forwards the tone to the button', () => {
+		const { container } = render(NavRow, {
+			lead,
+			title: 'Delete account',
+			tone: 'destructive'
+		});
+		expect(container.querySelector('.nav-row')?.classList.contains('destructive')).toBe(true);
+		expect(container.querySelector('button')?.getAttribute('data-tone')).toBe('destructive');
+	});
+
+	test('(k) the default tone is ink — no destructive treatment', () => {
+		const { container } = render(NavRow, { lead, title: 'Privacy' });
+		expect(container.querySelector('.nav-row')?.classList.contains('destructive')).toBe(false);
+		expect(container.querySelector('button')?.getAttribute('data-tone')).toBe('ink');
+	});
 });

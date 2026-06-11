@@ -245,7 +245,7 @@ in-flight branch for no gain.
    Vitest / Playwright test must still pass without touching the
    assertions.
 
-10. [ ] **Account deletion.** Tombstone user/profile insert, the
+10. [x] **Account deletion.** Tombstone user/profile insert, the
    `delete_account()` RPC, deletion confirmation screen with typed
    "delete" gate, and tombstone attribution UI ("Deleted user" muted
    italic, gray-disc avatar). FK semantics already in place from step
