@@ -20,10 +20,10 @@
 
 ## Phase 0 — reconcile docs
 
-### [ ] 0.1 Document the anon read path before code lands
+### [x] 0.1 Document the anon read path before code lands
 
 **Created:** 2026-06-11T20:06:58Z
-**Completed:**
+**Completed:** 2026-06-11T20:32:48Z
 
 **Why:** This feature opens `anon` to exactly one read-only RPC, which
 contradicts the current docs stating `anon` has zero access. Downstream steps
@@ -78,6 +78,13 @@ first.
    list id is the link) only if it fits the file's structure, otherwise skip.
 
 **Verify:** `git diff --stat docs/` · manual read-through for consistency.
+
+**Notes:** Step 4 (`open-questions.md`) skipped per the task's conditional —
+the file tracks only *pending* decisions and deletes them once settled, so a
+"decided" note doesn't fit its structure, and public lists were never an open
+question there. Spot-ran `cspell` on the three docs: all 14 flagged words are
+pre-existing (timestamptz, EDPB, narrowings, …) in untouched lines; my added
+prose introduced none.
 
 ## Phase 1 — DB foundation
 

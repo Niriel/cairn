@@ -234,6 +234,8 @@ A typical "show me my lists" request, from a logged-in user with the session coo
 5. Postgres executes `SELECT * FROM lists`. The row-level security policy on `lists` filters the result to only those where the user is a member.
 6. PostgREST serializes the result as JSON, Caddy passes it back, the SvelteKit app renders it.
 
+A signed-out reader of a public list follows the same `/api/*` path with no cookie, so PostgREST runs as `anon`. `anon` has exactly one read-only RPC — `POST /api/rpc/public_list_view` with `{p_id}` — and no other table, view, or RPC access; everything else stays closed (see `data-model.md` → "Public read access"). This needs no Caddy, compose, or auth-proxy change: it's a database grant, and the cookieless request simply lands on the `anon` role PostgREST already uses.
+
 A login request:
 
 1. User enters email in the web app.

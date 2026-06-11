@@ -117,6 +117,7 @@ create table public.lists (
   id          uuid primary key default gen_random_uuid(),
   name        text not null check (length(name) between 1 and 200),
   description text check (description is null or length(description) <= 2000),
+  is_public   boolean not null default false,
   created_by  uuid not null default '00000000-0000-0000-0000-000000000000'
                 references auth.users(id) on delete set default,
   deleted_by  uuid default '00000000-0000-0000-0000-000000000000'
@@ -136,6 +137,8 @@ create index lists_not_deleted_idx on public.lists (id) where deleted_at is null
 `created_by` is informational — for "who started this list?" — and does not grant special permissions. Membership is tracked separately in `list_members`. List creation goes through the `create_list` RPC (see "What the app sees" below), which inserts the `lists` row and the creator's `list_members` row in the same transaction; direct `POST /lists` is closed off by the absence of an `insert` policy and an `insert` grant on `public.lists`.
 
 `deleted_by` records who soft-deleted the row (null for live rows), set by a trigger from the JWT claim — see "Triggers" below. Lists track `modified_at` but deliberately not `modified_by`: list-level edits (rename, description tweak) are rare and the audit value of "who renamed this" is low; per-item `modified_by` already covers attribution where it matters.
+
+`is_public` is the unlisted-link flag (default `false`). When `true`, anyone holding the list's id can read a curated, read-only snapshot through the `public_list_view` RPC (see "Public read access" below) — there is no discovery or browse surface, the id *is* the capability. Any member may toggle it via the ordinary `lists_update` policy (`is_list_member(id)`); there is no separate write policy or grant for the flag. It changes nothing about how members read the list: members still go through the base tables and `items_ranked` under their own RLS.
 
 The lists resource also exposes a live **`item_count`** field that isn't a stored column. It's a PostgREST *computed column* — the SQL function `lists_item_count(public.lists)`, which returns `count(*)` of the list's non-soft-deleted `items`. PostgREST surfaces any `STABLE` function whose single argument is the table's row type as a virtual column on that table, so `GET /lists?select=*,item_count` returns the count without the client fetching items. It counts only live items (`deleted_at is null`), matching what `items_ranked` shows; trashed items don't inflate it. `EXECUTE` is granted to `authenticated`, and because the function is `security invoker` it sees only the items the caller's RLS already permits — the count can't leak the size of a list you're not a member of.
 
@@ -368,7 +371,7 @@ Same asymmetry, same load-bearing test: the `is_list_member()` filter is the onl
 
 ## Row-level security policies
 
-The whole authorization model expressed as Postgres policies. PostgREST runs as a role called `authenticated` (for logged-in users) or `anon` (for not-logged-in requests). Anonymous users have no access to any table; only the policies for `authenticated` matter for Cairn.
+The whole authorization model expressed as Postgres policies. PostgREST runs as a role called `authenticated` (for logged-in users) or `anon` (for not-logged-in requests). Anonymous users have no access to any table or view — `anon` reads nothing through the base-table or view API paths, so only the policies for `authenticated` matter for the RLS model. The single exception is one read-only RPC: `anon` has `EXECUTE` on `public.public_list_view(uuid)` and nothing else (see "Public read access" below). That function is `security definer`, so it does not widen any table grant; every table and view stays closed to `anon`.
 
 The user's identity is available in policies as `public.uid()` — a Cairn-owned helper, sibling to `public.is_list_member()`. Vanilla GoTrue does *not* ship a `uid()` helper (Supabase's hosted helpers ship `auth.uid()`, but Cairn runs the open-source GoTrue, not Supabase's hosted service); we deliberately put ours in `public` rather than `auth` so a future GoTrue release can't clobber it. The function reads the `sub` claim out of `request.jwt.claims`, the JSON-object GUC PostgREST v10+ sets per request (the per-claim `request.jwt.claim.<name>` GUCs were removed in v10):
 
@@ -718,6 +721,18 @@ Cross-user writes (anything that touches another user's circle, blocks, invitati
 - `/rpc/add_circle_by_id` — one-sided tap-add to your circle; see `invites.md`.
 
 Adding a member to a list goes through `/rpc/send_invitation` and `/rpc/accept_invitation`, not a direct `POST /list_members` — the policy/block checks need to run server-side. Direct writes to `list_members` are limited to your own self-removal ("leave list", a `PATCH` setting `deleted_at`) and the `create_list` RPC that inserts the creator's membership row alongside the list.
+
+## Public read access
+
+`is_public` lets a list be read while signed out, but **not** through any table or view. The entire anonymous surface is one `security definer` RPC:
+
+- `/rpc/public_list_view` — body `{p_id: <uuid>}`, returns a single `jsonb` snapshot of one public list, or SQL `NULL` (PostgREST `null`) when the list is private, soft-deleted, or unknown. `EXECUTE` is granted to `anon` **and** `authenticated`; signed-in callers can use the same path for the public view. This is the only RPC `anon` may call and the only thing in the schema `anon` may touch at all.
+
+The payload is curated by construction — it carries `id`, `name`, `description`, and an `items` array (each item's `id`, `name`, `notes`, and `score`, ordered by `score desc, created_at asc`). It deliberately **omits** members, votes, raw vote tallies, and all attribution (`created_by` / `modified_by` / `deleted_by`). Soft-deleted items are excluded; a soft-deleted or private list returns `null` rather than a partial object — that `null` is the security boundary the pgTAP tests pin down (private, soft-deleted, and unknown ids all collapse to the same indistinguishable `null`).
+
+The `score` comes from `public.items_ranked`, which the function can read even though `anon` cannot: `items_ranked` is `security_invoker = true`, so under a `cairn`-owned `security definer` function it runs as the owner (exempt from RLS) and yields real scores.
+
+A direct table or view grant was rejected: granting `anon` `SELECT` on `items_ranked` would yield nothing (it is `security_invoker`, so `anon`'s empty membership produces zero rows), and a `security_invoker = false` "public" view would leak *every* list's scores to `anon`, not just the public ones. Funnelling the whole anonymous surface through one definer RPC with a `WHERE l.is_public and l.deleted_at is null` guard is what keeps the boundary a single, testable point.
 
 ## What's deliberately not in here
 
