@@ -419,10 +419,10 @@ TopBar conventions.
 
 ## Phase 3 — anonymous read-only view
 
-### [ ] 3.1 Build the `/p/<list_id>` read-only page
+### [x] 3.1 Build the `/p/<list_id>` read-only page
 
 **Created:** 2026-06-11T20:06:58Z
-**Completed:**
+**Completed:** 2026-06-11T21:33:06Z
 
 **Why:** The whole point — anyone with the link sees a read-only list while
 signed-out (R3, R6).
@@ -479,6 +479,29 @@ beforehand, and the copy-link in Task 2.2 builds the URL as a plain string
    `/p/<private-id>` shows "not available".
 
 **Verify:** `cd web && pnpm test` · `pnpm check` · `pnpm lint`
+
+**Notes:**
+- **User correction — masthead is a home link, not inert.** The plan specced a
+  *non-interactive* wordmark with no CTA. Mid-task the user asked for the Cairn
+  logo to **link to the home page** as an invitation to join (a signed-out
+  visitor following it lands on sign-in/join). Implemented as an `<a href="/">`
+  wrapping the wordmark (`data-test="public-home-link"`). The read-only
+  guarantee holds — a link is not an edit control (the test still asserts zero
+  `<button>`s).
+- **Lint:** `svelte/no-navigation-without-resolve` requires `resolve()` for
+  internal hrefs, so the home link uses `resolve('/')` (identity when there's no
+  base path).
+- **User request mid-task — item ages (expanded scope, DB change).** The user
+  asked to show each item's creation date, rendered with `timeAgo`. The curated
+  anon payload didn't carry it, so this added **migration
+  `0016_public_list_item_created_at.sql`** (`CREATE OR REPLACE public_list_view`
+  to include each item's `created_at` — grants preserved), a new pgTAP assertion
+  (`public_lists.sql` `plan(16)`→`plan(17)`: items carry `created_at`), and a
+  `docs/data-model.md` payload update. A date is *when*, not *who*, so it does
+  not reopen the no-attribution boundary. Verified with `./scripts/test-db.sh`
+  (PASS) and `sqlfluff` (clean) in addition to the web verifier.
+- **Did not** do the manual incognito check (plan step 4) — that live-browser
+  pass belongs to the Playwright touch in Task 3.2.
 
 ### [ ] 3.2 Playwright touch for the public flow
 

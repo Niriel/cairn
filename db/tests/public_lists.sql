@@ -17,7 +17,7 @@
 -- policy (`is_list_member(id)`) — no new policy or grant — so a member
 -- may flip is_public and a non-member's UPDATE matches zero rows.
 --
--- 16 assertions:
+-- 17 assertions:
 --   1.  public list returns a non-null object.
 --   2.  name is exposed.
 --   3.  description is exposed.
@@ -27,18 +27,19 @@
 --       items_ranked despite anon's own RLS).
 --   7.  items[1] is the runner-up (score-desc ordering).
 --   8.  items[1].score correct (1).
---   9.  no top-level `created_by` key (no attribution).
---   10. no item-level `created_by` key (no attribution).
---   11. no item-level `positive_voters` key (no vote tallies).
---   12. a PRIVATE list returns NULL.
---   13. an UNKNOWN uuid returns NULL.
---   14. a SOFT-DELETED public list returns NULL.
---   15. a member may publish a list (UPDATE SET is_public lands).
---   16. a non-member's publish UPDATE matches zero rows.
+--   9.  items carry `created_at` (so the public view can show item age).
+--   10. no top-level `created_by` key (no attribution).
+--   11. no item-level `created_by` key (no attribution).
+--   12. no item-level `positive_voters` key (no vote tallies).
+--   13. a PRIVATE list returns NULL.
+--   14. an UNKNOWN uuid returns NULL.
+--   15. a SOFT-DELETED public list returns NULL.
+--   16. a member may publish a list (UPDATE SET is_public lands).
+--   17. a non-member's publish UPDATE matches zero rows.
 
 BEGIN;
 
-SELECT plan(16);
+SELECT plan(17);
 
 \i /db/tests/fixtures/lists_public_private.sql
 
@@ -116,7 +117,18 @@ SELECT is(
   'public_list_view: runner-up score correct (1)'
 );
 
--- 9. No top-level attribution key.
+-- 9. Items carry a non-null `created_at` (drives the public view's
+-- relative item-age line). A date is not attribution — it says when,
+-- not who.
+SELECT ok(
+  (
+    public.public_list_view('0a000000-0000-0000-0000-000000000001')
+    -> 'items' -> 0 ->> 'created_at'
+  ) IS NOT NULL,
+  'public_list_view: items carry created_at'
+);
+
+-- 10. No top-level attribution key.
 SELECT ok(
   NOT (
     public.public_list_view('0a000000-0000-0000-0000-000000000001')
