@@ -88,10 +88,10 @@ prose introduced none.
 
 ## Phase 1 — DB foundation
 
-### [ ] 1.1 Add `is_public` column, index, and the `public_list_view` RPC
+### [x] 1.1 Add `is_public` column, index, and the `public_list_view` RPC
 
 **Created:** 2026-06-11T20:06:58Z
-**Completed:**
+**Completed:** 2026-06-11T20:39:16Z
 
 **Why:** The flag (R1) and the curated anonymous read path (R3–R5) are the
 foundation everything else builds on. A single `SECURITY DEFINER` RPC is the
