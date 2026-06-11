@@ -17,6 +17,9 @@
 	let { children, onclick, ...rest }: Props = $props();
 </script>
 
-<button data-test={rest['data-test']} aria-pressed={rest['aria-pressed']} {onclick}
-	>{@render children?.()}</button
+<button
+	data-test={rest['data-test']}
+	data-tone={rest.tone}
+	aria-pressed={rest['aria-pressed']}
+	{onclick}>{@render children?.()}</button
 >

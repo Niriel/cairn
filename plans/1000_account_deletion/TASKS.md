@@ -118,10 +118,10 @@ set-default assertion pattern and the cross-actor seeding caveat
 
 ## Phase 2 — Settings entry + NavRow destructive tone
 
-### [ ] 2.1 Add a `tone` prop to `NavRow`
+### [x] 2.1 Add a `tone` prop to `NavRow`
 
 **Created:** 2026-06-11T12:57:18Z
-**Completed:**
+**Completed:** 2026-06-11T13:15:16Z
 
 **Why:** The Settings "Delete account" row must render red (destructive),
 but `NavRow` currently hard-codes its inner `Button` to `tone="ink"`. A
@@ -156,6 +156,15 @@ shared prop is cleaner than forking a destructive row component.
    if needed. Run `pnpm test`; confirm green.
 
 **Verify:** `pnpm test` · `pnpm check` · `pnpm lint`
+
+**Notes:** Side work — the shared Button test mock
+(`web/src/lib/basic/components/__mocks__/Button.svelte`) strips all props,
+so the forwarded `tone` was invisible to the test. Added `data-tone={rest.tone}`
+to the mock's `<button>` so the forwarding is observable; harmless to other
+suites (none assert on it). The `.row-title` global role pins `color: --ink`,
+so the title needed an explicit `.nav-row.destructive .nav-row-title { color:
+var(--ember); }` override — the lead/chevron icons already inherit `--ember`
+from the Button via `currentColor`.
 
 ### [ ] 2.2 Add the "Delete account" row to Settings + route stub
 
