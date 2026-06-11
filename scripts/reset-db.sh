@@ -1,6 +1,11 @@
 #!/usr/bin/env bash
 # Reset the dev database and re-apply migrations.
 #
+# DEV-ONLY. The --full path runs `docker compose down -v`, which destroys the
+# postgres_data volume. On the production box that wipes all user data, so this
+# script refuses to run when .env resolves to a production env file (see the
+# prod guard below) and pins itself to the dev override overlay.
+#
 # Default — reapply one migration:
 #   ./scripts/reset-db.sh 0004_domain_schema.sql
 #   Removes the file from the migration ledger so migrate.sh treats it as
@@ -20,6 +25,26 @@
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
+
+# Prod guard: reset-db is dev-only and the --full path wipes postgres_data.
+# The documented prod setup symlinks .env -> .env.prod (see DEPLOY_RUNBOOK /
+# docs/deployment.md), so refuse to run when .env resolves to a *.prod file.
+# CAIRN_ALLOW_PROD_RESET=1 overrides — you almost certainly should not.
+env_target=$(readlink -f .env 2>/dev/null || true)
+if [ -n "$env_target" ] && [[ "$env_target" == *.prod ]]; then
+  if [ "${CAIRN_ALLOW_PROD_RESET:-}" != "1" ]; then
+    echo "reset-db: refusing to run — .env points at a production env file" >&2
+    echo "          ($env_target). This script wipes data and is dev-only." >&2
+    echo "          Set CAIRN_ALLOW_PROD_RESET=1 to override." >&2
+    exit 1
+  fi
+  echo "reset-db: WARNING — running against a production env file (override set)." >&2
+fi
+
+# Pin to the dev overlay explicitly. Bare `docker compose` auto-loads
+# docker-compose.override.yml, but being explicit stops a stray prod overlay
+# (or a future COMPOSE_FILE) from ever being torn down / brought up by reset-db.
+DC=(docker compose -f docker-compose.yml -f docker-compose.override.yml)
 
 if [ -f .env ]; then
   set -a
@@ -45,8 +70,8 @@ fi
 
 if [ "$1" = "--full" ]; then
   echo "reset-db: tearing down stack and wiping postgres_data volume…"
-  docker compose down -v
-  docker compose up -d
+  "${DC[@]}" down -v
+  "${DC[@]}" up -d
 
   echo "reset-db: waiting for Postgres to be ready…"
   deadline=$((SECONDS + 60))
