@@ -368,10 +368,10 @@ per the project rules it gets a Playwright touch before the PR.
   → confirmation view → "Back to sign in" → `/auth/login`). Prettier + ESLint
   clean. WebKit needs verifying on a machine with the browser deps installed.
 
-### [ ] 4.2 Tick step 10 in the implementation order
+### [x] 4.2 Tick step 10 in the implementation order
 
 **Created:** 2026-06-11T12:57:18Z
-**Completed:**
+**Completed:** 2026-06-11T13:55:02Z
 
 **Why:** The master roadmap tracks which steps have shipped; tick step 10
 once the plan is merged.
@@ -391,3 +391,12 @@ once the plan is merged.
 1. Change step 10 to `[x]`.
 
 **Verify:** `git diff plans/0000_implementation_order.md`
+
+**Notes:** Ticked at the user's request while still on the
+`1000_account_deletion` branch (not yet merged to `main`). Two prerequisites
+are therefore only partially met and remain the user's call at merge time:
+(1) the branch isn't merged yet; (2) `./scripts/check.sh --e2e` was green on
+Chromium + Firefox but WebKit couldn't launch in this environment (missing
+browser system libs — see task 4.1 notes). Per the plan convention the tick is
+"the final commit (or at merge time)"; if the merge slips, the box is already
+flipped and matches the merged state.
