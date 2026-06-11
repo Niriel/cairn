@@ -303,7 +303,7 @@ in-flight branch for no gain.
     (L6), Cairn license (L7). Mostly static content; no DB work. See
     `design/cairn-legal-screens.jsx`.
 
-15. [ ] **Production rollout.** Add the missing `caddy/Caddyfile.prod`,
+15. [x] **Production rollout.** Add the missing `caddy/Caddyfile.prod`,
     `.env.prod` template, Restic backup script, the avatar sidecar
     container in `docker-compose.prod.yml`, the
     `/srv/cairn/avatars/` directory + permissions, and walk through
@@ -321,6 +321,23 @@ in-flight branch for no gain.
     correct default; this line exists as a checklist item so the
     step-15 owner can't miss it. See also the same forward-note
     in `docs/development.md` under "Seed data".
+
+    > **Done out of order.** Step 15 was executed and merged ahead of
+    > steps 10–14 — the deploy infrastructure was validated first, on
+    > purpose, before finishing the app. The box is ticked for the
+    > **infrastructure rollout** (Caddyfile.prod, `.env.prod`, Restic
+    > backups, avatar sidecar in `docker-compose.prod.yml`,
+    > `/srv/cairn/avatars/`, first Hetzner deploy, prod smoke check —
+    > all done; the box at `cairn.lynnscape.eu` is live). **Still
+    > outstanding**, because they depend on unstarted steps:
+    > - The **imprint** (step 14, L4). A temporary imprint page exists
+    >   but its fields are **not filled in** — it carries placeholders,
+    >   not the real company / contact details. This is a launch-blocker
+    >   under German law (see the sequencing rationale below) and must be
+    >   completed before the deploy is treated as publicly launched.
+    > - Everything else in steps **10–14** (account deletion, admin,
+    >   data export, PWA shell, legal & about) is **not done** — these
+    >   are genuinely unstarted, not partially landed.
 
 ## Sequencing rationale
 
