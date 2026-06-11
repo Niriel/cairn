@@ -586,10 +586,10 @@ and a commented `# MIGRATE_AUTH_USERS_TIMEOUT=120`. No `VITE_*` vars.
 
 ## Phase 6 — imprint stub
 
-### [ ] 6.1 Add a minimal imprint route, a discreet link, and tests
+### [x] 6.1 Add a minimal imprint route, a discreet link, and tests
 
 **Created:** 2026-06-10T11:38:29Z
-**Completed:**
+**Completed:** 2026-06-11T08:33:50Z
 
 **Why:** A live alpha on a publicly-resolvable domain warrants a
 minimal operator/contact page (German DDG §5 minimum) as cheap insurance if
@@ -631,6 +631,26 @@ the URL leaks. Not the full step-14 legal surface.
 
 **Verify:** `cd web && pnpm test` · `pnpm check` · `pnpm lint` ·
 `pnpm test:e2e` (imprint touch)
+
+**Notes:**
+- The bulk of this task was implemented in the pre-existing WIP commit
+  `ad527c0` (already on the branch): the route, footer link, Vitest +
+  Playwright coverage, and the guard fix. This `/work` pass reviewed it
+  against the task spec and ran the verifiers to green; the only file
+  change here was ticking the checkbox.
+- **Side work in the WIP commit — route-guard fix.** Signed-out visitors
+  were bounced off any non-auth path to `/auth/login`, so `/imprint` was
+  unreachable pre-auth. The fix adds a separate `PUBLIC_CONTENT_PATHS`
+  allowlist (`web/src/lib/shared/model/public-paths.ts`) honoured by the
+  root layout guard — deliberately kept out of the drift-guarded
+  `auth-paths.ts` (which is mirrored verbatim in the prod auth-proxy).
+  Covered by new layout test `(e2)`.
+- **e2e passes on chromium and firefox** (the two browsers we target);
+  webkit is the expected exception on this host. `pnpm test` (652),
+  `pnpm check` (0 errors), and `pnpm lint` are all green.
+- Content ships as clearly-marked bracketed placeholders (operator name,
+  postal address, contact e-mail) — the operator must replace them before
+  sharing the URL (deploy gate, picked up in Task 8.1).
 
 ## Phase 7 — CI wiring
 
