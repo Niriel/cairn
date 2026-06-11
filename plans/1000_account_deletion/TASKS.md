@@ -49,10 +49,10 @@ touched, so no test run needed.
 
 ## Phase 1 — DB: the delete_account() RPC
 
-### [ ] 1.1 Add `delete_account()` RPC migration + pgTAP (positive & negative)
+### [x] 1.1 Add `delete_account()` RPC migration + pgTAP (positive & negative)
 
 **Created:** 2026-06-11T12:57:18Z
-**Completed:**
+**Completed:** 2026-06-11T13:08:31Z
 
 **Why:** This is the only sanctioned account-deletion path. It must delete
 the caller's own account (sole-member lists hard-deleted; personal data
