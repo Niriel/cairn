@@ -320,10 +320,10 @@ for the avatar-delete call shape.
 
 ## Phase 4 — e2e and roadmap tick
 
-### [ ] 4.1 Playwright happy path for account deletion
+### [x] 4.1 Playwright happy path for account deletion
 
 **Created:** 2026-06-11T12:57:18Z
-**Completed:**
+**Completed:** 2026-06-11T13:52:50Z
 
 **Why:** Account deletion is a user-visible, destructive, auth-touching flow;
 per the project rules it gets a Playwright touch before the PR.
@@ -354,6 +354,19 @@ per the project rules it gets a Playwright touch before the PR.
 2. GREEN — Add any missing `data-test` hooks; re-run e2e; confirm green.
 
 **Verify:** `./scripts/check.sh --e2e`
+
+**Notes:**
+- No `data-test` hooks were missing — the Phase 3 screen already carried every
+  selector (`delete-account`, `delete-account-input`, `-confirm`, `-done`,
+  `-signout`), so `DeleteAccountScreen.svelte` was not touched. The spec is the
+  only new file.
+- **Environment limit on the verifier:** WebKit can't launch in this sandbox
+  (missing system libs — `libicu74`, `libjpeg-turbo8`, `gstreamer1.0-libav`),
+  so the full `./scripts/check.sh --e2e` can't run all three browsers here. The
+  new spec was run directly and **passes on Chromium + Firefox (8/8)** against
+  the live dev stack (login → Settings → Delete account → typed gate → confirm
+  → confirmation view → "Back to sign in" → `/auth/login`). Prettier + ESLint
+  clean. WebKit needs verifying on a machine with the browser deps installed.
 
 ### [ ] 4.2 Tick step 10 in the implementation order
 
