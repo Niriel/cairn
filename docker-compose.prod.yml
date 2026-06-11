@@ -33,7 +33,16 @@ services:
       GOTRUE_MAILER_URLPATHS_RECOVERY: /auth/verify
       GOTRUE_MAILER_URLPATHS_EMAIL_CHANGE: /auth/verify
       GOTRUE_DISABLE_SIGNUP: "${DISABLE_SIGNUP:-true}"
-      GOTRUE_MAILER_AUTOCONFIRM: "false"
+      # Passwordless, magic-link-only: the link delivered to the inbox IS the
+      # proof of e-mail ownership, so a separate confirmation step is redundant.
+      # With autoconfirm OFF, a brand-new e-mail's first /magiclink creates an
+      # unconfirmed user and GoTrue sends a signup-confirmation mail instead of
+      # the magic link — that mail uses GoTrue's built-in default template (the
+      # six-digit OTP) and a type=signup link the /auth/callback rejects
+      # (type !== 'magiclink'). Only the second request, when the user already
+      # exists, sends the real MagicLinkMail. Keep this "true" (matches dev) so
+      # first-time sign-in gets the custom magic-link mail on the first try.
+      GOTRUE_MAILER_AUTOCONFIRM: "true"
       GOTRUE_SMTP_HOST: ${SMTP_HOST}
       GOTRUE_SMTP_PORT: "${SMTP_PORT}"
       GOTRUE_SMTP_USER: ${SMTP_USER}
