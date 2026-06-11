@@ -19,6 +19,19 @@ services:
       API_EXTERNAL_URL: https://cairn.${DOMAIN}/auth
       GOTRUE_SITE_URL: https://cairn.${DOMAIN}
       GOTRUE_URI_ALLOW_LIST: https://cairn.${DOMAIN}/auth/callback
+      # E-mail action links resolve as externalURL.ResolveReference(URLPath).
+      # The default URLPath is the absolute path "/verify", which DISCARDS the
+      # "/auth" segment of API_EXTERNAL_URL (an absolute-path reference replaces
+      # the base path), yielding https://cairn.<domain>/verify — a path Caddy
+      # routes to the SPA, not the auth-proxy ("Not found: /verify"). Pin the
+      # paths to "/auth/verify" so they resolve to the /auth/verify* prefix the
+      # Caddyfile @gotrue allow-list forwards to the auth-proxy. Magic-link
+      # specifically uses URLPaths.Recovery (GoTrue MagicLinkMail); the others
+      # are set so the invite/confirm/email-change flows route the same way.
+      GOTRUE_MAILER_URLPATHS_INVITE: /auth/verify
+      GOTRUE_MAILER_URLPATHS_CONFIRMATION: /auth/verify
+      GOTRUE_MAILER_URLPATHS_RECOVERY: /auth/verify
+      GOTRUE_MAILER_URLPATHS_EMAIL_CHANGE: /auth/verify
       GOTRUE_DISABLE_SIGNUP: "${DISABLE_SIGNUP:-true}"
       GOTRUE_MAILER_AUTOCONFIRM: "false"
       GOTRUE_SMTP_HOST: ${SMTP_HOST}
