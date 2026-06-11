@@ -503,10 +503,10 @@ beforehand, and the copy-link in Task 2.2 builds the URL as a plain string
 - **Did not** do the manual incognito check (plan step 4) — that live-browser
   pass belongs to the Playwright touch in Task 3.2.
 
-### [ ] 3.2 Playwright touch for the public flow
+### [x] 3.2 Playwright touch for the public flow
 
 **Created:** 2026-06-11T20:06:58Z
-**Completed:**
+**Completed:** 2026-06-11T21:37:30Z
 
 **Why:** A user-visible flow gets an e2e touch per `docs/testing.md`.
 
@@ -535,3 +535,25 @@ beforehand, and the copy-link in Task 2.2 builds the URL as a plain string
 
 **Verify:** `cd web && pnpm test:e2e` (chromium + firefox where supported;
 unrunnable on the laptop — report, don't fake) · `./scripts/check.sh`
+
+**Notes:**
+- **Spec written, not run here (machine-conditional, as expected).** Created
+  `web/e2e/public-list.spec.ts` — a serial flow: member publishes a list →
+  copies the link (asserts the visible "Copied" feedback) → a fresh signed-out
+  `browser.newContext()` opens `/p/<id>` and sees the read-only list with no FAB
+  and no vote controls (and the home link points at `/`) → a still-private
+  list's id at `/p/` shows the "not available" state. `playwright test --list`
+  enumerates all 4 tests across chromium/firefox/webkit (so it compiles), and
+  `pnpm lint` is clean.
+- **Attempted the run; confirmed unrunnable on this box.** `pnpm exec playwright
+  test --project=chromium` fails immediately with "browsers not installed"
+  (`pnpm exec playwright install` never run on the laptop) — the launch dies in
+  `beforeAll`, so no assertion executed. Per project memory this is the laptop; the spec is left for the work box / CI (chromium + firefox; skip
+  webkit). **No pass is claimed.**
+- **`./scripts/check.sh` couldn't complete its `pnpm install --frozen-lockfile`
+  step** in this non-TTY sandbox (`ERR_PNPM_ABORTED_REMOVE_MODULES_DIR_NO_TTY`).
+  Not forced (a purge-then-failed-reinstall would break the workspace). Ran the
+  gauntlet's components directly instead: `pnpm lint` (eslint + prettier) clean,
+  `pnpm check` 0 errors, `pnpm test` 677 pass, `./scripts/test-db.sh` PASS,
+  `sqlfluff` clean. This task adds only the e2e spec (no shell files), so
+  shellcheck/shfmt are unaffected.
