@@ -25,6 +25,14 @@ export function adjustItemCount(listId: string, delta: number): void {
 	if (entry) entry.item_count += delta;
 }
 
+export async function setPublic(listId: string, value: boolean): Promise<void> {
+	await pgPatch<void>(`/lists?id=eq.${listId}`, { is_public: value });
+	// Mutate in place (not array-replace) so the collection-row marker and any
+	// open overflow sheet holding this same lists.items element stay reactive.
+	const entry = lists.items.find((l) => l.id === listId);
+	if (entry) entry.is_public = value;
+}
+
 export async function deleteList(listId: string): Promise<void> {
 	if (lists.pendingDelete) clearTimeout(lists.pendingDelete.timerId);
 	const idx = lists.items.findIndex((l) => l.id === listId);

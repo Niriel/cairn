@@ -6,7 +6,7 @@
 	import Icon from '$lib/basic/components/Icon.svelte';
 	import Sheet from '$lib/basic/components/Sheet.svelte';
 	import ButtonPair from '$lib/shared/components/ButtonPair.svelte';
-	import { deleteList, refreshLists } from '$lib/list/state/lists.svelte';
+	import { deleteList, refreshLists, setPublic } from '$lib/list/state/lists.svelte';
 	import { pgPatch } from '$lib/shared/http/postgrest';
 	import { profile } from '$lib/shared/state/profile.svelte';
 	import RenameListSheet from './RenameListSheet.svelte';
@@ -18,9 +18,15 @@
 		description: string | null;
 		itemCount: number;
 		memberCount: number;
+		isPublic: boolean;
 		onDelete: () => void;
 		onviewtrash: () => void;
 		onclose: () => void;
+		// Detail-screen freshness: ItemsScreen renders from its own listMeta state,
+		// which setPublic's lists.items write doesn't touch — it threads this in to
+		// refresh the TopBar marker and sheet label. The collection omits it (it
+		// passes the same lists.items element, mutated in place by setPublic).
+		onpublicchange?: (value: boolean) => void;
 	};
 
 	let {
@@ -29,14 +35,31 @@
 		description,
 		itemCount,
 		memberCount,
+		isPublic,
 		onDelete,
 		onviewtrash,
-		onclose
+		onclose,
+		onpublicchange
 	}: Props = $props();
 
 	let showRename = $state(false);
 	let showEditDescription = $state(false);
 	let confirmingLeave = $state(false);
+	let copied = $state(false);
+	let copyTimer: ReturnType<typeof setTimeout> | undefined;
+
+	async function handleTogglePublic() {
+		const next = !isPublic;
+		await setPublic(listId, next);
+		onpublicchange?.(next);
+	}
+
+	async function handleCopyLink() {
+		await navigator.clipboard.writeText(`${window.location.origin}/p/${listId}`);
+		copied = true;
+		clearTimeout(copyTimer);
+		copyTimer = setTimeout(() => (copied = false), 2000);
+	}
 
 	async function handleDelete() {
 		await deleteList(listId);
@@ -131,6 +154,32 @@
 				<span class="body">View bin</span>
 			</Button>
 		</li>
+		<li>
+			<Button
+				variant="text"
+				tone="ink"
+				size="md"
+				data-test="list-overflow-toggle-public"
+				onclick={() => void handleTogglePublic()}
+			>
+				<Icon name="globe" size={18} />
+				<span class="body">{isPublic ? 'Make private' : 'Make public'}</span>
+			</Button>
+		</li>
+		{#if isPublic}
+			<li>
+				<Button
+					variant="text"
+					tone="ink"
+					size="md"
+					data-test="list-overflow-copy-link"
+					onclick={() => void handleCopyLink()}
+				>
+					<Icon name={copied ? 'check' : 'link'} size={18} />
+					<span class="body">{copied ? 'Copied' : 'Copy public link'}</span>
+				</Button>
+			</li>
+		{/if}
 		{#if confirmingLeave}
 			<li class="confirm">
 				<p class="confirm-copy body">

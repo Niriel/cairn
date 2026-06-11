@@ -288,6 +288,10 @@
 		description={listMeta.description}
 		itemCount={items.rows.length}
 		memberCount={listMeta.list_members.length}
+		isPublic={listMeta.is_public}
+		onpublicchange={(value: boolean) => {
+			listMeta.is_public = value;
+		}}
 		onDelete={() => history.back()}
 		onclose={() => (overflowOpen = false)}
 		onviewtrash={async () => {

@@ -15,6 +15,7 @@ vi.mock('$app/navigation', () => ({ goto: vi.fn(() => Promise.resolve()) }));
 vi.mock('$app/paths', () => ({ resolve: vi.fn((path: string) => path) }));
 
 import * as pgMod from '$lib/shared/http/postgrest';
+import { setPublic } from '$lib/list/state/lists.svelte';
 import { profile } from '$lib/shared/state/profile.svelte';
 import { goto } from '$app/navigation';
 
@@ -22,9 +23,13 @@ import ListOverflowSheet from './ListOverflowSheet.svelte';
 
 const ME_UID = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
 
+const writeText = vi.fn(() => Promise.resolve());
+
 beforeEach(() => {
 	profile.uid = ME_UID;
 	vi.mocked(pgMod.pgPatch).mockResolvedValue(undefined);
+	vi.mocked(setPublic).mockResolvedValue(undefined);
+	Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
 });
 
 afterEach(() => {
@@ -37,6 +42,7 @@ const PROPS = {
 	description: 'A great list',
 	itemCount: 6,
 	memberCount: 2,
+	isPublic: false,
 	onDelete: vi.fn(),
 	onviewtrash: vi.fn(),
 	onclose: vi.fn()
@@ -50,7 +56,7 @@ describe('ListOverflowSheet', () => {
 		expect(container.textContent).toContain('2');
 	});
 
-	test('(b) shows six rows in order: rename, edit-description, manage-members, view-trash, leave, delete', () => {
+	test('(b) shows rows in order with the publish toggle above leave/delete', () => {
 		const { container } = render(ListOverflowSheet, PROPS);
 		const rows = Array.from(
 			container.querySelectorAll<HTMLElement>('[data-test^="list-overflow-"]')
@@ -62,6 +68,7 @@ describe('ListOverflowSheet', () => {
 			'list-overflow-edit-description',
 			'list-overflow-manage-members',
 			'list-overflow-view-trash',
+			'list-overflow-toggle-public',
 			'list-overflow-leave',
 			'list-overflow-delete'
 		]);
@@ -134,6 +141,54 @@ describe('ListOverflowSheet', () => {
 				{ deleted_at: expect.stringMatching(/^\d{4}-\d{2}-\d{2}T/) }
 			);
 			expect(goto).toHaveBeenCalledWith('/lists');
+		});
+	});
+
+	describe('publish toggle and copy link', () => {
+		test('(k) when private: shows "Make public", no copy-link row, and tapping calls setPublic(id, true)', async () => {
+			const { getByDataTest, queryByDataTest, container } = render(ListOverflowSheet, {
+				...PROPS,
+				isPublic: false
+			});
+			expect(container.textContent).toContain('Make public');
+			expect(queryByDataTest('list-overflow-copy-link')).toBeNull();
+			await fireEvent.click(getByDataTest('list-overflow-toggle-public'));
+			await vi.waitFor(() => {
+				expect(vi.mocked(setPublic)).toHaveBeenCalledWith('list-1', true);
+			});
+		});
+
+		test('(l) when public: shows "Make private" and tapping the toggle calls setPublic(id, false)', async () => {
+			const { getByDataTest, container } = render(ListOverflowSheet, { ...PROPS, isPublic: true });
+			expect(container.textContent).toContain('Make private');
+			await fireEvent.click(getByDataTest('list-overflow-toggle-public'));
+			await vi.waitFor(() => {
+				expect(vi.mocked(setPublic)).toHaveBeenCalledWith('list-1', false);
+			});
+		});
+
+		test('(m) when public: copy-link writes <origin>/p/<id> and surfaces "Copied" feedback', async () => {
+			const { getByDataTest, container } = render(ListOverflowSheet, { ...PROPS, isPublic: true });
+			const copyRow = getByDataTest('list-overflow-copy-link');
+			expect(container.textContent).toContain('Copy public link');
+			await fireEvent.click(copyRow);
+			await vi.waitFor(() => {
+				expect(writeText).toHaveBeenCalledWith(`${window.location.origin}/p/list-1`);
+				expect(container.textContent).toContain('Copied');
+			});
+		});
+
+		test('(n) public-change is reported to the parent after a successful toggle', async () => {
+			const onpublicchange = vi.fn();
+			const { getByDataTest } = render(ListOverflowSheet, {
+				...PROPS,
+				isPublic: false,
+				onpublicchange
+			});
+			await fireEvent.click(getByDataTest('list-overflow-toggle-public'));
+			await vi.waitFor(() => {
+				expect(onpublicchange).toHaveBeenCalledWith(true);
+			});
 		});
 	});
 });

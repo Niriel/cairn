@@ -270,10 +270,10 @@ must be selected wherever a member view renders a list.
 
 **Verify:** `cd web && pnpm check` · `pnpm test`
 
-### [ ] 2.2 Add publish/unpublish and copy-link to the overflow sheet
+### [x] 2.2 Add publish/unpublish and copy-link to the overflow sheet
 
 **Created:** 2026-06-11T20:06:58Z
-**Completed:**
+**Completed:** 2026-06-11T20:59:12Z
 
 **Why:** Members need to publish/unpublish a list and copy its public link
 (R2, R8).
@@ -331,6 +331,25 @@ already authorises the write).
 3. GREEN — `pnpm test` green.
 
 **Verify:** `cd web && pnpm test` · `pnpm check` · `pnpm lint`
+
+**Notes:**
+- **Icon side work (overlaps Task 2.3's Files):** the overflow rows follow the
+  existing icon+label pattern, so they need icons that don't exist yet. Added
+  **`globe`** (the exact path Task 2.3 specifies) and **`link`** to
+  `web/src/lib/basic/model/icon-paths.ts`. The publish toggle uses `globe` — so
+  the sheet and the marker Task 2.3 adds share one icon for "public" — and the
+  copy-link row uses `link`, swapping to `check` during the "Copied" state. This
+  means **Task 2.3's step 1 ("first add a globe icon") is already done**; 2.3
+  should just render the marker. `icon-paths.ts` wasn't in this task's declared
+  Files but the row pattern made it unavoidable.
+- **Parent-freshness wiring:** added an optional `onpublicchange?: (value:
+  boolean) => void` prop. `ItemsScreen` passes it to update its own `listMeta`
+  (since `setPublic`'s `lists.items` write doesn't touch `listMeta`);
+  `ListsScreen` omits it (it passes the same `lists.items` element, mutated in
+  place). Used `setPublic`'s `onpublicchange` callback rather than re-running
+  `reloadMeta()` — a local in-place update is cheaper and avoids a round-trip.
+- The manual state mock (`state/__mocks__/lists.svelte.ts`) gained a `setPublic`
+  export so the sheet test's mocked import resolves.
 
 ### [ ] 2.3 Render the public marker in member views
 

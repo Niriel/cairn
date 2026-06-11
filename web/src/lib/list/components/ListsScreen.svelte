@@ -177,6 +177,7 @@
 		description={overflowList.description}
 		itemCount={overflowList.item_count}
 		memberCount={overflowList.list_members.length}
+		isPublic={overflowList.is_public}
 		onDelete={() => {}}
 		onclose={() => (overflowList = null)}
 		onviewtrash={async () => {
