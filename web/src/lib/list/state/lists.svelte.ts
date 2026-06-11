@@ -25,6 +25,14 @@ export function adjustItemCount(listId: string, delta: number): void {
 	if (entry) entry.item_count += delta;
 }
 
+export async function setPublic(listId: string, value: boolean): Promise<void> {
+	await pgPatch<void>(`/lists?id=eq.${listId}`, { is_public: value });
+	// Mutate in place (not array-replace) so the collection-row marker and any
+	// open overflow sheet holding this same lists.items element stay reactive.
+	const entry = lists.items.find((l) => l.id === listId);
+	if (entry) entry.is_public = value;
+}
+
 export async function deleteList(listId: string): Promise<void> {
 	if (lists.pendingDelete) clearTimeout(lists.pendingDelete.timerId);
 	const idx = lists.items.findIndex((l) => l.id === listId);
@@ -81,7 +89,7 @@ $effect.root(() => {
 				//     collection. The lists_is_member computed column (migration 0013) gates the
 				//     collection to lists you're actually a member of, leaving the banner embed
 				//     untouched.
-				'/lists?select=id,name,description,modified_at,item_count:lists_item_count,list_members(user_id,profiles(display_name,avatar_version))&list_members.deleted_at=is.null&deleted_at=is.null&lists_is_member=is.true&order=modified_at.desc'
+				'/lists?select=id,name,description,modified_at,item_count:lists_item_count,is_public,list_members(user_id,profiles(display_name,avatar_version))&list_members.deleted_at=is.null&deleted_at=is.null&lists_is_member=is.true&order=modified_at.desc'
 			)
 				.then((result) => {
 					lists.items = result;

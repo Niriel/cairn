@@ -6,6 +6,7 @@ export type List = {
 	description: string | null;
 	modified_at: string;
 	item_count: number;
+	is_public: boolean;
 	list_members: { user_id: string; profiles: { display_name: string; avatar_version: number } }[];
 };
 

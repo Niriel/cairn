@@ -352,6 +352,29 @@ A deleted list is reachable from a separate **Bin** entry in Settings (one bin p
 
 The bin is not a feature we promise users — it's a safety net. The copy in delete confirmations should reflect that without making promises about retention windows: _"Bob and Carol will no longer see this item. You can restore it from this list's bin."_ No "for 30 days," no countdown — just the affordance.
 
+## Public lists
+
+A list can be made **public** — readable by anyone holding its link, while signed out. Public here means *unlisted*: the list id is the capability, there is no directory or browse surface, and the link reveals only a curated read-only snapshot (name, description, ranked items with scores — no members, no votes, no attribution; see `data-model.md` → "Public read access"). Any member may publish or unpublish.
+
+### Public marker (members only)
+
+In **member** views, a public list is marked with a small **globe** icon, muted (`var(--stone)` — there is no `--muted` token; `--stone` is the muted-grey used by the row overflow button and meta text). The placement differs by screen:
+
+- **Lists-screen row:** the globe sits immediately after the list name, purely indicative, with a visually-hidden accessible label _"Public list"_ (per the existing icon-labelling pattern).
+- **Items-screen TopBar:** the marker lives in the sub line alongside the counts, reading `4 items · 1 member · 🌐 Public` — a separator dot, the globe, and a visible _"Public"_ label (the visible word is its own accessible text, so no extra hidden label is needed).
+
+It is not rendered on the public `/p/` page itself — a signed-out reader is already on the public surface and doesn't need telling. Private lists render no marker.
+
+### Publish / unpublish and copy link
+
+Publishing lives in the per-list `⋮` overflow sheet (reachable from the Lists-screen row and the Items-screen TopBar). The sheet gains a **Make public** / **Make private** row whose label reflects current state, and — when the list is public — a **Copy public link** row. Both sit with the management actions, **above** the destructive Leave/Delete entries (the button-order rule: backward/destructive stays last).
+
+**Copy-link convention (established here — Cairn's first clipboard affordance).** Tapping **Copy public link** copies the list's public URL (`<origin>/p/<list_id>`) to the clipboard and gives **visible confirmation**: the row briefly swaps to a _"Copied"_ state (or a short snackbar). A silent copy is a least-surprise violation — the feedback is required, not optional, and any future copy affordance should follow this same label-plus-visible-confirmation shape. Nothing other than the bare link is copied (no preview text, no attribution).
+
+### Public read-only screen (`/p/<list_id>`)
+
+The link opens a standalone read-only page, outside the signed-in shell. It shows the list name, description, and items in ranked order with their score badges — and **nothing interactive**: no vote controls, no add-item FAB, no overflow menu, no member avatars or attribution, and no public marker. The TopBar shows a non-interactive Cairn wordmark/glyph (so the page is recognisably Cairn) and **no back button** — a signed-out stranger has no back target. Colour and type come from tokens and global rules (list name → the global title style, section rules → `var(--rule)`), never literals. When the link points at a list that is private, soft-deleted, or unknown, the page shows a single generic _"list not available"_ state (the `EmptyState` pattern) — it never distinguishes private from missing.
+
 ## Other surfaces
 
 A few smaller patterns, pinned down so they stay consistent:

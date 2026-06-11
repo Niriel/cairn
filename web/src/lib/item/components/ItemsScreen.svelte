@@ -30,12 +30,22 @@
 	import DeleteItemSheet from './DeleteItemSheet.svelte';
 	import ListOverflowSheet from '$lib/list/components/ListOverflowSheet.svelte';
 
-	type ListMeta = { name: string; description: string | null; list_members: { user_id: string }[] };
+	type ListMeta = {
+		name: string;
+		description: string | null;
+		is_public: boolean;
+		list_members: { user_id: string }[];
+	};
 
 	type Props = { listId: string };
 	let { listId }: Props = $props();
 
-	let listMeta = $state<ListMeta>({ name: '', description: null, list_members: [] });
+	let listMeta = $state<ListMeta>({
+		name: '',
+		description: null,
+		is_public: false,
+		list_members: []
+	});
 	let overflowOpen = $state(false);
 	let openId = $state<string | null>(null);
 	let addSheetOpen = $state(false);
@@ -44,7 +54,7 @@
 
 	async function reloadMeta() {
 		await pgGet<ListMeta[]>(
-			`/lists?id=eq.${listId}&select=name,description,list_members(user_id)&list_members.deleted_at=is.null`
+			`/lists?id=eq.${listId}&select=name,description,is_public,list_members(user_id)&list_members.deleted_at=is.null`
 		)
 			.then((rows) => {
 				if (rows.length > 0) listMeta = rows[0];
@@ -99,6 +109,15 @@
 			: 'members'}"
 	>
 		{listMeta.name}
+		{#snippet subAfter()}
+			{#if listMeta.is_public}
+				<span class="public-marker" data-test="list-public-marker">
+					<span aria-hidden="true">·</span>
+					<Icon name="globe" size={13} />
+					Public
+				</span>
+			{/if}
+		{/snippet}
 		{#snippet right()}
 			<IconButton
 				aria-label="Refresh"
@@ -278,6 +297,10 @@
 		description={listMeta.description}
 		itemCount={items.rows.length}
 		memberCount={listMeta.list_members.length}
+		isPublic={listMeta.is_public}
+		onpublicchange={(value: boolean) => {
+			listMeta.is_public = value;
+		}}
 		onDelete={() => history.back()}
 		onclose={() => (overflowOpen = false)}
 		onviewtrash={async () => {
@@ -304,6 +327,20 @@
 	.content {
 		flex: 1;
 		padding: 1rem;
+	}
+
+	/* Public-list marker in the TopBar sub line: "· 🌐 Public". inline-flex keeps
+	   the separator, globe, and label on one baseline; the gap puts even space
+	   between the dot and the icon (and the icon and the label). Inherits the
+	   muted .caption colour from the sub line. */
+	.public-marker {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.3rem;
+		/* Match the internal gap so "member · 🌐 Public" is evenly spaced — the
+		   gap only spaces items inside the marker, not the marker from the
+		   preceding sub text. */
+		margin-left: 0.3rem;
 	}
 
 	.loading {

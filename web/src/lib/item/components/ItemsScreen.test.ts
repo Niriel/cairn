@@ -120,6 +120,29 @@ describe('ItemsScreen', () => {
 		});
 	});
 
+	test('(g2) public list renders the public marker in the TopBar sub line', async () => {
+		server.use(
+			http.get('*/api/lists', () => HttpResponse.json([{ ...STUB_LIST, is_public: true }]))
+		);
+		const { queryByDataTest } = render(ItemsScreen, { listId: 'test-list-id' });
+		await vi.waitFor(() => {
+			const marker = queryByDataTest('list-public-marker');
+			expect(marker).not.toBeNull();
+			expect(marker?.textContent).toContain('Public');
+		});
+	});
+
+	test('(g3) private list renders no public marker', async () => {
+		server.use(
+			http.get('*/api/lists', () => HttpResponse.json([{ ...STUB_LIST, is_public: false }]))
+		);
+		const { queryByDataTest, container } = render(ItemsScreen, { listId: 'test-list-id' });
+		await vi.waitFor(() => {
+			expect(container.textContent).toContain('Test list');
+		});
+		expect(queryByDataTest('list-public-marker')).toBeNull();
+	});
+
 	test('(h) dispatching popstate while panel is open closes it', async () => {
 		vi.spyOn(history, 'back').mockImplementation(() => {});
 		items.rows = [ITEM_1];

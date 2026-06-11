@@ -94,6 +94,16 @@ describe('+layout.svelte (auth guard)', () => {
 		expect(vi.mocked(goto)).not.toHaveBeenCalled();
 	});
 
+	test('(e3) signed-out on /p/<id> (public list view): children render, no redirect', async () => {
+		session.current = { status: 'signed-out' };
+		setUrl('/p/aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa');
+		const { queryByDataTest } = render(Layout, { children: childStub });
+		await tick();
+		expect(queryByDataTest('layout-children')).not.toBeNull();
+		expect(queryByDataTest('boot-screen')).toBeNull();
+		expect(vi.mocked(goto)).not.toHaveBeenCalled();
+	});
+
 	test('(f) signed-out on /auth/loginx (sibling-prefix): redirects (segment-anchored predicate)', async () => {
 		session.current = { status: 'signed-out' };
 		setUrl('/auth/loginx');

@@ -96,7 +96,12 @@
 							style="flex: 1; min-width: 0; padding: 0;"
 							onclick={() => {
 								void goto(resolve(`/lists/${item.id}`));
-							}}><span class="name row-title">{item.name}</span></Button
+							}}
+							><span class="name row-title">{item.name}</span>{#if item.is_public}<span
+									class="public-marker"
+									data-test="list-public-marker-{item.id}"
+									><Icon name="globe" size={14} /><span class="sr-only">Public list</span></span
+								>{/if}</Button
 						>
 						<MoreButton
 							size={18}
@@ -177,6 +182,7 @@
 		description={overflowList.description}
 		itemCount={overflowList.item_count}
 		memberCount={overflowList.list_members.length}
+		isPublic={overflowList.is_public}
 		onDelete={() => {}}
 		onclose={() => (overflowList = null)}
 		onviewtrash={async () => {
@@ -234,6 +240,26 @@
 		   instead of overflowing the row (and breaks very long unbroken tokens). */
 		white-space: normal;
 		overflow-wrap: anywhere;
+	}
+
+	/* Public-list marker: a muted globe immediately after the name. flex-shrink:0
+	   keeps it from being squeezed by a long wrapping name; centred against the
+	   name block. */
+	.public-marker {
+		display: inline-flex;
+		align-items: center;
+		align-self: center;
+		flex-shrink: 0;
+		margin-left: 0.375rem;
+		color: var(--stone);
+	}
+
+	.sr-only {
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		overflow: hidden;
+		clip: rect(0, 0, 0, 0);
 	}
 
 	.desc {

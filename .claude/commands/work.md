@@ -69,6 +69,16 @@ the rule from `CLAUDE.md`'s "Tests and quality (non-negotiable)"
 section, and `/concerns` will flag retroactive test-writing on a
 later audit.
 
+**Don't refer to requirements by number** in code, comments, test
+descriptions, or commit messages. There are twenty-plus plans and
+each has its own `R1`, `R2`, …, so a bare "R2" is ambiguous to
+anyone who isn't holding this plan's `REQUIREMENTS.md` open — it
+points at nothing. The task block may cite `R2` as shorthand to
+you; do not copy that shorthand into anything you write. Say the
+thing itself instead — "the member-toggle write path" or "members
+may publish a list", not "R2". The requirement number is a pointer
+for the plan author, not durable documentation.
+
 ## 4. Verify
 
 After all steps, run the task's **Verify** line. The task author

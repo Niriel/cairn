@@ -33,6 +33,7 @@ const LIST_A = {
 	description: null,
 	modified_at: '2026-01-01T00:00:00Z',
 	item_count: 0,
+	is_public: false,
 	list_members: []
 };
 
@@ -42,6 +43,7 @@ const LIST_B = {
 	description: 'A description',
 	modified_at: '2026-01-02T00:00:00Z',
 	item_count: 0,
+	is_public: false,
 	list_members: []
 };
 
@@ -51,6 +53,7 @@ const LIST_C = {
 	description: 'Another description',
 	modified_at: '2026-01-03T00:00:00Z',
 	item_count: 0,
+	is_public: false,
 	list_members: []
 };
 
@@ -135,6 +138,19 @@ describe('ListsScreen', () => {
 		const { getByDataTest } = render(ListsScreen);
 		const row = getByDataTest(`list-row-${LIST_B.id}`);
 		expect(row.textContent).toContain('3 items');
+	});
+
+	test('(j) public list renders the public marker with an accessible label', () => {
+		lists.items = [{ ...LIST_A, is_public: true }];
+		const { getByDataTest } = render(ListsScreen);
+		const marker = getByDataTest(`list-public-marker-${LIST_A.id}`);
+		expect(marker.textContent).toContain('Public list');
+	});
+
+	test('(k) private list renders no public marker', () => {
+		lists.items = [LIST_A]; // is_public: false
+		const { queryByDataTest } = render(ListsScreen);
+		expect(queryByDataTest(`list-public-marker-${LIST_A.id}`)).toBeNull();
 	});
 
 	test('(new-b) clicking overflow button renders ListOverflowSheet', async () => {
