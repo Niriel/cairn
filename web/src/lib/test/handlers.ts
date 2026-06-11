@@ -74,6 +74,7 @@ export const handlers: RequestHandler[] = [
 	http.delete('*/api/votes', () => new HttpResponse(null, { status: 204 })),
 	http.post('*/api/rpc/set_display_name', () => new HttpResponse(null, { status: 204 })),
 	http.post('*/api/rpc/clear_avatar', () => new HttpResponse(null, { status: 204 })),
+	http.post('*/api/rpc/delete_account', () => new HttpResponse(null, { status: 204 })),
 	http.post('*/avatars', () => HttpResponse.json({ version: 1, url: '/avatars/test.webp?v=1' })),
 	http.delete('*/avatars/me', () => HttpResponse.json({ ok: true }))
 ];

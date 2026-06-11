@@ -230,10 +230,10 @@ band. No new CSS needed.
 
 ## Phase 3 — Delete-account screen + teardown
 
-### [ ] 3.1 Build the full delete-account screen, teardown, and confirmation
+### [x] 3.1 Build the full delete-account screen, teardown, and confirmation
 
 **Created:** 2026-06-11T12:57:18Z
-**Completed:**
+**Completed:** 2026-06-11T13:46:57Z
 
 **Why:** This is the screen the user reads before deleting and the code that
 performs the documented teardown. It must explain consequences in plain
@@ -306,6 +306,17 @@ for the avatar-delete call shape.
    `*/rpc/delete_account` MSW handler. Run `pnpm test`; confirm green.
 
 **Verify:** `pnpm test` · `pnpm check` · `pnpm lint`
+
+**Notes:**
+- **Side work:** `AUTH_BASE` in `session.svelte.ts` was module-private; exported
+  it (the task's Prerequisites named it as a helper to reuse). No behaviour change.
+- **User corrections (copy):** the three consequence blocks address the user
+  directly, so they're second person ("Your e-mail… every vote you've cast",
+  "Items you added…", "Lists where you were the only remaining member") — *not*
+  they/them. The they/them convention is for third parties, not second-person
+  address. Block-3 heading is "What's deleted with **your account**" — you delete
+  the account, not the user.
+- Confirmation copy is account-framed too: "Your account has been deleted."
 
 ## Phase 4 — e2e and roadmap tick
 
