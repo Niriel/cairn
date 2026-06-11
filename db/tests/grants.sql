@@ -4,19 +4,23 @@
 -- so every omission needs a load-bearing negative assertion in
 -- addition to the positive grants.
 --
--- 60 assertions, four groups:
+-- 89 assertions, four groups:
 --
--- A. Positive matrix for `authenticated` (15) — every (table,
---    verb) explicitly granted.
--- B. View SELECT positives (3) and function EXECUTE positives
---    (3+7) for `authenticated`.
+-- A. Positive table/verb matrix for `authenticated` (19) — every
+--    granted (table, verb).
+-- B. Other `authenticated` positives (18) — view SELECTs, function
+--    EXECUTEs (including the new public_list_view RPC), and the
+--    invitations table + invite RPCs.
 -- C. Load-bearing INSERT negatives (4) — `lists`, `list_members`,
 --    `profiles`, `user_settings` all close direct-INSERT footguns
 --    at the GRANT layer (orphan-list, consent-bypass, trigger-only).
--- D. Anon-coverage negatives (31) — every (table, verb) and every
---    function lock in the doc's "anonymous users have no access"
---    rule. Closes the smoke-script gap left when `/profiles` got
---    dropped from `scripts/smoke.sh` in A.3.
+-- D. Anon coverage (48) — the *one* thing `anon` may touch is
+--    EXECUTE on public_list_view (the sole public read path); every
+--    other (table/view, verb) and every other function is locked,
+--    per the doc's "anonymous users touch nothing else" rule.
+--    Includes the items_ranked / items_deleted / lists_deleted view
+--    no-SELECT negatives, and closes the smoke-script gap left when
+--    `/profiles` got dropped from `scripts/smoke.sh` in A.3.
 --
 -- Each assertion uses Postgres's built-in `has_table_privilege` /
 -- `has_function_privilege` (boolean-returning, 3-arg) wrapped in
@@ -25,7 +29,7 @@
 
 BEGIN;
 
-SELECT plan(84);
+SELECT plan(89);
 
 -- ===================================================================
 -- A. Positive matrix for `authenticated`
@@ -221,6 +225,15 @@ SELECT ok(
   'authenticated has EXECUTE on public.decline_invitation(uuid)'
 );
 
+-- public_list_view is granted to authenticated too (a signed-in user
+-- can read the same public snapshot; added by 0015).
+SELECT ok(
+  has_function_privilege(
+    'authenticated', 'public.public_list_view(uuid)', 'EXECUTE'
+  ),
+  'authenticated has EXECUTE on public.public_list_view(uuid)'
+);
+
 -- ===================================================================
 -- C. Load-bearing INSERT negatives for `authenticated`
 -- ===================================================================
@@ -249,8 +262,18 @@ SELECT ok(
 );
 
 -- ===================================================================
--- D. Anon-coverage negatives
+-- D. Anon coverage: one positive (the sole public RPC) + negatives
 -- ===================================================================
+
+-- The *only* thing anon may touch: EXECUTE on public_list_view
+-- (added by 0015). Everything below this is a negative.
+SELECT ok(
+  has_function_privilege(
+    'anon', 'public.public_list_view(uuid)', 'EXECUTE'
+  ),
+  'anon HAS EXECUTE on public.public_list_view(uuid) '
+  '(the sole anonymous read path)'
+);
 
 -- profiles ×4
 SELECT ok(
@@ -358,6 +381,23 @@ SELECT ok(
 SELECT ok(
   NOT has_table_privilege('anon', 'public.votes', 'DELETE'),
   'anon has no DELETE on votes'
+);
+
+-- views ×3 — anon reads nothing through the views either. items_ranked
+-- is security_invoker (would yield zero rows for anon anyway), and the
+-- two _deleted views run as owner, so a stray SELECT grant would be an
+-- outright leak. The public read path is the RPC alone, never a view.
+SELECT ok(
+  NOT has_table_privilege('anon', 'public.items_ranked', 'SELECT'),
+  'anon has no SELECT on view items_ranked'
+);
+SELECT ok(
+  NOT has_table_privilege('anon', 'public.items_deleted', 'SELECT'),
+  'anon has no SELECT on view items_deleted'
+);
+SELECT ok(
+  NOT has_table_privilege('anon', 'public.lists_deleted', 'SELECT'),
+  'anon has no SELECT on view lists_deleted'
 );
 
 -- relationships ×4

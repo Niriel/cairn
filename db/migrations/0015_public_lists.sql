@@ -25,8 +25,9 @@ ADD COLUMN is_public boolean NOT NULL DEFAULT FALSE;
 -- the aggregate yields real scores even though `anon` can read nothing
 -- itself. The payload is curated by construction: no members, no
 -- votes/tallies, no attribution. A list that is private, soft-deleted,
--- or unknown matches no row, so the SQL function returns NULL — that
--- NULL is the R5 boundary (all three cases are indistinguishable).
+-- or unknown matches no row, so the SQL function returns NULL — and a
+-- private list is indistinguishable from a missing one (all three
+-- cases collapse to the same NULL).
 CREATE FUNCTION public.public_list_view(p_id uuid)
 RETURNS jsonb
 LANGUAGE sql

@@ -1,6 +1,6 @@
 -- public_lists.sql — locks in the anonymous read path for public
 -- lists: the `public.public_list_view(uuid)` SECURITY DEFINER RPC,
--- which is the *only* thing `anon` may touch (R3–R5).
+-- which is the *only* thing `anon` may touch.
 --
 -- The RPC returns a curated jsonb snapshot — id/name/description plus
 -- a score-ranked `items` array (id/name/notes/score) — and SQL NULL
@@ -13,7 +13,11 @@
 -- EXECUTE grant and the SECURITY DEFINER score read are both exercised
 -- the way a signed-out request actually hits them.
 --
--- 14 assertions:
+-- The member-toggle write path reuses the existing lists_update
+-- policy (`is_list_member(id)`) — no new policy or grant — so a member
+-- may flip is_public and a non-member's UPDATE matches zero rows.
+--
+-- 16 assertions:
 --   1.  public list returns a non-null object.
 --   2.  name is exposed.
 --   3.  description is exposed.
@@ -29,10 +33,12 @@
 --   12. a PRIVATE list returns NULL.
 --   13. an UNKNOWN uuid returns NULL.
 --   14. a SOFT-DELETED public list returns NULL.
+--   15. a member may publish a list (UPDATE SET is_public lands).
+--   16. a non-member's publish UPDATE matches zero rows.
 
 BEGIN;
 
-SELECT plan(14);
+SELECT plan(16);
 
 \i /db/tests/fixtures/lists_public_private.sql
 
@@ -163,6 +169,55 @@ SELECT is(
   public.public_list_view('0a000000-0000-0000-0000-000000000001'),
   NULL,
   'public_list_view: a soft-deleted public list returns NULL'
+);
+
+-- ===================================================================
+-- Member-toggle write path. The private list 0a…0002 starts
+-- is_public = false; Alice is a member, Carol is not. No new policy
+-- backs this — lists_update (`is_list_member(id)`) is the gate.
+-- ===================================================================
+
+-- 15. Member (Alice) publishes the private list. Read the stored
+-- value back under the session superuser (RESET ROLE bypasses RLS) so
+-- the assertion sees the real row, not an RLS-filtered view.
+SELECT set_config(
+  'request.jwt.claims',
+  '{"sub":"aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"}',
+  TRUE
+);
+SET LOCAL ROLE authenticated;
+UPDATE public.lists
+SET is_public = TRUE
+WHERE id = '0a000000-0000-0000-0000-000000000002';
+RESET ROLE;
+SELECT is(
+  (
+    SELECT is_public FROM public.lists
+    WHERE id = '0a000000-0000-0000-0000-000000000002'
+  ),
+  TRUE,
+  'lists is_public toggle: member (Alice) can publish'
+);
+
+-- 16. Non-member (Carol) cannot. Her UPDATE matches zero rows
+-- (lists_update hides the row), so is_public stays TRUE.
+SELECT set_config(
+  'request.jwt.claims',
+  '{"sub":"cccccccc-cccc-cccc-cccc-cccccccccccc"}',
+  TRUE
+);
+SET LOCAL ROLE authenticated;
+UPDATE public.lists
+SET is_public = FALSE
+WHERE id = '0a000000-0000-0000-0000-000000000002';
+RESET ROLE;
+SELECT is(
+  (
+    SELECT is_public FROM public.lists
+    WHERE id = '0a000000-0000-0000-0000-000000000002'
+  ),
+  TRUE,
+  'lists is_public toggle: non-member (Carol) UPDATE matches zero rows'
 );
 
 SELECT finish();

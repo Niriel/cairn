@@ -168,10 +168,10 @@ shape), `:782` (`items_ranked` definition), `:854` (grant matrix).
 
 **Verify:** `./scripts/test-db.sh`
 
-### [ ] 1.2 Lock the anon boundary and member-toggle in pgTAP
+### [x] 1.2 Lock the anon boundary and member-toggle in pgTAP
 
 **Created:** 2026-06-11T20:06:58Z
-**Completed:**
+**Completed:** 2026-06-11T20:46:48Z
 
 **Why:** Opening `anon` even slightly demands that the rest of the boundary be
 re-asserted: `anon` still reads no tables/views and calls no other RPC (R3), and
@@ -214,6 +214,28 @@ boundary is an unverified claim.
    weaken the test.
 
 **Verify:** `./scripts/test-db.sh`
+
+**Notes:**
+- No genuine RED phase: as the task itself anticipated (step 4), the boundary
+  was already correct from Task 1.1, so all seven new assertions passed on the
+  first run with no migration change. The "red" was confined to confirming the
+  `plan()` counts.
+- `grants.sql`: +5 assertions (`plan(84)` → `plan(89)`). The stale header
+  ("60 assertions") was rewritten to the true per-group counts (A=19, B=18,
+  C=4, D=48). Added one `authenticated` EXECUTE positive and one `anon` EXECUTE
+  positive for `public_list_view`, plus the three `anon` no-SELECT view
+  negatives (`items_ranked`, `items_deleted`, `lists_deleted`). Group D was
+  reframed from "negatives only" to "one positive + negatives".
+- `public_lists.sql`: +2 assertions (`plan(14)` → `plan(16)`) for the
+  member-publish / non-member-zero-rows toggle, exercised on the private
+  fixture list so they don't couple to the soft-delete assertion.
+- **User correction:** mid-task the user flagged that referring to requirements
+  by number (`R2`, `R5`, …) is meaningless — twenty-plus plans each have their
+  own `R2`. Removed the `R3–R5` / `R2` / `R5` references I'd written in the
+  migration and test comments, and added durable guidance to
+  `.claude/commands/work.md` ("Don't refer to requirements by number"). The
+  pre-existing `R15` / `Risk #6` references in the `grants.sql` header predate
+  this work and were left untouched.
 
 ## Phase 2 — publish toggle and member-facing marker
 
