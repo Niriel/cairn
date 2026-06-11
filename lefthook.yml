@@ -24,6 +24,14 @@ pre-commit:
       root: 'web/'
       glob: 'web/**/*.{ts,svelte}'
       run: pnpm check
+    eslint-sidecar:
+      root: 'sidecar/'
+      glob: 'sidecar/**/*.{ts,js}'
+      run: pnpm exec eslint --no-error-on-unmatched-pattern {staged_files}
+    prettier-sidecar:
+      root: 'sidecar/'
+      glob: 'sidecar/**/*.{ts,js,json,yaml,yml}'
+      run: pnpm exec prettier --check --ignore-unknown {staged_files}
     eslint-auth-proxy:
       root: 'auth-proxy/'
       glob: 'auth-proxy/**/*.{ts,js}'

@@ -78,6 +78,9 @@ if (cd web && pnpm test) >/dev/null; then ok "vitest"; else fail "vitest"; fi
 echo "==> sidecar: install (frozen)"
 if (cd sidecar && pnpm install --frozen-lockfile) >/dev/null; then ok "sidecar pnpm install"; else fail "sidecar pnpm install"; fi
 
+echo "==> sidecar: format check"
+if (cd sidecar && pnpm format:check) >/dev/null; then ok "sidecar prettier"; else fail "sidecar prettier"; fi
+
 echo "==> sidecar: lint"
 if (cd sidecar && pnpm lint); then ok "sidecar eslint"; else fail "sidecar eslint"; fi
 

@@ -3,7 +3,7 @@ import { Router } from 'express';
 const router = Router();
 
 router.get('/', (_req, res) => {
-  res.json({ ok: true });
+	res.json({ ok: true });
 });
 
 export { router as healthzRouter };
