@@ -14,6 +14,7 @@ const LIST_A = {
 	description: null,
 	modified_at: '2026-01-01T00:00:00Z',
 	item_count: 3,
+	is_public: true,
 	list_members: []
 };
 
@@ -23,6 +24,7 @@ const LIST_B = {
 	description: null,
 	modified_at: '2026-01-02T00:00:00Z',
 	item_count: 1,
+	is_public: false,
 	list_members: []
 };
 
@@ -112,6 +114,23 @@ describe('lists store', () => {
 			expect(listsMod.lists.items).toHaveLength(1);
 		});
 		expect(capturedUrl).toContain('&lists_is_member=is.true');
+	});
+
+	test('(g) selects is_public and exposes it on the fetched list', async () => {
+		let capturedUrl: string | undefined;
+		server.use(
+			http.get('*/api/lists', ({ request }) => {
+				capturedUrl = request.url;
+				return HttpResponse.json([LIST_A]);
+			})
+		);
+		sessionMod.setSignedIn({ id: TEST_UID, email: 'dev@example.test' });
+		await tick();
+		await vi.waitFor(() => {
+			expect(listsMod.lists.items).toHaveLength(1);
+		});
+		expect(capturedUrl).toContain('is_public');
+		expect(listsMod.lists.items[0].is_public).toBe(true);
 	});
 });
 

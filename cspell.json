@@ -157,6 +157,7 @@
     "noqa",
     "onaction",
     "oncollapse",
+    "ondismiss",
     "onexpand",
     "pipefail",
     "pipx",

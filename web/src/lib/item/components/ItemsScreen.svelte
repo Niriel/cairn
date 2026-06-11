@@ -30,12 +30,22 @@
 	import DeleteItemSheet from './DeleteItemSheet.svelte';
 	import ListOverflowSheet from '$lib/list/components/ListOverflowSheet.svelte';
 
-	type ListMeta = { name: string; description: string | null; list_members: { user_id: string }[] };
+	type ListMeta = {
+		name: string;
+		description: string | null;
+		is_public: boolean;
+		list_members: { user_id: string }[];
+	};
 
 	type Props = { listId: string };
 	let { listId }: Props = $props();
 
-	let listMeta = $state<ListMeta>({ name: '', description: null, list_members: [] });
+	let listMeta = $state<ListMeta>({
+		name: '',
+		description: null,
+		is_public: false,
+		list_members: []
+	});
 	let overflowOpen = $state(false);
 	let openId = $state<string | null>(null);
 	let addSheetOpen = $state(false);
@@ -44,7 +54,7 @@
 
 	async function reloadMeta() {
 		await pgGet<ListMeta[]>(
-			`/lists?id=eq.${listId}&select=name,description,list_members(user_id)&list_members.deleted_at=is.null`
+			`/lists?id=eq.${listId}&select=name,description,is_public,list_members(user_id)&list_members.deleted_at=is.null`
 		)
 			.then((rows) => {
 				if (rows.length > 0) listMeta = rows[0];

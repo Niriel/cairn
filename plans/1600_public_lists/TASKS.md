@@ -239,10 +239,10 @@ boundary is an unverified claim.
 
 ## Phase 2 — publish toggle and member-facing marker
 
-### [ ] 2.1 Surface `is_public` in the list type and queries
+### [x] 2.1 Surface `is_public` in the list type and queries
 
 **Created:** 2026-06-11T20:06:58Z
-**Completed:**
+**Completed:** 2026-06-11T20:51:55Z
 
 **Why:** The marker (R7) and toggle (R2, R8) need `is_public` on the client. It
 must be selected wherever a member view renders a list.

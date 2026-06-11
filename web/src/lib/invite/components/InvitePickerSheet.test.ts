@@ -98,6 +98,7 @@ describe('InvitePickerSheet', () => {
 				description: null,
 				modified_at: '2026-05-01T00:00:00Z',
 				item_count: 0,
+				is_public: false,
 				list_members: [
 					{ user_id: BOB_UID, profiles: { display_name: 'Bob', avatar_version: 0 } },
 					{ user_id: DAVE_UID, profiles: { display_name: 'Dave', avatar_version: 0 } }

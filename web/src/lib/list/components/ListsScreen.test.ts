@@ -33,6 +33,7 @@ const LIST_A = {
 	description: null,
 	modified_at: '2026-01-01T00:00:00Z',
 	item_count: 0,
+	is_public: false,
 	list_members: []
 };
 
@@ -42,6 +43,7 @@ const LIST_B = {
 	description: 'A description',
 	modified_at: '2026-01-02T00:00:00Z',
 	item_count: 0,
+	is_public: false,
 	list_members: []
 };
 
@@ -51,6 +53,7 @@ const LIST_C = {
 	description: 'Another description',
 	modified_at: '2026-01-03T00:00:00Z',
 	item_count: 0,
+	is_public: false,
 	list_members: []
 };
 
