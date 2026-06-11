@@ -351,10 +351,10 @@ already authorises the write).
 - The manual state mock (`state/__mocks__/lists.svelte.ts`) gained a `setPublic`
   export so the sheet test's mocked import resolves.
 
-### [ ] 2.3 Render the public marker in member views
+### [x] 2.3 Render the public marker in member views
 
 **Created:** 2026-06-11T20:06:58Z
-**Completed:**
+**Completed:** 2026-06-11T21:12:28Z
 
 **Why:** Members must instantly see that a list is public (R7), in both the
 list collection and the list-detail header.
@@ -398,6 +398,24 @@ TopBar conventions.
 3. GREEN — `pnpm test` and `pnpm check` green.
 
 **Verify:** `cd web && pnpm test` · `pnpm check` · `pnpm lint`
+
+**Notes:**
+- **`globe` icon already existed** — it was added in Task 2.2 (the overflow
+  publish toggle is its first consumer), so this task's step 1 was a no-op.
+- **User correction — Items-screen placement.** The plan/`docs/ui.md` put the
+  globe immediately after the list name in the Items-screen TopBar *title*. Mid-
+  task the user asked for it in the **sub line** instead: `4 items · 1 member ·
+  🌐 Public` (separator dot + globe + visible "Public" label). The Lists-screen
+  row keeps the globe after the name (user confirmed they prefer that). Updated
+  `docs/ui.md` to record the per-screen split.
+- **Side work — `TopBar` gained a `subAfter?: Snippet` prop.** The `sub` prop is
+  a plain string and can't hold an icon, so the sub-line marker needed a snippet
+  rendered inline after the sub text. Optional; only `ItemsScreen` uses it.
+- **Doc divergence fixed:** `docs/ui.md` specified the marker colour as
+  `var(--muted)`, but there is **no `--muted` token**. The muted-grey in use is
+  `--stone` (the row overflow button, meta text). Used `--stone` and corrected
+  the doc. The Items-screen marker inherits the `.caption` colour from the sub
+  line rather than setting it explicitly.
 
 ## Phase 3 — anonymous read-only view
 

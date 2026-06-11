@@ -109,6 +109,15 @@
 			: 'members'}"
 	>
 		{listMeta.name}
+		{#snippet subAfter()}
+			{#if listMeta.is_public}
+				<span class="public-marker" data-test="list-public-marker">
+					<span aria-hidden="true">·</span>
+					<Icon name="globe" size={13} />
+					Public
+				</span>
+			{/if}
+		{/snippet}
 		{#snippet right()}
 			<IconButton
 				aria-label="Refresh"
@@ -318,6 +327,20 @@
 	.content {
 		flex: 1;
 		padding: 1rem;
+	}
+
+	/* Public-list marker in the TopBar sub line: "· 🌐 Public". inline-flex keeps
+	   the separator, globe, and label on one baseline; the gap puts even space
+	   between the dot and the icon (and the icon and the label). Inherits the
+	   muted .caption colour from the sub line. */
+	.public-marker {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.3rem;
+		/* Match the internal gap so "member · 🌐 Public" is evenly spaced — the
+		   gap only spaces items inside the marker, not the marker from the
+		   preceding sub text. */
+		margin-left: 0.3rem;
 	}
 
 	.loading {

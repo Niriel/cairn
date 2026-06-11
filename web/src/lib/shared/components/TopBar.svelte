@@ -8,6 +8,7 @@
 		left,
 		right,
 		sub,
+		subAfter,
 		children,
 		...rest
 	}: {
@@ -15,6 +16,9 @@
 		left?: Snippet;
 		right?: Snippet;
 		sub?: string;
+		// Rich trailing content for the sub line (e.g. an icon + label), rendered
+		// inline after the `sub` text — the plain `sub` string can't hold markup.
+		subAfter?: Snippet;
 		children: Snippet;
 		['data-test']?: string;
 	} = $props();
@@ -32,7 +36,9 @@
 	</div>
 	<div class="middle">
 		<h1>{@render children()}</h1>
-		{#if sub}<p class="sub caption">{sub}</p>{/if}
+		{#if sub || subAfter}<p class="sub caption">
+				{sub}{#if subAfter}{@render subAfter()}{/if}
+			</p>{/if}
 	</div>
 	<div class="right">
 		{#if right}

@@ -358,7 +358,12 @@ A list can be made **public** — readable by anyone holding its link, while sig
 
 ### Public marker (members only)
 
-In **member** views, a public list carries a small **globe** icon immediately after the list name — both on the Lists-screen row and in the Items-screen TopBar title. It is muted (`var(--muted)`), purely indicative, and carries an accessible label _"Public list"_ (visually-hidden text, per the existing icon-labelling pattern). It is not rendered on the public `/p/` page itself — a signed-out reader is already on the public surface and doesn't need telling. Private lists render no marker.
+In **member** views, a public list is marked with a small **globe** icon, muted (`var(--stone)` — there is no `--muted` token; `--stone` is the muted-grey used by the row overflow button and meta text). The placement differs by screen:
+
+- **Lists-screen row:** the globe sits immediately after the list name, purely indicative, with a visually-hidden accessible label _"Public list"_ (per the existing icon-labelling pattern).
+- **Items-screen TopBar:** the marker lives in the sub line alongside the counts, reading `4 items · 1 member · 🌐 Public` — a separator dot, the globe, and a visible _"Public"_ label (the visible word is its own accessible text, so no extra hidden label is needed).
+
+It is not rendered on the public `/p/` page itself — a signed-out reader is already on the public surface and doesn't need telling. Private lists render no marker.
 
 ### Publish / unpublish and copy link
 
