@@ -91,11 +91,15 @@ create table admin.actions (
   created_at  timestamptz not null default clock_timestamp()
 );
 
-alter table admin.actions enable row level security;
--- No policies. authenticated/anon have no GRANT on this table; only
--- cairn_admin (via cairn_readonly inheritance) can SELECT from it,
--- and INSERTs come exclusively from the security definer functions
--- below, running as cairn_admin_owner.
+-- No row-level security. authenticated/anon have no GRANT on this
+-- table and no USAGE on the admin schema, so it is unreachable from
+-- PostgREST; cairn_admin (via cairn_readonly inheritance) reads it
+-- through psql, and INSERTs come exclusively from the security definer
+-- functions below, running as cairn_admin_owner. RLS is deliberately
+-- NOT enabled: enabling it with no policy default-denies the
+-- cairn_readonly SELECT to zero rows, breaking `cairn-admin log`.
+-- Append-only is enforced by withholding UPDATE/DELETE grants, not by
+-- RLS.
 
 grant select on admin.actions to cairn_readonly;
 revoke all  on admin.actions from authenticated, anon;
@@ -213,15 +217,18 @@ begin
   values (session_user, current_user, 'delete_account_as', p_target, p_reason,
           jsonb_build_object('email_at_time', email_at_time));
 
-  -- Hard-delete lists where the target was the only remaining member.
+  -- Hard-delete lists where the target was the only remaining live
+  -- member. This is delete_account()'s exact query (account-deletion.md)
+  -- with p_target substituted for public.uid(); using the identical form
+  -- — rather than additionally scoping to lists the target belongs to —
+  -- is what guarantees delete_account_as and delete_account reach the same
+  -- end-state in every case, including orphaned (zero-live-member) lists.
   delete from public.lists l
-  where exists (
+  where not exists (
     select 1 from public.list_members lm
-    where lm.list_id = l.id and lm.user_id = p_target and lm.deleted_at is null
-  )
-  and not exists (
-    select 1 from public.list_members lm
-    where lm.list_id = l.id and lm.deleted_at is null and lm.user_id <> p_target
+    where lm.list_id = l.id
+      and lm.deleted_at is null
+      and lm.user_id <> p_target
   );
 
   -- Trigger the cascade: profiles, user_settings, votes, list_members,
@@ -257,9 +264,21 @@ begin
   insert into admin.actions (actor, effective, action, target, reason, payload)
   values (session_user, current_user, 'moderate_item', p_target, p_reason, snap);
 
+  -- Attribute the soft-delete to the tombstone. The BEFORE UPDATE
+  -- attribution trigger (tg_set_attribution_items) derives deleted_by
+  -- from public.uid() on the live→deleted transition, and an admin RPC
+  -- has no JWT — so a deleted_by = '0000…' set directly in the UPDATE
+  -- would be overwritten with NULL. Set the request claim to the
+  -- tombstone first, and let the trigger stamp deleted_by through the
+  -- normal path.
+  perform set_config(
+    'request.jwt.claims',
+    jsonb_build_object('sub', '00000000-0000-0000-0000-000000000000')::text,
+    true
+  );
+
   update public.items
-     set deleted_at = clock_timestamp(),
-         deleted_by = '00000000-0000-0000-0000-000000000000'
+     set deleted_at = clock_timestamp()
    where id = p_target
      and deleted_at is null;
 end;
@@ -289,7 +308,7 @@ $$;
 
 `purge_item` is the legal-takedown lever. It hard-deletes the row, votes cascade away, and nothing in the live tables remembers it. The audit row's `payload` is the only record that the item ever existed — useful for "we received DMCA notice X on date Y and removed the item with these characteristics," which is the kind of question regulators or courts ask.
 
-`moderate_list` and `purge_list` follow the same shape, against `public.lists`. Soft-delete leaves the list in every member's list trash (reachable via `lists_deleted`); hard-delete cascades through `items`, `votes`, `list_members`, `invitations`, and is gone.
+`moderate_list` and `purge_list` follow the same shape, against `public.lists` (`moderate_list` uses the same `set_config` claim-to-tombstone step before its UPDATE, for the same reason — `tg_set_attribution_lists` would otherwise stamp `deleted_by` NULL). Soft-delete leaves the list in every member's list trash (reachable via `lists_deleted`); hard-delete cascades through `items`, `votes`, `list_members`, `invitations`, and is gone.
 
 ### `admin.inspect_user`
 
@@ -302,8 +321,21 @@ as $$
 declare result jsonb;
 begin
   select jsonb_build_object(
-    'auth', (select to_jsonb(u) - 'encrypted_password' - 'recovery_token'
-                                - 'confirmation_token' - 'email_change_token_new'
+    -- Allowlist, not denylist: the `auth` sub-document is built from an
+    -- explicit set of non-secret columns. Every credential/recovery token
+    -- (encrypted_password, recovery_token, confirmation_token,
+    -- email_change_token_new, email_change_token_current,
+    -- reauthentication_token, phone_change_token, …) is excluded *by
+    -- construction*, so a future GoTrue column can never silently leak
+    -- through a `to_jsonb(u)` that forgot to subtract it.
+    'auth', (select jsonb_build_object(
+                'id',                 u.id,
+                'email',              u.email,
+                'email_confirmed_at', u.email_confirmed_at,
+                'last_sign_in_at',    u.last_sign_in_at,
+                'banned_until',       u.banned_until,
+                'created_at',         u.created_at
+              )
                from auth.users u where u.id = p_target),
     'profile',       (select to_jsonb(p) from public.profiles      p where p.id = p_target),
     'user_settings', (select to_jsonb(s) from public.user_settings s where s.id = p_target),
@@ -321,7 +353,7 @@ revoke all on function admin.inspect_user(uuid) from public;
 grant  execute on function admin.inspect_user(uuid) to cairn_readonly;
 ```
 
-The four omitted columns on `auth.users` are the credential/recovery secrets — they are removed at the JSON layer so a slip of the eye while reading the result doesn't expose anything sensitive. The function is `stable` (read-only at the SQL level) and does not log to `admin.actions`: read-only inspection is *constantly* useful for debugging "user says X is broken" reports, and logging every read would either drown the audit table or train the operator to skip the log.
+The `auth` sub-document is an **allowlist** of non-secret columns, not a `to_jsonb(u)` with the known secrets subtracted. A denylist is the wrong shape here: every GoTrue image bump that adds a token column (`reauthentication_token`, `phone_change_token`, `email_change_token_current`, …) would silently re-introduce a leak that nobody remembered to subtract, and `inspect_user` is the *only* path `cairn_readonly` has to `auth.users` data — so a leak there is a leak to a role that is supposed to inspect without seeing credentials. Building the document from an explicit safe set means a slip of the eye while reading the result exposes nothing sensitive, and a new GoTrue column is excluded by default rather than included by default. The function is `stable` (read-only at the SQL level) and does not log to `admin.actions`: read-only inspection is *constantly* useful for debugging "user says X is broken" reports, and logging every read would either drown the audit table or train the operator to skip the log.
 
 The deliberate counterpart: any *write* path is logged, no exceptions. The asymmetry is the protection.
 
