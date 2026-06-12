@@ -198,10 +198,10 @@ in `auth-client.ts`).
 
 ## Phase 3 — code-entry UI and end-to-end
 
-### [ ] 3.1 Code-entry field with auto-submit on the "Check your inbox" screen
+### [x] 3.1 Code-entry field with auto-submit on the "Check your inbox" screen
 
 **Created:** 2026-06-12T13:25:47Z
-**Completed:**
+**Completed:** 2026-06-12T14:46:26Z
 
 **Why:** Lets the user finish sign-in on the device they started on by typing the
 code from the e-mail (R4). This is the core of the feature.
@@ -265,6 +265,29 @@ code from the e-mail (R4). This is the core of the feature.
    confirm green.
 
 **Verify:** `cd web && pnpm test -- LoginCheck` · `pnpm lint` · `pnpm check`
+
+**Notes:**
+- **Manual `__mocks__` for auth-client.** `vi.mock('$lib/auth/model/auth-client')`
+  resolves to the hand-written `src/lib/auth/model/__mocks__/auth-client.ts`, not
+  vitest's auto-mock. That file had no `verifyOtp` spy, so the first RED run failed
+  with `verifyOtp is undefined` instead of the intended "no code field" failures.
+  Added a `verifyOtp` `vi.fn` to the mock (mirroring the existing `sendMagicLink` /
+  `devPasswordSignIn` spies). `HttpError` is re-exported from the real module there,
+  so the component's `instanceof HttpError` 4xx/5xx split works under the mock.
+- **`onSendAgain` made sync-returning.** Svelte's `onclick` types reject an
+  `async` handler that returns a `Promise`; wrapped the body in a `void (async …)()`
+  IIFE to keep the resend logic while satisfying the click-handler signature.
+- **Side work — installed `jszip`.** `pnpm lint`/`pnpm check` were red on
+  pre-existing `src/lib/export/**` files ("Cannot find module 'jszip'"); `jszip@^3.10.1`
+  was declared in `package.json` but absent from `node_modules`. Ran
+  `pnpm install --config.confirmModulesPurge=false` (pnpm wanted a non-interactive
+  modules re-sync) at the user's request. This is unrelated to the OTP feature but
+  was blocking the task's `lint`/`check` verifiers; both are green now (718 tests,
+  0 lint/check errors).
+- **Success navigation uses plain `goto(resolve('/'))`** per the Decisions snippet
+  (no `replaceState`). `/auth/callback` uses `{ replaceState: true }`; the check
+  screen could arguably match it, but the task's literal code omitted the option, so
+  the back-button-after-sign-in nuance is left as written.
 
 ### [ ] 3.2 Update the request-screen button copy
 
