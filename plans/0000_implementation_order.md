@@ -254,7 +254,7 @@ in-flight branch for no gain.
    sidecar is already running from step 5). See
    `docs/account-deletion.md`.
 
-11. [ ] **Admin: schema, audit table, RPCs, CLI.** Land
+11. [x] **Admin: schema, audit table, RPCs, CLI.** Land
     `db/migrations/0017_admin.sql` creating the `admin`
     schema, the `admin.actions` audit table, and the eight RPCs
     sketched in `docs/admin.md` (`ban_user`, `unban_user`,
