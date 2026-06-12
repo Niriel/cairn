@@ -91,11 +91,11 @@ describe('SettingsScreen', () => {
 		expect(vi.mocked(goto)).toHaveBeenCalledWith(vi.mocked(resolve)('/profile'));
 	});
 
-	test('(j-1) People section is first preference-group, before Appearance', () => {
+	test('(j-1) People section is first preference-group, before Colour theme', () => {
 		const { container } = render(SettingsScreen);
 		const groups = container.querySelectorAll('section.preference-group');
 		expect(groups[0]?.textContent).toContain('People');
-		expect(groups[1]?.textContent).toContain('Appearance');
+		expect(groups[1]?.textContent).toContain('Colour theme');
 	});
 
 	test('(j-2) People section heading is "People"', () => {

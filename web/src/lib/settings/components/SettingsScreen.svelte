@@ -26,10 +26,6 @@
 		{ value: 'l', label: 'L', px: 18 },
 		{ value: 'xl', label: 'XL', px: 21 }
 	];
-
-	const currentSize = $derived(
-		fontSizes.find((f) => f.value === preferences.fontSize) ?? fontSizes[2]
-	);
 </script>
 
 <div class="screen">
@@ -94,7 +90,7 @@
 		</section>
 
 		<section class="preference-group">
-			<h2>Appearance</h2>
+			<h2>Colour theme</h2>
 			<div class="theme-grid">
 				{#each themes as t (t.value)}
 					{@const sel = preferences.theme === t.value}
@@ -126,13 +122,6 @@
 						onclick={() => (preferences.fontSize = f.value)}>A</button
 					>
 				{/each}
-			</div>
-			<div class="size-preview card">
-				<p class="preview-label caption">Preview</p>
-				<div class="preview-title" style="font-size: {currentSize.px + 1}px">Bringing Up Baby</div>
-				<p class="preview-sub caption" style="font-size: {currentSize.px - 2}px">
-					1938 · screwball · Hawks. Cary Grant + Katharine Hepburn + a leopard.
-				</p>
 			</div>
 		</section>
 
@@ -270,7 +259,7 @@
 		font-weight: 600;
 	}
 
-	/* Text size card + preview — .card-alt / .card give the surfaces; layout only here. */
+	/* Text size card — .card-alt gives the surface; layout only here. */
 	.size-card {
 		display: flex;
 		align-items: flex-end;
@@ -299,26 +288,5 @@
 		background: var(--ink);
 		color: var(--paper);
 		font-weight: 700;
-	}
-
-	.size-preview {
-		margin: 0.875rem 1.125rem 0;
-		padding: 0.875rem;
-	}
-
-	.preview-label {
-		margin-bottom: 0.375rem;
-	}
-
-	/* The preview demonstrates the chosen size (inline font-size); weight/colour
-	   are the demo's own chrome. */
-	.preview-title {
-		font-weight: 600;
-		color: var(--ink);
-		line-height: 1.3;
-	}
-
-	.preview-sub {
-		margin-top: 0.25rem;
 	}
 </style>

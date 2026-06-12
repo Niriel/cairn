@@ -161,10 +161,10 @@ A Settings screen, reachable from the **gear icon** in the top-right of the List
 
 A profile chip sits at the top: current avatar (initials disc or photo), display name, chevron. Tapping it opens **Edit profile** — see "Avatars" below. Below the chip, the screen is grouped into named sections.
 
-**Appearance** holds the two device-local preferences:
+Two adjacent sections hold the device-local preferences:
 
-- **Theme.** Light / dark / system. Default: system. The app re-themes immediately on change; no restart.
-- **Font size.** Five steps: XS, S, M, L, XL. Default: M. Implemented as a single scale factor applied to the root `font-size` (with all type sizes in `rem`) so every text style scales together and the layout stays balanced.
+- **Colour theme.** Light / dark / system. Default: system. The app re-themes immediately on change; no restart.
+- **Text size.** Five steps: XS, S, M, L, XL. Default: M. Implemented as a single scale factor applied to the root `font-size` (with all type sizes in `rem`) so every text style scales together and the layout stays balanced.
 
 Larger sizes are not just an accessibility nicety — Cairn is read in cafés, on a couch, with a glass of wine. The defaults should look good at M; L should feel like a proper "large text" mode without breaking any layout.
 
