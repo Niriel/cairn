@@ -1,9 +1,15 @@
+import JSZip from 'jszip';
 import { http, HttpResponse } from 'msw';
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 
 import { server } from '$lib/test/server';
 
 import type { ExportDocument } from '../model/types';
+
+// prepare() now fetches avatars best-effort after the RPC. Tests that use the
+// base FIXTURE register a catch-all 404 so MSW's onUnhandledRequest:'error'
+// doesn't fire on the avatar probes; the dedicated avatar suite overrides it.
+const NO_AVATARS = http.get('*/avatars/*', () => new HttpResponse(null, { status: 404 }));
 
 // A minimal-but-complete document: one list with a member, a live item
 // the caller added (so it carries all_votes), and a soft-deleted item
@@ -82,7 +88,10 @@ beforeEach(async () => {
 
 describe('prepare', () => {
 	test('(a) transitions idle → packaging → ready and yields a data.json blob', async () => {
-		server.use(http.post('*/api/rpc/export_my_data', () => HttpResponse.json(FIXTURE)));
+		server.use(
+			http.post('*/api/rpc/export_my_data', () => HttpResponse.json(FIXTURE)),
+			NO_AVATARS
+		);
 
 		expect(mod.exportState.status).toBe('idle');
 
@@ -115,7 +124,10 @@ describe('prepare', () => {
 
 describe('reset', () => {
 	test('(c) returns the machine to idle and clears the result', async () => {
-		server.use(http.post('*/api/rpc/export_my_data', () => HttpResponse.json(FIXTURE)));
+		server.use(
+			http.post('*/api/rpc/export_my_data', () => HttpResponse.json(FIXTURE)),
+			NO_AVATARS
+		);
 		await mod.prepare();
 		expect(mod.exportState.status).toBe('ready');
 
@@ -124,5 +136,84 @@ describe('reset', () => {
 		expect(mod.exportState.status).toBe('idle');
 		expect(mod.exportState.result).toBeNull();
 		expect(mod.exportState.error).toBeNull();
+	});
+});
+
+describe('avatar embedding', () => {
+	const CALLER = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
+	const BOB = 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb';
+	const CAROL = 'cccccccc-cccc-cccc-cccc-cccccccccccc';
+	const DAVE = 'dddddddd-dddd-dddd-dddd-dddddddddddd';
+	const TOMBSTONE = '00000000-0000-0000-0000-000000000000';
+
+	// One list whose members and item authors span: Bob (200), Carol (404),
+	// Dave (network error), the tombstone (must never be fetched), and Bob
+	// again as an item author (to prove the fetch is deduped).
+	function docWithCoMembers(): ExportDocument {
+		return {
+			...FIXTURE,
+			lists: [
+				{
+					id: '11111111-1111-1111-1111-111111111111',
+					name: 'Movies for Alice',
+					description: null,
+					created_at: '2026-01-01T00:00:00Z',
+					deleted_at: null,
+					members: [
+						{ id: BOB, display_name: 'Bob' },
+						{ id: CAROL, display_name: 'Carol' },
+						{ id: DAVE, display_name: 'Dave' },
+						{ id: TOMBSTONE, display_name: 'Deleted user' }
+					],
+					items: [
+						{
+							id: '33333333-3333-3333-3333-333333333333',
+							name: 'Bringing Up Baby',
+							notes: null,
+							created_by: { id: BOB, display_name: 'Bob' },
+							created_at: '2026-01-02T00:00:00Z',
+							deleted_at: null,
+							your_vote: null
+						}
+					]
+				}
+			]
+		};
+	}
+
+	test('(d) embeds the caller and reachable co-members, skips failures, never fetches the tombstone', async () => {
+		const fetched: string[] = [];
+		server.use(
+			http.post('*/api/rpc/export_my_data', () => HttpResponse.json(docWithCoMembers())),
+			http.get('*/avatars/:file', ({ params }) => {
+				const file = String(params.file);
+				fetched.push(file);
+				if (file === `${CALLER}.webp` || file === `${BOB}.webp`) {
+					return HttpResponse.arrayBuffer(new Uint8Array([1, 2, 3]).buffer, {
+						headers: { 'Content-Type': 'image/webp' }
+					});
+				}
+				if (file === `${CAROL}.webp`) return new HttpResponse(null, { status: 404 });
+				// Dave: simulate a thrown/network error.
+				return HttpResponse.error();
+			})
+		);
+
+		await mod.prepare();
+
+		expect(mod.exportState.status).toBe('ready');
+
+		const zip = await JSZip.loadAsync(mod.exportState.result!.blob);
+		// Caller's own avatar is the top-level avatar.webp.
+		expect(zip.file('avatar.webp')).not.toBeNull();
+		// Reachable co-member.
+		expect(zip.file(`avatars/${BOB}.webp`)).not.toBeNull();
+		// 404 and network-error co-members are silently omitted.
+		expect(zip.file(`avatars/${CAROL}.webp`)).toBeNull();
+		expect(zip.file(`avatars/${DAVE}.webp`)).toBeNull();
+		// The tombstone is never probed.
+		expect(fetched).not.toContain(`${TOMBSTONE}.webp`);
+		// Bob spans members and item authors but is fetched exactly once.
+		expect(fetched.filter((f) => f === `${BOB}.webp`)).toHaveLength(1);
 	});
 });

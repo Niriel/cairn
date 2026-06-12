@@ -479,10 +479,10 @@ build the idle/packaging/ready (and error) states the design specifies.
 
 ## Phase 4 — avatar embeds
 
-### [ ] 4.1 Embed the caller's and co-members' avatars, best-effort
+### [x] 4.1 Embed the caller's and co-members' avatars, best-effort
 
 **Created:** 2026-06-12T09:57:41Z
-**Completed:**
+**Completed:** 2026-06-12T12:32:32Z
 
 **Why:** R9 — the archive includes the user's photo and co-members'
 photos at export time, without letting a missing avatar break the export.
@@ -517,6 +517,16 @@ photos at export time, without letting a missing avatar break the export.
 4. GREEN — `cd web && pnpm test export.test` → green.
 
 **Verify:** `cd web && pnpm lint && pnpm check && pnpm test`
+
+**Notes:**
+- The dedup uses a plain array + `includes` rather than a `Set`: in a
+  `.svelte.ts` file ESLint's `svelte/prefer-svelte-reactivity` flags any
+  mutable `Set`, and `SvelteSet` is the wrong tool for a transient,
+  non-reactive local. Functionally identical, lint-clean.
+- `gatherAvatars` fans the fetches out with `Promise.all` (caller +
+  distinct co-members), each wrapped in a per-avatar try/catch so a 404
+  or network error skips just that one and the export still reaches
+  `ready`. No auth header / no `?v=` cache-buster, per docs/avatars.md.
 
 ## Phase 5 — delete-account integration + e2e
 
