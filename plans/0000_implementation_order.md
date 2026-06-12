@@ -254,9 +254,8 @@ in-flight branch for no gain.
    sidecar is already running from step 5). See
    `docs/account-deletion.md`.
 
-11. [ ] **Admin: schema, audit table, RPCs, CLI.** Land
-    `db/migrations/0006_admin.sql` (numbering pending — slot it after
-    whatever the deletion migration takes) creating the `admin`
+11. [x] **Admin: schema, audit table, RPCs, CLI.** Land
+    `db/migrations/0017_admin.sql` creating the `admin`
     schema, the `admin.actions` audit table, and the eight RPCs
     sketched in `docs/admin.md` (`ban_user`, `unban_user`,
     `delete_account_as`, `moderate_item`, `purge_item`,
@@ -272,7 +271,7 @@ in-flight branch for no gain.
     audit row writes atomically, `purge_*` cascades correctly,
     `delete_account_as` produces the same end-state as the
     user-initiated `delete_account()` from step 10. Plus the
-    `scripts/cairn-admin` shell (Python; SET ROLE discipline; no
+    `scripts/cairn-admin` shell (bash; SET ROLE discipline; no
     `--yes` flag without a `--reason`). No web-app changes — admin
     is operator-over-SSH only; see `docs/admin.md` § "Why no admin
     UI". Depends on step 1 (`auth.users` exists, the data model is

@@ -69,11 +69,15 @@ The shape mirrors the existing `delete_account()` function in `account-deletion.
 **`auth.users` access.** The ban and erasure RPCs write to `auth.users`, which is owned by the `gotrue` role and not by us. We grant `cairn_admin_owner` the specific privileges it needs at migration time:
 
 ```sql
+grant usage on schema auth          to cairn_admin_owner;
+grant select on auth.users          to cairn_admin_owner;
 grant update (banned_until) on auth.users to cairn_admin_owner;
 grant delete                on auth.users to cairn_admin_owner;
 ```
 
-Per-column UPDATE means `cairn_admin_owner` cannot rewrite emails or password hashes, only flip the ban field. DELETE is broader but unavoidable for erasure; in practice only `admin.delete_account_as` calls it, and that function is the only path from `cairn_admin` to row deletion on `auth.users`. The migration that bumps GoTrue is the moment to re-check that these grants still apply to a `banned_until` column that still exists with that name — same caveat as the tombstone-row contract in `account-deletion.md`.
+The schema `USAGE` grant comes first and is load-bearing: schema usage gates every object privilege inside, so without it the table grants below are unreachable. `cairn_admin_owner` is a deliberately limited role — unlike `delete_account()`, whose `security definer` body runs as the privileged migration-runner role and so never needs these grants spelled out. `SELECT` is needed because the RPC bodies read `auth.users` before they write (`ban_user` snapshots the prior `banned_until`; `inspect_user` returns the allowlisted columns; `delete_account_as` reads the email for the audit payload). Per-column UPDATE means `cairn_admin_owner` cannot rewrite emails or password hashes, only flip the ban field. DELETE is broader but unavoidable for erasure; in practice only `admin.delete_account_as` calls it, and that function is the only path from `cairn_admin` to row deletion on `auth.users`. The migration that bumps GoTrue is the moment to re-check that these grants still apply to a `banned_until` column that still exists with that name — same caveat as the tombstone-row contract in `account-deletion.md`.
+
+On the `public` side, `cairn_admin_owner` is created `BYPASSRLS` and granted `SELECT/UPDATE/DELETE` on `public.items` and `public.lists` and `SELECT` on `public.list_members`, `public.profiles`, `public.user_settings`, and `public.votes`. This is necessary because the RPCs run with no JWT in scope — `public.uid()` is NULL — so the RLS policies in `data-model.md` would otherwise deny the owner every read and write against the public tables the moderate/purge/delete/inspect functions touch. `BYPASSRLS` plus these explicit grants is what lets the `security definer` body operate on user data at all; the audit-log discipline, not RLS, is the boundary on what the operator may do with that access. The owner also needs `EXECUTE` on `public.uid()`: `moderate_item`/`moderate_list` set the request claim to the tombstone and then let the `BEFORE UPDATE` attribution trigger stamp `deleted_by`, and that trigger calls `public.uid()` — without the grant the soft-delete fails with "permission denied for function uid".
 
 ## The `admin.actions` audit table
 
@@ -83,7 +87,7 @@ Every admin RPC, except `inspect_user`, writes one row to this table before it c
 create table admin.actions (
   id          uuid primary key default gen_random_uuid(),
   actor       text not null,           -- session_user: the operator's login role
-  effective   text not null,           -- current_user: the elevated role
+  effective   text not null,           -- current_user: cairn_admin_owner under security definer
   action      text not null,           -- 'ban_user', 'moderate_item', …
   target      uuid,                    -- the affected user/item/list, when applicable
   reason      text not null check (length(reason) between 1 and 2000),
@@ -91,11 +95,15 @@ create table admin.actions (
   created_at  timestamptz not null default clock_timestamp()
 );
 
-alter table admin.actions enable row level security;
--- No policies. authenticated/anon have no GRANT on this table; only
--- cairn_admin (via cairn_readonly inheritance) can SELECT from it,
--- and INSERTs come exclusively from the security definer functions
--- below, running as cairn_admin_owner.
+-- No row-level security. authenticated/anon have no GRANT on this
+-- table and no USAGE on the admin schema, so it is unreachable from
+-- PostgREST; cairn_admin (via cairn_readonly inheritance) reads it
+-- through psql, and INSERTs come exclusively from the security definer
+-- functions below, running as cairn_admin_owner. RLS is deliberately
+-- NOT enabled: enabling it with no policy default-denies the
+-- cairn_readonly SELECT to zero rows, breaking `cairn-admin log`.
+-- Append-only is enforced by withholding UPDATE/DELETE grants, not by
+-- RLS.
 
 grant select on admin.actions to cairn_readonly;
 revoke all  on admin.actions from authenticated, anon;
@@ -104,7 +112,7 @@ revoke all  on admin.actions from authenticated, anon;
 A few choices, called out:
 
 - **Required reason is the discipline that matters.** Writing it down *before* the action runs, in the same transaction as the action, makes the table a real audit trail rather than a guilt log. It's also the answer to *"what did we do for that GDPR request three months ago"* — `select * from admin.actions where target = ? order by created_at`. The 2000-char ceiling matches `lists.description` and is generous for any reasonable note.
-- **`actor` is `session_user`, not `current_user`.** After `SET ROLE cairn_admin`, `current_user` is `cairn_admin` (uniform, useless as an audit field) while `session_user` is still the operator's personal login role (which is what the audit log should record). The `effective` column carries `current_user` as a sanity check: it should always be `cairn_admin` for write actions; if it isn't, something escalated through a path we didn't intend.
+- **`actor` is `session_user`, not `current_user`.** After `SET ROLE cairn_admin`, `current_user` is `cairn_admin` (uniform, useless as an audit field) while `session_user` is still the operator's personal login role (which is what the audit log should record). The `effective` column carries `current_user` as a sanity check — but note *where* it's read: the insert happens inside a `security definer` function, where `current_user` is the function owner, so `effective` records `cairn_admin_owner`, not `cairn_admin`. The check is "writes always run as the admin owner"; if `effective` is ever anything else, something escalated through a path we didn't intend.
 - **`payload` snapshots the pre-state, not the post-state.** For a ban: the previous `banned_until` value. For a moderate-item: the row before soft-delete. This is the minimum for a *partial* undo (re-set the prior `banned_until`, restore the prior soft-delete state); a *full* undo of a `purge_*` action still needs Restic. The snapshot is JSON because that's what survives schema migrations of the source table without breaking old audit rows.
 - **No RLS, no PostgREST exposure.** The table is in `admin`, which isn't on PostgREST's schema list. Operator reads happen through psql, against a role that has `SELECT`. The right grep for "did anyone touch Alice's data this month" is `select * from admin.actions where target = (select id from auth.users where email = ?) and created_at > now() - interval '30 days'`.
 
@@ -213,15 +221,18 @@ begin
   values (session_user, current_user, 'delete_account_as', p_target, p_reason,
           jsonb_build_object('email_at_time', email_at_time));
 
-  -- Hard-delete lists where the target was the only remaining member.
+  -- Hard-delete lists where the target was the only remaining live
+  -- member. This is delete_account()'s exact query (account-deletion.md)
+  -- with p_target substituted for public.uid(); using the identical form
+  -- — rather than additionally scoping to lists the target belongs to —
+  -- is what guarantees delete_account_as and delete_account reach the same
+  -- end-state in every case, including orphaned (zero-live-member) lists.
   delete from public.lists l
-  where exists (
+  where not exists (
     select 1 from public.list_members lm
-    where lm.list_id = l.id and lm.user_id = p_target and lm.deleted_at is null
-  )
-  and not exists (
-    select 1 from public.list_members lm
-    where lm.list_id = l.id and lm.deleted_at is null and lm.user_id <> p_target
+    where lm.list_id = l.id
+      and lm.deleted_at is null
+      and lm.user_id <> p_target
   );
 
   -- Trigger the cascade: profiles, user_settings, votes, list_members,
@@ -257,9 +268,21 @@ begin
   insert into admin.actions (actor, effective, action, target, reason, payload)
   values (session_user, current_user, 'moderate_item', p_target, p_reason, snap);
 
+  -- Attribute the soft-delete to the tombstone. The BEFORE UPDATE
+  -- attribution trigger (tg_set_attribution_items) derives deleted_by
+  -- from public.uid() on the live→deleted transition, and an admin RPC
+  -- has no JWT — so a deleted_by = '0000…' set directly in the UPDATE
+  -- would be overwritten with NULL. Set the request claim to the
+  -- tombstone first, and let the trigger stamp deleted_by through the
+  -- normal path.
+  perform set_config(
+    'request.jwt.claims',
+    jsonb_build_object('sub', '00000000-0000-0000-0000-000000000000')::text,
+    true
+  );
+
   update public.items
-     set deleted_at = clock_timestamp(),
-         deleted_by = '00000000-0000-0000-0000-000000000000'
+     set deleted_at = clock_timestamp()
    where id = p_target
      and deleted_at is null;
 end;
@@ -289,7 +312,7 @@ $$;
 
 `purge_item` is the legal-takedown lever. It hard-deletes the row, votes cascade away, and nothing in the live tables remembers it. The audit row's `payload` is the only record that the item ever existed — useful for "we received DMCA notice X on date Y and removed the item with these characteristics," which is the kind of question regulators or courts ask.
 
-`moderate_list` and `purge_list` follow the same shape, against `public.lists`. Soft-delete leaves the list in every member's list trash (reachable via `lists_deleted`); hard-delete cascades through `items`, `votes`, `list_members`, `invitations`, and is gone.
+`moderate_list` and `purge_list` follow the same shape, against `public.lists` (`moderate_list` uses the same `set_config` claim-to-tombstone step before its UPDATE, for the same reason — `tg_set_attribution_lists` would otherwise stamp `deleted_by` NULL). Soft-delete leaves the list in every member's list trash (reachable via `lists_deleted`); hard-delete cascades through `items`, `votes`, `list_members`, `invitations`, and is gone.
 
 ### `admin.inspect_user`
 
@@ -302,8 +325,21 @@ as $$
 declare result jsonb;
 begin
   select jsonb_build_object(
-    'auth', (select to_jsonb(u) - 'encrypted_password' - 'recovery_token'
-                                - 'confirmation_token' - 'email_change_token_new'
+    -- Allowlist, not denylist: the `auth` sub-document is built from an
+    -- explicit set of non-secret columns. Every credential/recovery token
+    -- (encrypted_password, recovery_token, confirmation_token,
+    -- email_change_token_new, email_change_token_current,
+    -- reauthentication_token, phone_change_token, …) is excluded *by
+    -- construction*, so a future GoTrue column can never silently leak
+    -- through a `to_jsonb(u)` that forgot to subtract it.
+    'auth', (select jsonb_build_object(
+                'id',                 u.id,
+                'email',              u.email,
+                'email_confirmed_at', u.email_confirmed_at,
+                'last_sign_in_at',    u.last_sign_in_at,
+                'banned_until',       u.banned_until,
+                'created_at',         u.created_at
+              )
                from auth.users u where u.id = p_target),
     'profile',       (select to_jsonb(p) from public.profiles      p where p.id = p_target),
     'user_settings', (select to_jsonb(s) from public.user_settings s where s.id = p_target),
@@ -321,13 +357,13 @@ revoke all on function admin.inspect_user(uuid) from public;
 grant  execute on function admin.inspect_user(uuid) to cairn_readonly;
 ```
 
-The four omitted columns on `auth.users` are the credential/recovery secrets — they are removed at the JSON layer so a slip of the eye while reading the result doesn't expose anything sensitive. The function is `stable` (read-only at the SQL level) and does not log to `admin.actions`: read-only inspection is *constantly* useful for debugging "user says X is broken" reports, and logging every read would either drown the audit table or train the operator to skip the log.
+The `auth` sub-document is an **allowlist** of non-secret columns, not a `to_jsonb(u)` with the known secrets subtracted. A denylist is the wrong shape here: every GoTrue image bump that adds a token column (`reauthentication_token`, `phone_change_token`, `email_change_token_current`, …) would silently re-introduce a leak that nobody remembered to subtract, and `inspect_user` is the *only* path `cairn_readonly` has to `auth.users` data — so a leak there is a leak to a role that is supposed to inspect without seeing credentials. Building the document from an explicit safe set means a slip of the eye while reading the result exposes nothing sensitive, and a new GoTrue column is excluded by default rather than included by default. The function is `stable` (read-only at the SQL level) and does not log to `admin.actions`: read-only inspection is *constantly* useful for debugging "user says X is broken" reports, and logging every read would either drown the audit table or train the operator to skip the log.
 
 The deliberate counterpart: any *write* path is logged, no exceptions. The asymmetry is the protection.
 
 ## The `cairn-admin` CLI
 
-A small Python script in the repo at `scripts/cairn-admin`. It is a shell over psql, not a replacement for psql. Its only jobs are ergonomics and to refuse to invoke a destructive RPC without `--reason`:
+A small bash script in the repo at `scripts/cairn-admin`. It is a shell over psql, not a replacement for psql. Bash, not Python, because the VPS has no Python runtime — a Python CLI would force one onto the production box for a single operator script; bash matches every other operator script (`scripts/list-users.sh`, …) and rides the existing ShellCheck/shfmt gauntlet. Its only jobs are ergonomics and to refuse to invoke a destructive RPC without `--reason`:
 
 ```
 cairn-admin inspect alice@example.com
@@ -346,7 +382,7 @@ The script:
 - Resolves emails to UUIDs by running `select id from auth.users where lower(email) = lower(?)` first; the RPCs themselves take UUIDs only.
 - Connects as the operator's personal Postgres login role (with `cairn_admin` membership granted at provisioning time), reading credentials from `~/.cairn-admin.env` outside the repo.
 - Issues `SET ROLE cairn_admin;` before invoking any write RPC. The role-flip is visible in `pg_stat_activity` and is the human-visible escalation step.
-- Refuses to run any destructive subcommand without `--reason`, and refuses a reason shorter than 8 characters. The argparse defaults sit close to the CHECK constraint on `admin.actions.reason`, but the in-process check is the one the operator notices.
+- Refuses to run any destructive subcommand without `--reason`, and refuses a reason shorter than 8 characters. The CLI's arg parsing sits close to the CHECK constraint on `admin.actions.reason`, but the in-process check is the one the operator notices.
 - Prints the affected row(s) before and after the action, plus the generated `admin.actions.id`. The pre-state is for the operator's eyes ("yes, that's the right item"); the post-state is for confirmation; the action id is for the audit log query.
 
 The script is authorization theatre at the OS layer — it adds no security on its own. The real authorization is `cairn_admin` membership at the database layer, which the operator's personal Postgres role either has or doesn't. The script could be replaced by an operator typing the same SET ROLE and SELECT lines into psql by hand, and the audit trail would look identical. The script exists so the operator doesn't make a typo at 2 AM.

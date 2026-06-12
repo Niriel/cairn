@@ -1,0 +1,273 @@
+#!/usr/bin/env bash
+# cairn-admin — operator CLI over the admin.* RPCs (see docs/admin.md
+# § "The cairn-admin CLI" and "Operator workflow").
+#
+# WHAT IT DOES
+#   A thin, typo-resistant shell over psql for the eight admin RPCs. It
+#   resolves emails to UUIDs, refuses a destructive action without a
+#   sufficiently long --reason, requires a verbatim confirmation when the
+#   target is the operator's own account, runs the RPC as cairn_admin, and
+#   prints the resulting admin.actions audit row.
+#
+#   It adds NO authorization of its own. The real wall is the database:
+#   cairn_admin role membership, the SECURITY DEFINER grants, and the
+#   admin.actions.reason CHECK. This script could be replaced by an
+#   operator typing the same SET ROLE + SELECT lines into psql by hand and
+#   the audit trail would look identical — it exists so that doesn't have
+#   to happen at 2 AM.
+#
+# USAGE
+#   cairn-admin inspect <email>
+#   cairn-admin ban     <email> --reason <text>
+#   cairn-admin unban   <email> --reason <text>
+#   cairn-admin delete  <email> --reason <text>
+#   cairn-admin item    moderate|purge <uuid> --reason <text>
+#   cairn-admin list    moderate|purge <uuid> --reason <text>
+#   cairn-admin log     [--actor <role>] [--since <interval>] [--target <uuid>]
+#
+# CONFIG
+#   Sources ~/.cairn-admin.env (override with CAIRN_ADMIN_ENV) for the
+#   libpq PG* connection vars (PGHOST/PGPORT/PGUSER/PGPASSWORD/PGDATABASE)
+#   used to connect as the operator's personal Postgres login role, plus
+#   CAIRN_ADMIN_EMAIL — the operator's own Cairn account, used to trigger
+#   the self-target confirmation.
+set -euo pipefail
+
+CONFIG="${CAIRN_ADMIN_ENV:-$HOME/.cairn-admin.env}"
+if [[ -f "$CONFIG" ]]; then
+  set -a
+  # shellcheck disable=SC1090
+  . "$CONFIG"
+  set +a
+fi
+
+PSQL=(psql -X -v ON_ERROR_STOP=1)
+
+die() {
+  printf 'cairn-admin: %s\n' "$1" >&2
+  exit 1
+}
+
+usage() {
+  cat <<'EOF'
+Usage:
+  cairn-admin inspect <email>
+  cairn-admin ban     <email> --reason <text>
+  cairn-admin unban   <email> --reason <text>
+  cairn-admin delete  <email> --reason <text>
+  cairn-admin item    moderate|purge <uuid> --reason <text>
+  cairn-admin list    moderate|purge <uuid> --reason <text>
+  cairn-admin log     [--actor <role>] [--since <interval>] [--target <uuid>]
+EOF
+  exit "${1:-0}"
+}
+
+# Pull a --reason value out of a flag list (--reason X or --reason=X).
+parse_reason() {
+  local reason=""
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --reason)
+        reason="${2:-}"
+        shift 2 || true
+        ;;
+      --reason=*)
+        reason="${1#--reason=}"
+        shift
+        ;;
+      *) shift ;;
+    esac
+  done
+  printf '%s' "$reason"
+}
+
+# Fast pre-check mirroring the admin.actions.reason CHECK. The DB is the
+# wall; this is the friendly bounce before we ever open a transaction.
+need_reason() {
+  [[ -n "$1" ]] || die "--reason is required for this action"
+  [[ ${#1} -ge 8 ]] || die "--reason must be at least 8 characters (got ${#1})"
+}
+
+validate_uuid() {
+  local re='^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$'
+  [[ "$1" =~ $re ]] || die "not a UUID: $1"
+}
+
+resolve_email() {
+  local email="$1" id
+  # Interpolation of :'email' happens via stdin, not -c (psql does not
+  # substitute variables in a -c command string).
+  id=$(
+    "${PSQL[@]}" -tA -v email="$email" <<'SQL'
+SELECT id FROM auth.users WHERE lower(email) = lower(:'email');
+SQL
+  )
+  [[ -n "$id" ]] || die "no account for $email"
+  printf '%s' "$id"
+}
+
+is_self() {
+  [[ -n "${CAIRN_ADMIN_EMAIL:-}" && "${1,,}" == "${CAIRN_ADMIN_EMAIL,,}" ]]
+}
+
+confirm_plain() {
+  local answer
+  printf '%s [y/N] ' "$1"
+  read -r answer
+  [[ "$answer" == "y" || "$answer" == "Y" ]] || die "aborted"
+}
+
+# Copy-paste-resistant confirmation for destructive self-targeting.
+confirm_verbatim() {
+  local phrase="$1" answer
+  printf '⚠ This is YOUR OWN account (matches CAIRN_ADMIN_EMAIL).\n' >&2
+  printf '  Type "%s" to continue: ' "$phrase"
+  read -r answer
+  [[ "$answer" == "$phrase" ]] || die "confirmation text did not match — aborted"
+}
+
+# Run a destructive RPC as cairn_admin, then print its audit row. The
+# RPC name expands here; target/reason go through libpq -v vars and are
+# referenced as :'target'/:'reason' so libpq quotes them (no injection).
+exec_rpc() {
+  local rpc="$1" target="$2" reason="$3"
+  "${PSQL[@]}" -v target="$target" -v reason="$reason" <<SQL
+SET ROLE cairn_admin;
+SELECT admin.$rpc(:'target', :'reason');
+\echo 'Action logged:'
+SELECT id, action, target, reason, payload, created_at
+FROM admin.actions
+WHERE target = :'target'
+ORDER BY created_at DESC
+LIMIT 1;
+SQL
+}
+
+cmd_inspect() {
+  local email="${1:-}"
+  [[ -n "$email" ]] || die "usage: cairn-admin inspect <email>"
+  local id
+  id=$(resolve_email "$email")
+  printf 'Resolved %s → %s\n' "$email" "$id"
+  "${PSQL[@]}" -v target="$id" <<'SQL'
+SET ROLE cairn_admin;
+SELECT jsonb_pretty(admin.inspect_user(:'target'));
+SQL
+}
+
+cmd_ban() {
+  local email="${1:-}"
+  shift || true
+  [[ -n "$email" ]] || die "usage: cairn-admin ban <email> --reason <text>"
+  local reason
+  reason=$(parse_reason "$@")
+  need_reason "$reason"
+  local id
+  id=$(resolve_email "$email")
+  printf 'Resolved %s → %s\n' "$email" "$id"
+  if is_self "$email"; then
+    confirm_verbatim "BAN MY OWN ACCOUNT"
+  else
+    confirm_plain "About to ban this user. Continue?"
+  fi
+  exec_rpc ban_user "$id" "$reason"
+}
+
+cmd_unban() {
+  local email="${1:-}"
+  shift || true
+  [[ -n "$email" ]] || die "usage: cairn-admin unban <email> --reason <text>"
+  local reason
+  reason=$(parse_reason "$@")
+  need_reason "$reason"
+  local id
+  id=$(resolve_email "$email")
+  printf 'Resolved %s → %s\n' "$email" "$id"
+  # unban is non-destructive — plain [y/N] even when self-targeting.
+  confirm_plain "About to unban this user. Continue?"
+  exec_rpc unban_user "$id" "$reason"
+}
+
+cmd_delete() {
+  local email="${1:-}"
+  shift || true
+  [[ -n "$email" ]] || die "usage: cairn-admin delete <email> --reason <text>"
+  local reason
+  reason=$(parse_reason "$@")
+  need_reason "$reason"
+  local id
+  id=$(resolve_email "$email")
+  printf 'Resolved %s → %s\n' "$email" "$id"
+  if is_self "$email"; then
+    confirm_verbatim "DELETE MY OWN ACCOUNT"
+  else
+    confirm_plain "About to PERMANENTLY erase this account. Continue?"
+  fi
+  exec_rpc delete_account_as "$id" "$reason"
+}
+
+# Shared dispatch for `item` and `list`, which take a moderate|purge
+# sub-verb and a UUID target (never an email, so no self-target path).
+cmd_target() {
+  local kind="$1" verb="${2:-}" uuid="${3:-}"
+  shift 3 || true
+  case "$verb" in
+    moderate | purge) ;;
+    *) die "usage: cairn-admin $kind moderate|purge <uuid> --reason <text>" ;;
+  esac
+  validate_uuid "$uuid"
+  local reason
+  reason=$(parse_reason "$@")
+  need_reason "$reason"
+  confirm_plain "About to $verb $kind $uuid. Continue?"
+  exec_rpc "${verb}_${kind}" "$uuid" "$reason"
+}
+
+cmd_log() {
+  local actor="" since="" target=""
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --actor)
+        actor="${2:-}"
+        shift 2 || true
+        ;;
+      --since)
+        since="${2:-}"
+        shift 2 || true
+        ;;
+      --target)
+        target="${2:-}"
+        shift 2 || true
+        ;;
+      *) die "log: unknown argument: $1" ;;
+    esac
+  done
+  [[ -z "$target" ]] || validate_uuid "$target"
+  "${PSQL[@]}" -v actor="$actor" -v since="$since" -v target="$target" <<'SQL'
+SET ROLE cairn_admin;
+SELECT id, actor, effective, action, target, reason, created_at
+FROM admin.actions
+WHERE (:'actor' = '' OR actor = :'actor')
+  AND (:'target' = '' OR target = NULLIF(:'target', '')::uuid)
+  AND (:'since' = '' OR created_at >= now() - (:'since')::interval)
+ORDER BY created_at DESC;
+SQL
+}
+
+main() {
+  local cmd="${1:-}"
+  shift || true
+  case "$cmd" in
+    inspect) cmd_inspect "$@" ;;
+    ban) cmd_ban "$@" ;;
+    unban) cmd_unban "$@" ;;
+    delete) cmd_delete "$@" ;;
+    item) cmd_target item "$@" ;;
+    list) cmd_target list "$@" ;;
+    log) cmd_log "$@" ;;
+    "" | -h | --help) usage 0 ;;
+    *) die "unknown command: $cmd (try --help)" ;;
+  esac
+}
+
+main "$@"
