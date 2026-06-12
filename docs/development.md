@@ -353,8 +353,9 @@ To test the flow:
 1. In the app, enter an email (any email; it doesn't have to be real).
 2. The app POSTs to `/auth/magiclink` with `{email, redirect_to: ${origin}/auth/callback}`.
 3. GoTrue sends an email via SMTP to Mailpit. The email's link points at GoTrue's own `/verify` endpoint (port 9999 in dev), which validates the token and then 302-redirects to `localhost:5173/auth/callback#access_token=…&refresh_token=…&type=magiclink`.
-4. Open `http://localhost:8025` — Mailpit's web UI shows the email.
+4. Open `http://localhost:8025` — Mailpit's web UI shows the email. It carries both a sign-in link and a six-digit code.
 5. Click the link. The browser follows the `/verify` → 302 → callback chain. The callback page captures the hash, `replaceState`s it away, and POSTs `/auth/token?grant_type=refresh_token` through the Vite proxy. The cookie-plant shim sets the `cairn_session` cookie, and the page navigates to `/`, logged in. (Tokens are JS-readable in `window.location.hash` for the few hundred milliseconds the callback page is mounted — the trade-off is documented in `docs/architecture.md` under "JWT storage → Security trade-off".)
+6. Alternatively, instead of clicking the link, type the six-digit code on the "Check your inbox" screen (`/auth/check`). The code-entry field POSTs `/auth/verify` with `{type:'magiclink', email, token}` through the same cookie-plant shim, and the page navigates to `/`, logged in — useful for finishing sign-in on the device you started on.
 
 The dev cookie is set without the `Secure` attribute because localhost is HTTP; production's Caddy-set cookie has `Secure`. This divergence is intentional.
 

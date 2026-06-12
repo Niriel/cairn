@@ -13,10 +13,10 @@
 
 ## Phase 0 — reconcile docs
 
-### [ ] 0.1 Reconcile docs with the OTP reversal
+### [x] 0.1 Reconcile docs with the OTP reversal
 
 **Created:** 2026-06-12T13:25:47Z
-**Completed:**
+**Completed:** 2026-06-12T13:42:08Z
 
 **Why:** `docs/gotrue-templates.md` and `docs/architecture.md` currently mandate
 *stripping* the OTP and state Cairn "has no code-entry screen." This plan adds
