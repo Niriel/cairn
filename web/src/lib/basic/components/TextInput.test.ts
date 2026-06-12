@@ -101,4 +101,10 @@ describe('TextInput', () => {
 		const { getByDataTest } = render(TextInput, { value: '', 'data-test': 'my-field' });
 		expect(getByDataTest('my-field').tagName.toLowerCase()).toBe('input');
 	});
+
+	test('maxlength passes through to the input', () => {
+		const { container } = render(TextInput, { value: '', maxlength: 6 });
+		const input = container.querySelector('input') as HTMLInputElement;
+		expect(input.getAttribute('maxlength')).toBe('6');
+	});
 });

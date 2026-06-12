@@ -159,10 +159,10 @@ in `auth-client.ts`).
 
 **Verify:** `cd web && pnpm test -- auth-client` · `pnpm lint` · `pnpm check`
 
-### [ ] 2.2 Add `maxlength` passthrough to `TextInput`
+### [x] 2.2 Add `maxlength` passthrough to `TextInput`
 
 **Created:** 2026-06-12T13:25:47Z
-**Completed:**
+**Completed:** 2026-06-12T13:57:22Z
 
 **Why:** The code field caps input at 6 characters; `TextInput` currently has no
 `maxlength` prop (R4). Extending the shared primitive avoids a bespoke component.
@@ -184,6 +184,17 @@ in `auth-client.ts`).
 2. GREEN — Add the prop and bind it on the `<input>`. Re-run; confirm green.
 
 **Verify:** `cd web && pnpm test -- TextInput` · `pnpm check`
+
+**Notes:**
+- **No Vitest RED.** The new `maxlength` test passed *before* the implementation
+  because `TextInput` already spreads `{...rest}` onto the `<input>`, so an
+  undeclared `maxlength` was forwarded at runtime, and the `render` test helper
+  is generically typed (`P extends Record<string, unknown>`) so it doesn't
+  type-check props against the component. The genuine gap the task closes is for
+  `.svelte` consumers: `<TextInput maxlength={6} />` was a svelte-check type
+  error until `maxlength?: number` was added to `Props` (this is what task 3.1
+  needs). Implementation landed as planned; the test now documents the
+  behaviour and the prop is typed for consumers.
 
 ## Phase 3 — code-entry UI and end-to-end
 
