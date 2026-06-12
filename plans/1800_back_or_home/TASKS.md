@@ -114,10 +114,10 @@ it owns the `afterNavigate` registration.
 
 ## Phase 2 — the control and wiring
 
-### [ ] 2.1 Add the `BackOrHome` control component
+### [x] 2.1 Add the `BackOrHome` control component
 
 **Created:** 2026-06-12T15:24:00Z
-**Completed:**
+**Completed:** 2026-06-12T15:37:43Z
 
 **Why:** TopBar's back button must become a Home button when there's no in-app
 history. Extracting the mode logic into its own component keeps TopBar
