@@ -23,10 +23,10 @@
 
 ## Phase 0 — reconcile docs
 
-### [ ] 0.1 Freeze the vote-scope open question to Option B
+### [x] 0.1 Freeze the vote-scope open question to Option B
 
 **Created:** 2026-06-12T09:57:41Z
-**Completed:**
+**Completed:** 2026-06-12T10:28:04Z
 
 **Why:** `docs/data-export.md` flags vote scope as an open question
 (indexed in `docs/open-questions.md`). The user chose **Option B** (the

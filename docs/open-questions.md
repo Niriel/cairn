@@ -17,16 +17,6 @@ the matching entry in the underlying doc.
   version column covers both files. Deferred. See `avatars.md` §
   Open questions.
 
-## Data export
-
-- **Vote scope.** Option A (the user's own votes only) vs Option B
-  (the user's own votes *plus* all votes on items they added).
-  Recommendation **B**, on the basis that the live UI already shows
-  co-members' votes on the user's items, so an export that hides them
-  is paternalistic without privacy gain. Worth a deliberate call
-  before the export RPC body is frozen. See `data-export.md` § "Open
-  question — vote scope".
-
 ## Frontend runtime
 
 - **CSP and the inline boot script in `app.html`.** Default: an
@@ -80,10 +70,10 @@ the matching entry in the underlying doc.
   currently have no in-product appeal path. They have an
   out-of-product one (email the operator), which is fine at this
   scale but isn't surfaced anywhere the sign-in screen mentions. A
-  single neutral *"Account issues? Contact <address>"* link shown
+  single neutral _"Account issues? Contact <address>"_ link shown
   to everyone — same anti-enumeration trick at one layer of
   indirection — is the obvious shape. Blocker: GoTrue doesn't tell
-  the front-end *why* a magic-link request failed, so adding a
+  the front-end _why_ a magic-link request failed, so adding a
   banned-only surface would break the indistinguishability that
   `admin.md` § "What the web app shows when a banned user tries to
   sign in" relies on. See `admin.md` § Open questions.
