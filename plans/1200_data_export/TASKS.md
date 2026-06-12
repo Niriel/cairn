@@ -75,10 +75,10 @@ wording · `grep -ni "vote scope" docs/open-questions.md` returns nothing
 
 ## Phase 1 — RPC + pgTAP
 
-### [ ] 1.1 Add `public.export_my_data()` and its pgTAP coverage
+### [x] 1.1 Add `public.export_my_data()` and its pgTAP coverage
 
 **Created:** 2026-06-12T09:57:41Z
-**Completed:**
+**Completed:** 2026-06-12T10:39:47Z
 
 **Why:** The export's data layer and the entire GDPR-portability
 guarantee. A single `security definer` RPC returns the caller's whole
