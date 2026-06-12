@@ -14,6 +14,7 @@
 	import MoreButton from '$lib/shared/components/MoreButton.svelte';
 	import UndoSnackbar from '$lib/shared/components/UndoSnackbar.svelte';
 	import EmptyState from '$lib/shared/components/EmptyState.svelte';
+	import WelcomeBanner from '$lib/shared/components/WelcomeBanner.svelte';
 	import { lists, refreshLists, undoDeleteList } from '$lib/list/state/lists.svelte';
 	import { timeAgo } from '$lib/shared/model/time-ago';
 	import type { List } from '$lib/list/model/list';
@@ -66,6 +67,8 @@
 			</IconButton>
 		{/snippet}
 	</AppTopBar>
+
+	<WelcomeBanner />
 
 	<InvitesBanner />
 
