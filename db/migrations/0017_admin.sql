@@ -165,4 +165,61 @@ REVOKE ALL ON FUNCTION admin.unban_user(uuid, text) FROM public;
 GRANT EXECUTE ON FUNCTION admin.ban_user(uuid, text) TO cairn_admin;
 GRANT EXECUTE ON FUNCTION admin.unban_user(uuid, text) TO cairn_admin;
 
+-- ── admin.inspect_user ─────────────────────────────────────────────
+-- Read-only "user says X is broken" inspection (docs/admin.md
+-- § inspect_user). The only RPC that takes no reason and writes no
+-- audit row; granted to cairn_readonly (cairn_admin reaches it via
+-- inheritance). The asymmetry — reads unlogged, writes always logged —
+-- is the protection.
+--
+-- The `auth` sub-document is an ALLOWLIST of non-secret columns, not a
+-- to_jsonb(u) minus named secrets. Every credential/recovery token is
+-- excluded by construction, so a future GoTrue column can never silently
+-- leak through to cairn_readonly, the one role with no other path to
+-- auth.users data.
+CREATE OR REPLACE FUNCTION admin.inspect_user(p_target uuid)
+RETURNS jsonb
+LANGUAGE plpgsql SECURITY DEFINER STABLE
+SET search_path = admin, public, auth
+AS $$
+DECLARE result jsonb;
+BEGIN
+  SELECT jsonb_build_object(
+    'auth', (
+      SELECT jsonb_build_object(
+        'id', u.id,
+        'email', u.email,
+        'email_confirmed_at', u.email_confirmed_at,
+        'last_sign_in_at', u.last_sign_in_at,
+        'banned_until', u.banned_until,
+        'created_at', u.created_at
+      )
+      FROM auth.users u WHERE u.id = p_target
+    ),
+    'profile', (
+      SELECT to_jsonb(p) FROM public.profiles p WHERE p.id = p_target
+    ),
+    'user_settings', (
+      SELECT to_jsonb(s) FROM public.user_settings s WHERE s.id = p_target
+    ),
+    'memberships', (
+      SELECT jsonb_agg(lm) FROM public.list_members lm
+      WHERE lm.user_id = p_target AND lm.deleted_at IS NULL
+    ),
+    'item_count', (
+      SELECT count(*) FROM public.items
+      WHERE created_by = p_target AND deleted_at IS NULL
+    ),
+    'vote_count', (
+      SELECT count(*) FROM public.votes WHERE user_id = p_target
+    )
+  ) INTO result;
+  RETURN result;
+END;
+$$;
+
+ALTER FUNCTION admin.inspect_user(uuid) OWNER TO cairn_admin_owner;
+REVOKE ALL ON FUNCTION admin.inspect_user(uuid) FROM public;
+GRANT EXECUTE ON FUNCTION admin.inspect_user(uuid) TO cairn_readonly;
+
 COMMIT;

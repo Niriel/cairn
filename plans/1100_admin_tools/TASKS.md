@@ -290,10 +290,16 @@ stub).
 
 **Verify:** `./scripts/test-db.sh` · `sqlfluff lint db/migrations/0017_admin.sql db/tests/admin_ban.sql`
 
-### [ ] 2.2 Add `admin.inspect_user`
+### [x] 2.2 Add `admin.inspect_user`
 
 **Created:** 2026-06-12T07:47:25Z
-**Completed:**
+**Completed:** 2026-06-12T09:07:54Z
+
+**Notes:**
+- The seven secret-absence assertions use `NOT jsonb_exists(j -> 'auth',
+  '<col>')` rather than `NOT (j -> 'auth' ? '<col>')`: SQLFluff's parser
+  misreads `NOT (` as a function call and trips CP03/LT01/LT06.
+  `jsonb_exists` keeps the exact key-presence semantics and lints clean.
 
 **Why:** Read-only inspection for "user says X is broken" — the only RPC with no
 reason and no audit row, granted to `cairn_readonly`. The asymmetry (reads are
