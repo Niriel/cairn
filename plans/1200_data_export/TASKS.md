@@ -252,10 +252,10 @@ from `web/src/lib/shared/http/postgrest.ts`.
 
 **Verify:** `cd web && pnpm lint && pnpm check && pnpm test`
 
-### [ ] 2.2 Add the "Privacy & data → Download my data" Settings row and the export route
+### [x] 2.2 Add the "Privacy & data → Download my data" Settings row and the export route
 
 **Created:** 2026-06-12T09:57:41Z
-**Completed:**
+**Completed:** 2026-06-12T11:45:10Z
 
 **Why:** The entry point (R6) and the route that hosts the hub. With the
 minimal hub from this task, a user can already prepare and download their
@@ -311,6 +311,21 @@ minimal hub from this task, a user can already prepare and download their
 5. GREEN — `cd web && pnpm test` → green.
 
 **Verify:** `cd web && pnpm lint && pnpm check && pnpm test`
+
+**Notes:**
+- User refined the hub UI directly during the task: the "What's inside"
+  / "Two formats" labels became `<h2>` (matching a parallel `Label`→`<h2>`
+  swap they made in `DeleteAccountScreen.svelte`), the formats list became a
+  `<dl>`, the action buttons are centred (`.actions` flex column), and the
+  `dd` is indented under its `dt`. The component's behaviour (prepare/ready/
+  download toggle) and its tests are unchanged.
+- Side work: removed a now-dead `import Label` from `DeleteAccountScreen.svelte`
+  left over from the user's in-progress `Label`→`<h2>` edit (it was an unstaged
+  working-tree change). The `Label` component is still used in ~9 other files
+  (form-field labels), so it is not being retired — only those section
+  headings changed.
+- `pnpm lint` here runs ESLint only; Prettier is a separate pre-commit gate,
+  run explicitly. Consistent with the 2.1 note.
 
 ## Phase 3 — HTML + README + ZIP
 
