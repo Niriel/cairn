@@ -152,35 +152,39 @@
 	{/if}
 
 	<div class="edit-body">
-		<div class="avatar-section">
-			<Avatar
-				displayName={profile.displayName ?? ''}
-				uid={profile.uid ?? ''}
-				avatarVersion={profile.avatarVersion}
-				size={112}
-				data-test="profile-avatar"
-			/>
-			<div class="avatar-actions">
-				<Button
-					variant="pill"
-					tone="ink"
-					size="sm"
-					leadingIcon="pencil"
-					data-test="change-picture"
-					onclick={() => (showSourceSheet = true)}
-				>
-					{profile.avatarVersion > 0 ? 'Change picture' : 'Add a picture'}
-				</Button>
-				{#if profile.avatarVersion > 0}
+		<div class="avatar-field">
+			<Label>Profile picture</Label>
+			<div class="avatar-section">
+				<Avatar
+					displayName={profile.displayName ?? ''}
+					uid={profile.uid ?? ''}
+					avatarVersion={profile.avatarVersion}
+					size={112}
+					data-test="profile-avatar"
+				/>
+				<div class="avatar-actions">
 					<Button
 						variant="pill"
-						tone="destructive"
+						tone="ink"
 						size="sm"
-						data-test="remove-avatar"
-						onclick={removeAvatar}
-						disabled={removing}>Remove</Button
+						leadingIcon="pencil"
+						data-test="change-picture"
+						onclick={() => (showSourceSheet = true)}
 					>
-				{/if}
+						{profile.avatarVersion > 0 ? 'Change' : 'Add a picture'}
+					</Button>
+					{#if profile.avatarVersion > 0}
+						<Button
+							variant="pill"
+							tone="destructive"
+							size="sm"
+							leadingIcon="trash-2"
+							data-test="remove-avatar"
+							onclick={removeAvatar}
+							disabled={removing}>Remove</Button
+						>
+					{/if}
+				</div>
 			</div>
 		</div>
 
@@ -205,12 +209,6 @@
 			<p class="field-error">{nameError}</p>
 		{/if}
 		<p class="field-hint">What other list members see. E-mail stays private.</p>
-
-		<div class="info-box">
-			<b>Where your picture appears.</b>
-			Next to your name on shared lists, in the members screen, and on items you've added. A photo, a
-			doodle, your cat — whatever you'd like other people in your lists to see.
-		</div>
 
 		<div class="save-row">
 			<Button variant="rect" tone="primary" size="md" data-test="save-profile" onclick={saveName}
@@ -273,6 +271,12 @@
 		padding: 24px 18px;
 	}
 
+	.avatar-field {
+		display: flex;
+		flex-direction: column;
+		gap: 12px;
+	}
+
 	.avatar-section {
 		display: flex;
 		flex-direction: column;
@@ -283,6 +287,11 @@
 	.avatar-actions {
 		display: flex;
 		gap: 8px;
+	}
+
+	/* Separate the picture block from the name block. */
+	.field {
+		margin-top: 28px;
 	}
 
 	.field-error {
@@ -296,17 +305,6 @@
 		font-size: 12px;
 		color: var(--stone);
 		line-height: 1.5;
-	}
-
-	.info-box {
-		margin-top: 24px;
-		padding: 12px 14px;
-		background: var(--paper-alt);
-		border-radius: 12px;
-		border: 1px solid var(--rule);
-		font-size: 12px;
-		color: var(--ink-soft);
-		line-height: 1.55;
 	}
 
 	/* Save sits at the foot of the form, full-width, where people expect the
