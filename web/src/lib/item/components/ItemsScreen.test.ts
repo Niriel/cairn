@@ -5,6 +5,10 @@ import { http, HttpResponse } from 'msw';
 
 import { items, loadItems, undoDelete } from '$lib/item/state/items.svelte';
 import { _resetForTesting } from '$lib/shared/state/back-stack.svelte';
+import {
+	_resetForTesting as _resetNavHistory,
+	recordInAppNavigation
+} from '$lib/shared/state/nav-history.svelte';
 import { network } from '$lib/shared/state/network.svelte';
 import { server } from '$lib/test/server';
 import { render } from '$lib/test/render';
@@ -68,6 +72,7 @@ afterEach(() => {
 	vi.restoreAllMocks();
 	history.replaceState(null, '');
 	_resetForTesting();
+	_resetNavHistory();
 });
 
 describe('ItemsScreen', () => {
@@ -146,8 +151,9 @@ describe('ItemsScreen', () => {
 		expect(getAllByDataTest('item-extra').length).toBe(1);
 	});
 
-	test('(e) tapping the back button calls history.back()', async () => {
+	test('(e) tapping the back button calls history.back() when there is in-app history', async () => {
 		const backSpy = vi.spyOn(history, 'back').mockImplementation(() => {});
+		recordInAppNavigation();
 		const { getByDataTest } = render(ItemsScreen, { listId: 'test-list-id' });
 		await fireEvent.click(getByDataTest('topbar-back'));
 		expect(backSpy).toHaveBeenCalledTimes(1);

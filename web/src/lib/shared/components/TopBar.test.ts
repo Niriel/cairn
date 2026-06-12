@@ -1,12 +1,18 @@
 import { fireEvent } from '@testing-library/svelte';
 import { createRawSnippet } from 'svelte';
-import { describe, expect, test, vi } from 'vitest';
+import { beforeEach, describe, expect, test, vi } from 'vitest';
 
 import { render } from '$lib/test/render';
+
+import { _resetForTesting, recordInAppNavigation } from '$lib/shared/state/nav-history.svelte';
 
 import TopBar from './TopBar.svelte';
 
 vi.mock('$lib/basic/components/Button.svelte');
+// TopBar's default back control is BackOrHome, which reaches for SvelteKit
+// navigation on its home-fallback path; stub both so it renders in jsdom.
+vi.mock('$app/navigation', () => ({ goto: vi.fn(() => Promise.resolve()) }));
+vi.mock('$app/paths', () => ({ resolve: vi.fn((p: string) => p) }));
 
 function span(html: string, dataTest?: string) {
 	const attr = dataTest ? ` data-test="${dataTest}"` : '';
@@ -16,6 +22,10 @@ function span(html: string, dataTest?: string) {
 }
 
 describe('TopBar', () => {
+	beforeEach(() => {
+		_resetForTesting();
+	});
+
 	test('(a) renders the default snippet as the title', () => {
 		const { getByDataTest } = render(TopBar, {
 			children: span('Hello', 'title')
@@ -23,9 +33,10 @@ describe('TopBar', () => {
 		expect(getByDataTest('title').textContent).toBe('Hello');
 	});
 
-	test('(b) back arrow calls history.back()', async () => {
+	test('(b) back arrow calls history.back() when there is in-app history', async () => {
 		const backSpy = vi.spyOn(window.history, 'back').mockImplementation(() => {});
 		try {
+			recordInAppNavigation();
 			const { getByDataTest } = render(TopBar, {
 				children: span('Hello')
 			});

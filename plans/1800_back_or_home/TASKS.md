@@ -165,10 +165,10 @@ pattern; `IconButton.svelte` for the props it forwards.
 
 **Verify:** `cd web && pnpm test BackOrHome` · `pnpm check`
 
-### [ ] 2.2 Swap `BackOrHome` into TopBar and drop the dead CSS
+### [x] 2.2 Swap `BackOrHome` into TopBar and drop the dead CSS
 
 **Created:** 2026-06-12T15:24:00Z
-**Completed:**
+**Completed:** 2026-06-12T15:45:29Z
 
 **Why:** Route TopBar's default back control through the new component so every
 screen gets the home fallback (R4), and remove the now-unused inline button and
@@ -210,6 +210,34 @@ its CSS.
 3. GREEN — `cd web && pnpm test TopBar` → green.
 
 **Verify:** `cd web && pnpm test` · `pnpm check` · `pnpm lint`
+
+**Notes:**
+- Chose to render the real `BackOrHome` in `TopBar.test.ts` (mocking
+  `$app/navigation` + `$app/paths`, resetting nav-history in `beforeEach`)
+  rather than a `__mocks__` stub — keeps test (b) honestly exercising the
+  back path. No `__mocks__/BackOrHome.svelte` was created.
+- Side work: two consumer tests broke because the back control now routes
+  through `BackOrHome`. (1) `src/routes/layout.test.ts` mocked
+  `$app/navigation` without `afterNavigate` (now called by the layout) —
+  added `afterNavigate: vi.fn()` to its mock. (2)
+  `ItemsScreen.test.ts` (e) asserted `history.back()`, but with no in-app
+  history the control now takes the home-fallback path — added
+  `recordInAppNavigation()` before the click and `_resetForTesting`
+  (aliased `_resetNavHistory`) to its `afterEach`. Full suite green (727).
+- **OPEN BUG — not yet root-caused (deferred to a Playwright-capable box).**
+  Manual test on the live dev app: cold-loading a deep route
+  (`/lists/<uuid>` typed/pasted into the address bar) still shows the
+  `chevron-left` and back does nothing — i.e. the pre-change behaviour. Unit
+  tests pass, so the component logic is sound; the live app disagrees. The
+  symptom exactly matches the old code, so leading hypotheses, in order:
+  (1) **PWA service worker serving a stale bundle** — Cairn registers a
+  service worker; unregister it / hard-reload / clear cache and retry first.
+  (2) dev server didn't hot-reload the `+layout.svelte` change — restart it.
+  (3) an unexpected early navigation with `nav.from` set is flipping
+  `hasInApp` true on load — instrument with a `console.log(nav.type, nav.from)`
+  in the layout's `afterNavigate` on a cold load to confirm `from` is null on
+  `enter`. Could not reproduce on this box (no headless browser / Playwright).
+  Resolve before Task 3.1 and the TODO tick.
 
 ## Phase 3 — e2e and close-out
 
