@@ -222,4 +222,63 @@ ALTER FUNCTION admin.inspect_user(uuid) OWNER TO cairn_admin_owner;
 REVOKE ALL ON FUNCTION admin.inspect_user(uuid) FROM public;
 GRANT EXECUTE ON FUNCTION admin.inspect_user(uuid) TO cairn_readonly;
 
+-- ── admin.delete_account_as ────────────────────────────────────────
+-- The operator's GDPR-erasure pathway (docs/admin.md § delete_account_as).
+-- The body is public.delete_account() (0014) verbatim except: the target
+-- is p_target, not public.uid(); the guards raise without the 28000
+-- not-authenticated case (there is no caller identity here); and one
+-- audit row is written BEFORE the deletes. payload records only the
+-- email_at_time — the audit log is not a recovery channel for the
+-- personal data just erased.
+--
+-- Order is load-bearing: compute the sole-member list hard-delete BEFORE
+-- the auth.users delete, which cascades the list_members rows the query
+-- reads. The `NOT EXISTS (live member <> p_target)` form is verbatim
+-- from delete_account() — using the identical form (not an additionally
+-- scoped variant) is exactly what makes the two paths reach the same
+-- end-state on every list, including orphaned (zero-live-member) ones.
+CREATE OR REPLACE FUNCTION admin.delete_account_as(p_target uuid, p_reason text)
+RETURNS void
+LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = admin, public, auth
+AS $$
+DECLARE email_at_time text;
+BEGIN
+  IF p_target = '00000000-0000-0000-0000-000000000000' THEN
+    RAISE EXCEPTION 'cannot delete the tombstone user';
+  END IF;
+
+  SELECT email INTO email_at_time FROM auth.users WHERE id = p_target;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'no such user';
+  END IF;
+
+  INSERT INTO admin.actions (actor, effective, action, target, reason, payload)
+  VALUES (
+    session_user, current_user, 'delete_account_as', p_target, p_reason,
+    jsonb_build_object('email_at_time', email_at_time)
+  );
+
+  -- Hard-delete lists where the target was the only remaining live
+  -- member. Items, member rows, and votes cascade with the list.
+  DELETE FROM public.lists AS l
+  WHERE NOT EXISTS (
+    SELECT 1 FROM public.list_members AS lm
+    WHERE
+      lm.list_id = l.id
+      AND lm.deleted_at IS NULL
+      AND lm.user_id <> p_target
+  );
+
+  -- Delete the auth row. Cascades personal data (profiles, user_settings,
+  -- votes, the target's own list_members) and SET-DEFAULTs shared
+  -- attribution (created_by/modified_by/deleted_by) to the tombstone.
+  DELETE FROM auth.users WHERE id = p_target;
+END;
+$$;
+
+ALTER FUNCTION admin.delete_account_as(uuid, text) OWNER TO cairn_admin_owner;
+REVOKE ALL ON FUNCTION admin.delete_account_as(uuid, text) FROM public;
+GRANT EXECUTE ON FUNCTION admin.delete_account_as(uuid, text) TO cairn_admin;
+
 COMMIT;

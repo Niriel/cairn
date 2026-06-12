@@ -352,10 +352,10 @@ unlogged, writes always logged) is the protection.
 
 ## Phase 3 — delete / moderate / purge
 
-### [ ] 3.1 Add `admin.delete_account_as`
+### [x] 3.1 Add `admin.delete_account_as`
 
 **Created:** 2026-06-12T07:47:25Z
-**Completed:**
+**Completed:** 2026-06-12T09:15:18Z
 
 **Why:** The operator's GDPR-erasure pathway. It must produce the **exact same
 end-state** as the user-initiated `public.delete_account()` from step 10, so the
