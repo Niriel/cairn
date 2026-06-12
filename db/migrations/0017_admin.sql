@@ -76,6 +76,11 @@ GRANT SELECT ON
 public.list_members, public.profiles, public.user_settings, public.votes
 TO cairn_admin_owner;
 
+-- moderate_item/moderate_list set request.jwt.claims to the tombstone and
+-- let the BEFORE UPDATE attribution trigger stamp deleted_by; that trigger
+-- calls public.uid(), so the owner role needs EXECUTE on it.
+GRANT EXECUTE ON FUNCTION public.uid() TO cairn_admin_owner;
+
 -- The audit table. Columns exactly per docs/admin.md "The admin.actions
 -- audit table".
 CREATE TABLE admin.actions (
@@ -280,5 +285,122 @@ $$;
 ALTER FUNCTION admin.delete_account_as(uuid, text) OWNER TO cairn_admin_owner;
 REVOKE ALL ON FUNCTION admin.delete_account_as(uuid, text) FROM public;
 GRANT EXECUTE ON FUNCTION admin.delete_account_as(uuid, text) TO cairn_admin;
+
+-- ── Takedown levers: moderate_* (soft) / purge_* (hard) ────────────
+-- (docs/admin.md § moderate/purge). Each snapshots the pre-state into
+-- the audit payload and inserts the audit row BEFORE mutating, so an
+-- empty reason aborts the whole action at the admin.actions CHECK.
+--
+-- moderate_* attributes the soft-delete to the tombstone. The BEFORE
+-- UPDATE attribution trigger (tg_set_attribution_items/_lists) derives
+-- deleted_by from public.uid() on the live→deleted transition, and an
+-- admin RPC has no JWT — so a deleted_by set directly in the UPDATE
+-- would be overwritten with NULL. We set request.jwt.claims to the
+-- tombstone sub first and let the trigger stamp deleted_by through the
+-- normal path. purge_* is a plain DELETE; cascades do the rest.
+CREATE OR REPLACE FUNCTION admin.moderate_item(p_target uuid, p_reason text)
+RETURNS void
+LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = admin, public
+AS $$
+DECLARE snap jsonb;
+BEGIN
+  SELECT to_jsonb(i) INTO snap FROM public.items i WHERE id = p_target;
+  IF snap IS NULL THEN
+    RAISE EXCEPTION 'no such item';
+  END IF;
+
+  INSERT INTO admin.actions (actor, effective, action, target, reason, payload)
+  VALUES (session_user, current_user, 'moderate_item', p_target, p_reason, snap);
+
+  PERFORM set_config(
+    'request.jwt.claims',
+    jsonb_build_object('sub', '00000000-0000-0000-0000-000000000000')::text,
+    TRUE
+  );
+
+  UPDATE public.items
+  SET deleted_at = clock_timestamp()
+  WHERE id = p_target AND deleted_at IS NULL;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION admin.purge_item(p_target uuid, p_reason text)
+RETURNS void
+LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = admin, public
+AS $$
+DECLARE snap jsonb;
+BEGIN
+  SELECT to_jsonb(i) INTO snap FROM public.items i WHERE id = p_target;
+  IF snap IS NULL THEN
+    RAISE EXCEPTION 'no such item';
+  END IF;
+
+  INSERT INTO admin.actions (actor, effective, action, target, reason, payload)
+  VALUES (session_user, current_user, 'purge_item', p_target, p_reason, snap);
+
+  DELETE FROM public.items WHERE id = p_target;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION admin.moderate_list(p_target uuid, p_reason text)
+RETURNS void
+LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = admin, public
+AS $$
+DECLARE snap jsonb;
+BEGIN
+  SELECT to_jsonb(l) INTO snap FROM public.lists l WHERE id = p_target;
+  IF snap IS NULL THEN
+    RAISE EXCEPTION 'no such list';
+  END IF;
+
+  INSERT INTO admin.actions (actor, effective, action, target, reason, payload)
+  VALUES (session_user, current_user, 'moderate_list', p_target, p_reason, snap);
+
+  PERFORM set_config(
+    'request.jwt.claims',
+    jsonb_build_object('sub', '00000000-0000-0000-0000-000000000000')::text,
+    TRUE
+  );
+
+  UPDATE public.lists
+  SET deleted_at = clock_timestamp()
+  WHERE id = p_target AND deleted_at IS NULL;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION admin.purge_list(p_target uuid, p_reason text)
+RETURNS void
+LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = admin, public
+AS $$
+DECLARE snap jsonb;
+BEGIN
+  SELECT to_jsonb(l) INTO snap FROM public.lists l WHERE id = p_target;
+  IF snap IS NULL THEN
+    RAISE EXCEPTION 'no such list';
+  END IF;
+
+  INSERT INTO admin.actions (actor, effective, action, target, reason, payload)
+  VALUES (session_user, current_user, 'purge_list', p_target, p_reason, snap);
+
+  DELETE FROM public.lists WHERE id = p_target;
+END;
+$$;
+
+ALTER FUNCTION admin.moderate_item(uuid, text) OWNER TO cairn_admin_owner;
+ALTER FUNCTION admin.purge_item(uuid, text) OWNER TO cairn_admin_owner;
+ALTER FUNCTION admin.moderate_list(uuid, text) OWNER TO cairn_admin_owner;
+ALTER FUNCTION admin.purge_list(uuid, text) OWNER TO cairn_admin_owner;
+REVOKE ALL ON FUNCTION admin.moderate_item(uuid, text) FROM public;
+REVOKE ALL ON FUNCTION admin.purge_item(uuid, text) FROM public;
+REVOKE ALL ON FUNCTION admin.moderate_list(uuid, text) FROM public;
+REVOKE ALL ON FUNCTION admin.purge_list(uuid, text) FROM public;
+GRANT EXECUTE ON FUNCTION admin.moderate_item(uuid, text) TO cairn_admin;
+GRANT EXECUTE ON FUNCTION admin.purge_item(uuid, text) TO cairn_admin;
+GRANT EXECUTE ON FUNCTION admin.moderate_list(uuid, text) TO cairn_admin;
+GRANT EXECUTE ON FUNCTION admin.purge_list(uuid, text) TO cairn_admin;
 
 COMMIT;

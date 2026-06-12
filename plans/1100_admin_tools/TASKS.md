@@ -416,10 +416,21 @@ two paths can't diverge.
 
 **Verify:** `./scripts/test-db.sh` · `sqlfluff lint db/migrations/0017_admin.sql db/tests/admin_delete_account_as.sql`
 
-### [ ] 3.2 Add `admin.moderate_item`, `purge_item`, `moderate_list`, `purge_list`
+### [x] 3.2 Add `admin.moderate_item`, `purge_item`, `moderate_list`, `purge_list`
 
 **Created:** 2026-06-12T07:47:25Z
-**Completed:**
+**Completed:** 2026-06-12T09:30:32Z
+
+**Notes:**
+- **Missing prerequisite / doc divergence (fixed here).** The
+  `moderate_*` claim-to-tombstone step makes the `BEFORE UPDATE`
+  attribution trigger call `public.uid()`, which runs with the definer
+  owner's privileges — so `cairn_admin_owner` needs `EXECUTE ON FUNCTION
+  public.uid()`. Without it the soft-delete fails "permission denied for
+  function uid". The 1.1 grants and `docs/admin.md`'s public-side
+  paragraph hadn't listed it (the earlier RPCs never call `uid()`:
+  `delete_account_as`'s cascades don't hit the `deleted_at`-transition
+  branch). Added the grant to `0017_admin.sql` and reconciled the doc.
 
 **Why:** The takedown levers — soft (recoverable, attributed to tombstone) and
 hard (irrecoverable, cascading) for both items and lists, each audited with a
