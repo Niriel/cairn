@@ -85,6 +85,11 @@ describe('LoginCheck', () => {
 		expect(container.querySelector('header')).toBeNull();
 	});
 
+	test('(o) the screen states the link and code stay valid for an hour', () => {
+		const { container } = render(LoginCheck, { email: 'alice@example.test' });
+		expect(container.textContent).toContain('hour');
+	});
+
 	test('(f) "Sent again." appears even when sendMagicLink rejects (anti-enumeration)', async () => {
 		vi.useFakeTimers();
 		try {

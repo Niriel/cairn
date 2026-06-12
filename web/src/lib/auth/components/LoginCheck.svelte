@@ -95,8 +95,8 @@
 	<h1 class="heading" data-test="login-check-heading">Check your inbox</h1>
 
 	<p class="body">
-		We sent a link and a code to <b data-test="login-check-email">{email}</b>. Tap the link on this
-		device, or enter the code below.
+		We sent a link and a code to <strong data-test="login-check-email">{email}</strong>. Tap the
+		link on this device, or enter the code below. Both work for an hour.
 	</p>
 
 	<div class="resend-row">
@@ -189,7 +189,7 @@
 		max-width: 280px;
 	}
 
-	.body b {
+	.body strong {
 		color: var(--ink);
 		font-weight: 600;
 	}

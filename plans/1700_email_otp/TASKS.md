@@ -289,10 +289,10 @@ code from the e-mail (R4). This is the core of the feature.
   screen could arguably match it, but the task's literal code omitted the option, so
   the back-button-after-sign-in nuance is left as written.
 
-### [ ] 3.2 Update the request-screen button copy
+### [x] 3.2 Update the request-screen button copy
 
 **Created:** 2026-06-12T13:25:47Z
-**Completed:**
+**Completed:** 2026-06-12T15:01:33Z
 
 **Why:** The e-mail now carries a link and a code, so "Send me a magic link" is
 no longer accurate (R5).
@@ -317,6 +317,18 @@ no longer accurate (R5).
 2. GREEN — Change the button text. Re-run; confirm green.
 
 **Verify:** `cd web && pnpm test -- LoginRequest` · `pnpm check`
+
+**Notes:**
+- **Folded in extra sign-in copy at the user's request.** Beyond the button, the
+  login disclaimer changed ("We'll e-mail you a link to continue." → "We'll e-mail
+  you a sign-in link and a code.") and the check screen gained a validity line
+  ("Both work for an hour."). The "an hour" figure is GoTrue's default
+  `MAILER_OTP_EXP` (3600 s, unset in compose); the link and OTP share that token, so
+  it covers both. Tests `(p)`/`(q)` in `LoginRequest.test.ts` cover the button and
+  disclaimer; `(o)` in `LoginCheck.test.ts` covers the validity line.
+- **`<b>` → `<strong>`.** The check screen's e-mail emphasis used presentational
+  `<b>`; swapped to semantic `<strong>` (and updated the `.body b` selector to
+  `.body strong`). Grep confirms no other `<b>` remains in any `.svelte` file.
 
 ### [ ] 3.3 Playwright code-entry happy path
 
