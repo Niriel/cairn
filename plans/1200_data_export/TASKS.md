@@ -575,10 +575,10 @@ button already exists, disabled, with a `TODO(step-12)`.
   list-description edit affordance). Separately, the "Delete my account"
   button gained `leadingIcon="trash"`. Behaviour and tests unchanged.
 
-### [ ] 5.2 Playwright happy path for the export flow
+### [x] 5.2 Playwright happy path for the export flow
 
 **Created:** 2026-06-12T09:57:41Z
-**Completed:**
+**Completed:** 2026-06-12T12:50:37Z
 
 **Why:** R6–R10 end-to-end — prove a real user can sign in, prepare, and
 download a valid archive, and that the delete-account link reaches the hub.
@@ -611,5 +611,21 @@ download a valid archive, and that the delete-account link reaches the hub.
 **Verify:** `cd web && pnpm test:e2e export` · `./scripts/check.sh --e2e`
 
 **Notes:**
-- (fill on completion — e.g. whether the harness needed a ZIP-reader dep
-  in `devDependencies` for the download assertion.)
+- No ZIP-reader dep was needed: the download assertion reads the saved
+  file with `node:fs/promises` and checks the `PK` (`0x50 0x4b`) local-
+  file-header magic bytes + non-empty length, which is enough to prove a
+  real ZIP without parsing it (and keeps the assertion resilient, as the
+  task asked).
+- Spec mirrors `delete-account.spec.ts`: serial describe, unique
+  `alice+export-${runId}@example.test` per run, Mailpit `waitForMagicLink`
+  sign-in. A fresh user has no lists/avatar, so the archive is the minimal
+  document — the caller-avatar fetch 404s and is skipped, and the ZIP still
+  builds, which is exactly the path we want to prove.
+- **Environment limitation:** chromium and firefox pass all 4 tests
+  (8 passed). **WebKit cannot launch in this environment** — missing host
+  libraries (`libjpeg-turbo8`, `gstreamer1.0-libav`, …). This is
+  pre-existing and not specific to this spec: the existing
+  `delete-account.spec.ts` fails to launch WebKit identically. So
+  `./scripts/check.sh --e2e` will also report the WebKit launch failure
+  here until those host deps are installed; the spec itself is correct on
+  the two browsers that run.
