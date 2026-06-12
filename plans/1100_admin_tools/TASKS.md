@@ -27,10 +27,10 @@ and reuses `db/tests/fixtures/users_alice_bob_carol.sql`,
 
 ## Phase 0 — reconcile docs
 
-### [ ] 0.1 Apply the seven doc fixes to `docs/admin.md` and the master-plan line
+### [x] 0.1 Apply the seven doc fixes to `docs/admin.md` and the master-plan line
 
 **Created:** 2026-06-12T07:47:25Z
-**Completed:**
+**Completed:** 2026-06-12T08:47:29Z
 
 **Why:** Cairn's docs are canonical for downstream steps. Seven statements in
 `docs/admin.md` are wrong or under-specified for what we're about to implement;
