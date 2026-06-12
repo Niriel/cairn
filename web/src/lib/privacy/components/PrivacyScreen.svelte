@@ -164,7 +164,7 @@
 			<Icon name="lock" size={20} />
 			<span class="disclaimer"
 				>Your e-mail address is never shown to other people on Cairn — only your display name and
-				avatar.</span
+				profile picture.</span
 			>
 		</div>
 	</div>

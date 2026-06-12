@@ -151,7 +151,7 @@
     actually is, and either correct the copy or clarify the wording so it
     doesn't contradict the one-directional model.
 
-14. [ ] **Don't use "avatar" in user-facing copy — say "profile picture"** —
+14. [x] **Don't use "avatar" in user-facing copy — say "profile picture"** —
     "avatar" reads as very 2010. It's fine in authorial prose (docs, comments,
     code identifiers), but user-facing text should say "profile picture"
     instead. Sweep rendered UI strings for "avatar"/"Avatar" and replace with
