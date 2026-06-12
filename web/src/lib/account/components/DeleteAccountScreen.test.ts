@@ -13,6 +13,8 @@ import DeleteAccountScreen from './DeleteAccountScreen.svelte';
 // the MSW `*/auth/session` handler matches.
 vi.mock('$lib/shared/components/TopBar.svelte');
 vi.mock('$lib/basic/components/Icon.svelte');
+vi.mock('$app/navigation');
+vi.mock('$app/paths');
 
 afterEach(() => {
 	vi.clearAllMocks();
@@ -75,9 +77,16 @@ describe('DeleteAccountScreen', () => {
 		expect(queryByDataTest('delete-account-input')).not.toBeNull();
 	});
 
-	test('(e) the export Download button is disabled (export not yet built)', () => {
+	test('(e) the export Download button is enabled and navigates to the export hub', async () => {
 		const { getByDataTest } = render(DeleteAccountScreen);
 		const download = getByDataTest('delete-account-export-download') as HTMLButtonElement;
-		expect(download.disabled).toBe(true);
+		expect(download.disabled).toBe(false);
+
+		await fireEvent.click(download);
+
+		const { goto } = await import('$app/navigation');
+		const { resolve } = await import('$app/paths');
+		expect(vi.mocked(goto)).toHaveBeenCalledOnce();
+		expect(vi.mocked(goto)).toHaveBeenCalledWith(vi.mocked(resolve)('/settings/data-export'));
 	});
 });

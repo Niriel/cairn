@@ -530,10 +530,10 @@ photos at export time, without letting a missing avatar break the export.
 
 ## Phase 5 — delete-account integration + e2e
 
-### [ ] 5.1 Wire the Delete-account "Download" button to the export hub
+### [x] 5.1 Wire the Delete-account "Download" button to the export hub
 
 **Created:** 2026-06-12T09:57:41Z
-**Completed:**
+**Completed:** 2026-06-12T12:41:08Z
 
 **Why:** R10 — the courtesy nudge to grab a copy before deleting. The
 button already exists, disabled, with a `TODO(step-12)`.
@@ -564,6 +564,16 @@ button already exists, disabled, with a `TODO(step-12)`.
 4. GREEN — `cd web && pnpm test DeleteAccountScreen` → green.
 
 **Verify:** `cd web && pnpm lint && pnpm check && pnpm test`
+
+**Notes:**
+- User-directed visual refinements to the courtesy-nudge card during the
+  task: the Download button is now `tone="sage"` (green, matching the
+  invite-banner Accept), `leadingIcon="download"`, full-width, and moved
+  to the **bottom** of the card (card became a column; icon+text wrapped
+  in a new `.export-head` row). The card's leading glyph changed from
+  `feather` to `download` (feather connotes editing — it's the
+  list-description edit affordance). Separately, the "Delete my account"
+  button gained `leadingIcon="trash"`. Behaviour and tests unchanged.
 
 ### [ ] 5.2 Playwright happy path for the export flow
 

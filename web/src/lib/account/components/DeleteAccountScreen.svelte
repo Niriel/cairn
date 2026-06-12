@@ -1,4 +1,7 @@
 <script lang="ts">
+	import { goto } from '$app/navigation';
+	import { resolve } from '$app/paths';
+
 	import AppTopBar from '$lib/shared/components/AppTopBar.svelte';
 	import Button from '$lib/basic/components/Button.svelte';
 	import Icon from '$lib/basic/components/Icon.svelte';
@@ -67,21 +70,23 @@
 			<h2 class="t-hero hero">Delete your Cairn account?</h2>
 			<p class="subtitle">We won't ask why. Read what happens, then decide.</p>
 
-			<!-- Courtesy nudge: offer a data copy before the irreversible action.
-			     Download is disabled until export lands (step 12). -->
+			<!-- Courtesy nudge: offer a data copy before the irreversible action. -->
 			<div class="export-card card-alt">
-				<Icon name="feather" size={18} />
-				<div class="export-text">
-					<p class="export-title">Want a copy of your data first?</p>
-					<p class="caption">A few seconds. Yours to keep, even after deletion.</p>
+				<div class="export-head">
+					<Icon name="download" size={18} />
+					<div class="export-text">
+						<p class="export-title">Want a copy of your data first?</p>
+						<p class="caption">A few seconds. Yours to keep, even after deletion.</p>
+					</div>
 				</div>
-				<!-- TODO(step-12): wire to the Data export hub (screen E5). -->
 				<Button
 					variant="pill"
-					tone="ink"
+					tone="sage"
 					size="sm"
-					disabled
+					leadingIcon="download"
 					data-test="delete-account-export-download"
+					style="width: 100%"
+					onclick={() => goto(resolve('/settings/data-export'))}
 				>
 					Download
 				</Button>
@@ -132,6 +137,7 @@
 			<Button
 				variant="rect"
 				tone="destructive"
+				leadingIcon="trash"
 				disabled={!confirmed || deleting}
 				data-test="delete-account-confirm"
 				style="width: 100%"
@@ -172,11 +178,17 @@
 
 	.export-card {
 		display: flex;
-		align-items: flex-start;
+		flex-direction: column;
 		gap: 0.75rem;
 		padding: 0.875rem 1rem;
 		margin-bottom: 1.25rem;
 		color: var(--accent);
+	}
+
+	.export-head {
+		display: flex;
+		align-items: flex-start;
+		gap: 0.75rem;
 	}
 
 	.export-text {
