@@ -61,10 +61,10 @@ from referencing a stale, strip-mandating doc.
 
 ## Phase 1 — e-mail template and OTP length
 
-### [ ] 1.1 Surface the code in the e-mail; invert the Playwright OTP guard
+### [x] 1.1 Surface the code in the e-mail; invert the Playwright OTP guard
 
 **Created:** 2026-06-12T13:25:47Z
-**Completed:**
+**Completed:** 2026-06-12T13:46:32Z
 
 **Why:** The e-mail must carry a typeable six-digit code (R1). Plan 0303 added a
 Playwright guard asserting no six-digit code appears; that contract is now
@@ -108,6 +108,20 @@ for how the template is served in each environment.
 
 **Verify:** `cd web && pnpm test:e2e -- auth` · `docker compose logs gotrue` (no
 template-fetch fallback)
+
+**Notes:**
+- **Environment limitation:** WebKit can't launch in this dev box (Playwright
+  reports missing system libraries — `libicu74`, `libjpeg-turbo8`,
+  `gstreamer1.0-libav`). The auth spec was verified green on **chromium and
+  firefox** only (RED confirmed on chromium: line-27 assertion failed because
+  the code was absent; GREEN: all 4 chromium+firefox cases pass after the
+  template + helper changes). WebKit needs `pnpm exec playwright install-deps`
+  in CI / on a box with the libs.
+- `docker compose logs gotrue` showed no "Error loading template" line — the
+  branded template renders (the link-click happy path still passes, which only
+  works against the custom template's button), so no default-template fallback.
+- Prettier reformatted the new multi-line `style` attribute on the code cell in
+  `magic_link.html`; final file is prettier-clean.
 
 ## Phase 2 — auth client and input primitive
 

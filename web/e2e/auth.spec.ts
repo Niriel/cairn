@@ -22,8 +22,10 @@ test('magic-link happy path and sign-out', async ({ page, context }) => {
 
 	const { link, html, text } = await waitForMagicLink(email);
 
-	expect(/\b\d{6}\b/.test(html)).toBe(false);
-	expect(/\b\d{6}\b/.test(text)).toBe(false);
+	// The e-mail carries a typeable six-digit code (the code-entry path on
+	// /auth/check). It must be present in both MIME parts.
+	expect(/\b\d{6}\b/.test(html)).toBe(true);
+	expect(/\b\d{6}\b/.test(text)).toBe(true);
 
 	// Playwright follows the GoTrue /verify → 302 → /auth/callback#… chain
 	// automatically; the callback page strips the hash and JS-navigates to
