@@ -16,10 +16,10 @@ committing (the pre-commit hook runs Prettier and will block otherwise).
 
 ## Phase 1 — in-app-history signal
 
-### [ ] 1.1 Add the `home` icon to the icon registry
+### [x] 1.1 Add the `home` icon to the icon registry
 
 **Created:** 2026-06-12T15:24:00Z
-**Completed:**
+**Completed:** 2026-06-12T15:29:27Z
 
 **Why:** The home-mode back control (Task 2.1) renders a `home` icon, which is
 not yet in the registry. `IconName` is a closed union derived from
