@@ -2,7 +2,6 @@
 	import AppTopBar from '$lib/shared/components/AppTopBar.svelte';
 	import Button from '$lib/basic/components/Button.svelte';
 	import Icon from '$lib/basic/components/Icon.svelte';
-	import Label from '$lib/basic/components/Label.svelte';
 	import TextInput from '$lib/basic/components/TextInput.svelte';
 	import { ApiError, pgPost } from '$lib/shared/http/postgrest';
 	import { AUTH_BASE, signOut } from '$lib/shared/state/session.svelte';
@@ -89,7 +88,7 @@
 			</div>
 
 			<section class="block">
-				<Label>What's permanently removed</Label>
+				<h2>What's permanently removed</h2>
 				<p class="body">
 					Your e-mail, your profile, and every vote you've cast on any list. None of it can be
 					recovered.
@@ -97,7 +96,7 @@
 			</section>
 
 			<section class="block">
-				<Label>What stays on shared lists</Label>
+				<h2>What stays on shared lists</h2>
 				<p class="body">
 					Items you added on lists you share with other people stay where they are — the people you
 					share with need that material to keep using those lists. Your name on those items changes
@@ -106,7 +105,7 @@
 			</section>
 
 			<section class="block">
-				<Label>What's deleted with your account</Label>
+				<h2>What's deleted with your account</h2>
 				<p class="body">
 					Lists where you were the only remaining member, along with everything on them. Nothing of
 					yours is left in someone else's space.
