@@ -159,6 +159,18 @@
     filenames, component names (e.g. `AvatarCropScreen`), and `docs/` prose
     alone — this is about what the user reads on screen only.
 
+16. [ ] **Also send a one-time code (OTP) alongside the magic link** — the
+    sign-in / sign-up e-mail currently carries only a magic link, which forces
+    the user to continue on whatever device opens the e-mail. That's
+    inconvenient: a desktop user will probably receive the e-mail on their
+    phone, then has to either switch devices or forward the link. Send a
+    short one-time code in the same e-mail, and turn the "we've sent you an
+    e-mail" screen into one with an **input box for the OTP** — so the user
+    can finish authenticating on the device they started on, regardless of
+    where they read the e-mail. (GoTrue already supports e-mail OTP; this is
+    about wiring the code into the e-mail template and adding the
+    code-entry/verify step to the sent-email screen.)
+
 15. [ ] **Trim the Settings screen — drop the text-size preview, revisit
     ordering** — `SettingsScreen.svelte` is getting long and the section order
     reads oddly (Profile, People, Appearance, Text size, Privacy & data,
@@ -168,4 +180,6 @@
     bulk. While there, reconsider the section ordering so related groups sit
     together (e.g. Appearance + Text size as one visual cluster, the
     data/account cluster at the bottom). Keep the `data-test` hooks the tests
-    rely on.
+    rely on. Also rename the **"Appearance"** section heading to **"Colour
+    theme"** (British spelling) — it only controls the light/dark theme, so
+    the broader "Appearance" label overpromises.
