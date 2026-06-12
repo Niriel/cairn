@@ -330,10 +330,10 @@ no longer accurate (R5).
   `<b>`; swapped to semantic `<strong>` (and updated the `.body b` selector to
   `.body strong`). Grep confirms no other `<b>` remains in any `.svelte` file.
 
-### [ ] 3.3 Playwright code-entry happy path
+### [x] 3.3 Playwright code-entry happy path
 
 **Created:** 2026-06-12T13:25:47Z
-**Completed:**
+**Completed:** 2026-06-12T15:06:28Z
 
 **Why:** Proves the typed-code path works end to end through the real stack —
 including that `/auth/verify` plants the HttpOnly `cairn_session` cookie in the
@@ -369,3 +369,19 @@ Task 3.1 (code field exists).
    Confirm green; confirm the existing link-click test still passes.
 
 **Verify:** `cd web && pnpm test:e2e -- auth` · `./scripts/check.sh --e2e`
+
+**Notes:**
+- **Marked done on manual browser verification; the e2e verifier was not run here.**
+  The user exercised the typed-code happy path in a real browser and confirmed it
+  works, so this spec stands as a regression guard rather than the first proof. This
+  laptop can't run Playwright (no system libs) and the dev stack isn't up
+  here, so neither `pnpm test:e2e -- auth` nor `./scripts/check.sh --e2e` was
+  executed; the spec was validated statically only — `eslint e2e/auth.spec.ts` and
+  `tsc -p e2e/tsconfig.json` both clean. First CI/work-box run pending (chromium +
+  firefox; WebKit still needs `playwright install-deps` per Task 1.1's notes).
+- **Auto-submit drives the test, no button click.** The spec `fill()`s the
+  six-digit code into `login-check-code`; Playwright's `fill` dispatches an `input`
+  event, which edge-triggers the auto-submit added in Task 3.1. So the spec also
+  exercises the auto-submit path, not just the button fallback.
+- The Mailpit helper's `code` field (added in Task 1.1) is reused as planned — no
+  helper change was needed.

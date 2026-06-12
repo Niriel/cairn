@@ -45,6 +45,37 @@ test('magic-link happy path and sign-out', async ({ page, context }) => {
 	expect(sessionAfter).toBeUndefined();
 });
 
+test('code-entry happy path: typing the e-mailed code signs in', async ({ page, context }) => {
+	const email = `alice+${test.info().testId}@example.test`;
+
+	// Reach /auth/check through the request flow, never a direct visit:
+	// pendingLogin is a module-scoped singleton wiped on hard reload, and
+	// /auth/check redirects to /auth/login when it's empty. Stay in the SPA.
+	await page.goto('/');
+	await expect(page).toHaveURL(/\/auth\/login$/);
+
+	await page.locator('[data-test="login-email"]').fill(email);
+	await page.locator('[data-test="login-submit"]').click();
+	await expect(page).toHaveURL(/\/auth\/check$/);
+
+	const { code } = await waitForMagicLink(email);
+
+	// Deliberately do NOT open the link — typing the code is the whole point
+	// (the device reading the e-mail differs from the one entering the code).
+	// Filling six valid digits edge-triggers auto-submit; the "Sign in" button
+	// is only a fallback, so this also proves the auto-submit path.
+	await page.locator('[data-test="login-check-code"]').fill(code);
+
+	await expect(page).toHaveURL(/\/lists$/);
+
+	// Same cookie contract the link-click path asserts: /auth/verify plants the
+	// HttpOnly cairn_session in the prod-shaped shim.
+	const session = (await context.cookies()).find((c) => c.name === 'cairn_session');
+	expect(session).toBeDefined();
+	expect(session?.httpOnly).toBe(true);
+	expect(session?.sameSite).toBe('Lax');
+});
+
 test('magic-link non-2xx still lands on /auth/check (anti-enumeration)', async ({ page }) => {
 	const email = `alice+${test.info().testId}@example.test`;
 
