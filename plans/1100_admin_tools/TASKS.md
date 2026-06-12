@@ -132,10 +132,10 @@ churned.
 
 ## Phase 1 — schema, roles, audit table
 
-### [ ] 1.1 Create the `admin` schema, roles, grants, and `admin.actions` table
+### [x] 1.1 Create the `admin` schema, roles, grants, and `admin.actions` table
 
 **Created:** 2026-06-12T07:47:25Z
-**Completed:**
+**Completed:** 2026-06-12T08:57:41Z
 
 **Why:** Everything else hangs off the schema, the three least-privilege roles,
 and the audit table. This is the foundation and the secondary defence (R2) the
