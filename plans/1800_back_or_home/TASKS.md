@@ -45,10 +45,10 @@ not yet in the registry. `IconName` is a closed union derived from
 
 **Verify:** `cd web && pnpm check`
 
-### [ ] 1.2 Add the `nav-history` in-app-navigation state module
+### [x] 1.2 Add the `nav-history` in-app-navigation state module
 
 **Created:** 2026-06-12T15:24:00Z
-**Completed:**
+**Completed:** 2026-06-12T15:31:01Z
 
 **Why:** The back-or-home control needs to know whether the app has navigated
 since cold load ("in-app history"). `history.length` can't tell that apart from
