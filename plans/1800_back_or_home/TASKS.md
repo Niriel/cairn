@@ -81,10 +81,10 @@ prop-drilling and lets tests reset it.
 
 **Verify:** `cd web && pnpm test nav-history` · `pnpm check`
 
-### [ ] 1.3 Seed the in-app-history flag from the root layout
+### [x] 1.3 Seed the in-app-history flag from the root layout
 
 **Created:** 2026-06-12T15:24:00Z
-**Completed:**
+**Completed:** 2026-06-12T15:33:02Z
 
 **Why:** The flag from Task 1.2 must be set whenever a real in-app navigation
 happens. The root layout is the one component mounted for the whole session, so
