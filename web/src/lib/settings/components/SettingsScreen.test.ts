@@ -210,4 +210,32 @@ describe('SettingsScreen', () => {
 		expect(vi.mocked(goto)).toHaveBeenCalledOnce();
 		expect(vi.mocked(goto)).toHaveBeenCalledWith(vi.mocked(resolve)('/settings/delete-account'));
 	});
+
+	test('(n) Download my data row renders with its sub-line', () => {
+		const { queryByDataTest } = render(SettingsScreen);
+		const row = queryByDataTest('settings-download-data');
+		expect(row).not.toBeNull();
+		expect(row?.textContent).toContain('Download my data');
+		expect(row?.textContent).toContain('A copy of everything Cairn stores');
+	});
+
+	test('(o) clicking Download my data navigates to /settings/data-export', async () => {
+		const { goto } = await import('$app/navigation');
+		const { resolve } = await import('$app/paths');
+		const { getByDataTest } = render(SettingsScreen);
+		await fireEvent.click(getByDataTest('settings-download-data'));
+		expect(vi.mocked(goto)).toHaveBeenCalledOnce();
+		expect(vi.mocked(goto)).toHaveBeenCalledWith(vi.mocked(resolve)('/settings/data-export'));
+	});
+
+	test('(p) Privacy & data section sits immediately before Recovery', () => {
+		const { container } = render(SettingsScreen);
+		const headings = [...container.querySelectorAll('section.preference-group h2')].map(
+			(h) => h.textContent
+		);
+		const privacyData = headings.indexOf('Privacy & data');
+		const recovery = headings.indexOf('Recovery');
+		expect(privacyData).toBeGreaterThan(-1);
+		expect(recovery).toBe(privacyData + 1);
+	});
 });

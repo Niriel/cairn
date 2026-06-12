@@ -137,6 +137,20 @@
 		</section>
 
 		<section class="preference-group">
+			<h2>Privacy &amp; data</h2>
+			<div class="nav-rows">
+				<NavRow
+					title="Download my data"
+					sub="A copy of everything Cairn stores"
+					data-test="settings-download-data"
+					onclick={() => goto(resolve('/settings/data-export'))}
+				>
+					{#snippet lead()}<Icon name="download" size={20} />{/snippet}
+				</NavRow>
+			</div>
+		</section>
+
+		<section class="preference-group">
 			<h2>Recovery</h2>
 			<div class="nav-rows">
 				<NavRow

@@ -67,6 +67,7 @@
 <style>
 	button {
 		display: inline-flex;
+		gap: 0.5em;
 		align-items: center;
 		justify-content: center;
 		font: inherit;

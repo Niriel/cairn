@@ -1,8 +1,10 @@
 <script lang="ts">
+	import { goto } from '$app/navigation';
+	import { resolve } from '$app/paths';
+
 	import AppTopBar from '$lib/shared/components/AppTopBar.svelte';
 	import Button from '$lib/basic/components/Button.svelte';
 	import Icon from '$lib/basic/components/Icon.svelte';
-	import Label from '$lib/basic/components/Label.svelte';
 	import TextInput from '$lib/basic/components/TextInput.svelte';
 	import { ApiError, pgPost } from '$lib/shared/http/postgrest';
 	import { AUTH_BASE, signOut } from '$lib/shared/state/session.svelte';
@@ -68,28 +70,30 @@
 			<h2 class="t-hero hero">Delete your Cairn account?</h2>
 			<p class="subtitle">We won't ask why. Read what happens, then decide.</p>
 
-			<!-- Courtesy nudge: offer a data copy before the irreversible action.
-			     Download is disabled until export lands (step 12). -->
+			<!-- Courtesy nudge: offer a data copy before the irreversible action. -->
 			<div class="export-card card-alt">
-				<Icon name="feather" size={18} />
-				<div class="export-text">
-					<p class="export-title">Want a copy of your data first?</p>
-					<p class="caption">A few seconds. Yours to keep, even after deletion.</p>
+				<div class="export-head">
+					<Icon name="download" size={18} />
+					<div class="export-text">
+						<p class="export-title">Want a copy of your data first?</p>
+						<p class="caption">A few seconds. Yours to keep, even after deletion.</p>
+					</div>
 				</div>
-				<!-- TODO(step-12): wire to the Data export hub (screen E5). -->
 				<Button
 					variant="pill"
-					tone="ink"
+					tone="sage"
 					size="sm"
-					disabled
+					leadingIcon="download"
 					data-test="delete-account-export-download"
+					style="width: 100%"
+					onclick={() => goto(resolve('/settings/data-export'))}
 				>
 					Download
 				</Button>
 			</div>
 
 			<section class="block">
-				<Label>What's permanently removed</Label>
+				<h2>What's permanently removed</h2>
 				<p class="body">
 					Your e-mail, your profile, and every vote you've cast on any list. None of it can be
 					recovered.
@@ -97,7 +101,7 @@
 			</section>
 
 			<section class="block">
-				<Label>What stays on shared lists</Label>
+				<h2>What stays on shared lists</h2>
 				<p class="body">
 					Items you added on lists you share with other people stay where they are — the people you
 					share with need that material to keep using those lists. Your name on those items changes
@@ -106,7 +110,7 @@
 			</section>
 
 			<section class="block">
-				<Label>What's deleted with your account</Label>
+				<h2>What's deleted with your account</h2>
 				<p class="body">
 					Lists where you were the only remaining member, along with everything on them. Nothing of
 					yours is left in someone else's space.
@@ -133,6 +137,7 @@
 			<Button
 				variant="rect"
 				tone="destructive"
+				leadingIcon="trash"
 				disabled={!confirmed || deleting}
 				data-test="delete-account-confirm"
 				style="width: 100%"
@@ -173,11 +178,17 @@
 
 	.export-card {
 		display: flex;
-		align-items: flex-start;
+		flex-direction: column;
 		gap: 0.75rem;
 		padding: 0.875rem 1rem;
 		margin-bottom: 1.25rem;
 		color: var(--accent);
+	}
+
+	.export-head {
+		display: flex;
+		align-items: flex-start;
+		gap: 0.75rem;
 	}
 
 	.export-text {
