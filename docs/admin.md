@@ -69,11 +69,13 @@ The shape mirrors the existing `delete_account()` function in `account-deletion.
 **`auth.users` access.** The ban and erasure RPCs write to `auth.users`, which is owned by the `gotrue` role and not by us. We grant `cairn_admin_owner` the specific privileges it needs at migration time:
 
 ```sql
+grant usage on schema auth          to cairn_admin_owner;
+grant select on auth.users          to cairn_admin_owner;
 grant update (banned_until) on auth.users to cairn_admin_owner;
 grant delete                on auth.users to cairn_admin_owner;
 ```
 
-Per-column UPDATE means `cairn_admin_owner` cannot rewrite emails or password hashes, only flip the ban field. DELETE is broader but unavoidable for erasure; in practice only `admin.delete_account_as` calls it, and that function is the only path from `cairn_admin` to row deletion on `auth.users`. The migration that bumps GoTrue is the moment to re-check that these grants still apply to a `banned_until` column that still exists with that name — same caveat as the tombstone-row contract in `account-deletion.md`.
+The schema `USAGE` grant comes first and is load-bearing: schema usage gates every object privilege inside, so without it the table grants below are unreachable. `cairn_admin_owner` is a deliberately limited role — unlike `delete_account()`, whose `security definer` body runs as the privileged migration-runner role and so never needs these grants spelled out. `SELECT` is needed because the RPC bodies read `auth.users` before they write (`ban_user` snapshots the prior `banned_until`; `inspect_user` returns the allowlisted columns; `delete_account_as` reads the email for the audit payload). Per-column UPDATE means `cairn_admin_owner` cannot rewrite emails or password hashes, only flip the ban field. DELETE is broader but unavoidable for erasure; in practice only `admin.delete_account_as` calls it, and that function is the only path from `cairn_admin` to row deletion on `auth.users`. The migration that bumps GoTrue is the moment to re-check that these grants still apply to a `banned_until` column that still exists with that name — same caveat as the tombstone-row contract in `account-deletion.md`.
 
 On the `public` side, `cairn_admin_owner` is created `BYPASSRLS` and granted `SELECT/UPDATE/DELETE` on `public.items` and `public.lists` and `SELECT` on `public.list_members`, `public.profiles`, `public.user_settings`, and `public.votes`. This is necessary because the RPCs run with no JWT in scope — `public.uid()` is NULL — so the RLS policies in `data-model.md` would otherwise deny the owner every read and write against the public tables the moderate/purge/delete/inspect functions touch. `BYPASSRLS` plus these explicit grants is what lets the `security definer` body operate on user data at all; the audit-log discipline, not RLS, is the boundary on what the operator may do with that access.
 

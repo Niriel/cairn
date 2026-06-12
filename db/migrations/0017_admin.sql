@@ -61,7 +61,11 @@ GRANT USAGE ON SCHEMA admin TO cairn_readonly;
 -- Owner privileges on auth.users (owned by GoTrue, not us). Per-column
 -- UPDATE means the owner can flip the ban field but never rewrite an
 -- email or password hash. DELETE is broad but unavoidable for erasure;
--- only admin.delete_account_as calls it.
+-- only admin.delete_account_as calls it. USAGE on the auth schema is
+-- required first — without it the table grants are unreachable, because
+-- cairn_admin_owner is a deliberately limited role (unlike delete_account,
+-- whose definer is the privileged migration-runner role).
+GRANT USAGE ON SCHEMA auth TO cairn_admin_owner;
 GRANT SELECT, UPDATE (banned_until), DELETE ON auth.users TO cairn_admin_owner;
 
 -- Owner privileges on the public tables the moderate/purge/delete/
@@ -95,5 +99,70 @@ ALTER TABLE admin.actions OWNER TO cairn_admin_owner;
 -- withheld UPDATE/DELETE, reads are the SELECT-only grant.
 GRANT SELECT ON admin.actions TO cairn_readonly;
 REVOKE ALL ON admin.actions FROM authenticated, anon, public;
+
+-- ── admin.ban_user / admin.unban_user ──────────────────────────────
+-- The audited banhammer over auth.users.banned_until (docs/admin.md
+-- § ban_user/unban_user). Guard order is load-bearing: reject the
+-- tombstone, reject a missing user, THEN write the audit row, THEN
+-- perform the UPDATE — so a rejected target never writes an audit row.
+-- payload snapshots the prior banned_until for a partial undo.
+CREATE OR REPLACE FUNCTION admin.ban_user(p_target uuid, p_reason text)
+RETURNS void
+LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = admin, public, auth
+AS $$
+DECLARE prev_banned_until timestamptz;
+BEGIN
+  IF p_target = '00000000-0000-0000-0000-000000000000' THEN
+    RAISE EXCEPTION 'cannot ban the tombstone user';
+  END IF;
+
+  SELECT banned_until INTO prev_banned_until FROM auth.users WHERE id = p_target;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'no such user';
+  END IF;
+
+  INSERT INTO admin.actions (actor, effective, action, target, reason, payload)
+  VALUES (
+    session_user, current_user, 'ban_user', p_target, p_reason,
+    jsonb_build_object('banned_until', prev_banned_until)
+  );
+
+  UPDATE auth.users SET banned_until = 'infinity' WHERE id = p_target;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION admin.unban_user(p_target uuid, p_reason text)
+RETURNS void
+LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = admin, public, auth
+AS $$
+DECLARE prev_banned_until timestamptz;
+BEGIN
+  IF p_target = '00000000-0000-0000-0000-000000000000' THEN
+    RAISE EXCEPTION 'cannot unban the tombstone user';
+  END IF;
+
+  SELECT banned_until INTO prev_banned_until FROM auth.users WHERE id = p_target;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'no such user';
+  END IF;
+
+  INSERT INTO admin.actions (actor, effective, action, target, reason, payload)
+  VALUES (
+    session_user, current_user, 'unban_user', p_target, p_reason,
+    jsonb_build_object('banned_until', prev_banned_until)
+  );
+
+  UPDATE auth.users SET banned_until = NULL WHERE id = p_target;
+END;
+$$;
+
+ALTER FUNCTION admin.ban_user(uuid, text) OWNER TO cairn_admin_owner;
+ALTER FUNCTION admin.unban_user(uuid, text) OWNER TO cairn_admin_owner;
+REVOKE ALL ON FUNCTION admin.ban_user(uuid, text) FROM public;
+REVOKE ALL ON FUNCTION admin.unban_user(uuid, text) FROM public;
+GRANT EXECUTE ON FUNCTION admin.ban_user(uuid, text) TO cairn_admin;
+GRANT EXECUTE ON FUNCTION admin.unban_user(uuid, text) TO cairn_admin;
 
 COMMIT;

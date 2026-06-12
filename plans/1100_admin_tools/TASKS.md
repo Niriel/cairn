@@ -222,10 +222,26 @@ master plan calls out.
 
 ## Phase 2 — ban / unban / inspect
 
-### [ ] 2.1 Add `admin.ban_user` and `admin.unban_user`
+### [x] 2.1 Add `admin.ban_user` and `admin.unban_user`
 
 **Created:** 2026-06-12T07:47:25Z
-**Completed:**
+**Completed:** 2026-06-12T09:03:07Z
+
+**Notes:**
+- **Missing prerequisite / doc divergence (fixed here).** `docs/admin.md`
+  § "auth.users access" and the 1.1 migration listed only the `UPDATE
+  (banned_until)` and `DELETE` grants on `auth.users`. Two more are
+  required for the RPC bodies to work and were missing: `GRANT USAGE ON
+  SCHEMA auth TO cairn_admin_owner` (schema usage gates every object
+  privilege inside — without it the table grants are unreachable and the
+  body fails with "permission denied for schema auth") and `GRANT SELECT
+  ON auth.users` (the bodies read before they write — ban snapshots the
+  prior `banned_until`, inspect/delete read columns). `delete_account()`
+  never hit this because its definer is the privileged migration-runner
+  role, not the deliberately-limited `cairn_admin_owner`. Added both to
+  `0017_admin.sql` and reconciled the doc's grant block.
+- `unban_user` got a `'cannot unban the tombstone user'` guard mirroring
+  `ban_user` (the doc says "mirror image"); defensive and harmless.
 
 **Why:** The operator's banhammer — set/clear `auth.users.banned_until` with an
 audited reason. The simplest write RPCs, so they pin the audit-and-guard pattern
