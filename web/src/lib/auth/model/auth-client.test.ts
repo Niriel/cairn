@@ -148,6 +148,53 @@ describe('devPasswordSignIn', () => {
 	});
 });
 
+describe('verifyOtp', () => {
+	test('POSTs `${VITE_AUTH_BASE}/verify` with {type, email, token} and returns { user }', async () => {
+		let seenPath: string | null = null;
+		let seenContentType: string | null = null;
+		let seenBody: unknown = null;
+		server.use(
+			http.post('*/auth/verify', async ({ request }) => {
+				const url = new URL(request.url);
+				seenPath = url.pathname;
+				seenContentType = request.headers.get('content-type');
+				seenBody = await request.json();
+				return HttpResponse.json({
+					token_type: 'bearer',
+					expires_in: 604800,
+					user: SEED_USER
+				});
+			})
+		);
+		const result = await mod.verifyOtp('alice@example.test', '123456');
+		expect(seenPath).toBe('/auth/verify');
+		expect(seenContentType).toMatch(/application\/json/);
+		expect(seenBody).toEqual({
+			type: 'magiclink',
+			email: 'alice@example.test',
+			token: '123456'
+		});
+		expect(result).toEqual({ user: SEED_USER });
+	});
+
+	test('throws when the 200 body is missing user.id/user.email', async () => {
+		server.use(http.post('*/auth/verify', () => HttpResponse.json({ access_token: 'x' })));
+		await expect(mod.verifyOtp('alice@example.test', '123456')).rejects.toBeInstanceOf(Error);
+	});
+
+	test('throws HttpError on a 4xx (wrong or expired code)', async () => {
+		server.use(
+			http.post('*/auth/verify', () =>
+				HttpResponse.json({ msg: 'Token has expired or is invalid' }, { status: 403 })
+			)
+		);
+		const rejection = expect(mod.verifyOtp('alice@example.test', '000000')).rejects;
+		await rejection.toBeInstanceOf(Error);
+		await rejection.toBeInstanceOf(mod.HttpError);
+		await rejection.toMatchObject({ name: 'HttpError', status: 403 });
+	});
+});
+
 describe('logout', () => {
 	test('issues DELETE `${VITE_AUTH_BASE}/session`', async () => {
 		let seenPath: string | null = null;

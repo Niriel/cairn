@@ -125,10 +125,10 @@ template-fetch fallback)
 
 ## Phase 2 — auth client and input primitive
 
-### [ ] 2.1 Add `verifyOtp` to the auth client
+### [x] 2.1 Add `verifyOtp` to the auth client
 
 **Created:** 2026-06-12T13:25:47Z
-**Completed:**
+**Completed:** 2026-06-12T13:53:14Z
 
 **Why:** The code-entry screen needs a function that exchanges the typed code for
 a session (R2, R3). It mirrors `exchangeRefreshToken` but targets `/auth/verify`.

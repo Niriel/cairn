@@ -87,6 +87,23 @@ export async function devPasswordSignIn(
 	return { user: payload.user };
 }
 
+export async function verifyOtp(email: string, token: string): Promise<{ user: AuthUser }> {
+	// The typed six-digit code from the magic-link e-mail. On 200 the auth
+	// shim has already planted the cookie and stripped the tokens; the JSON
+	// carries `user`. Unlike `sendMagicLink`, a non-2xx is NOT swallowed — it
+	// throws `HttpError` so the caller can show an inline "incorrect or
+	// expired" message. This leaks nothing: GoTrue returns the same 4xx for a
+	// wrong code and an unknown e-mail, and the caller already holds a pending
+	// e-mail.
+	const payload = await postJson<{ user?: unknown }>('/verify', {
+		type: 'magiclink',
+		email,
+		token
+	});
+	assertAuthUser(payload?.user);
+	return { user: payload.user };
+}
+
 export async function logout(): Promise<void> {
 	const res = await fetch(`${AUTH_BASE}/session`, {
 		method: 'DELETE',
