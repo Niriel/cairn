@@ -329,10 +329,10 @@ minimal hub from this task, a user can already prepare and download their
 
 ## Phase 3 — HTML + README + ZIP
 
-### [ ] 3.1 Render `data.html`, `README.html`, and `README.md` from the JSON
+### [x] 3.1 Render `data.html`, `README.html`, and `README.md` from the JSON
 
 **Created:** 2026-06-12T09:57:41Z
-**Completed:**
+**Completed:** 2026-06-12T11:59:21Z
 
 **Why:** R8 — most users open the HTML, not the JSON. The renderings are
 generated from the canonical JSON and must contain no JavaScript. This
