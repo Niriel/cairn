@@ -158,3 +158,14 @@
     "profile picture" (sentence-cased appropriately). Leave code identifiers,
     filenames, component names (e.g. `AvatarCropScreen`), and `docs/` prose
     alone — this is about what the user reads on screen only.
+
+15. [ ] **Trim the Settings screen — drop the text-size preview, revisit
+    ordering** — `SettingsScreen.svelte` is getting long and the section order
+    reads oddly (Profile, People, Appearance, Text size, Privacy & data,
+    Recovery, Account). Remove the text-size **preview card** (the
+    `.size-preview` block with the "Bringing Up Baby" sample) — the segmented
+    A-size control already shows the effect live, so the preview is redundant
+    bulk. While there, reconsider the section ordering so related groups sit
+    together (e.g. Appearance + Text size as one visual cluster, the
+    data/account cluster at the bottom). Keep the `data-test` hooks the tests
+    rely on.
