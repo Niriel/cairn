@@ -120,7 +120,7 @@
    shared `auth-paths.ts` as the single source of truth for the narrowing lists
    regardless of where the shim runs.
 
-10. [ ] **Also send a one-time code (OTP) alongside the magic link** — the
+10. [x] **Also send a one-time code (OTP) alongside the magic link** — the
     sign-in / sign-up e-mail currently carries only a magic link, which forces
     the user to continue on whatever device opens the e-mail. That's
     inconvenient: a desktop user will probably receive the e-mail on their
