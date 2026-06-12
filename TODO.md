@@ -100,3 +100,45 @@
    gear) stay at a fixed size regardless of font scale. This is a
    cross-cutting change touching every screen and is out of scope until all
    screens are built.
+
+10. [ ] **pgTAP coverage for invitation cascade on account deletion** — the
+    `invitations` table cascades on both `created_by` and `target_user_id`
+    (`ON DELETE CASCADE` → `auth.users`), so deleting an account hard-deletes
+    every pending invite the user sent *and* received. This behaviour is
+    guaranteed by the FK constraints and documented (`docs/invites.md`,
+    `docs/data-model.md`), but no pgTAP test pins it: the deletion tests
+    (`db/tests/rpc_delete_account.sql`, `db/tests/admin_delete_account_as.sql`)
+    cover lists, items, votes, and memberships but never seed an invitation,
+    and `db/tests/invite_cascades.sql` only exercises invite-policy triggers.
+    Add assertions to both deletion tests (or a dedicated test) that seed
+    pending invites in both directions and confirm they're gone after
+    `public.delete_account()` and `admin.delete_account_as()`. RLS/cascade is
+    the security boundary — an untested cascade is an unverified claim.
+
+11. [ ] **Reclaim orphaned lists when the last member leaves** — leaving a list
+    soft-deletes only the membership row (`PATCH /list_members?...{deleted_at}`
+    in `web/src/lib/list/components/ListOverflowSheet.svelte:87`); nothing
+    touches the list itself. When the last live member leaves, the list row
+    persists with zero live members: invisible to everyone via RLS
+    (`is_list_member()` returns false for all), but never reclaimed. This is
+    asymmetric with account deletion, which *does* hard-delete sole-member
+    lists (`db/migrations/0014_delete_account.sql:53-62`). `docs/account-deletion.md`
+    even calls "a list with no live members" an implied dead state that
+    deletion gives "an explicit cleanup point" — leaving gets none. Decide the
+    intended semantic (likely: hard-delete the list and cascade its items/votes
+    when the last live membership is soft-deleted, mirroring the deletion path)
+    and enforce it — a trigger on `list_members` soft-delete, or fold the leave
+    flow into an RPC that checks for remaining live members. Ships with pgTAP
+    coverage for the last-member-leaves case.
+
+12. [ ] **Back button dead-ends on cold loads with empty history** — the TopBar
+    Back button calls `history.back()` unconditionally
+    (`web/src/lib/shared/components/TopBar.svelte:32`). When Cairn is opened
+    directly onto a deep route — a reopened browser restoring a list tab, or a
+    pasted/bookmarked URL like `/lists/<uuid>` — there is no prior in-app
+    history entry, so `history.back()` does nothing and the user is stranded.
+    Fix: when the back-history is empty (no in-app referrer), navigate to the
+    home/lists screen instead of `history.back()`. Consider swapping the
+    chevron-left icon for a `home` icon (lucide has one) in that case, so the
+    affordance matches the destination. Applies anywhere TopBar shows the
+    default back button.

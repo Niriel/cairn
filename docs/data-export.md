@@ -88,10 +88,35 @@ The HTML rendering links its references back to specific JSON paths so a curious
   ],
   "circle":  [{ "display_name": "Bob"   }],
   "blocked": [{ "display_name": "Carol" }],
-  "invitations_sent":     [...],
-  "invitations_received": [...]
+  "invitations_sent": [
+    {
+      "list_id": "…uuid…",
+      "list_name": "Movies for Alice",
+      "created_at": "…",
+      "invitee_display_name": "Carol"
+    }
+  ],
+  "invitations_received": [
+    {
+      "list_id": "…uuid…",
+      "list_name": "Bob's books",
+      "created_at": "…",
+      "inviter_display_name": "Bob"
+    }
+  ]
 }
 ```
+
+Each invitation entry is an explicit allowlist: the target list (by
+`list_name`, plus `list_id` for reference), `created_at`, and the *other*
+party as a display name (`invitee_display_name` on sent, `inviter_display_name`
+on received) where one exists. There is **no `status` field** — the
+`invitations` table holds only outstanding invites (accept and decline
+*delete* the row), so every entry is pending by construction, which the
+section's "pending state at export time" framing already conveys. An
+email-keyed *sent* invite with no claiming user yet renders by `list_name`
+only: `target_email` is the invitee's e-mail, not the caller's, so it is
+deliberately excluded (email is private; see `invites.md`).
 
 A few notes:
 
@@ -152,7 +177,7 @@ For the full screen flow, see `design/cairn-export-screens.jsx`. The high-level 
 
 1. **Settings → Privacy & data → Download my data.** A new row under Privacy & data. Tapping opens the **Data export** hub.
 2. **Data export hub.** A single screen explaining what's in the export, what's not, the format (zip with HTML + JSON), and a single **Prepare my download** button. Below the button, in muted text: *"This may take a few seconds for large accounts."*
-3. **Packaging.** A brief progress state — *"Preparing your data…"* with a spinner. The RPC runs; the client renders HTML; the zip assembles. On slow connections the avatar fetches dominate; the progress text remains generic.
+3. **Packaging.** A brief progress state — *"Packaging your data…"* with a spinner. The RPC runs; the client renders HTML; the zip assembles. On slow connections the avatar fetches dominate; the progress text remains generic.
 4. **Ready.** *"Your data is ready."* with a **Download** button (triggers the browser save), and below it *"Your archive is valid until you close this page."* No server-side staging — the zip lives in the browser's memory until the tab closes.
 5. **Delete-account variant.** On the **Delete account** screen (see `account-deletion.md` and `ui.md`), a small non-blocking panel sits *above* the destructive button: *"Want a copy of your data first? **Download** (opens the export hub)."* Tapping it navigates to the hub; the delete-account screen state is preserved. The export and the delete are independent — neither blocks the other.
 
