@@ -11,6 +11,7 @@
 		required?: boolean;
 		autocomplete?: HTMLInputAttributes['autocomplete'];
 		inputmode?: HTMLInputAttributes['inputmode'];
+		maxlength?: number;
 		'data-test'?: string;
 		oninput?: (e: Event) => void;
 		onchange?: (e: Event) => void;

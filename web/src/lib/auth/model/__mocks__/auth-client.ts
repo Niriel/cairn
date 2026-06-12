@@ -28,6 +28,11 @@ export const devPasswordSignIn = vi.fn(
 		Promise.resolve({ user: SEED_USER })
 );
 
+export const verifyOtp = vi.fn(
+	(_email: string, _token: string): Promise<{ user: AuthUser }> =>
+		Promise.resolve({ user: SEED_USER })
+);
+
 export const logout = vi.fn((): Promise<void> => Promise.resolve());
 
 export { HttpError } from '../auth-client';

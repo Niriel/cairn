@@ -132,6 +132,8 @@ Magic links were chosen over alternatives because:
 
 The cost: users need access to their email to log in on a new device. For a low-frequency app like Cairn, this is acceptable. The session cookie is long-lived enough on a known browser that this is a once-per-device event.
 
+The same email also carries the six-digit OTP code as a typeable alternative to clicking the link. This lets a user finish sign-in on the device they started on — they enter the code on Cairn's code-entry screen (`/auth/check`) and authenticate without leaving that device. The code authenticates via `POST /auth/verify` with `{type:'magiclink', email, token}` — the same cookie-plant path the link click uses, so it adds no new edge surface. The e-mail carries the line "Don't share this code with anyone." to blunt the social-engineering risk of a shareable code.
+
 For sending the magic-link emails in production, we use a transactional email provider — likely [Postmark](https://postmarkapp.com/) or an EU equivalent. In local development, [Mailpit](https://github.com/axllent/mailpit) catches outgoing mail in a fake inbox.
 
 ### JWT storage: HttpOnly cookie via a Caddy shim
@@ -246,6 +248,8 @@ A login request:
 6. The browser lands on `/auth/callback`. The SvelteKit page captures `window.location.hash`, immediately calls `history.replaceState` to strip it from the URL, then POSTs `https://cairn.<domain>/auth/token?grant_type=refresh_token` with `{refresh_token}` through Caddy to GoTrue. GoTrue returns a fresh access token + user payload in JSON.
 7. The `auth-proxy` sidecar (Caddy routes `/auth/*` to it) extracts the new access token from the JSON body, sets it as the `cairn_session` HttpOnly cookie, and **strips `access_token` and `refresh_token` from the body** before forwarding it to the browser (matching the "now-token-stripped body" contract pinned in the "JWT storage" section above). The callback page sees a 2xx with the `user` payload — no token fields — and calls SvelteKit's `goto('/', { replaceState: true })` to land the user in the app, signed in.
 8. Every subsequent request is authenticated via the cookie. JavaScript holds nothing — the brief in-callback exposure is bounded by step 6's `replaceState` (see _Security trade-off_ under "JWT storage" above).
+
+Steps 4–8 describe clicking the link. As a sibling path, the same email carries the six-digit OTP code, which the user can type on `/auth/check` (the "Check your inbox" screen) to finish on the device that started the flow. The web app POSTs `https://cairn.<domain>/auth/verify` with `{type:'magiclink', email, token}`; GoTrue validates the code and returns the session JSON, the `auth-proxy` plants the `cairn_session` cookie and strips the tokens (the same way it does for `/auth/token` in step 7 — `/auth/verify` is already in the cookie-plant allowed set), and the app navigates into the signed-in state. No URL-hash exposure occurs on this path: the tokens never reach JavaScript.
 
 ## Local development parity
 

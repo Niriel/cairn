@@ -205,6 +205,16 @@ describe('LoginRequest', () => {
 		expect(container.querySelector('header')).toBeNull();
 	});
 
+	test('(p) the submit button reads "Send me a sign-in e-mail"', () => {
+		const { getByDataTest } = render(LoginRequest);
+		expect(getByDataTest('login-submit').textContent).toContain('Send me a sign-in e-mail');
+	});
+
+	test('(q) the disclaimer mentions both a sign-in link and a code', () => {
+		const { container } = render(LoginRequest);
+		expect(container.textContent).toContain('sign-in link and a code');
+	});
+
 	test('(o) renders a discreet imprint link pointing at /imprint', () => {
 		const { getByDataTest } = render(LoginRequest);
 		const link = getByDataTest('login-imprint-link') as HTMLAnchorElement;

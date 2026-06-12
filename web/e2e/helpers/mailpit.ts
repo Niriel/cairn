@@ -28,7 +28,7 @@ interface MailpitMessage {
 export async function waitForMagicLink(
 	email: string,
 	timeoutMs = 10_000
-): Promise<{ link: string; html: string; text: string }> {
+): Promise<{ link: string; html: string; text: string; code: string }> {
 	const target = email.toLowerCase();
 	const deadline = Date.now() + timeoutMs;
 
@@ -47,7 +47,12 @@ export async function waitForMagicLink(
 					);
 				}
 				const msg = (await msgRes.json()) as MailpitMessage;
-				return { link: extractMagicLink(msg.HTML, email), html: msg.HTML, text: msg.Text };
+				return {
+					link: extractMagicLink(msg.HTML, email),
+					html: msg.HTML,
+					text: msg.Text,
+					code: extractCode(msg.Text, email)
+				};
 			}
 		}
 		await sleep(200);
@@ -62,6 +67,14 @@ function extractMagicLink(html: string, email: string): string {
 		throw new Error(`No <a href> found in magic-link email to ${email}`);
 	}
 	return hrefMatch[1].replace(/&amp;/g, '&');
+}
+
+function extractCode(text: string, email: string): string {
+	const codeMatch = text.match(/\b\d{6}\b/);
+	if (!codeMatch) {
+		throw new Error(`No six-digit code found in magic-link email to ${email}`);
+	}
+	return codeMatch[0];
 }
 
 function sleep(ms: number): Promise<void> {

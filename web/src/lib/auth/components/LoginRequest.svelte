@@ -94,13 +94,12 @@
 				data-test="login-submit"
 				style="flex: 1"
 			>
-				Send me a magic link
+				Send me a sign-in e-mail
 			</Button>
 		</div>
 
 		<div class="disclaimer">
-			No password. We'll e-mail you a link to continue.<br />
-			Your data lives on a small server in Germany.
+			<p>No password.<br />We'll e-mail you a sign-in link and a code.</p>
 		</div>
 
 		{#if DevShortcuts && devShortcutEnabled}
@@ -114,6 +113,8 @@
 	</form>
 
 	<footer class="legal fine">
+		<p>Your data lives on a small server in Germany.</p>
+
 		<a href={resolve('/imprint')} data-test="login-imprint-link">Imprint</a>
 	</footer>
 </div>
