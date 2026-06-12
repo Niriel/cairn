@@ -368,10 +368,10 @@ renderers — so the consumer is never written against a missing module.
 
 **Verify:** `cd web && pnpm lint && pnpm check && pnpm test`
 
-### [ ] 3.2 Add `jszip` and the archive builder
+### [x] 3.2 Add `jszip` and the archive builder
 
 **Created:** 2026-06-12T09:57:41Z
-**Completed:**
+**Completed:** 2026-06-12T12:05:51Z
 
 **Why:** R8 — the deliverable is a ZIP, not a bare JSON. Centralise
 filename and archive assembly in one tested module.
