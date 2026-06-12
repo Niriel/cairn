@@ -492,10 +492,30 @@ the tombstone semantics from `docs/data-model.md`.
 
 ## Phase 4 — the `cairn-admin` bash CLI
 
-### [ ] 4.1 Write `scripts/cairn-admin` and wire it into the lint gauntlet
+### [x] 4.1 Write `scripts/cairn-admin` and wire it into the lint gauntlet
 
 **Created:** 2026-06-12T07:47:25Z
-**Completed:**
+**Completed:** 2026-06-12T09:42:53Z
+
+**Notes:**
+- **Bug found via live exercise.** psql interpolates `:'var'` from `-v`
+  only via stdin/a file, **not** in a `-c` command string — so the first
+  draft of `resolve_email` (which used `-c "... :'email'"`) hit "syntax
+  error at or near \":\"". Converted it to a heredoc like the other
+  queries. Caught only because I ran the CLI end-to-end against the
+  throwaway `cairn_test` DB (which has 0017 applied) as the `cairn`
+  superuser: inspect / ban / unban / delete / log all verified,
+  including the self-target verbatim-string guard (wrong phrase aborts,
+  correct phrase proceeds) and the pre-state payloads (`null`→`infinity`,
+  `email_at_time`).
+- **`usage()` rewritten.** The first draft printed the USAGE block by
+  `sed -n '17,26p'` on `$0`; shfmt shifted the line numbers and it broke.
+  Replaced with a literal heredoc.
+- **Manual PostgREST-404 check not run** (the step-3 "confirm
+  `…/rpc/ban_user` 404s" item): it needs the running web stack and a
+  provisioned operator login role, which this environment doesn't have.
+  The guarantee is structural and config-level (`PGRST_DB_SCHEMAS=public`,
+  the `admin` schema is never listed), unchanged by this task.
 
 **Why:** The operator-facing ergonomics layer over the RPCs — resolves emails,
 enforces `--reason`, requires self-target confirmation, and shows pre/post state

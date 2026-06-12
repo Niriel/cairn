@@ -49,6 +49,14 @@ pre-commit:
     shfmt:
       glob: 'scripts/**/*.sh'
       run: shfmt -d -i 2 -ci -bn {staged_files}
+    # The *.sh globs above miss the extension-less cairn-admin CLI; cover
+    # it with dedicated commands so it lints on commit like every other script.
+    shellcheck-cairn-admin:
+      glob: 'scripts/cairn-admin'
+      run: shellcheck {staged_files}
+    shfmt-cairn-admin:
+      glob: 'scripts/cairn-admin'
+      run: shfmt -d -i 2 -ci -bn {staged_files}
 
 pre-push:
   parallel: false

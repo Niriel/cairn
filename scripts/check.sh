@@ -61,7 +61,10 @@ echo "==> sql lint"
 if sqlfluff lint db/ scripts/ 2>/dev/null; then ok "sqlfluff"; else fail "sqlfluff"; fi
 
 echo "==> shell lint"
-if shellcheck scripts/*.sh; then ok "shellcheck"; else fail "shellcheck"; fi
+# scripts/*.sh is a literal glob that misses the extension-less
+# cairn-admin CLI — name it explicitly. (shfmt below walks the directory
+# and resolves it by shebang, so it needs no such addition.)
+if shellcheck scripts/*.sh scripts/cairn-admin; then ok "shellcheck"; else fail "shellcheck"; fi
 
 echo "==> shell format"
 if shfmt -d -i 2 -ci -bn scripts/; then ok "shfmt"; else fail "shfmt"; fi
