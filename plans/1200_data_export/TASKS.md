@@ -201,10 +201,10 @@ assertions and the `list_shared_alice_bob` fixture usage.
 
 ## Phase 2 — Settings row + raw-JSON download
 
-### [ ] 2.1 Add the export document types and the export state machine (RPC + raw download)
+### [x] 2.1 Add the export document types and the export state machine (RPC + raw download)
 
 **Created:** 2026-06-12T09:57:41Z
-**Completed:**
+**Completed:** 2026-06-12T10:50:45Z
 
 **Why:** The web layer's foundation — a typed view of the RPC document
 and a testable state machine that calls the RPC and, in this first
