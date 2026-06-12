@@ -414,10 +414,10 @@ missing import to stub).
 
 **Verify:** `cd web && pnpm lint && pnpm check && pnpm test`
 
-### [ ] 3.3 Wire the ZIP into the state machine and flesh out the three-state hub
+### [x] 3.3 Wire the ZIP into the state machine and flesh out the three-state hub
 
 **Created:** 2026-06-12T09:57:41Z
-**Completed:**
+**Completed:** 2026-06-12T12:20:31Z
 
 **Why:** R7, R8 — replace the raw-JSON slice with the real ZIP, and
 build the idle/packaging/ready (and error) states the design specifies.

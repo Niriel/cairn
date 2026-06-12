@@ -1,16 +1,16 @@
+import { buildArchive, exportFileName } from '$lib/export/model/archive';
 import { ApiError, pgPost } from '$lib/shared/http/postgrest';
 
 import type { ExportDocument } from '../model/types';
 
-// The export hub's state machine. `prepare()` calls the RPC and packages
-// the result; `download()` saves it; `reset()` returns to the start.
+// The export hub's state machine. `prepare()` calls the RPC, packages the
+// result into the ZIP archive, and exposes it as a ready-to-download Blob;
+// `download()` saves it; `reset()` returns to the start.
 //
-// This first slice downloads `data.json` directly — the raw RPC document,
-// pretty-printed. Phase 3 swaps the Blob builder for the real ZIP (HTML +
-// README + data.json + avatars) without changing this state surface.
-//
-// No server-side staging: the Blob lives in the tab's memory until reset or
-// reload (docs/data-export.md § "Ready" / "What we don't do").
+// The archive (data.json + data.html + READMEs, avatars added in Phase 4) is
+// built client-side. No server-side staging: the Blob lives in the tab's
+// memory until reset or reload (docs/data-export.md § "Ready" / "What we
+// don't do").
 
 export type ExportStatus = 'idle' | 'packaging' | 'ready' | 'error';
 
@@ -35,11 +35,8 @@ export async function prepare(): Promise<void> {
 	exportState.result = null;
 	try {
 		const doc = await pgPost<ExportDocument>('/rpc/export_my_data', {});
-		const json = JSON.stringify(doc, null, 2);
-		exportState.result = {
-			blob: new Blob([json], { type: 'application/json' }),
-			fileName: 'data.json'
-		};
+		const blob = await buildArchive(doc, []);
+		exportState.result = { blob, fileName: exportFileName(doc) };
 		exportState.status = 'ready';
 	} catch (err) {
 		exportState.error =

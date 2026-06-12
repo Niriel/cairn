@@ -93,8 +93,8 @@ describe('prepare', () => {
 		await pending;
 
 		expect(mod.exportState.status).toBe('ready');
-		expect(mod.exportState.result?.fileName).toBe('data.json');
-		expect(mod.exportState.result?.blob.type).toContain('application/json');
+		expect(mod.exportState.result?.fileName).toMatch(/^cairn-export-\d{8}-[a-z0-9]+\.zip$/);
+		expect(mod.exportState.result?.blob.size).toBeGreaterThan(0);
 		expect(mod.exportState.error).toBeNull();
 	});
 
