@@ -42,6 +42,7 @@
 				<Button data-test="export-download" leadingIcon="download" onclick={download}>
 					Download
 				</Button>
+				<p class="hint caption">Your data is ready, click <strong>Download</strong>.</p>
 			{:else}
 				<Button
 					data-test="export-prepare"
