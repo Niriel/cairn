@@ -5,7 +5,7 @@
 	import Icon from '$lib/basic/components/Icon.svelte';
 
 	type Props = {
-		lead: Snippet;
+		lead?: Snippet;
 		title: string;
 		sub?: string;
 		onclick?: () => void;
@@ -25,7 +25,7 @@
      draws both the outer band and the divider between adjacent rows. -->
 <div class="nav-row" class:destructive={tone === 'destructive'}>
 	<Button variant="text" {tone} size="md" {onclick} data-test={rest['data-test']}>
-		{@render lead()}
+		{#if lead}{@render lead()}{/if}
 		<span class="nav-row-text">
 			<span class="nav-row-title row-title">{title}</span>
 			{#if sub}<span class="nav-row-sub caption">{sub}</span>{/if}

@@ -58,10 +58,10 @@ markup produces (globe in `trailing`, before the chevron), with no remaining
 
 ## Phase 1 — make `NavRow.lead` optional
 
-### [ ] 1.1 Allow `NavRow` to render without a leading visual
+### [x] 1.1 Allow `NavRow` to render without a leading visual
 
 **Created:** 2026-06-14T19:52:25Z
-**Completed:**
+**Completed:** 2026-06-14T20:26:31Z
 
 **Why:** The Lists-screen title will use `NavRow` but has no leading icon
 (lists have no icon field). `NavRow.lead` is currently a required snippet, so a
