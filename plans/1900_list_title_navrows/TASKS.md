@@ -15,10 +15,10 @@
 
 ## Phase 0 — doc reconciliation
 
-### [ ] 0.1 Update `docs/ui.md` for the new public-marker placement
+### [x] 0.1 Update `docs/ui.md` for the new public-marker placement
 
 **Created:** 2026-06-14T22:10:00Z
-**Completed:**
+**Completed:** 2026-06-14T20:22:23Z
 
 **Why:** `docs/ui.md` ("Public lists" → "Public marker (members only)") says the
 Lists-screen globe "sits immediately after the list name." This plan renders it

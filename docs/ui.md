@@ -360,7 +360,7 @@ A list can be made **public** — readable by anyone holding its link, while sig
 
 In **member** views, a public list is marked with a small **globe** icon, muted (`var(--stone)` — there is no `--muted` token; `--stone` is the muted-grey used by the row overflow button and meta text). The placement differs by screen:
 
-- **Lists-screen row:** the globe sits immediately after the list name, purely indicative, with a visually-hidden accessible label _"Public list"_ (per the existing icon-labelling pattern).
+- **Lists-screen row:** the globe renders in the nav-row's trailing slot, so it sits at the row's right edge just before the trailing chevron, purely indicative, with a visually-hidden accessible label _"Public list"_ (per the existing icon-labelling pattern). It sits there rather than hugging the name because `NavRow.title` is a plain string — the globe can't be placed mid-title — so the trailing slot is where it lives.
 - **Items-screen TopBar:** the marker lives in the sub line alongside the counts, reading `4 items · 1 member · 🌐 Public` — a separator dot, the globe, and a visible _"Public"_ label (the visible word is its own accessible text, so no extra hidden label is needed).
 
 It is not rendered on the public `/p/` page itself — a signed-out reader is already on the public surface and doesn't need telling. Private lists render no marker.
