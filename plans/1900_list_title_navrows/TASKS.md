@@ -100,10 +100,10 @@ lead-less row won't type-check or render.
 
 ## Phase 2 — restructure the Lists-screen row
 
-### [ ] 2.1 Render the list title as a nav-row and move the More button below it
+### [x] 2.1 Render the list title as a nav-row and move the More button below it
 
 **Created:** 2026-06-14T19:52:25Z
-**Completed:**
+**Completed:** 2026-06-14T20:38:12Z
 
 **Why:** Each list title is a bare text button with no chevron — it behaves
 like a nav-row but doesn't look like one. Render it as the shared `NavRow`
@@ -274,3 +274,21 @@ button into the extra-info block beneath the title, pinned top-end.
    pass.
 
 **Verify:** `cd web && pnpm test src/lib/list/components/ListsScreen.test.ts` · `pnpm check` · `pnpm test:e2e items.spec.ts` (work box only)
+
+**Notes:**
+- **Side work:** removed the now-unused `Button` import from
+  `ListsScreen.svelte` — the title button is now the `NavRow`'s inner button,
+  so the direct `Button` import was dead and would have failed ESLint.
+- **Implementation detail:** the `align-items: flex-start` rule on the nav-row
+  button had to be written as `.nav-row :global(button) { … }` in
+  `NavRow.svelte`, because the `<button>` element belongs to `Button.svelte`'s
+  scope, not `NavRow`'s — a plain scoped `button` selector wouldn't match it.
+  Scoped under `.nav-row` so it only affects NavRow's button.
+- **E2e not run:** `pnpm test:e2e` is unrunnable in this environment —
+  Playwright reports "does not support chromium on ubuntu26.04-x64" and
+  `playwright install chromium firefox` fails, so no browser is available
+  (consistent with the machine-conditional Playwright note). Vitest
+  (`ListsScreen.test.ts` + `NavRow.test.ts`, 31 passing), `pnpm check`
+  (0 errors), and `pnpm lint` (clean) all pass. Manual visual verification
+  (Step 8, `pnpm dev`) and the e2e step (Step 9) were not performed here and
+  should be run on a box with a working browser before merge.

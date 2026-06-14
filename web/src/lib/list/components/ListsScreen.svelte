@@ -6,12 +6,12 @@
 
 	import CairnGlyph from '$lib/shared/components/CairnGlyph.svelte';
 	import Avatar from '$lib/shared/components/Avatar.svelte';
-	import Button from '$lib/basic/components/Button.svelte';
 	import Icon from '$lib/basic/components/Icon.svelte';
 	import IconButton from '$lib/basic/components/IconButton.svelte';
 	import Fab from '$lib/basic/components/Fab.svelte';
 	import AppTopBar from '$lib/shared/components/AppTopBar.svelte';
 	import MoreButton from '$lib/shared/components/MoreButton.svelte';
+	import NavRow from '$lib/shared/components/NavRow.svelte';
 	import UndoSnackbar from '$lib/shared/components/UndoSnackbar.svelte';
 	import EmptyState from '$lib/shared/components/EmptyState.svelte';
 	import WelcomeBanner from '$lib/shared/components/WelcomeBanner.svelte';
@@ -90,66 +90,64 @@
 		<ul class="rows">
 			{#each lists.items as item (item.id)}
 				<li class="row" data-test="list-row-{item.id}">
-					<div class="row-top media">
-						<Button
-							variant="text"
-							tone="ink"
-							size="md"
-							data-test="list-nav-{item.id}"
-							style="flex: 1; min-width: 0; padding: 0;"
-							onclick={() => {
-								void goto(resolve(`/lists/${item.id}`));
-							}}
-							><span class="name row-title">{item.name}</span>{#if item.is_public}<span
+					<NavRow
+						title={item.name}
+						data-test="list-nav-{item.id}"
+						onclick={() => void goto(resolve(`/lists/${item.id}`))}
+					>
+						{#snippet trailing()}{#if item.is_public}<span
 									class="public-marker"
 									data-test="list-public-marker-{item.id}"
 									><Icon name="globe" size={14} /><span class="sr-only">Public list</span></span
-								>{/if}</Button
-						>
-						<MoreButton
-							size={18}
-							aria-label="List options"
-							data-test="list-overflow-{item.id}"
-							onclick={() => (overflowList = item)}
-							style="color: var(--stone)"
-						/>
-					</div>
-					{#if item.description !== null}
-						<button
-							class="desc body"
-							class:expanded={expandedIds.has(item.id)}
-							data-test="list-desc-{item.id}"
-							onclick={() => toggleDesc(item.id)}
-						>
-							<span class="desc-text" bind:this={descTextEls[item.id]}>{item.description}</span>
-							{#if expandedIds.has(item.id)}
-								<span class="see-toggle fine">(see less)</span>
-							{:else if truncatedIds.has(item.id)}
-								<span class="see-toggle fine">(see more)</span>
-							{/if}
-						</button>
-					{:else}
-						<div class="desc no-desc body" data-test="list-desc-{item.id}">(no description)</div>
-					{/if}
-					<div class="meta fine">
-						<span>{item.item_count} {item.item_count === 1 ? 'item' : 'items'}</span>
-						<span class="dot">•</span>
-						<span>{timeAgo(item.modified_at)}</span>
-						{#if item.list_members.length > 0}
-							<span class="dot">•</span>
-							<span class="avatars">
-								{#each item.list_members as m, i (m.user_id + i)}
-									<span style="margin-left: {i === 0 ? 0 : -6}px">
-										<Avatar
-											displayName={m.profiles.display_name}
-											size={16}
-											uid={m.user_id}
-											avatarVersion={m.profiles.avatar_version}
-										/>
-									</span>
-								{/each}
-							</span>
+								>{/if}{/snippet}
+					</NavRow>
+					<div class="extra">
+						<span class="more">
+							<MoreButton
+								size={18}
+								aria-label="List options"
+								data-test="list-overflow-{item.id}"
+								onclick={() => (overflowList = item)}
+								style="color: var(--stone)"
+							/>
+						</span>
+						{#if item.description !== null}
+							<button
+								class="desc body"
+								class:expanded={expandedIds.has(item.id)}
+								data-test="list-desc-{item.id}"
+								onclick={() => toggleDesc(item.id)}
+							>
+								<span class="desc-text" bind:this={descTextEls[item.id]}>{item.description}</span>
+								{#if expandedIds.has(item.id)}
+									<span class="see-toggle fine">(see less)</span>
+								{:else if truncatedIds.has(item.id)}
+									<span class="see-toggle fine">(see more)</span>
+								{/if}
+							</button>
+						{:else}
+							<div class="desc no-desc body" data-test="list-desc-{item.id}">(no description)</div>
 						{/if}
+						<div class="meta fine">
+							<span>{item.item_count} {item.item_count === 1 ? 'item' : 'items'}</span>
+							<span class="dot">•</span>
+							<span>{timeAgo(item.modified_at)}</span>
+							{#if item.list_members.length > 0}
+								<span class="dot">•</span>
+								<span class="avatars">
+									{#each item.list_members as m, i (m.user_id + i)}
+										<span style="margin-left: {i === 0 ? 0 : -6}px">
+											<Avatar
+												displayName={m.profiles.display_name}
+												size={16}
+												uid={m.user_id}
+												avatarVersion={m.profiles.avatar_version}
+											/>
+										</span>
+									{/each}
+								</span>
+							{/if}
+						</div>
 					</div>
 				</li>
 			{/each}
@@ -227,32 +225,49 @@
 
 	/* ── List rows ── */
 
+	/* The NavRow's inner button supplies the title's top/left inset, so the row
+	   itself carries no padding (otherwise the title would be indented twice). */
 	.row {
-		padding: 0.875rem 1.125rem;
+		padding: 0;
 	}
 
-	.row-top {
-		padding-bottom: 0.5rem;
-		border-bottom: 1px dashed var(--rule);
+	/* Extra-info block beneath the title nav-row: the More button (absolutely
+	   pinned top-end), description, and metadata. The wide right inset lets the
+	   ellipsizing description and metadata clear the More button. The full-bleed
+	   dashed rule (moved here from the old .row-top) separates title from extra
+	   info; it is edge-to-edge like the solid per-row divider now that .row has
+	   no padding. The left inset aligns description/meta under the title text. */
+	.extra {
+		position: relative;
+		padding: 0.5rem 2.5rem 0.875rem 1.125rem;
+		border-top: 1px dashed var(--rule);
 	}
 
-	.name {
-		flex: 1;
-		min-width: 0;
-		/* Override <Button>'s base white-space: nowrap so a long list name wraps
-		   instead of overflowing the row (and breaks very long unbroken tokens). */
-		white-space: normal;
-		overflow-wrap: anywhere;
+	/* The More button, pinned to the top-end corner of the extra-info block. The
+	   wrapping span is positioned (not the MoreButton itself) so its forwarded
+	   class can't clobber IconButton's .icon-btn padding. right: 0.875rem lines
+	   the More icon's centre up under the nav-row chevron's centre: the chevron
+	   sits ~27px from the row's right edge (1.125rem button padding + half of an
+	   18px icon), and the IconButton's 18px icon centres 13px from its own right
+	   edge, so the button's right edge needs to sit ~14px (0.875rem) in. */
+	.more {
+		position: absolute;
+		top: 0.375rem;
+		right: 0.875rem;
 	}
 
-	/* Public-list marker: a muted globe immediately after the name. flex-shrink:0
-	   keeps it from being squeezed by a long wrapping name; centred against the
-	   name block. */
+	/* Public-list marker: a muted globe in the nav-row's trailing slot, so it
+	   sits at the row's right edge just before the chevron. flex-shrink:0 keeps
+	   it from being squeezed by a long wrapping name. No align-self override, so
+	   it inherits the button's align-items: flex-start and pins to the top of a
+	   wrapped multi-line name like the chevron, rather than centring against it.
+	   margin-top nudges it down by half the size gap to the chevron ((18-14)/2 =
+	   2px) so the smaller globe's optical centre lines up with the chevron's
+	   instead of riding high against its top. */
 	.public-marker {
 		display: inline-flex;
-		align-items: center;
-		align-self: center;
 		flex-shrink: 0;
+		margin-top: 0.125rem;
 		margin-left: 0.375rem;
 		color: var(--stone);
 	}
@@ -281,7 +296,6 @@
 		padding: 0;
 		text-align: left;
 		font: inherit;
-		margin-top: 0.5rem;
 	}
 
 	.desc-text {
