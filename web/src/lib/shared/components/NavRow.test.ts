@@ -86,4 +86,11 @@ describe('NavRow', () => {
 		expect(container.querySelector('.nav-row')?.classList.contains('destructive')).toBe(false);
 		expect(container.querySelector('button')?.getAttribute('data-tone')).toBe('ink');
 	});
+
+	test('(l) renders without a lead snippet — title and chevron still present', () => {
+		const onclick = vi.fn();
+		const { container } = render(NavRow, { title: 'My list', onclick });
+		expect(container.querySelector('.nav-row-title')?.textContent).toBe('My list');
+		expect(container.querySelector('[data-test="chevron-right"]')).not.toBeNull();
+	});
 });

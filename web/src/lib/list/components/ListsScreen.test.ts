@@ -153,6 +153,13 @@ describe('ListsScreen', () => {
 		expect(queryByDataTest(`list-public-marker-${LIST_A.id}`)).toBeNull();
 	});
 
+	test('(nav) each list row renders as a nav-row affordance', () => {
+		lists.items = [LIST_A];
+		const { getByDataTest } = render(ListsScreen);
+		const row = getByDataTest(`list-row-${LIST_A.id}`);
+		expect(row.querySelector('.nav-row')).not.toBeNull();
+	});
+
 	test('(new-b) clicking overflow button renders ListOverflowSheet', async () => {
 		lists.items = [LIST_A];
 		const { getByDataTest, queryByDataTest } = render(ListsScreen);
