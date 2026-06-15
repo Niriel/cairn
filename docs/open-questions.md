@@ -41,6 +41,16 @@ the matching entry in the underlying doc.
   given the Hetzner-DE hosting. Launch-blocker for step 13. See
   `design/cairn-legal-screens.jsx` → L4 and `plans/0000_implementation_order.md` § step 12.
 
+## Identity
+
+- **Lost-password recovery without a recovery e-mail.** Recovery
+  e-mail is optional, so an account that never sets one and forgets
+  its password has no self-serve path back in (by design). Operator
+  reset via an admin RPC is the default fallback — open whether to
+  add it now or defer until someone locks themselves out. See
+  `architecture.md` § Authentication and § Open questions and future
+  work.
+
 ## Admin
 
 - **Avatar file cleanup in admin erasure.** `admin.delete_account_as`

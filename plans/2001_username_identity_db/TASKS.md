@@ -21,10 +21,10 @@ and no live-data migration ship here (those are 2002–2005).
 
 ## Phase 0 — reconcile narrative docs
 
-### [ ] 0.1 Reconcile the identity-model claims in architecture, invites, circles, open-questions
+### [x] 0.1 Reconcile the identity-model claims in architecture, invites, circles, open-questions
 
 **Created:** 2026-06-15T12:42:20Z
-**Completed:**
+**Completed:** 2026-06-15T13:20:31Z
 
 **Why:** Step 20 reverses a published architecture decision ("email magic
 links only … No passwords are ever stored or transmitted"). Sub-plans
