@@ -225,6 +225,12 @@
 
 	/* ── List rows ── */
 
+	/* Reserve space below the last row so it clears the fixed FAB floating over
+	   the content; without this the bottom list is permanently obscured. */
+	.rows {
+		padding-bottom: var(--fab-clearance);
+	}
+
 	/* The NavRow's inner button supplies the title's top/left inset, so the row
 	   itself carries no padding (otherwise the title would be indented twice). */
 	.row {

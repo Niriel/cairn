@@ -359,7 +359,7 @@
 	}
 
 	.rows {
-		padding-bottom: 5.625rem;
+		padding-bottom: var(--fab-clearance);
 	}
 
 	/* Open-row tint — a genuine toggled state, so the background lives here as a
