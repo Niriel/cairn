@@ -13,5 +13,12 @@
   "eslint.workingDirectories": [{ "pattern": "web" }],
   "sqlfluff.dialect": "postgres",
   "sqlfluff.linter.run": "onType",
-  "cSpell.enableFiletypes": ["svelte"]
+  "cSpell.enableFiletypes": ["svelte"],
+  "window.titleBarStyle": "custom",
+  "workbench.colorCustomizations": {
+    "titleBar.activeBackground": "#6e4e27",
+    "titleBar.activeForeground": "#f6f1e9",
+    "titleBar.inactiveBackground": "#6e4e27bf",
+    "titleBar.inactiveForeground": "#f6f1e9bf"
+  }
 }

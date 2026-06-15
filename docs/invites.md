@@ -15,35 +15,35 @@ The design has to make the easy case fast without making the restrictive case aw
 
 ## Why "circle," not "friend"
 
-The word in this feature has to describe *people you'll accept contact from* — not a mutual social bond. The set is heterogeneous: a close friend, an old colleague, the author of a book you've corresponded with, the organizer of a meeting. None of those people are *friends* in the everyday sense, but each of them might reasonably reach out, and you might reasonably want to be reachable by them.
+The word in this feature has to describe _people you'll accept contact from_ — not a mutual social bond. The set is heterogeneous: a close friend, an old colleague, the author of a book you've corresponded with, the organizer of a meeting. None of those people are _friends_ in the everyday sense, but each of them might reasonably reach out, and you might reasonably want to be reachable by them.
 
-"Friend" carries the mutual-graph connotation; "contacts" reads as an address book; "trusted senders" sounds like a spam filter. **Circle** is the word: something *you* draw around yourself. It's directionally honest (no claim about whether the other person has drawn one back), it absorbs the variety above without miscategorizing anyone, and it sits naturally next to *list*, *cairn*, *member* in the product vocabulary.
+"Friend" carries the mutual-graph connotation; "contacts" reads as an address book; "trusted senders" sounds like a spam filter. **Circle** is the word: something _you_ draw around yourself. It's directionally honest (no claim about whether the other person has drawn one back), it absorbs the variety above without miscategorizing anyone, and it sits naturally next to _list_, _cairn_, _member_ in the product vocabulary.
 
-> Alice adding Bob to her circle means *"Alice is willing to receive invites from Bob."*
+> Alice adding Bob to her circle means _"Alice is willing to receive invites from Bob."_
 
 That's the whole semantics.
 
 ## The two ways into someone's circle
 
-**Tap-add (one-sided).** When Alice taps Bob's profile (anywhere he appears — a member of another list, a sender of an invite she received, etc.) and chooses *"Add to circle,"* Bob goes onto Alice's circle. Bob is not added to Alice's circle in return; Bob is not notified. Tap-add is the low-friction path and produces a low-commitment, one-sided outcome.
+**Tap-add (one-sided).** When Alice taps Bob's profile (anywhere he appears — a member of another list, a sender of an invite she received, etc.) and chooses _"Add to circle,"_ Bob goes onto Alice's circle. Bob is not added to Alice's circle in return; Bob is not notified. Tap-add is the low-friction path and produces a low-commitment, one-sided outcome.
 
-**Email-add (mutual).** When Alice types `bob@protonmail.com` in the manual add flow (Settings → Privacy → Your circle → Add by email), the server creates *two* circle rows: Alice → Bob and Bob → Alice. Either can remove the other later, unilaterally. The reasoning: typing someone's email is a strong signal of trust *and* a much higher-friction action. If Alice went to the trouble, she's vouching for Bob, and it would feel one-sided and weird if Bob then had to separately add Alice back just to be able to invite her.
+**Email-add (mutual).** When Alice types `bob@protonmail.com` in the manual add flow (Settings → Privacy → Your circle → Add by email), the server creates _two_ circle rows: Alice → Bob and Bob → Alice. Either can remove the other later, unilaterally. The reasoning: typing someone's email is a strong signal of trust _and_ a much higher-friction action. If Alice went to the trouble, she's vouching for Bob, and it would feel one-sided and weird if Bob then had to separately add Alice back just to be able to invite her.
 
 Email-add is also the only way to add someone you don't already share a list with, so it's the natural place where mutuality is established.
 
-**Bob is not notified about being added to Alice's circle**, in either path. The principle is general: *only notify when the user's experience actually changes.* Being in Alice's circle changes nothing for Bob day-to-day; it only governs what happens if/when he tries to invite Alice to something later. There's nothing for Bob to do, decide, or react to. So we don't surface it.
+**Bob is not notified about being added to Alice's circle**, in either path. The principle is general: _only notify when the user's experience actually changes._ Being in Alice's circle changes nothing for Bob day-to-day; it only governs what happens if/when he tries to invite Alice to something later. There's nothing for Bob to do, decide, or react to. So we don't surface it.
 
-And Bob never sees who has him in their circle — in either direction. Alice's circle is Alice's private permission setting on herself; the people listed in it haven't *agreed* to anything social, they're just on her allowlist. Surfacing that to them would turn a private setting into a quasi-social signal, which is the opposite of what we want. Each user sees and manages only their own circle.
+And Bob never sees who has him in their circle — in either direction. Alice's circle is Alice's private permission setting on herself; the people listed in it haven't _agreed_ to anything social, they're just on her allowlist. Surfacing that to them would turn a private setting into a quasi-social signal, which is the opposite of what we want. Each user sees and manages only their own circle.
 
 ### Email-add when Bob has blocked Alice
 
 The mutual-by-default has one asymmetry: a block beats it. If Alice email-adds Bob, but Bob has Alice on his blocklist, the **add succeeds on Alice's side** (Bob goes onto Alice's circle — Alice asked for that, and we don't tell her about Bob's block) **but the auto-add to Bob's circle is silently skipped**. The outcome is asymmetric: Alice has Bob in her circle; Bob does not have Alice in his. This preserves Bob's intent (he chose to block Alice; that decision is decisive) without leaking the existence of the block to Alice.
 
-This means the *only* state where the email-add is asymmetric is "Bob has blocked Alice." Every other case produces the symmetric two-row outcome.
+This means the _only_ state where the email-add is asymmetric is "Bob has blocked Alice." Every other case produces the symmetric two-row outcome.
 
 ## The profile screen
 
-The profile screen is the action hub for everything you can do *to* another user. Reachable from anywhere a user appears (members of a list, inbox row sender, attribution avatar on an item).
+The profile screen is the action hub for everything you can do _to_ another user. Reachable from anywhere a user appears (members of a list, inbox row sender, attribution avatar on an item).
 
 It shows:
 
@@ -53,21 +53,23 @@ It shows:
 
 And, depending on current state, some subset of these actions:
 
-- **Add to circle** *(or)* **Remove from circle** — if the viewer has them in their circle
-- **Block** *(or)* **Unblock** — always available unless self
+- **Add to circle** _(or)_ **Remove from circle** — if the viewer has them in their circle
+- **Block** _(or)_ **Unblock** — always available unless self
 - **Cancel pending invite** — if there's a pending invite to a shared list (only visible to the inviter)
 
-The profile screen never shows whether *the other person* has you in their circle. That's their private setting on themselves; not your business. (See `circles.md`.)
+The profile screen never shows whether _the other person_ has you in their circle. That's their private setting on themselves; not your business. (See `circles.md`.)
 
-Tapping your *own* profile (your avatar in a list members screen, etc.) bounces to Settings — there is no "my profile" screen in v1; profile is a screen for looking at *others*.
+Tapping your _own_ profile (your avatar in a list members screen, etc.) bounces to Settings — there is no "my profile" screen in v1; profile is a screen for looking at _others_.
 
-Email addresses are **never** shown on the profile screen, or anywhere else a user is rendered. Alice and Bob can collaborate on lists, exchange invites, be in each other's circles, and never see each other's email — only display name and avatar. Email is the auth identifier and the lookup key for unregistered invites; it's not social information.
+Email addresses are **never** shown on the profile screen, or anywhere else a user is rendered. Alice and Bob can collaborate on lists, exchange invites, be in each other's circles, and never see each other's email — only display name, avatar, and `@username`. E-mail is **no longer the auth identifier**: the public identity is the **username** (shown as `@username` alongside the display name and avatar), and e-mail is demoted to an optional, private recovery address. E-mail is not social information and is never an add-key for a registered user.
+
+> Add-by-username for registered users — the public-identity lookup that replaces the old e-mail add-key — arrives in step 20. The fate of unregistered-by-e-mail invites (whether e-mail survives as the lookup key for people who don't yet have an account) is decided there too; the e-mail-add mechanics described below are unchanged until then.
 
 ## The three-way invite policy
 
 Stored on `user_settings.invite_policy`. Three values:
 
-- **`everybody`** *(default for new accounts)*. Anyone with a Cairn account can invite this user to a list.
+- **`everybody`** _(default for new accounts)_. Anyone with a Cairn account can invite this user to a list.
 - **`circle`**. Only users in this person's circle can invite them. Invites from anyone else fail with the generic "Couldn't send invite" message (see "What blocked invites look like" below).
 - **`nobody`**. No invites accepted. The user is opting out of being added to anything; they can still create their own lists and invite others. Their existing lists are unaffected.
 
@@ -79,9 +81,9 @@ When a user changes `invite_policy` from `everybody` to `circle` or `nobody`, **
 
 ### "Block always wins"
 
-With the combined `relationships` table (`status` is either `'circle'` or `'blocked'`, never both), 'block always wins' manifests in two places: (1) in `send_invitation`, the block check (step 6 above) tests for a row with `status = 'blocked'` *before* the policy check; (2) in `add_circle_by_id` and `add_circle_by_email`, the `ON CONFLICT DO UPDATE WHERE status <> 'blocked'` clause silently skips the circle-add if a blocked row already exists, leaving the blocked row unchanged. Either path preserves the block.
+With the combined `relationships` table (`status` is either `'circle'` or `'blocked'`, never both), 'block always wins' manifests in two places: (1) in `send_invitation`, the block check (step 6 above) tests for a row with `status = 'blocked'` _before_ the policy check; (2) in `add_circle_by_id` and `add_circle_by_email`, the `ON CONFLICT DO UPDATE WHERE status <> 'blocked'` clause silently skips the circle-add if a blocked row already exists, leaving the blocked row unchanged. Either path preserves the block.
 
-The block is the strongest possible signal and overrides every other path. Blocking someone who was already in your circle overwrites the `relationships` row's `status` from `circle` to `blocked` (the row stays, just changes status). Unblocking deletes the row — the prior `circle` state is *not* restored automatically. If you want them back in your circle, re-add them deliberately. The simpler "absence = neither" semantic is worth more than preserving the prior state across a block/unblock cycle.
+The block is the strongest possible signal and overrides every other path. Blocking someone who was already in your circle overwrites the `relationships` row's `status` from `circle` to `blocked` (the row stays, just changes status). Unblocking deletes the row — the prior `circle` state is _not_ restored automatically. If you want them back in your circle, re-add them deliberately. The simpler "absence = neither" semantic is worth more than preserving the prior state across a block/unblock cycle.
 
 ## Blocks
 
@@ -90,7 +92,7 @@ A separate per-user list, distinct from circles. Adding someone to your blocklis
 - Prevents them from inviting you to any list (regardless of your `invite_policy`).
 - Auto-declines any pending invite from them currently in your inbox.
 - Skips the auto-add to your circle when they email-add you (see above).
-- Does **not** remove them from lists you both currently belong to. Cairn is a collaboration tool, not a social network — kicking Alice out of a list because Bob blocked her would be hostile to the *list*, which other people are using too. The block governs *new* contact, not retroactive removal.
+- Does **not** remove them from lists you both currently belong to. Cairn is a collaboration tool, not a social network — kicking Alice out of a list because Bob blocked her would be hostile to the _list_, which other people are using too. The block governs _new_ contact, not retroactive removal.
 - Is invisible to the blocked party. Bob doesn't get a notification; future invite attempts simply fail with the same generic error any blocked invite produces.
 
 Reachable from any profile screen, and from Settings → Privacy → Blocked.
@@ -105,8 +107,8 @@ When Alice taps "Invite Bob" (whether by email, by tapping a circle member, or b
 
 1. **Inviter-membership check.** If the caller is not a live member of the list: raise — cannot invite to a list you're not on. (`send_invitation` is `SECURITY DEFINER` and bypasses RLS, so this must be an explicit guard.)
 2. **Resolve target.** Look up `p_email` in `auth.users` (or use `p_user_id` directly). If email-keyed and no Cairn account matches, proceed directly to the insert step — all policy, block, and membership checks are skipped for unregistered addresses.
-3. **Self-check.** If the invitee resolves to Alice herself: clear error, *"You're already on this list"* or *"You can't invite yourself."* (No privacy concern; honesty wins.)
-4. **Existing membership.** If Bob is already a *live* member of this list: no-op; Alice sees *"Bob is already on this list."* A previously-removed (soft-deleted) membership row is treated as non-membership.
+3. **Self-check.** If the invitee resolves to Alice herself: clear error, _"You're already on this list"_ or _"You can't invite yourself."_ (No privacy concern; honesty wins.)
+4. **Existing membership.** If Bob is already a _live_ member of this list: no-op; Alice sees _"Bob is already on this list."_ A previously-removed (soft-deleted) membership row is treated as non-membership.
 5. **Existing pending invitation.** If Bob already has a pending invite to this list from anyone: no-op; Alice sees a generic success message.
 6. **Block check.** If Bob has Alice on his blocklist: invite fails with the generic error.
 7. **Policy check.** If Bob's `invite_policy` is `nobody`: invite fails. If `circle`: check whether Alice is in Bob's circle; if not, fail. If `everybody`: pass.
@@ -123,15 +125,15 @@ In every blocked case, Alice sees the same message: **"Couldn't send invite."** 
 
 The legal/ethical reasoning, briefly:
 
-- **Privacy of Bob's settings.** Bob's invite preference and his blocklist are personal data. Telling Alice *"Bob is not accepting invites"* leaks the existence of his preference and confirms his account exists. Both are minor leaks but real ones under GDPR's data-minimization principle.
-- **Honesty to Alice.** A user-hostile pattern is to silently swallow Alice's invite while showing her *"sent!"* The action genuinely failed; we say so.
-- **Anti-enumeration.** If errors distinguished *"Bob doesn't exist"* from *"Bob blocked you"* from *"Bob accepts everyone,"* an attacker could probe the user database.
+- **Privacy of Bob's settings.** Bob's invite preference and his blocklist are personal data. Telling Alice _"Bob is not accepting invites"_ leaks the existence of his preference and confirms his account exists. Both are minor leaks but real ones under GDPR's data-minimization principle.
+- **Honesty to Alice.** A user-hostile pattern is to silently swallow Alice's invite while showing her _"sent!"_ The action genuinely failed; we say so.
+- **Anti-enumeration.** If errors distinguished _"Bob doesn't exist"_ from _"Bob blocked you"_ from _"Bob accepts everyone,"_ an attacker could probe the user database.
 
-The combination — *"Couldn't send invite"* with no detail — satisfies all three. This matches how Signal and most privacy-conscious products handle delivery failures. The same anti-enumeration argument applies to the sign-in flow's response to a magic-link request — `admin.md` → "What the web app shows when a banned user tries to sign in" is the parallel application of this pattern to GoTrue's magic-link issuance, with the same shape (one screen, multiple backend outcomes, indistinguishable to the user).
+The combination — _"Couldn't send invite"_ with no detail — satisfies all three. This matches how Signal and most privacy-conscious products handle delivery failures. The same anti-enumeration argument applies to the sign-in flow's response to a magic-link request — `admin.md` → "What the web app shows when a banned user tries to sign in" is the parallel application of this pattern to GoTrue's magic-link issuance, with the same shape (one screen, multiple backend outcomes, indistinguishable to the user).
 
 The single carve-out is **inviting yourself**, which surfaces a clear error: there's no privacy at stake.
 
-Note that Alice cannot type Bob's email into the invite flow and learn from the error whether Bob exists, has blocked her, etc. — every failure is the same string. **Email is also never echoed back in any UI.** If Alice mistypes `bob@protonmial.com`, the error is *"Couldn't send invite"* — same as every other failure. (We considered echoing the typo back to help her notice it; we decided against it, on the grounds that the same error must be shown for every failure regardless of whether the email was malformed, real-but-unregistered, real-but-blocked, etc. The email she typed is on her screen; she can read it from there.)
+Note that Alice cannot type Bob's email into the invite flow and learn from the error whether Bob exists, has blocked her, etc. — every failure is the same string. **Email is also never echoed back in any UI.** If Alice mistypes `bob@protonmial.com`, the error is _"Couldn't send invite"_ — same as every other failure. (We considered echoing the typo back to help her notice it; we decided against it, on the grounds that the same error must be shown for every failure regardless of whether the email was malformed, real-but-unregistered, real-but-blocked, etc. The email she typed is on her screen; she can read it from there.)
 
 ## Inviting by email vs by circle vs by co-member
 
@@ -154,20 +156,20 @@ This is the path the docs previously didn't cover — email-only invites for peo
 The fallback for everyone, including unregistered users. Alice types or pastes an email; the server looks it up in `auth.users`:
 
 - **Match found.** Same path as picking from the list — invitation goes through the policy/block checks above and lands in the matched user's inbox.
-- **No match.** The server creates an invitation tied to the *email* (not a user_id, since there is none yet). It also triggers a magic-link email: *"Alice invited you to her list 'Stuff to read' on Cairn. Tap to sign up and accept."* When the recipient signs up via that link, their new `auth.users` row is checked for any email-keyed pending invitations; matches are converted to user-keyed invitations and the inbox shows them on first sign-in.
+- **No match.** The server creates an invitation tied to the _email_ (not a user*id, since there is none yet). It also triggers a magic-link email: *"Alice invited you to her list 'Stuff to read' on Cairn. Tap to sign up and accept."\_ When the recipient signs up via that link, their new `auth.users` row is checked for any email-keyed pending invitations; matches are converted to user-keyed invitations and the inbox shows them on first sign-in.
 
 ## Inbox — receiving invites
 
 A pending invite to Bob shows up in two places:
 
-1. **A row at the top of the Lists screen** — *"Alice invited you to Stuff to read"* with **Accept** and **Decline** affordances inline. If multiple invites are pending, the row says *"3 pending invites"* and tapping it opens the full inbox.
+1. **A row at the top of the Lists screen** — _"Alice invited you to Stuff to read"_ with **Accept** and **Decline** affordances inline. If multiple invites are pending, the row says _"3 pending invites"_ and tapping it opens the full inbox.
 2. **The full inbox** — Settings → Invites (or by tapping the badge above), with one row per pending invite showing the inviter's display name, the list name, and Accept / Decline.
 
 **Accept** creates a `list_members` row, deletes the invitation, and navigates Bob into the list immediately. He's a full member from that moment on.
 
 **Decline** hard-deletes the invitation. Alice is not notified. The next time Alice opens the members screen of that list, Bob simply isn't there and there's no pending row for him; she can re-invite if she wants.
 
-After accepting, Bob optionally gets a one-time prompt: *"You accepted Alice's invite. Add Alice to your circle?"* Dismissible. If he taps yes, Alice goes into Bob's circle (one-sided — Alice is not notified). This is the organic circle-growth path that powers most of the social graph.
+After accepting, Bob optionally gets a one-time prompt: _"You accepted Alice's invite. Add Alice to your circle?"_ Dismissible. If he taps yes, Alice goes into Bob's circle (one-sided — Alice is not notified). This is the organic circle-growth path that powers most of the social graph.
 
 ## Pending-invite cap
 
@@ -210,9 +212,9 @@ create table public.relationships (
 alter table public.relationships enable row level security;
 ```
 
-`(user_id, other_user_id)` is directional — *"user_id's view of other_user_id."* A symmetric circle relationship (the email-add case) is two rows, one in each direction; the schema doesn't enforce symmetry. A single pair is either in the circle or blocked, never both — `status` is mutually exclusive. The column is named `other_user_id` (not `member_id`) because *member* is reserved for `list_members`; uniformity inside the schema beats cross-table puns.
+`(user_id, other_user_id)` is directional — _"user_id's view of other_user_id."_ A symmetric circle relationship (the email-add case) is two rows, one in each direction; the schema doesn't enforce symmetry. A single pair is either in the circle or blocked, never both — `status` is mutually exclusive. The column is named `other_user_id` (not `member_id`) because _member_ is reserved for `list_members`; uniformity inside the schema beats cross-table puns.
 
-Blocking someone who was already in your circle overwrites the row's `status` from `circle` to `blocked` (a `PATCH` on the existing row, or an `INSERT … ON CONFLICT DO UPDATE`). Unblocking *deletes* the row outright — the prior `circle` state is **not** restored across a block/unblock cycle. If you want them in your circle again, you re-add deliberately. This is a small departure from "unblock returns you to the prior state" that earlier drafts of this doc described; collapsing the two tables into one row-per-pair makes the simpler "absence = neither" semantic worth more than preserving a low-frequency edge case.
+Blocking someone who was already in your circle overwrites the row's `status` from `circle` to `blocked` (a `PATCH` on the existing row, or an `INSERT … ON CONFLICT DO UPDATE`). Unblocking _deletes_ the row outright — the prior `circle` state is **not** restored across a block/unblock cycle. If you want them in your circle again, you re-add deliberately. This is a small departure from "unblock returns you to the prior state" that earlier drafts of this doc described; collapsing the two tables into one row-per-pair makes the simpler "absence = neither" semantic worth more than preserving a low-frequency edge case.
 
 `on delete cascade` on both FKs: if either side deletes their account, the row is hard-deleted. This is correct under the anonymize-don't-cascade rule because the relationship itself is purely personal data — there's no shared state to preserve.
 
@@ -241,9 +243,9 @@ create unique index invitations_target_email_uniq
   where target_email is not null and target_user_id is null;
 ```
 
-The column names follow the schema-wide rule: `created_by` for "who created the row" (uniform with `lists`, `items`, `list_members`); `target_*` for "who the row is *for*" (the invitee). Earlier drafts used `inviter_id` / `invitee_*` for self-documenting role names; the table name already carries that context, so the generic forms are clearer in aggregate. **Note**: `invitations.created_by` uses `on delete cascade` rather than `on delete set default` — invitations are pending state with no audit value once the inviter is gone, unlike `lists.created_by` / `items.created_by` which point to shared content. Same column name, different FK action; the action follows from the table's role, not from the column name.
+The column names follow the schema-wide rule: `created_by` for "who created the row" (uniform with `lists`, `items`, `list_members`); `target_*` for "who the row is _for_" (the invitee). Earlier drafts used `inviter_id` / `invitee_*` for self-documenting role names; the table name already carries that context, so the generic forms are clearer in aggregate. **Note**: `invitations.created_by` uses `on delete cascade` rather than `on delete set default` — invitations are pending state with no audit value once the inviter is gone, unlike `lists.created_by` / `items.created_by` which point to shared content. Same column name, different FK action; the action follows from the table's role, not from the column name.
 
-The "blocked always wins" rule is enforced at the application level inside the invite RPCs — `send_invitation` checks for a `relationships` row with `status = 'blocked'` *before* consulting `invite_policy` or circle membership.
+The "blocked always wins" rule is enforced at the application level inside the invite RPCs — `send_invitation` checks for a `relationships` row with `status = 'blocked'` _before_ consulting `invite_policy` or circle membership.
 
 ## RLS and stored procedures
 
@@ -271,9 +273,9 @@ create policy invitations_select on public.invitations
 
 The `relationships_update` policy lets a user flip a row's `status` (e.g., from `circle` to `blocked`) without the round-trip of delete-then-insert. Both `using` and `with check` are gated on `user_id = public.uid()`.
 
-Insert and delete on `invitations`, and the email-add path for `relationships` (which writes a row in *the other user's* direction), go through stored procedures: `send_invitation`, `accept_invitation`, `decline_invitation`, `add_circle_by_email`, `add_circle_by_id`. These run as `security definer` functions because they need privileges to read other users' `invite_policy` and `relationships` rows for the policy/block checks, and to write the symmetric `relationships` row on the other user's behalf during email-add. The web app calls them via PostgREST RPCs; it doesn't touch the tables directly for these operations.
+Insert and delete on `invitations`, and the email-add path for `relationships` (which writes a row in _the other user's_ direction), go through stored procedures: `send_invitation`, `accept_invitation`, `decline_invitation`, `add_circle_by_email`, `add_circle_by_id`. These run as `security definer` functions because they need privileges to read other users' `invite_policy` and `relationships` rows for the policy/block checks, and to write the symmetric `relationships` row on the other user's behalf during email-add. The web app calls them via PostgREST RPCs; it doesn't touch the tables directly for these operations.
 
-The one exception is the inviter's own *cancel pending invite* action, which is a direct `DELETE /invitations?id=eq.<uuid>` gated by the `invitations_delete` policy (`USING (created_by = public.uid())`); accept and decline by the invitee still go through the `accept_invitation` / `decline_invitation` RPCs.
+The one exception is the inviter's own _cancel pending invite_ action, which is a direct `DELETE /invitations?id=eq.<uuid>` gated by the `invitations_delete` policy (`USING (created_by = public.uid())`); accept and decline by the invitee still go through the `accept_invitation` / `decline_invitation` RPCs.
 
 The pattern matches `delete_account` from `account-deletion.md`: when the logic involves cross-user state, it lives in a function, not in a policy.
 
@@ -318,7 +320,7 @@ $$;
 
 The `ON CONFLICT … DO UPDATE … WHERE status <> 'blocked'` shape is what enforces "block always wins" at write time: an existing `blocked` row is preserved, while an existing `circle` row stays `circle` (the no-op merge keeps `modified_at` honest if the trigger uses `OF (status)`).
 
-**Why `add_circle_by_email` is allowed to raise on an unregistered address.** Unlike `send_invitation`, which silently swallows every failure mode behind the same "Couldn't send invite" string to defeat enumeration, `add_circle_by_email` raises `'no such user'` when the e-mail doesn't match an `auth.users` row. The functions sit on opposite sides of a deliberate trade-off: `send_invitation` is reachable from every "Invite by e-mail" field in the app and is the only path that could ever feed an attacker's enumeration script, so it has to look the same for every failure. `add_circle_by_email` is buried two levels deeper in Settings → Privacy → Your circle → Add by e-mail, the caller is performing a high-friction action on an e-mail they already know belongs to a real person, and the error is the helpful UX signal *"this address isn't on Cairn — invite them instead."* Hiding it behind a silent no-op would leave the user staring at a settings screen that did nothing. The block check inside the function still runs the same anti-enumeration pattern: if the target exists and has blocked the caller, the caller's row is created and the symmetric row is silently skipped, with no way for the caller to tell that a block exists.
+**Why `add_circle_by_email` is allowed to raise on an unregistered address.** Unlike `send_invitation`, which silently swallows every failure mode behind the same "Couldn't send invite" string to defeat enumeration, `add_circle_by_email` raises `'no such user'` when the e-mail doesn't match an `auth.users` row. The functions sit on opposite sides of a deliberate trade-off: `send_invitation` is reachable from every "Invite by e-mail" field in the app and is the only path that could ever feed an attacker's enumeration script, so it has to look the same for every failure. `add_circle_by_email` is buried two levels deeper in Settings → Privacy → Your circle → Add by e-mail, the caller is performing a high-friction action on an e-mail they already know belongs to a real person, and the error is the helpful UX signal _"this address isn't on Cairn — invite them instead."_ Hiding it behind a silent no-op would leave the user staring at a settings screen that did nothing. The block check inside the function still runs the same anti-enumeration pattern: if the target exists and has blocked the caller, the caller's row is created and the symmetric row is silently skipped, with no way for the caller to tell that a block exists.
 
 ## The `add_circle_by_id` function (sketch)
 
@@ -493,10 +495,10 @@ $$;
 
 When Alice deletes her account:
 
-| Table | What happens | Why |
-|---|---|---|
-| `relationships` (rows where she's `user_id` *or* `other_user_id`, regardless of status) | Hard cascade | Personal allowlist / blocklist data on both sides; nothing of value to preserve. |
-| `invitations` (rows where she's `created_by` *or* `target_user_id`) | Hard cascade | Pending state; no audit value once she's gone. |
+| Table                                                                                   | What happens | Why                                                                              |
+| --------------------------------------------------------------------------------------- | ------------ | -------------------------------------------------------------------------------- |
+| `relationships` (rows where she's `user_id` _or_ `other_user_id`, regardless of status) | Hard cascade | Personal allowlist / blocklist data on both sides; nothing of value to preserve. |
+| `invitations` (rows where she's `created_by` _or_ `target_user_id`)                     | Hard cascade | Pending state; no audit value once she's gone.                                   |
 
 All cascades happen automatically via the `on delete cascade` clauses set when each table was created. The `delete_account` function from `account-deletion.md` doesn't need to do anything special.
 

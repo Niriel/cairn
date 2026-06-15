@@ -119,22 +119,26 @@ One feature does need a custom endpoint: profile pictures. The bytes shouldn't l
 
 The sidecar is single-purpose, stateless, and small enough to write in any language (Go, Python, or Node — the open question is the team's preference, not the architecture). It runs as a normal container in the same `docker-compose.yml`, with read-write access to the avatar directory; Caddy's container mounts the same directory read-only. The shape is well-trodden (GitLab, Mastodon, every self-hosted forum since 2003). See `docs/avatars.md` for the schema delta, the RPCs, the file lifecycle, and the orphan-sweep cron.
 
-### Authentication: GoTrue + email magic links
+### Authentication: GoTrue + username and password
 
-GoTrue is the auth service originally built for Supabase, runnable standalone. It handles signup, login, password reset, and JWT issuance. We configure it for **email magic links only**: the user enters their email, receives a one-time login link, clicks it, and the app receives a signed JWT. No passwords are ever stored or transmitted by us.
+GoTrue is the auth service originally built for Supabase, runnable standalone. It handles signup, login, password reset, and JWT issuance. The user signs in with a **username and password**. The username is Cairn's public identity — shown as `@username` next to a display name and avatar — and it doubles as the credential GoTrue keys on: the client computes a **synthetic deterministic e-mail** `lower(username)@users.cairn.invalid` from the username and authenticates via the password grant. GoTrue never sees a real e-mail as the login identifier, and the synthetic address is never shown to anyone.
 
-Magic links were chosen over alternatives because:
+E-mail is demoted to an **optional recovery address**. It is stored separately in `user_settings.recovery_email` (private, owner-only), is never required to use Cairn, and is never displayed. Its only job is recovering a lost password.
 
-- They avoid storing a password hash, which removes a class of breach risk.
-- They avoid "Sign in with Google/Apple/Facebook," which conflicts with the privacy stance.
-- They're familiar to users and don't require any extra app on the user's phone.
-- They work identically in every browser.
+The trade we accept by keying on username + password:
 
-The cost: users need access to their email to log in on a new device. For a low-frequency app like Cairn, this is acceptable. The session cookie is long-lived enough on a known browser that this is a once-per-device event.
+- GoTrue now **does store a password hash** — the earlier magic-link-only design avoided that, and we no longer do. We take that risk knowingly in exchange for an identity the user can carry and a credential they control, with no forced e-mail address.
+- A public username is a deliberate piece of social surface (it's how people add each other), unlike an e-mail, which must stay private. Separating the two is the whole point of the reversal — see _Considered and rejected_ below.
+- We still avoid "Sign in with Google/Apple/Facebook," which conflicts with the privacy stance.
+- The flow works identically in every browser and needs no extra app on the user's phone.
 
-The same email also carries the six-digit OTP code as a typeable alternative to clicking the link. This lets a user finish sign-in on the device they started on — they enter the code on Cairn's code-entry screen (`/auth/check`) and authenticate without leaving that device. The code authenticates via `POST /auth/verify` with `{type:'magiclink', email, token}` — the same cookie-plant path the link click uses, so it adds no new edge surface. The e-mail carries the line "Don't share this code with anyone." to blunt the social-engineering risk of a shareable code.
+The cost: a user who sets no recovery e-mail and forgets their password has no self-serve way back in. That is by design at this scale; operator-assisted reset is the fallback (see _Open questions_).
 
-For sending the magic-link emails in production, we use a transactional email provider — likely [Postmark](https://postmarkapp.com/) or an EU equivalent. In local development, [Mailpit](https://github.com/axllent/mailpit) catches outgoing mail in a fake inbox.
+> The numbered magic-link "Authentication flow" walkthrough further down (the click-the-link / six-digit-OTP steps under _Request flow_) describes the **legacy** magic-link sign-in path. It is retained as-is pending its removal in a later step and is superseded as a sign-in surface by the username + password flow described here.
+
+The six-digit OTP code that the legacy magic-link e-mail carries is likewise **superseded as a sign-in surface** by username + password; its removal rides with the legacy-flow retirement, not with this change.
+
+E-mail still has a production role as **recovery and verification mail** (password reset, recovery-address confirmation). For sending that mail in production we use a transactional e-mail provider — likely [Postmark](https://postmarkapp.com/) or an EU equivalent. In local development, [Mailpit](https://github.com/axllent/mailpit) catches outgoing mail in a fake inbox.
 
 ### JWT storage: HttpOnly cookie via a Caddy shim
 
@@ -163,7 +167,7 @@ A future stronger contract (no JS exposure at all) remains tractable if a new re
 
 Both halves of this shim must be **narrowed**, not blanket. On the way _in_, Caddy attaches `Authorization: Bearer <jwt>` only to the authenticated GoTrue endpoints (today: `/auth/user`). The anonymous-callable endpoints (`/auth/magiclink`, `/auth/verify`, `/auth/token`) must **not** receive a bearer — they accept anonymous callers, and forwarding a signed-in user's JWT to a magic-link request hands a private credential to an endpoint that didn't need it. On the way _out_, the JSON-sniffing cookie-plant must fire only on the deliberate-login endpoints (`/auth/verify`, `/auth/token`); a 2xx response from `/auth/signup` (or a future endpoint that also returns `access_token`, like refresh-token rotation or OAuth callbacks) must **not** plant a session cookie unless explicitly added to the allowed set. In Step 3's flow, the _active_ cookie-plant path is `/auth/token` (the refresh-token exchange the callback page issues after reading the URL hash); `/auth/verify` stays in the allowed set as defence-in-depth so a future flow that needs server-side token verification can use it without re-widening the narrow. The dev-side Vite proxy already enforces both narrowings via the shared `web/src/lib/shared/model/auth-paths.ts` helper; the Caddy production analogue must match, and adding a new GoTrue endpoint to either narrow is a deliberate edit, not an implicit consequence of a 2xx response shape.
 
-Caddy is the right home for this shim because the proxy is already where the trust boundary sits, and the rule is short enough to live in the Caddyfile alongside the routing — an in-Caddy Go module is the long-term convergence target. The interim prototype, however, *does* run a small Node `auth-proxy` sidecar for the response-side half of the shim (the cookie-plant + token-strip): it lets us reuse the already-tested dev-proxy logic verbatim and keep zero drift from the canonical narrowing lists in `web/src/lib/shared/model/auth-paths.ts` (a copy of that file is guarded deep-equal against the original in the sidecar's tests). The stock cookie→bearer direction stays in the Caddyfile; only the JSON-sniffing response handler lives in the sidecar. See `deployment.md` for the concrete configuration.
+Caddy is the right home for this shim because the proxy is already where the trust boundary sits, and the rule is short enough to live in the Caddyfile alongside the routing — an in-Caddy Go module is the long-term convergence target. The interim prototype, however, _does_ run a small Node `auth-proxy` sidecar for the response-side half of the shim (the cookie-plant + token-strip): it lets us reuse the already-tested dev-proxy logic verbatim and keep zero drift from the canonical narrowing lists in `web/src/lib/shared/model/auth-paths.ts` (a copy of that file is guarded deep-equal against the original in the sidecar's tests). The stock cookie→bearer direction stays in the Caddyfile; only the JSON-sniffing response handler lives in the sidecar. See `deployment.md` for the concrete configuration.
 
 ### Reverse proxy: Caddy
 
@@ -318,7 +322,9 @@ A short record of paths we deliberately did not take, and why. Useful for future
 
 **CRDT on object storage (Automerge or Yjs + S3-compatible storage).** A more purist version of Cairn that would have no central API at all — just blob storage and client-side merging. Genuinely appealing for offline-first behaviour and minimal server cost. Rejected for v1 because it's substantially more engineering for a benefit (offline editing) that isn't a core requirement of a list-sharing app. The architecture remains compatible with adding an offline cache layer later if needed.
 
-**Self-host Sign in with Google / Apple.** Users like the convenience. Rejected because tying every login to a Google or Apple identity defeats the privacy stance and creates an external dependency for something we can do ourselves with magic links.
+**Self-host Sign in with Google / Apple.** Users like the convenience. Rejected because tying every login to a Google or Apple identity defeats the privacy stance and creates an external dependency for something we can do ourselves with username + password.
+
+**Magic-link-only authentication (the original design).** Cairn first shipped with e-mail magic links as the sole sign-in path: the e-mail address was both the auth identifier and the public lookup key for adding people. Reversed in favour of username + password because one address doing double duty was confusing and coercive — it forced every user to surface a private contact detail as their public handle, and made "add by e-mail" the only social primitive. Splitting the two (a public **username** as identity, an optional private **recovery e-mail**) is cleaner: the handle is meant to be seen, the e-mail is meant to stay private, and nobody is forced to have an e-mail at all. The mechanism chosen to make username work as a GoTrue credential is a **synthetic deterministic e-mail** (`lower(username)@users.cairn.invalid`) the client/RPC computes, with the password grant unchanged. The alternative — a server-side username→identity resolver in the `auth-proxy` shim — was rejected because it would turn the proxy from a dumb, identity-agnostic cookie shim into something that has to understand Cairn's identity model; recovery is a custom flow either way, so the synthetic-e-mail approach keeps the moving part in the database where the rest of the identity logic lives.
 
 **Kubernetes / Nomad / any orchestrator.** Over-engineering for a single VPS hosting a single app. Docker Compose is exactly the right size of tool.
 
@@ -328,6 +334,7 @@ A short record of paths we deliberately did not take, and why. Useful for future
 
 These are not v1 problems but are worth flagging:
 
+- **Lost-password recovery for accounts with no recovery e-mail.** Since e-mail is optional (see _Authentication_ above), a user who never sets a recovery address and then forgets their password has no self-serve way back in — by design. The default fallback is operator-assisted reset via an admin RPC. Open: add that admin reset path now, or defer it until someone actually locks themselves out?
 - **Multi-device session management.** A user with several browsers / devices currently has independent session cookies. Revoking a session from a lost device is not yet designed.
 - **Soft-delete garbage collection.** v1 ships a per-list trash and a per-user list trash (see `ui.md`); deletions are recoverable forever and never hard-delete from the UI. At Cairn's scale that's free, but a server-side job to permanently remove items soft-deleted longer than N days is worth keeping in mind.
 - **Export.** Users should be able to export their data. Postgres makes this trivial server-side; the UX needs designing.
