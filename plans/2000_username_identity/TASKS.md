@@ -22,10 +22,10 @@ worked example this mirrors.
 
 ## Phase 1 — 2001: identity model + doc reconciliation
 
-### [ ] 1.1 Plan and implement sub-step 2001 (username schema, GoTrue mechanism, doc reconciliation)
+### [x] 1.1 Plan and implement sub-step 2001 (username schema, GoTrue mechanism, doc reconciliation)
 
 **Created:** 2026-06-15T12:08:20Z
-**Completed:**
+**Completed:** 2026-06-15T16:03:20Z
 
 **Why:** Everything downstream depends on a correct spec and on the `username`
 column existing. This sub-step reconciles the docs (R12) so later sub-plans
