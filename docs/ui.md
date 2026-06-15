@@ -38,30 +38,30 @@ A floating button creates a new list. Editing a list's name or description and d
 
 ## Items screen
 
-Inside a list. Each row shows the item name and the vote control.
+Inside a list. Each collapsed row shows the item name and, when the score is non-zero, a score badge at its right edge. The vote control itself lives in the extra panel (see below), not on the row.
 
 ```
-Item name here, possibly long…             [👎] [ --- ] [👍]
-Another item                                [👎] [  =  ] [👍]
-The one everyone loves                      [👎] [ +++ ] [👍]
+Item name here, possibly long…                       +4
+Another item
+The one everyone loves                               +9
 ```
 
-**Item name on the left, vote controls on the right.** The item is the content; the vote is the action, and putting controls on the trailing edge follows the convention people are used to from list-shaped apps. It also puts the controls inside the natural arc of the right thumb on a phone.
+**Item name on the left, score badge on the right.** The item is the content; the badge is its standing at a glance, on the trailing edge where the eye expects a summary value. Voting is a deliberate act, so it lives one tap away in the unfolded extra panel rather than on every row — this keeps the collapsed list a clean scanning surface.
 
-Long names truncate with an ellipsis before they would push the vote controls off-screen. The vote controls' total width is fixed and never changes between rows.
+Long names truncate with an ellipsis before they would push the score badge off-screen. The badge's slot is fixed-width, so the row's right edge never shifts as the badge appears or disappears.
 
 ### The accordion unfold
 
-**Tap an item row** (anywhere except the vote control) to unfold its full panel inline. Tap again on the same item to close. **Only one item is unfolded at a time per list** — opening one closes any other that was open. The unfold pushes the items below it down; it doesn't overlay or popover.
+**Tap an item row** to unfold its full extra panel inline. Tap again on the same item to close. **Only one item is unfolded at a time per list** — opening one closes any other that was open. The unfold pushes the items below it down; it doesn't overlay or popover.
 
-What's inside the unfolded panel:
+What's inside the extra panel:
 
 - **Notes** — the full text of the item's notes, if any. Plain text, soft-wrapped.
-- **Per-member votes** — `Alice +3 · Bob +1 · Carol −2`. Reads at a glance; uses the same red/muted/green coloring as the indicator.
+- **Per-member votes, and the vote control** — share one row: the breakdown `Alice +3 · Bob +1 · Carol −2` reads at a glance (same red/muted/green colouring as the score badge), with the vote control right-aligned at the row's end. Voting updates the per-member breakdown live, which is part of the satisfaction.
 - **Attribution** — `Added by Alice on 1 May 2026.` If the item has been edited since, also: `Last edited by Bob on 3 May 2026.` Dates are formatted in the user's locale.
-- **Edit and Delete buttons** — at the bottom of the panel. Edit opens a small form for name and notes; Delete soft-deletes after a confirmation. Both are available to any list member.
+- **Edit and Delete buttons** — at the bottom of the extra panel. Edit opens a small form for name and notes; Delete soft-deletes after a confirmation. Both are available to any list member.
 
-The vote control on the row stays interactive while the panel is open — you can still upvote/downvote without closing the panel. This matters because the per-member breakdown updates live as you vote, which is part of the satisfaction.
+The collapsed row itself stays minimal — just the item name and, when the score is non-zero, a score badge at its right edge. The vote control moved into the extra panel, so a member opens the item to vote.
 
 ### Why one at a time
 
@@ -145,8 +145,8 @@ The principle: **the back stack is the source of truth, and every visible thing 
 Concretely:
 
 - **Route changes push history.** SvelteKit's router does this by default for `goto()` and `<a href>` — every screen transition (Lists → Items → Item details → Edit, etc.) adds an entry. Browser back and Android system back call `history.back()`, which SvelteKit handles as a route change in reverse. The in-app top-bar **←** also calls `history.back()` (never a hard-coded previous route), so it cannot disagree with system back.
-- **Dismissible overlays push history too.** Bottom sheets (delete-item confirmation, list overflow menu, invite picker, avatar source sheet), modal dialogs, the profile sheet, and the unfolded accordion panel all push a state on open and listen for `popstate` to close. The user expects back to close what they just opened; system back, the sheet's own Cancel, a tap on the backdrop, and pressing `Escape` on a hardware keyboard are then equivalent. Without this, back skips past the overlay and pops the user out of the screen entirely — the bug usually reported as _"the back button is broken."_
-  - **Implementation: a guard `$effect` must `untrack` the push.** Overlays install their entry with `pushHistoryGuard` (`$lib/shared/state/back-stack.svelte`) inside an `$effect`, and that call **must** be wrapped: `return untrack(() => pushHistoryGuard(() => close()))`. `pushHistoryGuard` calls SvelteKit's `pushState`, which *reads* SvelteKit's internal **reactive** history state; an un-`untrack`ed effect tracks that read, re-runs on the next history change, and re-pushes a fresh guard — stacking entries until no back affordance can escape (again _"the back button is broken,"_ this time stuck rather than skipping). `Sheet.svelte`, `Accordion.svelte`, and `ItemsScreen.svelte` follow the pattern; the `*.history-guard.test.ts` regressions lock it in (a mocked `pushState` reads a reactive flag and asserts a later history change does not re-push). Plain mocked-`pushState` tests can't catch this — the mock must read a reactive source.
+- **Dismissible overlays push history too.** Bottom sheets (delete-item confirmation, list overflow menu, invite picker, avatar source sheet), modal dialogs, the profile sheet, and the unfolded item extra panel all push a state on open and listen for `popstate` to close. The user expects back to close what they just opened; system back, the sheet's own Cancel, a tap on the backdrop, and pressing `Escape` on a hardware keyboard are then equivalent. Without this, back skips past the overlay and pops the user out of the screen entirely — the bug usually reported as _"the back button is broken."_
+  - **Implementation: a guard `$effect` must `untrack` the push.** Overlays install their entry with `pushHistoryGuard` (`$lib/shared/state/back-stack.svelte`) inside an `$effect`, and that call **must** be wrapped: `return untrack(() => pushHistoryGuard(() => close()))`. `pushHistoryGuard` calls SvelteKit's `pushState`, which _reads_ SvelteKit's internal **reactive** history state; an un-`untrack`ed effect tracks that read, re-runs on the next history change, and re-pushes a fresh guard — stacking entries until no back affordance can escape (again _"the back button is broken,"_ this time stuck rather than skipping). `Sheet.svelte`, `Accordion.svelte`, and `ItemsScreen.svelte` follow the pattern; the `*.history-guard.test.ts` regressions lock it in (a mocked `pushState` reads a reactive flag and asserts a later history change does not re-push). Plain mocked-`pushState` tests can't catch this — the mock must read a reactive source.
 - **The Lists screen is the back-stack root.** Pressing back from there does nothing inside the running app. On Android-installed-PWA the OS handles it (typically closes the app), which is fine — we don't fight the platform. On iOS-installed-PWA (`display: standalone`) there is no system back gesture at all, so the in-app **←** is the only path; the design's top-bar arrow must always be reachable.
 - **The auth callback URL replaces history rather than pushing.** Hitting back from the first post-login screen must not return the user to `cairn.<domain>/auth/callback?token=…`, which is single-use. Use SvelteKit's `goto(target, { replaceState: true })` from the callback handler.
 - **Transient surfaces don't push history.** The 6-second undo snackbar dismisses on its own timer; it doesn't consume a back press. Pressing back during the snackbar does whatever back means at that point in the route — it doesn't dismiss the snackbar in lieu of navigating.
@@ -354,7 +354,7 @@ The bin is not a feature we promise users — it's a safety net. The copy in del
 
 ## Public lists
 
-A list can be made **public** — readable by anyone holding its link, while signed out. Public here means *unlisted*: the list id is the capability, there is no directory or browse surface, and the link reveals only a curated read-only snapshot (name, description, ranked items with scores — no members, no votes, no attribution; see `data-model.md` → "Public read access"). Any member may publish or unpublish.
+A list can be made **public** — readable by anyone holding its link, while signed out. Public here means _unlisted_: the list id is the capability, there is no directory or browse surface, and the link reveals only a curated read-only snapshot (name, description, ranked items with scores — no members, no votes, no attribution; see `data-model.md` → "Public read access"). Any member may publish or unpublish.
 
 ### Public marker (members only)
 
@@ -497,7 +497,7 @@ the screens were prototyped in px. So:
   font-size.
 - **`em`** — for a sub-element that should track its **local** font-size rather
   than the global scale. The canonical case: an icon next to a text label
-  (e.g. inside a button) should grow and shrink with *that label*, so size it
+  (e.g. inside a button) should grow and shrink with _that label_, so size it
   in `em`. Likewise inline icon↔label gaps and padding that should hug text at
   whatever size it renders.
 - **`px`** — for what must **not** scale with text: hairline borders
@@ -572,17 +572,22 @@ When a list row has a primary label and a trailing chevron that both navigate to
 
 ```css
 .row-nav {
-  display: flex;
-  align-items: flex-start; /* NOT center — pins chevron to top when name wraps */
-  gap: 12px;
-  width: 100%;
-  background: none;
-  border: none;
-  padding: 0;
-  cursor: pointer;
+	display: flex;
+	align-items: flex-start; /* NOT center — pins chevron to top when name wraps */
+	gap: 12px;
+	width: 100%;
+	background: none;
+	border: none;
+	padding: 0;
+	cursor: pointer;
 }
-.row-title { flex: 1; min-width: 0; }
-.chevron { flex-shrink: 0; }
+.row-title {
+	flex: 1;
+	min-width: 0;
+}
+.chevron {
+	flex-shrink: 0;
+}
 ```
 
 `align-items: flex-start` is required so the chevron stays at the top of a multi-line name rather than drifting to the vertical midpoint.

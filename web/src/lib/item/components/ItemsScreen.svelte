@@ -23,6 +23,7 @@
 	import UndoSnackbar from '$lib/shared/components/UndoSnackbar.svelte';
 	import EmptyState from '$lib/shared/components/EmptyState.svelte';
 	import Avatar from '$lib/shared/components/Avatar.svelte';
+	import AccordionRow from '$lib/shared/components/AccordionRow.svelte';
 	import Fab from '$lib/basic/components/Fab.svelte';
 	import Icon from '$lib/basic/components/Icon.svelte';
 	import VoteControl from './VoteControl.svelte';
@@ -146,47 +147,55 @@
 		<ul class="rows">
 			{#each items.rows as item (item.id)}
 				<li class="row" class:open={openId === item.id}>
-					<div class="row-inner media">
-						<button class="row-tap" data-test="row-{item.id}" onclick={() => toggleRow(item.id)}>
-							<span class="item-name row-title">{item.name}</span>
+					<AccordionRow
+						title={item.name}
+						open={openId === item.id}
+						onclick={() => toggleRow(item.id)}
+						data-test="row-{item.id}"
+					>
+						{#snippet trailing()}
 							{#if item.score !== 0}
 								<Badge tone="score" sign={item.score > 0 ? 'positive' : 'negative'}>
 									{item.score > 0 ? '+' : ''}{item.score}
 								</Badge>
 							{/if}
-						</button>
-						<VoteControl
-							value={item.my_vote}
-							onchange={(v: number | null) => handleVote(item.id, v)}
-						/>
-					</div>
+						{/snippet}
+					</AccordionRow>
 					{#if openId === item.id}
-						<div data-test="item-panel" class="item-panel surface-alt">
+						<div data-test="item-extra" class="extra surface-alt">
 							{#if item.notes}
 								<div class="notes body">{item.notes}</div>
 							{/if}
-							{#if item.member_votes.length > 0}
-								<div class="member-votes">
-									{#each item.member_votes as mv (mv.user_id)}
-										<span class="member-vote fine">
-											<Avatar
-												displayName={mv.display_name}
-												size={18}
-												uid={mv.user_id}
-												avatarVersion={mv.avatar_version}
-											/>
-											<span class="mv-name">{mv.display_name}</span>
-											<span
-												class="mv-val mono"
-												class:positive={mv.value > 0}
-												class:negative={mv.value < 0}
-											>
-												{mv.value > 0 ? '+' : ''}{mv.value}
+							<div class="votes-row">
+								{#if item.member_votes.length > 0}
+									<div class="member-votes">
+										{#each item.member_votes as mv (mv.user_id)}
+											<span class="member-vote fine">
+												<Avatar
+													displayName={mv.display_name}
+													size={18}
+													uid={mv.user_id}
+													avatarVersion={mv.avatar_version}
+												/>
+												<span class="mv-name">{mv.display_name}</span>
+												<span
+													class="mv-val mono"
+													class:positive={mv.value > 0}
+													class:negative={mv.value < 0}
+												>
+													{mv.value > 0 ? '+' : ''}{mv.value}
+												</span>
 											</span>
-										</span>
-									{/each}
+										{/each}
+									</div>
+								{/if}
+								<div class="vote-control-slot">
+									<VoteControl
+										value={item.my_vote}
+										onchange={(v: number | null) => handleVote(item.id, v)}
+									/>
 								</div>
-							{/if}
+							</div>
 							<div class="attribution fine">
 								Added by <strong
 									data-test="attribution-creator-{item.id}"
@@ -202,13 +211,13 @@
 									{timeAgo(item.modified_at)}.
 								{/if}
 							</div>
-							<div class="panel-actions">
+							<div class="extra-actions">
 								<Button
 									variant="pill"
 									tone="destructive"
 									size="sm"
 									leadingIcon="trash"
-									data-test="panel-delete-{item.id}"
+									data-test="extra-delete-{item.id}"
 									style="flex: 1"
 									onclick={() => {
 										deleteSheetItem = item;
@@ -220,7 +229,7 @@
 									tone="ink"
 									size="sm"
 									leadingIcon="pencil"
-									data-test="panel-edit-{item.id}"
+									data-test="extra-edit-{item.id}"
 									style="flex: 1"
 									onclick={() => {
 										editSheetItem = item;
@@ -359,42 +368,14 @@
 		background: var(--paper-alt);
 	}
 
-	.row-inner {
-		padding: 0.875rem 1.125rem 0.875rem 1.25rem;
-		gap: 0.625rem;
-		min-height: 3.5rem;
+	/* Horizontal real estate is scarce, so tighten the AccordionRow button's
+	   default md inset (0.75rem 1.125rem) to 0.5rem 0.8rem — matching the Lists
+	   screen's nav-row override so the two screens' rows align. */
+	.row :global(.accordion-row button) {
+		padding: 0.5rem 0.8rem;
 	}
 
-	.row-tap {
-		flex: 1;
-		min-width: 0;
-		display: flex;
-		align-items: center;
-		gap: 0.625rem;
-		background: none;
-		border: none;
-		padding: 0;
-		cursor: pointer;
-		text-align: left;
-		font: inherit;
-	}
-
-	.item-name {
-		white-space: nowrap;
-		overflow: hidden;
-		text-overflow: ellipsis;
-	}
-
-	/* Collapsed rows truncate to one line; an open row shows the full name,
-	   wrapping (and breaking long unbroken tokens) instead of clipping. */
-	.row.open .item-name {
-		white-space: normal;
-		overflow: visible;
-		text-overflow: clip;
-		overflow-wrap: anywhere;
-	}
-
-	.item-panel {
+	.extra {
 		padding: 0.25rem 1.375rem 1.125rem;
 		border-top: 1px dashed var(--rule);
 	}
@@ -407,8 +388,23 @@
 		font-style: italic;
 	}
 
-	.member-votes {
+	/* The voters list and the VoteControl share one row; the control is pushed to
+	   the right edge (margin-left:auto on its slot) and stays there even when no
+	   one has voted yet and the member-votes block is absent. flex-start keeps the
+	   control beside the first line if the voters wrap to several lines. */
+	.votes-row {
 		margin-top: 0.875rem;
+		display: flex;
+		align-items: flex-start;
+		gap: 0.625rem;
+	}
+
+	.vote-control-slot {
+		flex: none;
+		margin-left: auto;
+	}
+
+	.member-votes {
 		display: flex;
 		flex-wrap: wrap;
 		gap: 0.625rem;
@@ -448,7 +444,7 @@
 		font-family: 'Newsreader Variable', Georgia, serif;
 	}
 
-	.panel-actions {
+	.extra-actions {
 		margin-top: 0.875rem;
 		display: flex;
 		gap: 0.5rem;

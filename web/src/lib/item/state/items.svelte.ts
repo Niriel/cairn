@@ -1,4 +1,5 @@
 import { session } from '$lib/shared/state/session.svelte';
+import { profile } from '$lib/shared/state/profile.svelte';
 import { adjustItemCount } from '$lib/list/state/lists.svelte';
 import {
 	fetchItems,
@@ -44,30 +45,51 @@ export async function loadItems(listId: string): Promise<void> {
 export async function upsertVote(itemId: string, value: number): Promise<void> {
 	const s = session.current;
 	if (s.status !== 'signed-in') return;
-	const idx = items.rows.findIndex((r) => r.id === itemId);
-	if (idx === -1) return;
-	const old = { my_vote: items.rows[idx].my_vote, score: items.rows[idx].score };
-	items.rows[idx].my_vote = value;
-	items.rows[idx].score = old.score + value - (old.my_vote ?? 0);
+	const uid = s.user.id;
+	const row = items.rows.find((r) => r.id === itemId);
+	if (!row) return;
+	const old = { my_vote: row.my_vote, score: row.score, member_votes: row.member_votes };
+	row.my_vote = value;
+	row.score = old.score + value - (old.my_vote ?? 0);
+	// Reflect the vote in the per-member breakdown shown in the extra panel:
+	// update the caller's existing entry, or add one if they hadn't voted yet.
+	row.member_votes = old.member_votes.some((mv) => mv.user_id === uid)
+		? old.member_votes.map((mv) => (mv.user_id === uid ? { ...mv, value } : mv))
+		: [
+				...old.member_votes,
+				{
+					user_id: uid,
+					display_name: profile.displayName ?? 'Unknown',
+					avatar_version: profile.avatarVersion,
+					value
+				}
+			];
 	try {
-		await apiUpsertVote(itemId, value, s.user.id);
+		await apiUpsertVote(itemId, value, uid);
 	} catch {
-		items.rows[idx].my_vote = old.my_vote;
-		items.rows[idx].score = old.score;
+		row.my_vote = old.my_vote;
+		row.score = old.score;
+		row.member_votes = old.member_votes;
 	}
 }
 
 export async function deleteVote(itemId: string): Promise<void> {
-	const idx = items.rows.findIndex((r) => r.id === itemId);
-	if (idx === -1) return;
-	const old = { my_vote: items.rows[idx].my_vote, score: items.rows[idx].score };
-	items.rows[idx].my_vote = null;
-	items.rows[idx].score = old.score - (old.my_vote ?? 0);
+	const s = session.current;
+	if (s.status !== 'signed-in') return;
+	const uid = s.user.id;
+	const row = items.rows.find((r) => r.id === itemId);
+	if (!row) return;
+	const old = { my_vote: row.my_vote, score: row.score, member_votes: row.member_votes };
+	row.my_vote = null;
+	row.score = old.score - (old.my_vote ?? 0);
+	// Drop the caller's entry from the per-member breakdown.
+	row.member_votes = old.member_votes.filter((mv) => mv.user_id !== uid);
 	try {
 		await apiDeleteVote(itemId);
 	} catch {
-		items.rows[idx].my_vote = old.my_vote;
-		items.rows[idx].score = old.score;
+		row.my_vote = old.my_vote;
+		row.score = old.score;
+		row.member_votes = old.member_votes;
 	}
 }
 

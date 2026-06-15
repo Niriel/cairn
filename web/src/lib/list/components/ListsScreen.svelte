@@ -231,6 +231,13 @@
 		padding: 0;
 	}
 
+	/* Horizontal real estate is scarce, so tighten the NavRow button's default
+	   md inset (0.75rem 1.125rem) to 0.5rem 0.8rem on this screen. The dependent
+	   offsets below (.extra left inset, .more) track this 0.8rem horizontal. */
+	.row :global(.nav-row button) {
+		padding: 0.5rem 0.8rem;
+	}
+
 	/* Extra-info block beneath the title nav-row: the More button (absolutely
 	   pinned top-end), description, and metadata. The wide right inset lets the
 	   ellipsizing description and metadata clear the More button. The full-bleed
@@ -239,21 +246,21 @@
 	   no padding. The left inset aligns description/meta under the title text. */
 	.extra {
 		position: relative;
-		padding: 0.5rem 2.5rem 0.875rem 1.125rem;
+		padding: 0.5rem 2.5rem 0.875rem 0.8rem;
 		border-top: 1px dashed var(--rule);
 	}
 
 	/* The More button, pinned to the top-end corner of the extra-info block. The
 	   wrapping span is positioned (not the MoreButton itself) so its forwarded
-	   class can't clobber IconButton's .icon-btn padding. right: 0.875rem lines
+	   class can't clobber IconButton's .icon-btn padding. right: 0.55rem lines
 	   the More icon's centre up under the nav-row chevron's centre: the chevron
-	   sits ~27px from the row's right edge (1.125rem button padding + half of an
+	   sits ~22px from the row's right edge (0.8rem button padding + half of an
 	   18px icon), and the IconButton's 18px icon centres 13px from its own right
-	   edge, so the button's right edge needs to sit ~14px (0.875rem) in. */
+	   edge, so the button's right edge needs to sit ~9px (0.55rem) in. */
 	.more {
 		position: absolute;
 		top: 0.375rem;
-		right: 0.875rem;
+		right: 0.55rem;
 	}
 
 	/* Public-list marker: a muted globe in the nav-row's trailing slot, so it

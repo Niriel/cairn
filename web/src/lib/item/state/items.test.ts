@@ -66,7 +66,7 @@ describe('loadItems', () => {
 });
 
 describe('upsertVote', () => {
-	test('(b) optimistically mutates my_vote and score', async () => {
+	test('(b) optimistically mutates my_vote, score and the member-vote breakdown', async () => {
 		useItemHandlers();
 		await itemsMod.loadItems(LIST_ID);
 		const before = itemsMod.items.rows[0].score;
@@ -74,10 +74,14 @@ describe('upsertVote', () => {
 		const promise = itemsMod.upsertVote(ITEM_ID, 1);
 		expect(itemsMod.items.rows[0].my_vote).toBe(1);
 		expect(itemsMod.items.rows[0].score).toBe(before + 1);
+		// The caller's vote appears in the per-member breakdown (extra panel).
+		expect(itemsMod.items.rows[0].member_votes).toEqual([
+			expect.objectContaining({ user_id: TEST_UID, value: 1 })
+		]);
 		await promise;
 	});
 
-	test('(c) rolls back my_vote and score on API 500', async () => {
+	test('(c) rolls back my_vote, score and the member-vote breakdown on API 500', async () => {
 		useItemHandlers();
 		await itemsMod.loadItems(LIST_ID);
 		const oldScore = itemsMod.items.rows[0].score;
@@ -85,6 +89,53 @@ describe('upsertVote', () => {
 		await itemsMod.upsertVote(ITEM_ID, 1);
 		expect(itemsMod.items.rows[0].my_vote).toBeNull();
 		expect(itemsMod.items.rows[0].score).toBe(oldScore);
+		expect(itemsMod.items.rows[0].member_votes).toEqual([]);
+	});
+
+	test('(b2) updates the caller’s existing breakdown entry rather than adding one', async () => {
+		server.use(
+			http.get('*/api/items_ranked', () => HttpResponse.json([RANKED_A])),
+			http.get('*/api/votes', () =>
+				HttpResponse.json([
+					{
+						item_id: ITEM_ID,
+						user_id: TEST_UID,
+						value: 1,
+						profile: { display_name: 'Alice', avatar_version: 0 }
+					}
+				])
+			)
+		);
+		await itemsMod.loadItems(LIST_ID);
+		await itemsMod.upsertVote(ITEM_ID, 3);
+		expect(itemsMod.items.rows[0].member_votes).toEqual([
+			expect.objectContaining({ user_id: TEST_UID, value: 3 })
+		]);
+	});
+});
+
+describe('deleteVote', () => {
+	test('(c2) optimistically clears my_vote and drops the caller’s breakdown entry', async () => {
+		server.use(
+			http.get('*/api/items_ranked', () => HttpResponse.json([RANKED_A])),
+			http.get('*/api/votes', () =>
+				HttpResponse.json([
+					{
+						item_id: ITEM_ID,
+						user_id: TEST_UID,
+						value: 2,
+						profile: { display_name: 'Alice', avatar_version: 0 }
+					}
+				])
+			)
+		);
+		await itemsMod.loadItems(LIST_ID);
+		expect(itemsMod.items.rows[0].member_votes).toHaveLength(1);
+		const before = itemsMod.items.rows[0].score;
+		await itemsMod.deleteVote(ITEM_ID);
+		expect(itemsMod.items.rows[0].my_vote).toBeNull();
+		expect(itemsMod.items.rows[0].score).toBe(before - 2);
+		expect(itemsMod.items.rows[0].member_votes).toEqual([]);
 	});
 });
 

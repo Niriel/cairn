@@ -51,11 +51,6 @@ test.describe.serial('items flow', () => {
 		await page.locator('[data-test="add-edit-submit"]').click();
 		await expect(page.locator('[data-test="add-edit-name"]')).not.toBeVisible();
 
-		// Vote +1 on Beta so it has a higher score than Alpha (score-sort test).
-		const betaRow = page.locator('.row', { hasText: 'Beta' }).first();
-		await betaRow.locator('[data-test="vote-up"]').click();
-		await expect(betaRow.locator('[data-test="vote-indicator"]')).toHaveText('+');
-
 		// Capture item IDs from data-test attributes.
 		const alphaRowTap = page.locator('[data-test^="row-"]', { hasText: 'Alpha' }).first();
 		const alphaAttr = await alphaRowTap.getAttribute('data-test');
@@ -64,6 +59,14 @@ test.describe.serial('items flow', () => {
 		const betaRowTap = page.locator('[data-test^="row-"]', { hasText: 'Beta' }).first();
 		const betaAttr = await betaRowTap.getAttribute('data-test');
 		betaId = betaAttr!.replace('row-', '');
+
+		// Vote +1 on Beta so it has a higher score than Alpha (score-sort test).
+		// The vote control lives in the extra panel, so open Beta's row first.
+		await page.locator(`[data-test="row-${betaId}"]`).click();
+		const betaPanel = page.locator('[data-test="item-extra"]');
+		await betaPanel.locator('[data-test="vote-up"]').click();
+		await expect(betaPanel.locator('[data-test="vote-indicator"]')).toHaveText('+');
+		await page.locator(`[data-test="row-${betaId}"]`).click(); // close the panel
 
 		// Navigate back to /lists so test (a) starts from there.
 		await page.locator('[data-test="topbar-back"]').click();
@@ -88,46 +91,46 @@ test.describe.serial('items flow', () => {
 	// (b) Tapping a row opens its panel; tapping again closes it.
 	test('(b) accordion opens on tap, closes on second tap', async () => {
 		await page.locator(`[data-test="row-${alphaId}"]`).click();
-		await expect(page.locator('[data-test="item-panel"]')).toBeVisible();
+		await expect(page.locator('[data-test="item-extra"]')).toBeVisible();
 
 		await page.locator(`[data-test="row-${alphaId}"]`).click();
-		await expect(page.locator('[data-test="item-panel"]')).not.toBeVisible();
+		await expect(page.locator('[data-test="item-extra"]')).not.toBeVisible();
 	});
 
 	// (c) Opening a second row closes the first.
 	test('(c) opening second row closes first', async () => {
 		await page.locator(`[data-test="row-${alphaId}"]`).click();
-		await expect(page.locator('[data-test="item-panel"]')).toBeVisible();
+		await expect(page.locator('[data-test="item-extra"]')).toBeVisible();
 
 		await page.locator(`[data-test="row-${betaId}"]`).click();
 		// Only one panel should be visible (Beta's).
-		await expect(page.locator('[data-test="item-panel"]')).toHaveCount(1);
-		await expect(page.locator(`[data-test="panel-edit-${betaId}"]`)).toBeVisible();
-		await expect(page.locator(`[data-test="panel-edit-${alphaId}"]`)).not.toBeVisible();
+		await expect(page.locator('[data-test="item-extra"]')).toHaveCount(1);
+		await expect(page.locator(`[data-test="extra-edit-${betaId}"]`)).toBeVisible();
+		await expect(page.locator(`[data-test="extra-edit-${alphaId}"]`)).not.toBeVisible();
 
 		// Close.
 		await page.locator(`[data-test="row-${betaId}"]`).click();
 	});
 
-	// (d) Voting up on an item updates the indicator.
+	// (d) Voting up on an item updates the indicator. The vote control lives in
+	// the extra panel, so open the row first.
 	test('(d) voting up updates the vote indicator', async () => {
-		const alphaVoteUp = page
-			.locator(`.row:has([data-test="row-${alphaId}"])`)
-			.locator('[data-test="vote-up"]');
-		const alphaIndicator = page
-			.locator(`.row:has([data-test="row-${alphaId}"])`)
-			.locator('[data-test="vote-indicator"]');
+		await page.locator(`[data-test="row-${alphaId}"]`).click();
+		const panel = page.locator('[data-test="item-extra"]');
+		const alphaIndicator = panel.locator('[data-test="vote-indicator"]');
 
 		await expect(alphaIndicator).toHaveText('0');
-		await alphaVoteUp.click();
+		await panel.locator('[data-test="vote-up"]').click();
 		await expect(alphaIndicator).toHaveText('+');
+
+		await page.locator(`[data-test="row-${alphaId}"]`).click(); // close the panel
 	});
 
 	// (e) Edit sheet opens with pre-populated fields; saving updates the name.
 	test('(e) editing an item updates its name', async () => {
 		await page.locator(`[data-test="row-${alphaId}"]`).click();
-		await expect(page.locator(`[data-test="panel-edit-${alphaId}"]`)).toBeVisible();
-		await page.locator(`[data-test="panel-edit-${alphaId}"]`).click();
+		await expect(page.locator(`[data-test="extra-edit-${alphaId}"]`)).toBeVisible();
+		await page.locator(`[data-test="extra-edit-${alphaId}"]`).click();
 
 		// Edit sheet pre-populates the name.
 		await expect(page.locator('[data-test="add-edit-name"]')).toHaveValue('Alpha');
@@ -143,8 +146,8 @@ test.describe.serial('items flow', () => {
 	// (f) Delete shows confirmation sheet; confirming shows snackbar with item name.
 	test('(f) deleting shows confirmation then snackbar', async () => {
 		await page.locator(`[data-test="row-${betaId}"]`).click();
-		await expect(page.locator(`[data-test="panel-delete-${betaId}"]`)).toBeVisible();
-		await page.locator(`[data-test="panel-delete-${betaId}"]`).click();
+		await expect(page.locator(`[data-test="extra-delete-${betaId}"]`)).toBeVisible();
+		await page.locator(`[data-test="extra-delete-${betaId}"]`).click();
 
 		// Confirmation sheet.
 		await expect(page.locator('[data-test="delete-heading"]')).toContainText('Beta');

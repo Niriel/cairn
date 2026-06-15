@@ -72,7 +72,7 @@
 
 	<span
 		data-test="vote-indicator"
-		style="min-width: 44px; text-align: center;
+		style="min-width: 32px; text-align: center;
 			font-family: 'JetBrains Mono', ui-monospace, monospace;
 			font-size: 16px; font-weight: 600;
 			color: {indicatorColor(value)};

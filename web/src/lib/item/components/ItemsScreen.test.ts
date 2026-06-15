@@ -85,7 +85,7 @@ describe('ItemsScreen', () => {
 		expect(queryByDataTest(`row-${ITEM_2.id}`)).not.toBeNull();
 	});
 
-	test('(d) tapping a row opens its panel; opening second closes the first', async () => {
+	test('(d) tapping a row opens its extra panel; opening second closes the first', async () => {
 		vi.spyOn(history, 'back').mockImplementation(() => {});
 		items.rows = [ITEM_1, ITEM_2];
 		const { getByDataTest, queryByDataTest, getAllByDataTest } = render(ItemsScreen, {
@@ -94,11 +94,11 @@ describe('ItemsScreen', () => {
 
 		await fireEvent.click(getByDataTest(`row-${ITEM_1.id}`));
 		await tick();
-		expect(queryByDataTest('item-panel')).not.toBeNull();
+		expect(queryByDataTest('item-extra')).not.toBeNull();
 
 		await fireEvent.click(getByDataTest(`row-${ITEM_2.id}`));
 		await tick();
-		expect(getAllByDataTest('item-panel').length).toBe(1);
+		expect(getAllByDataTest('item-extra').length).toBe(1);
 	});
 
 	test('(e) tapping the back button calls history.back()', async () => {
@@ -143,7 +143,7 @@ describe('ItemsScreen', () => {
 		expect(queryByDataTest('list-public-marker')).toBeNull();
 	});
 
-	test('(h) dispatching popstate while panel is open closes it', async () => {
+	test('(h) dispatching popstate while extra panel is open closes it', async () => {
 		vi.spyOn(history, 'back').mockImplementation(() => {});
 		items.rows = [ITEM_1];
 		const { getByDataTest, queryByDataTest } = render(ItemsScreen, {
@@ -152,11 +152,11 @@ describe('ItemsScreen', () => {
 
 		await fireEvent.click(getByDataTest(`row-${ITEM_1.id}`));
 		await tick();
-		expect(queryByDataTest('item-panel')).not.toBeNull();
+		expect(queryByDataTest('item-extra')).not.toBeNull();
 
 		window.dispatchEvent(new PopStateEvent('popstate', { state: null }));
 		await tick();
-		expect(queryByDataTest('item-panel')).toBeNull();
+		expect(queryByDataTest('item-extra')).toBeNull();
 	});
 
 	test('(i-a) snackbar is visible with item name when pendingDelete is set', async () => {
