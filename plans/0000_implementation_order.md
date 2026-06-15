@@ -382,37 +382,52 @@ in-flight branch for no gain.
     surface from steps 0302 (magic-link anti-enumeration) and 1700
     (e-mail OTP) and reverses the "magic links only, no passwords"
     decision in `docs/architecture.md` — that doc reconciliation is the
-    plan's Phase 0. Large enough to run as an **orchestration plan** —
-    `plans/2000_username_identity/` cuts and merges these sub-branches:
-    - [ ] **2001: identity model, GoTrue mechanism, doc reconciliation.**
-      Decide how username+password rides GoTrue (design spike; leaning a
-      synthetic deterministic e-mail derived from the username),
-      reconcile `architecture.md` / `data-model.md` / `invites.md` /
-      `circles.md` / `open-questions.md`, add `profiles.username`
+    plan's Phase 0. Examining the credential also surfaced a deeper issue
+    in the **session model** it rides on: `cairn_session` holds a
+    long-lived, non-revocable access JWT (the refresh token is discarded),
+    which is the wrong foundation under a brute-forceable password. So the
+    step also rebuilds the session into a revocable, rotating one behind a
+    small **auth BFF** (the grown-up `auth-proxy`), with a `__Host-`
+    cookie + CSRF check + sign-in rate-limiting — and that foundation
+    lands first. Large enough to run as an **orchestration plan** —
+    `plans/2000_username_identity/` cuts and merges these sub-branches
+    (reshaped after 2001 merged; see the plan's "Design revision"):
+    - [x] **2001: identity model, GoTrue mechanism, doc reconciliation.**
+      Reconciled `architecture.md` / `data-model.md` / `invites.md` /
+      `circles.md` / `open-questions.md`, added `profiles.username`
       (NOT NULL, `a-zA-Z0-9` CHECK, unique on `lower(username)`), the
       `set_username` RPC, and the optional recovery-e-mail home; pgTAP
       for uniqueness, case-folding, the char constraint, and mutability.
-    - [ ] **2002: registration + sign-in UI (username + password).** New
-      register and sign-in screens replacing the magic-link request /
-      check / callback path; `session` carries the username; auth-client
-      gains password register/sign-in; route guard unchanged. Vitest +
-      Playwright.
-    - [ ] **2003: password recovery via the optional e-mail.** "Forgot
+      Its synthetic-e-mail GoTrue mechanism is superseded by 2003's
+      stable-identity + BFF resolver — revised forward, not reverted.
+    - [ ] **2002: session-security foundation + auth BFF.** Grow
+      `auth-proxy` into a Cairn-shaped BFF; make the session revocable
+      (rotating refresh + reuse detection, short-lived server-held access
+      tokens); `__Host-` cookie + CSRF check + sign-in rate-limiting.
+      Closes a pre-existing prod gap independent of usernames; lands
+      first; prod-facing.
+    - [ ] **2003: username + password sign-in.** Revise 2001 forward —
+      `set_username` becomes profiles-only and a stable uid-derived GoTrue
+      identity replaces the synthetic e-mail; username→id resolver +
+      register/sign-in on the BFF; register + sign-in screens; `session`
+      carries the username. Vitest + Playwright.
+    - [ ] **2004: password recovery via the optional e-mail.** "Forgot
       password" request + reset screens, recovery-e-mail capture in
       settings with verify-on-set/change, and the send/reset wiring;
       anti-enumeration on the request step.
-    - [ ] **2004: add-by-username + username display.** `send_invitation`
+    - [ ] **2005: add-by-username + username display.** `send_invitation`
       and circle-add keyed by username (replacing the e-mail RPCs, keeping
       the block / invite-policy / self-invite checks); InvitePicker and
       Circle screens lose the e-mail field and gain a username field;
       `@username` shown on the profile sheet, members, votes, and
       attribution to disambiguate display names.
-    - [ ] **2005: migrate the live alpha + retire e-mail login.** Backfill
+    - [ ] **2006: migrate the live alpha + retire e-mail login.** Backfill
       `profiles.username` from each existing display name
-      (`a-zA-Z0-9`-folded, collision-suffixed), give existing users an
-      initial-password path via the recovery flow (their confirmed e-mail
-      is grandfathered as a proven recovery address), then remove the
-      magic-link / e-mail-OTP sign-in surface. Prod-facing.
+      (`a-zA-Z0-9`-folded, collision-suffixed), move accounts onto the
+      stable identity, give existing users an initial-password path via
+      the recovery flow (their confirmed e-mail is grandfathered as a
+      proven recovery address), then remove the magic-link / e-mail-OTP
+      sign-in surface. Prod-facing.
 
 ## Sequencing rationale
 
