@@ -14,7 +14,7 @@
 
 BEGIN;
 
-SELECT plan(77);
+SELECT plan(78);
 
 -- ---------------------------------------------------------------------
 -- Tables (6) — every new table introduced by 0004 must exist.
@@ -70,6 +70,12 @@ SELECT has_column(
   'user_settings',
   'modified_at',
   'user_settings.modified_at exists'
+);
+SELECT has_column(
+  'public',
+  'user_settings',
+  'recovery_email',
+  'user_settings.recovery_email exists'
 );
 
 -- ---------------------------------------------------------------------

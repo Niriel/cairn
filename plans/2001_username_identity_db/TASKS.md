@@ -386,10 +386,10 @@ unauth/tombstone guard pattern); `db/migrations/0017_admin.sql`
 
 **Verify:** `./scripts/test-db.sh` · `./scripts/check.sh`
 
-### [ ] 1.3 Add `user_settings.recovery_email` (private, owner-only)
+### [x] 1.3 Add `user_settings.recovery_email` (private, owner-only)
 
 **Created:** 2026-06-15T12:42:20Z
-**Completed:**
+**Completed:** 2026-06-15T13:55:24Z
 
 **Why:** E-mail's only remaining job is recovering a lost password
 (step-20 R4/R9). This task establishes its **home**: a private, optional,

@@ -149,4 +149,16 @@ $$;
 REVOKE ALL ON FUNCTION public.set_username(text) FROM public;
 GRANT EXECUTE ON FUNCTION public.set_username(text) TO authenticated;
 
+-- 9. recovery_email — e-mail's only remaining job after the username
+-- reversal is recovering a lost password. This is its home: a private,
+-- optional, owner-only column. No new RLS policy — user_settings' existing
+-- owner-only policies (user_settings_select/_update using (id =
+-- public.uid())) make it structurally private, never returned to another
+-- user, never rendered, never an add-key. No format CHECK and no
+-- verification state here: R13's pending/confirmed split and the
+-- confirmation send are 2003's, and pre-shaping the column now risks 2003
+-- reshaping it. A recovery_email written before 2003 carries no
+-- verification and must not back a reset until 2003 adds that machinery.
+ALTER TABLE public.user_settings ADD COLUMN IF NOT EXISTS recovery_email text;
+
 COMMIT;

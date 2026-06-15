@@ -98,17 +98,20 @@ Owner-only personal preferences. One row per `auth.users` row, also created by t
 
 ```sql
 create table public.user_settings (
-  id            uuid primary key references auth.users(id) on delete cascade,
-  invite_policy text not null default 'everybody'
-                  check (invite_policy in ('everybody', 'circle', 'nobody')),
-  created_at    timestamptz not null default now(),
-  modified_at   timestamptz not null default now()
+  id             uuid primary key references auth.users(id) on delete cascade,
+  invite_policy  text not null default 'everybody'
+                   check (invite_policy in ('everybody', 'circle', 'nobody')),
+  recovery_email text,
+  created_at     timestamptz not null default now(),
+  modified_at    timestamptz not null default now()
 );
 
 alter table public.user_settings enable row level security;
 ```
 
-`invite_policy` is the three-way switch governing who can invite this user to a list — `everybody`, `circle`, or `nobody`. See `invites.md` for the full semantics, including how `circle` interacts with the `relationships` table and how a `blocked` status always wins regardless of policy. The default is `everybody` because Cairn is meant to be a low-friction collaboration tool; a more restrictive default would make first-time onboarding feel like a permission system. The reason `invite_policy` lives here rather than on `profiles` is the privacy point: under a "put it on `profiles`" shape, `profiles_select`'s world-readable policy would have leaked Bob's invite preference to every authenticated user, contradicting `invites.md`'s "Bob's invite preference and his block list are personal data" rule. The split makes that leak structurally impossible — `user_settings` is deliberately the home for any private user-level field that should follow the user across devices, even though `invite_policy` is the only such field today. Theme and font size are *device-local* (see `ui.md`) and live in the browser's `localStorage` rather than this table; they describe the screen, not the user.
+`invite_policy` is the three-way switch governing who can invite this user to a list — `everybody`, `circle`, or `nobody`. See `invites.md` for the full semantics, including how `circle` interacts with the `relationships` table and how a `blocked` status always wins regardless of policy. The default is `everybody` because Cairn is meant to be a low-friction collaboration tool; a more restrictive default would make first-time onboarding feel like a permission system. The reason `invite_policy` lives here rather than on `profiles` is the privacy point: under a "put it on `profiles`" shape, `profiles_select`'s world-readable policy would have leaked Bob's invite preference to every authenticated user, contradicting `invites.md`'s "Bob's invite preference and his block list are personal data" rule. The split makes that leak structurally impossible — `user_settings` is deliberately the home for any private user-level field that should follow the user across devices; `invite_policy` and `recovery_email` are the two such fields today. Theme and font size are *device-local* (see `ui.md`) and live in the browser's `localStorage` rather than this table; they describe the screen, not the user.
+
+`recovery_email` is the optional, owner-only address used to recover a lost password — the *only* remaining job e-mail has after the username reversal (the public identity is `username`; the sign-in identifier is the synthetic `lower(username) || '@users.cairn.invalid'`). It is nullable and defaults `NULL`: an account need never supply one. Because it lives in `user_settings`, the table's owner-only RLS makes it structurally private — it is never returned to another user, never rendered, and never an add-key, honouring the `invites.md` "e-mail addresses are never shown" contract. The column carries no format CHECK and no verification state at this layer: capturing it, verifying ownership before it takes effect, and the password-reset flow itself are a later step. A `recovery_email` written before that machinery exists carries no verification and does not back a reset. Note there is **no** unique constraint on `recovery_email` — one person may run several accounts behind a single address (to follow different lists), so the reset flow resolves by username plus e-mail ownership, not by e-mail alone.
 
 `created_at` and `modified_at` are present here — same shape as every other table — even though `created_at` will always equal `profiles.created_at` (both rows are inserted by the same on-signup trigger). The redundancy is deliberate: standardized column names across every table is worth more for debugging ergonomics than the one timestamp column it duplicates.
 
