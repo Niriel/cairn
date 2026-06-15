@@ -78,10 +78,51 @@ and destructive-action colour.
 
 **Verify:** `cd web && pnpm test ItemOverflowSheet` · `cd web && pnpm lint` · `cd web && pnpm check`
 
-### [ ] 1.2 Swap inline Edit/Delete for the More button + overflow sheet on the Items screen
+### [x] 1.2 Swap inline Edit/Delete for the More button + overflow sheet on the Items screen
 
 **Created:** 2026-06-15T07:33:25Z
-**Completed:**
+**Completed:** 2026-06-15T10:04:55Z
+
+**Notes:** Resumed mid-task after a VSCode crash; the prior session had
+implemented most of the screen wiring, the mock, the unit/e2e tests, and the
+`docs/ui.md` edits. Several corrections were needed:
+
+- **Crash artifact:** `ItemsScreen.svelte` had `align-items: flex-baseline`
+  (invalid CSS — silently falls back to `stretch`); its own comment described
+  `flex-start`. Restored to `flex-start`.
+- **Real back-stack regression (the big one).** The overflow→Edit/Delete swap
+  set the target sheet and nulled `overflowItem` in the *same tick*, so the
+  overflow guard's programmatic `history.back()` raced a `pushState` for the
+  target. `back-stack.svelte.ts` tracks self-induced popstates with a single
+  boolean, so the guard stack desynced from real browser history and the app
+  over-popped — nondeterministically across browsers, in the worst case flinging
+  the session to `/auth/check`. This corrupted history for the rest of the
+  session, so it wasn't contained to the dedicated back-button tests: it broke
+  downstream e2e `(g)`/`(h)` too. Confirmed a regression by stashing the 1.2
+  working changes and running the committed baseline (inline buttons) → 18/18
+  green. **This contradicts the task's Decisions**, which said to leave `openId`
+  set and *not* use the await-popstate sequencing pattern, claiming the swap was
+  a "proven one-back-one-push shape." It is not, once a second guard (the open
+  row) is on the stack.
+  - **Fix (local, no shared-primitive change):** added `closeOverlayAndSettle()`
+    in `ItemsScreen.svelte` — close the overlay, await its `history.back()`
+    popstate, *then* push the next guard — so only one back is ever in flight
+    (mirrors the existing `onviewtrash` handler). Applied to the Edit and Delete
+    swaps. Also null `openId` when an item is actually deleted (the row behind
+    the sheet is stale), sequenced after the delete sheet's teardown, so no row
+    guard dangles. After the fix: e2e items 24/24 on chromium+firefox, run 3×,
+    deterministic.
+  - Unit tests `(overflow-b)`/`(overflow-c)` mock `history.back` to a no-op, so
+    they now dispatch the `PopStateEvent` the handler awaits (same technique as
+    test `(h)`).
+- **TODO #10** updated: the Items flow is fixed by manual sequencing, but the
+  shared `pushHistoryGuard` primitive is still fragile-by-convention; the
+  durable fix (shallow routing via `$page.state`) is logged for its own plan.
+- **Environment:** webkit e2e can't run here (host missing browser system deps);
+  chromium + firefox cover the flow.
+- **Unrelated change in the working tree:** an earlier FAB-clearance fix
+  (`--fab-clearance` token in `tokens.css`, applied to `ListsScreen` and
+  `ItemsScreen`) is present from a separate request — not part of this task.
 
 **Why:** Remove the two inline extra-panel buttons and replace them with a
 top-right More button that opens `ItemOverflowSheet`, routing Edit/Delete through

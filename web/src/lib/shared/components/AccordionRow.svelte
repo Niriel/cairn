@@ -45,9 +45,12 @@
 
 	/* Top-align the row contents (Button centres by default): on a wrapped
 	   multi-line title the trailing slot and chevron pin to the first line rather
-	   than centring against the whole name — same rule NavRow uses. */
+	   than centring against the whole name — same rule NavRow uses. The tighter
+	   inset (vs the Button md default of 0.75rem 1.125rem) buys horizontal real
+	   estate and aligns these rows with the Lists screen's nav-rows. */
 	.accordion-row :global(button) {
 		align-items: flex-start;
+		padding: 0.5rem 0.8rem;
 	}
 
 	/* The fold indicator. chevron-right rotates a quarter-turn to point down when

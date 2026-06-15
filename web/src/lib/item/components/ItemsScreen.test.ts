@@ -20,6 +20,7 @@ vi.mock('$lib/shared/components/UndoSnackbar.svelte');
 vi.mock('$lib/item/components/VoteControl.svelte');
 vi.mock('$lib/item/components/AddEditItemSheet.svelte');
 vi.mock('$lib/item/components/DeleteItemSheet.svelte');
+vi.mock('$lib/item/components/ItemOverflowSheet.svelte');
 
 const STUB_LIST = {
 	id: 'test-list-id',
@@ -195,6 +196,102 @@ describe('ItemsScreen', () => {
 		await fireEvent.click(getByRole('button', { name: 'More options' }));
 		await tick();
 		expect(queryByDataTest('list-overflow-sheet-stub')).not.toBeNull();
+	});
+
+	test('(overflow-a) opening a row then tapping More renders the overflow sheet', async () => {
+		vi.spyOn(history, 'back').mockImplementation(() => {});
+		items.rows = [ITEM_1];
+		const { getByDataTest, queryByDataTest } = render(ItemsScreen, { listId: 'test-list-id' });
+		await fireEvent.click(getByDataTest(`row-${ITEM_1.id}`));
+		await tick();
+		expect(queryByDataTest('item-overflow-sheet-stub')).toBeNull();
+		await fireEvent.click(getByDataTest(`item-overflow-${ITEM_1.id}`));
+		await tick();
+		expect(queryByDataTest('item-overflow-sheet-stub')).not.toBeNull();
+	});
+
+	test('(overflow-b) tapping Edit in the overflow sheet opens the edit sheet', async () => {
+		vi.spyOn(history, 'back').mockImplementation(() => {});
+		items.rows = [ITEM_1];
+		const { getByDataTest, queryByDataTest } = render(ItemsScreen, { listId: 'test-list-id' });
+		await fireEvent.click(getByDataTest(`row-${ITEM_1.id}`));
+		await tick();
+		await fireEvent.click(getByDataTest(`item-overflow-${ITEM_1.id}`));
+		await tick();
+		await fireEvent.click(getByDataTest('item-overflow-edit'));
+		// The swap closes the overflow sheet and awaits its history.back() popstate
+		// before opening the editor (see closeOverlayAndSettle). history.back is
+		// mocked to a no-op here, so dispatch the popstate the handler is waiting on.
+		window.dispatchEvent(new PopStateEvent('popstate', { state: null }));
+		await tick();
+		await tick();
+		expect(queryByDataTest('add-edit-sheet-stub')).not.toBeNull();
+		expect(queryByDataTest('item-overflow-sheet-stub')).toBeNull();
+	});
+
+	test('(overflow-c) tapping Delete in the overflow sheet opens the delete sheet', async () => {
+		vi.spyOn(history, 'back').mockImplementation(() => {});
+		items.rows = [ITEM_1];
+		const { getByDataTest, queryByDataTest } = render(ItemsScreen, { listId: 'test-list-id' });
+		await fireEvent.click(getByDataTest(`row-${ITEM_1.id}`));
+		await tick();
+		await fireEvent.click(getByDataTest(`item-overflow-${ITEM_1.id}`));
+		await tick();
+		await fireEvent.click(getByDataTest('item-overflow-delete'));
+		// See (overflow-b): the swap awaits the overflow sheet's history.back()
+		// popstate before opening the delete sheet; dispatch it here.
+		window.dispatchEvent(new PopStateEvent('popstate', { state: null }));
+		await tick();
+		await tick();
+		expect(queryByDataTest('delete-sheet-stub')).not.toBeNull();
+		expect(queryByDataTest('item-overflow-sheet-stub')).toBeNull();
+	});
+
+	test('(empty-notes) an item with no notes shows the "(no notes)" placeholder', async () => {
+		vi.spyOn(history, 'back').mockImplementation(() => {});
+		items.rows = [{ ...ITEM_1, notes: null }];
+		const { getByDataTest, queryByDataTest } = render(ItemsScreen, { listId: 'test-list-id' });
+		await fireEvent.click(getByDataTest(`row-${ITEM_1.id}`));
+		await tick();
+		const placeholder = queryByDataTest(`item-notes-${ITEM_1.id}`);
+		expect(placeholder).not.toBeNull();
+		expect(placeholder?.textContent).toContain('(no notes)');
+	});
+
+	test('(notes-present) an item with notes shows the text, not the placeholder', async () => {
+		vi.spyOn(history, 'back').mockImplementation(() => {});
+		items.rows = [{ ...ITEM_1, notes: 'A real note' }];
+		const { getByDataTest } = render(ItemsScreen, { listId: 'test-list-id' });
+		await fireEvent.click(getByDataTest(`row-${ITEM_1.id}`));
+		await tick();
+		const notes = getByDataTest(`item-notes-${ITEM_1.id}`);
+		expect(notes.textContent).toContain('A real note');
+		expect(notes.textContent).not.toContain('(no notes)');
+	});
+
+	test('(empty-votes) an item with no member votes shows the "(no votes)" placeholder', async () => {
+		vi.spyOn(history, 'back').mockImplementation(() => {});
+		items.rows = [{ ...ITEM_1, member_votes: [] }];
+		const { getByDataTest, queryByDataTest } = render(ItemsScreen, { listId: 'test-list-id' });
+		await fireEvent.click(getByDataTest(`row-${ITEM_1.id}`));
+		await tick();
+		const placeholder = queryByDataTest(`item-votes-${ITEM_1.id}`);
+		expect(placeholder).not.toBeNull();
+		expect(placeholder?.textContent).toContain('(no votes)');
+	});
+
+	test('(votes-present) an item with member votes shows no "(no votes)" placeholder', async () => {
+		vi.spyOn(history, 'back').mockImplementation(() => {});
+		items.rows = [
+			{
+				...ITEM_1,
+				member_votes: [{ user_id: 'user-1', display_name: 'Alice', avatar_version: 0, value: 2 }]
+			}
+		];
+		const { getByDataTest, queryByDataTest } = render(ItemsScreen, { listId: 'test-list-id' });
+		await fireEvent.click(getByDataTest(`row-${ITEM_1.id}`));
+		await tick();
+		expect(queryByDataTest(`item-votes-${ITEM_1.id}`)).toBeNull();
 	});
 
 	test('(i-e) error state shows failure message and hides UNDO button', async () => {
