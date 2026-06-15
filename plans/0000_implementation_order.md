@@ -338,6 +338,82 @@ in-flight branch for no gain.
     >   data export, PWA shell, legal & about) is **not done** — these
     >   are genuinely unstarted, not partially landed.
 
+16. [x] **Public, read-only, shareable lists.** A member can flag a list
+    public, producing a link anyone (no account, no invite) can open to a
+    read-only view of the list and its ranked items — the first
+    deliberate opening of the `anon` surface. See `plans/1600_public_lists/`.
+
+17. [x] **One-time code (OTP) alongside the magic link.** The sign-in
+    e-mail carries a six-digit code and the "Check your inbox" screen
+    gains a code-entry box, so a user can finish on the device they
+    started on; reverses `0303_strip_otp`. See `plans/1700_email_otp/`.
+    (Superseded later by step 20, which retires e-mail sign-in entirely.)
+
+18. [x] **List-title nav-rows on the Lists screen.** Each list title
+    renders and behaves like the shared `NavRow` (full-width tap target +
+    trailing chevron), with the per-list More button moved into the
+    extra-info block. Front-end only. See `plans/1900_list_title_navrows/`
+    — numbered `1900`, not `1800`, because it was cut out of band after
+    the alpha shipped.
+
+19. [x] **Item extra-panel overflow menu.** The Items screen's inline
+    Delete/Edit buttons become a More (⋮) button that opens a bottom-sheet
+    overflow menu, matching the Lists screen and leaving room for future
+    Copy/Move. See `plans/1901_item_overflow/` — a follow-on to step 18,
+    so it took the `1901` slot.
+
+20. [ ] **Username identity: sign in with a unique username + password;
+    e-mail becomes optional, kept only for password recovery.** Today the
+    whole identity hangs off e-mail — GoTrue authenticates by
+    `auth.users.email` (magic links + the six-digit OTP from step 1700),
+    and "add this person" is keyed by e-mail. That makes e-mail both the
+    private contact field and the public add-key (the "add by e-mail is
+    confusing" complaint), and forces every user to hand over an address
+    Cairn doesn't want. This step moves identity to a public, unique,
+    user-chosen **username** with a **password** for sign-in; e-mail is
+    demoted to an optional recovery address that is never required and
+    never shown (the `docs/invites.md` privacy contract still holds), and
+    whose ownership is verified whenever it is set or changed. Usernames
+    are `a-zA-Z0-9` only, unique on their lowercased form (so `LaraCroft`
+    blocks `Laracroft`), changeable at any time to any free name, public
+    on the profile, and used to disambiguate non-unique display names.
+    Adding people switches from "by e-mail" to "by username". This
+    **replaces** e-mail sign-in entirely, so it supersedes the login
+    surface from steps 0302 (magic-link anti-enumeration) and 1700
+    (e-mail OTP) and reverses the "magic links only, no passwords"
+    decision in `docs/architecture.md` — that doc reconciliation is the
+    plan's Phase 0. Large enough to run as an **orchestration plan** —
+    `plans/2000_username_identity/` cuts and merges these sub-branches:
+    - [ ] **2001: identity model, GoTrue mechanism, doc reconciliation.**
+      Decide how username+password rides GoTrue (design spike; leaning a
+      synthetic deterministic e-mail derived from the username),
+      reconcile `architecture.md` / `data-model.md` / `invites.md` /
+      `circles.md` / `open-questions.md`, add `profiles.username`
+      (NOT NULL, `a-zA-Z0-9` CHECK, unique on `lower(username)`), the
+      `set_username` RPC, and the optional recovery-e-mail home; pgTAP
+      for uniqueness, case-folding, the char constraint, and mutability.
+    - [ ] **2002: registration + sign-in UI (username + password).** New
+      register and sign-in screens replacing the magic-link request /
+      check / callback path; `session` carries the username; auth-client
+      gains password register/sign-in; route guard unchanged. Vitest +
+      Playwright.
+    - [ ] **2003: password recovery via the optional e-mail.** "Forgot
+      password" request + reset screens, recovery-e-mail capture in
+      settings with verify-on-set/change, and the send/reset wiring;
+      anti-enumeration on the request step.
+    - [ ] **2004: add-by-username + username display.** `send_invitation`
+      and circle-add keyed by username (replacing the e-mail RPCs, keeping
+      the block / invite-policy / self-invite checks); InvitePicker and
+      Circle screens lose the e-mail field and gain a username field;
+      `@username` shown on the profile sheet, members, votes, and
+      attribution to disambiguate display names.
+    - [ ] **2005: migrate the live alpha + retire e-mail login.** Backfill
+      `profiles.username` from each existing display name
+      (`a-zA-Z0-9`-folded, collision-suffixed), give existing users an
+      initial-password path via the recovery flow (their confirmed e-mail
+      is grandfathered as a proven recovery address), then remove the
+      magic-link / e-mail-OTP sign-in surface. Prod-facing.
+
 ## Sequencing rationale
 
 - DB before UI so RLS-backed product code has something real to talk
@@ -390,6 +466,16 @@ in-flight branch for no gain.
   fields, not placeholders, on the day the box goes public.
 - Production rollout (step 15) last: deployable and installable is
   the polish layer once the product works.
+- **Steps 16–19 were out-of-band, post-alpha plans** — public lists, the
+  e-mail OTP, and two Lists/Items UI refinements — landed ad hoc once the
+  alpha was live rather than planned up front, which is why their `plans/`
+  numbers don't all track the hundreds convention (no `1800`; `1901` is a
+  follow-on to `1900`). They're recorded here for completeness.
+- **Username identity (step 20) after those** because it is new scope
+  added once the alpha was already live — it reworks the *running* auth
+  surface, so it has to migrate real accounts rather than greenfield
+  ones, and it deliberately supersedes the e-mail-login work (0302, and
+  step 17's e-mail OTP) that shipped first.
 
 ## Verification
 
