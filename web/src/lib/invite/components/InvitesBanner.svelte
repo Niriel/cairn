@@ -55,7 +55,7 @@
 
 <style>
 	.banner {
-		margin: 0.5rem 1.125rem 0.875rem;
+		margin: 0.5rem 1.125rem 0.5rem;
 		padding: 0.875rem;
 	}
 
