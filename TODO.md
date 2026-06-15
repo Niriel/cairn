@@ -100,9 +100,20 @@
    affordance matches the destination. Applies anywhere TopBar shows the
    default back button.
 
+9. [ ] **Minimum 44 px touch targets for all interactive controls** — some of
+   the devices Cairn runs on have terrible touch resolution, so small tappable
+   elements are hard to hit reliably. Every interactive control (buttons, icon
+   buttons, nav-row chevrons, sheet actions, links acting as buttons) should
+   present a touch target of **at least 44 × 44 px**, in line with the iOS
+   Human Interface Guidelines minimum (Android Material's 48 dp is stricter
+   still). Where the visible glyph is smaller, expand the hit area with padding
+   rather than growing the icon. Audit `IconButton` / `MoreButton` and the
+   inline `icon-btn` blocks (see task 7) first, since those are the most-reused
+   controls. No visual-weight change needed — just guarantee the tappable box.
+
 ## Auth & production infrastructure
 
-9. [ ] **Replace the interim `auth-proxy` Node sidecar with the in-Caddy shim**
+10. [ ] **Replace the interim `auth-proxy` Node sidecar with the in-Caddy shim**
    — the production cookie↔JWT shim currently runs as a standalone Node service
    (`auth-proxy/`, added in plan 1500), which ports the dev Vite-proxy logic
    (`web/vite.config.ts`) into a long-running process. This is deliberately
@@ -120,7 +131,7 @@
    shared `auth-paths.ts` as the single source of truth for the narrowing lists
    regardless of where the shim runs.
 
-10. [x] **Also send a one-time code (OTP) alongside the magic link** — the
+11. [x] **Also send a one-time code (OTP) alongside the magic link** — the
     sign-in / sign-up e-mail currently carries only a magic link, which forces
     the user to continue on whatever device opens the e-mail. That's
     inconvenient: a desktop user will probably receive the e-mail on their
@@ -132,9 +143,31 @@
     about wiring the code into the e-mail template and adding the
     code-entry/verify step to the sent-email screen.)
 
+12. [ ] **Consider dropping e-mail-based auth in favour of a login password**
+    — Cairn currently authenticates entirely through e-mail (magic link + OTP
+    via GoTrue), which means the security of a sign-in is only as strong as the
+    servers that relay the message: any mail hop can read or delay the link/code,
+    and a compromised inbox is a full account takeover. Evaluate whether to
+    offer a classic identifier + password login instead of (or alongside) the
+    e-mail flow, so the credential never leaves our stack in transit. This is a
+    big, cross-cutting decision — weigh it carefully before committing:
+    - **Trade-offs to weigh:** passwords reintroduce their own burdens (hashing
+      and storage, reset flows, breach exposure, weak-password and reuse risk)
+      and GoTrue's e-mail-first model is load-bearing across sign-up, invites,
+      and account recovery — so this is not a free swap. E-mail is also still
+      needed as a recovery channel and for invites (`docs/invites.md`); removing
+      it _entirely_ may be off the table even if we add passwords.
+    - **Scope if pursued:** GoTrue password-grant config, the sign-in/sign-up UI,
+      password-reset flow, migration for existing e-mail-only accounts, and the
+      knock-on effects on the `auth-proxy` shim (see task 10) and RLS identity.
+    - **Decide first:** is the goal _replace_ e-mail auth or _add_ a password
+      option? Capture the security rationale and the verdict in `docs/` (likely
+      `docs/architecture.md` and/or a new auth doc) before any code lands, and
+      cross-check `docs/open-questions.md` so this isn't already tracked there.
+
 ## Docs & copy
 
-11. [ ] **Review the "adding by e-mail is two-way" claim in the circles
+13. [ ] **Review the "adding by e-mail is two-way" claim in the circles
     explanation** — `docs/circles.md` states that adding someone by e-mail is
     two-way. This isn't clear and may be wrong: the circle model is meant to be
     one-directional and invisible to the other side (see CLAUDE.md
