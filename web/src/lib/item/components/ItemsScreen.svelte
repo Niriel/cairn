@@ -208,7 +208,7 @@
 												/>
 												<span class="mv-name">{mv.display_name}</span>
 												<span
-													class="mv-val mono"
+													class="mv-val"
 													class:positive={mv.value > 0}
 													class:negative={mv.value < 0}
 												>
@@ -399,6 +399,17 @@
 		background: var(--paper-alt);
 	}
 
+	/* Tighten the AccordionRow button's md inset (Button default 0.75rem 1.125rem)
+	   to match the Lists screen's nav-rows. This lives at the call site, not in
+	   AccordionRow: from here the selector out-specifies Button's own
+	   `.text.size-md` padding (the same reason the Lists screen sets its nav-row
+	   inset locally). This 0.8rem padding-right is also the chevron's anchor: the
+	   `.more` button in the extra panel is aligned to it (see the alignment
+	   invariant on `.more` below). Changing it here means re-checking that. */
+	.row :global(.accordion-row button) {
+		padding: 0.5rem 0.8rem;
+	}
+
 	/* A flex column laying out notes, votes, and attribution with an even gap.
 	   position: relative anchors the absolutely-pinned .more button; the wide
 	   right inset (2.5rem) keeps the first row's content from sliding under that
@@ -417,6 +428,17 @@
 	   wrapping span is positioned (not the MoreButton itself) so its forwarded
 	   class can't clobber IconButton's .icon-btn padding. Mirrors the Lists
 	   screen's .more placement. */
+	/* ALIGNMENT INVARIANT: the ⋮ glyph must sit directly under the row's chevron.
+	   Both are 18px glyphs right-aligned in their containers, so their centres
+	   line up only while:
+	       right (0.55rem) + IconButton padding (4px) == accordion button
+	       padding-right (0.8rem, set in `.row :global(.accordion-row button)`).
+	   i.e. 8.8px + 4px == 12.8px. The chevron is the fixed anchor (it lives in the
+	   already-large full-row button, so touch-target work won't move it); this
+	   button is the one that will grow. If IconButton's padding increases to make
+	   a 44px touch target (4px → ~13px), this `right` must DROP by the same amount
+	   (0.55rem → ~0) to keep the glyph centred under the chevron — otherwise the
+	   widened button pushes the glyph left and the two fall out of line. */
 	.more {
 		position: absolute;
 		top: 0.375rem;
@@ -445,11 +467,12 @@
 
 	/* The voters list and the VoteControl share one row; the control is pushed to
 	   the right edge (margin-left:auto on its slot) and stays there even when no
-	   one has voted yet and the member-votes block is absent. flex-start keeps the
-	   control beside the first line if the voters wrap to several lines. */
+	   one has voted yet and the member-votes block is absent. Centred so the voter
+	   chips sit vertically level with the taller vote buttons rather than riding
+	   high against their top. */
 	.votes-row {
 		display: flex;
-		align-items: flex-start;
+		align-items: center;
 		gap: 0.625rem;
 	}
 
@@ -471,7 +494,8 @@
 		gap: 0.375rem;
 	}
 
-	/* Per-member vote sign — state colour on the .mono value. */
+	/* Per-member vote sign — state colour only; the value inherits the .fine name
+	   typeface so the count sits level with the name beside it. */
 	.mv-val.positive {
 		color: var(--sage);
 	}

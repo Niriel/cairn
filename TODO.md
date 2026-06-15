@@ -110,6 +110,15 @@
        rather than growing the icon. Audit `IconButton` / `MoreButton` and the
        inline `icon-btn` blocks (see task 7) first, since those are the most-reused
        controls. No visual-weight change needed — just guarantee the tappable box.
+       Watch the **More-button alignment invariant**: the `⋮` in the Items/Lists
+       extra panels is centred under the row chevron via a hand-tuned coupling
+       (`.more` right + `IconButton` padding == row button padding-right). Growing
+       `IconButton`'s padding to reach 44px widens the button leftward and shifts
+       the glyph out of line unless `.more`'s `right` is reduced to match — the
+       comments on `.more` in `ItemsScreen.svelte` / `ListsScreen.svelte` spell out
+       the arithmetic. A robust alternative is to expose `IconButton`'s padding as
+       a token and express `.more`'s `right` as `calc(0.8rem - <that token>)` so it
+       self-corrects.
 
 10. [ ] **Harden `pushHistoryGuard` so callers don't need manual teardown
         sequencing** — `web/src/lib/shared/state/back-stack.svelte.ts` hand-rolls a
