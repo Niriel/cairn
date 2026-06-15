@@ -97,6 +97,56 @@ test.describe.serial('items flow', () => {
 		await expect(page.locator('[data-test="item-extra"]')).not.toBeVisible();
 	});
 
+	// (b-overflow) From an open row, More opens the overflow sheet; the back
+	// button closes the sheet without navigating away from the Items screen.
+	test('(b-overflow) back closes the overflow sheet, staying on Items', async () => {
+		await page.locator(`[data-test="row-${alphaId}"]`).click();
+		await page.locator(`[data-test="item-overflow-${alphaId}"]`).click();
+		await expect(page.locator('[data-test="item-overflow-edit"]')).toBeVisible();
+
+		await page.goBack();
+		await expect(page.locator('[data-test="item-overflow-edit"]')).not.toBeVisible();
+		await expect(page).toHaveURL(new RegExp(`/lists/${listId}$`));
+		// The row stays open under the sheet's backdrop.
+		await expect(page.locator('[data-test="item-extra"]')).toBeVisible();
+
+		await page.locator(`[data-test="row-${alphaId}"]`).click(); // close the panel
+	});
+
+	// (b-overflow-edit) More → Edit, then back from the edit sheet returns to the
+	// open Items screen (not a ghost overflow sheet).
+	test('(b-overflow-edit) back from the edit sheet returns to the open row', async () => {
+		await page.locator(`[data-test="row-${alphaId}"]`).click();
+		await page.locator(`[data-test="item-overflow-${alphaId}"]`).click();
+		await page.locator('[data-test="item-overflow-edit"]').click();
+		await expect(page.locator('[data-test="add-edit-name"]')).toBeVisible();
+
+		await page.goBack();
+		await expect(page.locator('[data-test="add-edit-name"]')).not.toBeVisible();
+		await expect(page.locator('[data-test="item-overflow-edit"]')).not.toBeVisible();
+		await expect(page).toHaveURL(new RegExp(`/lists/${listId}$`));
+		await expect(page.locator('[data-test="item-extra"]')).toBeVisible();
+
+		await page.locator(`[data-test="row-${alphaId}"]`).click(); // close the panel
+	});
+
+	// (b-overflow-delete) More → Delete, then back from the confirm sheet returns
+	// to the open Items screen (not a ghost overflow sheet).
+	test('(b-overflow-delete) back from the delete sheet returns to the open row', async () => {
+		await page.locator(`[data-test="row-${alphaId}"]`).click();
+		await page.locator(`[data-test="item-overflow-${alphaId}"]`).click();
+		await page.locator('[data-test="item-overflow-delete"]').click();
+		await expect(page.locator('[data-test="delete-heading"]')).toBeVisible();
+
+		await page.goBack();
+		await expect(page.locator('[data-test="delete-heading"]')).not.toBeVisible();
+		await expect(page.locator('[data-test="item-overflow-edit"]')).not.toBeVisible();
+		await expect(page).toHaveURL(new RegExp(`/lists/${listId}$`));
+		await expect(page.locator('[data-test="item-extra"]')).toBeVisible();
+
+		await page.locator(`[data-test="row-${alphaId}"]`).click(); // close the panel
+	});
+
 	// (c) Opening a second row closes the first.
 	test('(c) opening second row closes first', async () => {
 		await page.locator(`[data-test="row-${alphaId}"]`).click();
@@ -105,8 +155,8 @@ test.describe.serial('items flow', () => {
 		await page.locator(`[data-test="row-${betaId}"]`).click();
 		// Only one panel should be visible (Beta's).
 		await expect(page.locator('[data-test="item-extra"]')).toHaveCount(1);
-		await expect(page.locator(`[data-test="extra-edit-${betaId}"]`)).toBeVisible();
-		await expect(page.locator(`[data-test="extra-edit-${alphaId}"]`)).not.toBeVisible();
+		await expect(page.locator(`[data-test="item-overflow-${betaId}"]`)).toBeVisible();
+		await expect(page.locator(`[data-test="item-overflow-${alphaId}"]`)).not.toBeVisible();
 
 		// Close.
 		await page.locator(`[data-test="row-${betaId}"]`).click();
@@ -129,8 +179,9 @@ test.describe.serial('items flow', () => {
 	// (e) Edit sheet opens with pre-populated fields; saving updates the name.
 	test('(e) editing an item updates its name', async () => {
 		await page.locator(`[data-test="row-${alphaId}"]`).click();
-		await expect(page.locator(`[data-test="extra-edit-${alphaId}"]`)).toBeVisible();
-		await page.locator(`[data-test="extra-edit-${alphaId}"]`).click();
+		await expect(page.locator(`[data-test="item-overflow-${alphaId}"]`)).toBeVisible();
+		await page.locator(`[data-test="item-overflow-${alphaId}"]`).click();
+		await page.locator('[data-test="item-overflow-edit"]').click();
 
 		// Edit sheet pre-populates the name.
 		await expect(page.locator('[data-test="add-edit-name"]')).toHaveValue('Alpha');
@@ -146,8 +197,9 @@ test.describe.serial('items flow', () => {
 	// (f) Delete shows confirmation sheet; confirming shows snackbar with item name.
 	test('(f) deleting shows confirmation then snackbar', async () => {
 		await page.locator(`[data-test="row-${betaId}"]`).click();
-		await expect(page.locator(`[data-test="extra-delete-${betaId}"]`)).toBeVisible();
-		await page.locator(`[data-test="extra-delete-${betaId}"]`).click();
+		await expect(page.locator(`[data-test="item-overflow-${betaId}"]`)).toBeVisible();
+		await page.locator(`[data-test="item-overflow-${betaId}"]`).click();
+		await page.locator('[data-test="item-overflow-delete"]').click();
 
 		// Confirmation sheet.
 		await expect(page.locator('[data-test="delete-heading"]')).toContainText('Beta');

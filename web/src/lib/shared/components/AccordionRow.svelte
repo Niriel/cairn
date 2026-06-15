@@ -45,7 +45,11 @@
 
 	/* Top-align the row contents (Button centres by default): on a wrapped
 	   multi-line title the trailing slot and chevron pin to the first line rather
-	   than centring against the whole name — same rule NavRow uses. */
+	   than centring against the whole name — same rule NavRow uses. The button's
+	   inset is left to the consumer (e.g. the Items screen tightens it to match
+	   the Lists nav-rows): an override here can't beat Button's own
+	   `.text.size-md` padding on specificity, so it belongs at the call site
+	   — the same place NavRow's consumers set theirs. */
 	.accordion-row :global(button) {
 		align-items: flex-start;
 	}

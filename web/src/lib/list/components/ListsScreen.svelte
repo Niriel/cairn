@@ -225,6 +225,12 @@
 
 	/* ── List rows ── */
 
+	/* Reserve space below the last row so it clears the fixed FAB floating over
+	   the content; without this the bottom list is permanently obscured. */
+	.rows {
+		padding-bottom: var(--fab-clearance);
+	}
+
 	/* The NavRow's inner button supplies the title's top/left inset, so the row
 	   itself carries no padding (otherwise the title would be indented twice). */
 	.row {
@@ -257,6 +263,12 @@
 	   sits ~22px from the row's right edge (0.8rem button padding + half of an
 	   18px icon), and the IconButton's 18px icon centres 13px from its own right
 	   edge, so the button's right edge needs to sit ~9px (0.55rem) in. */
+	/* ALIGNMENT INVARIANT: the ⋮ glyph sits under the nav-row's chevron only while
+	   right (0.55rem) + IconButton padding (4px) == nav-row button padding-right
+	   (0.8rem, above). The chevron is the fixed anchor; this button is what grows.
+	   If IconButton's padding increases for a 44px touch target (4px → ~13px),
+	   drop this `right` by the same amount (→ ~0) so the widened button doesn't
+	   push the glyph left out of line. Same coupling as the Items screen. */
 	.more {
 		position: absolute;
 		top: 0.375rem;

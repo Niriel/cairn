@@ -16,7 +16,6 @@
 	import { TOMBSTONE_UID } from '$lib/shared/model/constants';
 
 	import TopBar from '$lib/shared/components/TopBar.svelte';
-	import Button from '$lib/basic/components/Button.svelte';
 	import Badge from '$lib/basic/components/Badge.svelte';
 	import IconButton from '$lib/basic/components/IconButton.svelte';
 	import MoreButton from '$lib/shared/components/MoreButton.svelte';
@@ -29,6 +28,7 @@
 	import VoteControl from './VoteControl.svelte';
 	import AddEditItemSheet from './AddEditItemSheet.svelte';
 	import DeleteItemSheet from './DeleteItemSheet.svelte';
+	import ItemOverflowSheet from './ItemOverflowSheet.svelte';
 	import ListOverflowSheet from '$lib/list/components/ListOverflowSheet.svelte';
 
 	type ListMeta = {
@@ -52,6 +52,7 @@
 	let addSheetOpen = $state(false);
 	let editSheetItem = $state<Item | null>(null);
 	let deleteSheetItem = $state<Item | null>(null);
+	let overflowItem = $state<Item | null>(null);
 
 	async function reloadMeta() {
 		await pgGet<ListMeta[]>(
@@ -93,6 +94,23 @@
 
 	function toggleRow(id: string) {
 		openId = openId === id ? null : id;
+	}
+
+	// Closing an overlay tears down its history guard, which calls history.back()
+	// whose popstate is async. To swap one overlay for another — overflow → Edit
+	// or overflow → Delete — we must let that popstate land *before* pushing the
+	// next guard. Otherwise the back() and the new pushState race within one tick
+	// and desync the back-stack (its single suppress flag can only track one
+	// in-flight pop), which over-pops and can strand the user off the screen.
+	// Sequencing keeps exactly one history.back() in flight at a time. Mirrors the
+	// onviewtrash handler below.
+	function closeOverlayAndSettle(close: () => void): Promise<void> {
+		const settled = new Promise<void>((r) =>
+			window.addEventListener('popstate', () => r(), { once: true })
+		);
+		close();
+		// tick() flushes Svelte so the overlay unmounts and its guard cleanup runs.
+		return tick().then(() => settled);
 	}
 
 	function handleVote(itemId: string, v: number | null) {
@@ -163,8 +181,19 @@
 					</AccordionRow>
 					{#if openId === item.id}
 						<div data-test="item-extra" class="extra surface-alt">
+							<span class="more">
+								<MoreButton
+									size={18}
+									aria-label="Item options"
+									data-test="item-overflow-{item.id}"
+									onclick={() => (overflowItem = item)}
+									style="color: var(--stone)"
+								/>
+							</span>
 							{#if item.notes}
-								<div class="notes body">{item.notes}</div>
+								<div class="notes body" data-test="item-notes-{item.id}">{item.notes}</div>
+							{:else}
+								<div class="notes no-notes body" data-test="item-notes-{item.id}">(no notes)</div>
 							{/if}
 							<div class="votes-row">
 								{#if item.member_votes.length > 0}
@@ -179,7 +208,7 @@
 												/>
 												<span class="mv-name">{mv.display_name}</span>
 												<span
-													class="mv-val mono"
+													class="mv-val"
 													class:positive={mv.value > 0}
 													class:negative={mv.value < 0}
 												>
@@ -188,6 +217,8 @@
 											</span>
 										{/each}
 									</div>
+								{:else}
+									<span class="no-votes body" data-test="item-votes-{item.id}">(no votes)</span>
 								{/if}
 								<div class="vote-control-slot">
 									<VoteControl
@@ -210,32 +241,6 @@
 									>
 									{timeAgo(item.modified_at)}.
 								{/if}
-							</div>
-							<div class="extra-actions">
-								<Button
-									variant="pill"
-									tone="destructive"
-									size="sm"
-									leadingIcon="trash"
-									data-test="extra-delete-{item.id}"
-									style="flex: 1"
-									onclick={() => {
-										deleteSheetItem = item;
-										openId = null;
-									}}>Delete</Button
-								>
-								<Button
-									variant="pill"
-									tone="ink"
-									size="sm"
-									leadingIcon="pencil"
-									data-test="extra-edit-{item.id}"
-									style="flex: 1"
-									onclick={() => {
-										editSheetItem = item;
-										openId = null;
-									}}>Edit</Button
-								>
 							</div>
 						</div>
 					{/if}
@@ -293,8 +298,34 @@
 		<DeleteItemSheet
 			item={deleteSheetItem}
 			memberCount={listMeta.list_members.length}
-			ondelete={() => (deleteSheetItem = null)}
+			ondelete={async () => {
+				// The item is gone, so the row behind the sheet is stale. Close the
+				// sheet, let its history.back() settle, then close the row so its
+				// guard tears down too — sequenced, so the two backs don't race.
+				await closeOverlayAndSettle(() => (deleteSheetItem = null));
+				openId = null;
+			}}
 			oncancel={() => (deleteSheetItem = null)}
+		/>
+	{/if}
+
+	{#if overflowItem}
+		<ItemOverflowSheet
+			itemName={overflowItem.name}
+			onedit={async () => {
+				const item = overflowItem;
+				// Close the overflow sheet and let its history.back() settle before
+				// opening the editor, so we never pop and push in the same tick. The
+				// open row stays behind, so backing out of the editor returns to it.
+				await closeOverlayAndSettle(() => (overflowItem = null));
+				editSheetItem = item;
+			}}
+			ondelete={async () => {
+				const item = overflowItem;
+				await closeOverlayAndSettle(() => (overflowItem = null));
+				deleteSheetItem = item;
+			}}
+			onclose={() => (overflowItem = null)}
 		/>
 	{/if}
 </div>
@@ -359,7 +390,7 @@
 	}
 
 	.rows {
-		padding-bottom: 5.625rem;
+		padding-bottom: var(--fab-clearance);
 	}
 
 	/* Open-row tint — a genuine toggled state, so the background lives here as a
@@ -368,34 +399,80 @@
 		background: var(--paper-alt);
 	}
 
-	/* Horizontal real estate is scarce, so tighten the AccordionRow button's
-	   default md inset (0.75rem 1.125rem) to 0.5rem 0.8rem — matching the Lists
-	   screen's nav-row override so the two screens' rows align. */
+	/* Tighten the AccordionRow button's md inset (Button default 0.75rem 1.125rem)
+	   to match the Lists screen's nav-rows. This lives at the call site, not in
+	   AccordionRow: from here the selector out-specifies Button's own
+	   `.text.size-md` padding (the same reason the Lists screen sets its nav-row
+	   inset locally). This 0.8rem padding-right is also the chevron's anchor: the
+	   `.more` button in the extra panel is aligned to it (see the alignment
+	   invariant on `.more` below). Changing it here means re-checking that. */
 	.row :global(.accordion-row button) {
 		padding: 0.5rem 0.8rem;
 	}
 
+	/* A flex column laying out notes, votes, and attribution with an even gap.
+	   position: relative anchors the absolutely-pinned .more button; the wide
+	   right inset (2.5rem) keeps the first row's content from sliding under that
+	   top-right button. Insets tuned in the running app (light + dark, with and
+	   without notes). */
 	.extra {
-		padding: 0.25rem 1.375rem 1.125rem;
+		position: relative;
+		display: flex;
+		flex-direction: column;
+		gap: 0.5rem;
+		padding: 0.625rem 2.5rem 1rem 0.8rem;
 		border-top: 1px dashed var(--rule);
+	}
+
+	/* The More button, pinned to the top-end corner of the extra panel. The
+	   wrapping span is positioned (not the MoreButton itself) so its forwarded
+	   class can't clobber IconButton's .icon-btn padding. Mirrors the Lists
+	   screen's .more placement. */
+	/* ALIGNMENT INVARIANT: the ⋮ glyph must sit directly under the row's chevron.
+	   Both are 18px glyphs right-aligned in their containers, so their centres
+	   line up only while:
+	       right (0.55rem) + IconButton padding (4px) == accordion button
+	       padding-right (0.8rem, set in `.row :global(.accordion-row button)`).
+	   i.e. 8.8px + 4px == 12.8px. The chevron is the fixed anchor (it lives in the
+	   already-large full-row button, so touch-target work won't move it); this
+	   button is the one that will grow. If IconButton's padding increases to make
+	   a 44px touch target (4px → ~13px), this `right` must DROP by the same amount
+	   (0.55rem → ~0) to keep the glyph centred under the chevron — otherwise the
+	   widened button pushes the glyph left and the two fall out of line. */
+	.more {
+		position: absolute;
+		top: 0.375rem;
+		right: 0.55rem;
 	}
 
 	/* Editorial serif-italic for free-text notes — an annotated exception to the
 	   global type roles (.body supplies size/colour/leading). */
 	.notes {
-		margin-top: 0.875rem;
 		font-family: 'Newsreader Variable', Georgia, serif;
+		font-style: italic;
+	}
+
+	/* Empty-state placeholders for notes and votes — a quiet muted italic aside,
+	   matching the Lists screen's "(no description)" treatment. The notes
+	   placeholder drops the serif (it's a state label, not editorial content). */
+	.no-notes {
+		font-family: inherit;
+		color: var(--stone);
+	}
+
+	.no-votes {
+		color: var(--stone);
 		font-style: italic;
 	}
 
 	/* The voters list and the VoteControl share one row; the control is pushed to
 	   the right edge (margin-left:auto on its slot) and stays there even when no
-	   one has voted yet and the member-votes block is absent. flex-start keeps the
-	   control beside the first line if the voters wrap to several lines. */
+	   one has voted yet and the member-votes block is absent. Centred so the voter
+	   chips sit vertically level with the taller vote buttons rather than riding
+	   high against their top. */
 	.votes-row {
-		margin-top: 0.875rem;
 		display: flex;
-		align-items: flex-start;
+		align-items: center;
 		gap: 0.625rem;
 	}
 
@@ -417,17 +494,14 @@
 		gap: 0.375rem;
 	}
 
-	/* Per-member vote sign — state colour on the .mono value. */
+	/* Per-member vote sign — state colour only; the value inherits the .fine name
+	   typeface so the count sits level with the name beside it. */
 	.mv-val.positive {
 		color: var(--sage);
 	}
 
 	.mv-val.negative {
 		color: var(--ember);
-	}
-
-	.attribution {
-		margin-top: 0.875rem;
 	}
 
 	/* Name emphasis within the muted attribution line. */
@@ -442,12 +516,6 @@
 		font-weight: normal;
 		color: var(--stone-lt);
 		font-family: 'Newsreader Variable', Georgia, serif;
-	}
-
-	.extra-actions {
-		margin-top: 0.875rem;
-		display: flex;
-		gap: 0.5rem;
 	}
 
 	/* Single-instance undo toast — its inverted ink/paper chrome is bespoke to
