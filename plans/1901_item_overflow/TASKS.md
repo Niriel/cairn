@@ -11,10 +11,17 @@
 
 ## Phase 1 — overflow sheet + screen wiring
 
-### [ ] 1.1 Create `ItemOverflowSheet` with Edit/Delete menu
+### [x] 1.1 Create `ItemOverflowSheet` with Edit/Delete menu
 
 **Created:** 2026-06-15T07:33:25Z
-**Completed:**
+**Completed:** 2026-06-15T08:29:17Z
+
+**Notes:** `pnpm lint` and `pnpm check` report failures, but all are
+pre-existing and confined to the `export/` domain: a missing `jszip`
+dependency (`Cannot find module 'jszip'`) and the resulting unsafe-type
+ESLint errors in `export/model/archive.ts` and `export/state/export.test.ts`.
+None touch the new `ItemOverflowSheet` files, which lint and type-check
+clean. Flagging the missing `jszip` install for the user.
 
 **Why:** The item extra panel needs a bottom-sheet overflow menu (replacing the
 inline Delete/Edit buttons) so the future copy/move-between-lists actions have
