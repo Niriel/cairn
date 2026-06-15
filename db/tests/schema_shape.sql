@@ -14,7 +14,7 @@
 
 BEGIN;
 
-SELECT plan(75);
+SELECT plan(76);
 
 -- ---------------------------------------------------------------------
 -- Tables (6) — every new table introduced by 0004 must exist.
@@ -42,6 +42,9 @@ SELECT has_column(
 SELECT has_column(
   'public', 'profiles', 'avatar_version',
   'profiles has avatar_version column'
+);
+SELECT has_column(
+  'public', 'profiles', 'username', 'profiles.username exists'
 );
 
 -- ---------------------------------------------------------------------

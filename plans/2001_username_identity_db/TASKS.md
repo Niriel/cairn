@@ -133,10 +133,10 @@ no callback/hash-flow or shim-narrowing prose was changed.
 
 ## Phase 1 — schema, RPC, recovery-e-mail home
 
-### [ ] 1.1 Add `profiles.username` (CHECK + case-fold unique index), provisional seed, backfill, NOT NULL
+### [x] 1.1 Add `profiles.username` (CHECK + case-fold unique index), provisional seed, backfill, NOT NULL
 
 **Created:** 2026-06-15T12:42:20Z
-**Completed:**
+**Completed:** 2026-06-15T13:34:59Z
 
 **Why:** Every later sub-step depends on the column existing. It must be
 `NOT NULL` (a username is the identity), case-insensitively unique
@@ -266,6 +266,21 @@ then `SET LOCAL ROLE authenticated|anon` (see any file in `db/tests/`).
 7. Update `docs/data-model.md` per the folded doc edit in Decisions.
 
 **Verify:** `./scripts/test-db.sh` · `./scripts/check.sh`
+
+**Notes:**
+- **Side work (not in the task's Files list):** `db/tests/triggers_set_timestamps.sql`
+  does a direct `INSERT INTO public.profiles (id, display_name, created_at,
+  modified_at)` for "Eve" (it deletes the trigger-seeded row first to test
+  the timestamp-override path). Once `username` became `NOT NULL` this INSERT
+  raised `23502` and red the suite. Fixed by adding `username = 'EveHandle'`
+  to that INSERT. The task anticipated the trigger/PK-collision interaction
+  for the *new* test but not this pre-existing direct insert.
+- **User decision captured mid-task:** e-mail is **not** unique across
+  accounts — a user may run two accounts on one e-mail to follow different
+  lists. The synthetic-e-mail mechanism already satisfies this (real e-mail
+  only lives in `user_settings.recovery_email`, a plain column). Recorded so
+  Task 1.3 / 2003 never add a unique constraint on `recovery_email` and the
+  2003 reset flow resolves by username + e-mail ownership, not e-mail alone.
 
 ### [ ] 1.2 Add the `set_username` RPC with the synthetic-e-mail rewrite
 
