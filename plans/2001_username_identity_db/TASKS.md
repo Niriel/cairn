@@ -282,10 +282,10 @@ then `SET LOCAL ROLE authenticated|anon` (see any file in `db/tests/`).
   Task 1.3 / 2003 never add a unique constraint on `recovery_email` and the
   2003 reset flow resolves by username + e-mail ownership, not e-mail alone.
 
-### [ ] 1.2 Add the `set_username` RPC with the synthetic-e-mail rewrite
+### [x] 1.2 Add the `set_username` RPC with the synthetic-e-mail rewrite
 
 **Created:** 2026-06-15T12:42:20Z
-**Completed:**
+**Completed:** 2026-06-15T13:43:17Z
 
 **Why:** A user must be able to change their username at any time (step-20
 R5). Because the synthetic e-mail derived from the username *is* the
