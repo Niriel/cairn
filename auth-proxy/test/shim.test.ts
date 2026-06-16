@@ -63,9 +63,11 @@ afterEach(() => {
 });
 
 function sessionCookie(res: request.Response): string | undefined {
+	// Prefix-aware: in prod (COOKIE_SECURE=true) the durable cookie is
+	// __Host-cairn_session; in dev it is unprefixed. Match either.
 	const raw: unknown = res.headers['set-cookie'];
 	const list = Array.isArray(raw) ? (raw as string[]) : [];
-	return list.find((c) => c.startsWith('cairn_session='));
+	return list.find((c) => /^(?:__Host-)?cairn_session=/.test(c));
 }
 
 function accessCookie(res: request.Response): string | undefined {
@@ -126,12 +128,15 @@ describe('auth-proxy shim', () => {
 	// Sign-out moved to POST /auth/signout (revocable, server-side); its
 	// behaviour is covered by signout.test.ts.
 
-	it('(f) marks the cookie Secure iff COOKIE_SECURE === "true"', async () => {
+	it('(f) marks the cookie Secure + __Host--prefixed iff COOKIE_SECURE === "true"', async () => {
 		const insecure = await request(app).post('/auth/token').send({});
+		expect(sessionCookie(insecure)).toContain('cairn_session=');
+		expect(sessionCookie(insecure)).not.toContain('__Host-');
 		expect(sessionCookie(insecure)).not.toContain('Secure');
 
 		process.env.COOKIE_SECURE = 'true';
 		const secure = await request(app).post('/auth/token').send({});
+		expect(sessionCookie(secure)).toContain('__Host-cairn_session=');
 		expect(sessionCookie(secure)).toContain('Secure');
 	});
 

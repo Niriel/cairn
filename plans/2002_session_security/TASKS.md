@@ -627,10 +627,21 @@ session helpers exist).
 
 ## Phase 2 — cookie hardening + CSRF (R6, R7)
 
-### [ ] 2.1 `__Host-` prefix (prod) for both cookies, env-derived names
+### [x] 2.1 `__Host-` prefix (prod) for both cookies, env-derived names
 
 **Created:** 2026-06-15T17:55:34Z
-**Completed:**
+**Completed:** 2026-06-16T18:21:35Z
+
+**Notes:** No `web/vite.config.ts` edit was needed (and it's not in the Files
+list): dev runs plain-HTTP localhost where `__Host-` would be rejected, so the
+dev mirror correctly keeps the unprefixed names. The parity cross-reference
+(decision (a)) was already in place — `vite.config.ts` names `cookies.ts` as the
+prod sibling, and `cookies.ts` now names `vite.config.ts` back. The
+attribute-string already satisfied the `__Host-` rules (`Path=/`, no `Domain`,
+`Secure` in prod) before this task, so only the names changed; the new test
+asserts all three prefix preconditions on both planted cookies. Caddy `validate`
+needs `DOMAIN` set (the `cairn.{$DOMAIN}` template) — passed with
+`DOMAIN=lynnscape.eu`.
 
 **Why:** The durable + access cookies must use the `__Host-` prefix in prod
 (forces Secure + Path=/ + no Domain, closing subdomain injection), while dev's

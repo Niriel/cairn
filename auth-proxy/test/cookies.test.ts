@@ -100,11 +100,45 @@ describe('cookies', () => {
 		expect(readAccessCookie('')).toBeNull();
 	});
 
-	it('cookie-name helpers read COOKIE_SECURE at call time (dev shape for 1.3)', () => {
-		// The __Host- prefix is wired in Task 2.1; for 1.3 both environments use
-		// the unprefixed names. The helpers must be functions, not module-load
-		// consts, so 2.1's per-test COOKIE_SECURE toggles take effect.
+	it('cookie-name helpers return the unprefixed names in dev (COOKIE_SECURE unset)', () => {
+		// Dev runs plain-HTTP localhost; the __Host- prefix demands Secure, which
+		// would never be sent back, so dev keeps the unprefixed names.
 		expect(sessionCookieName()).toBe('cairn_session');
 		expect(accessCookieName()).toBe('cairn_access');
+	});
+
+	it('cookie-name helpers use the __Host- prefix in prod (COOKIE_SECURE === "true")', () => {
+		// The helpers read COOKIE_SECURE at call time, so the toggle takes effect.
+		process.env.COOKIE_SECURE = 'true';
+		expect(sessionCookieName()).toBe('__Host-cairn_session');
+		expect(accessCookieName()).toBe('__Host-cairn_access');
+	});
+
+	it('plantSession uses the __Host- names in prod and an attribute string that satisfies the prefix rules', async () => {
+		// The __Host- prefix requires Secure + Path=/ + no Domain. Assert all
+		// three on both planted cookies.
+		process.env.COOKIE_SECURE = 'true';
+		const app = appWith((_req, res) => {
+			plantSession(res, { accessToken: 'AAA.jwt', refreshToken: 'RRR.refresh' });
+			res.status(200).end();
+		});
+		const res = await request(app).post('/plant');
+
+		const session = cookieFor(res, '__Host-cairn_session=');
+		const access = cookieFor(res, '__Host-cairn_access=');
+		expect(session).toBeDefined();
+		expect(access).toBeDefined();
+		for (const cookie of [session, access]) {
+			expect(cookie).toContain('Secure');
+			expect(cookie).toContain('Path=/');
+			expect(cookie).not.toContain('Domain');
+		}
+	});
+
+	it('readSessionCookie / readAccessCookie read the __Host- names in prod', () => {
+		process.env.COOKIE_SECURE = 'true';
+		const header = '__Host-cairn_session=RRR.refresh; __Host-cairn_access=AAA.jwt';
+		expect(readSessionCookie(header)).toBe('RRR.refresh');
+		expect(readAccessCookie(header)).toBe('AAA.jwt');
 	});
 });
