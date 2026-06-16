@@ -700,10 +700,34 @@ plain-HTTP localhost keeps the unprefixed names (R6).
 
 **Verify:** `pnpm --dir auth-proxy test` · Caddy config validate · `./scripts/check.sh`.
 
-### [ ] 2.2 CSRF: required custom header on state-changing `/auth/*`
+### [x] 2.2 CSRF: required custom header on state-changing `/auth/*`
 
 **Created:** 2026-06-15T17:55:34Z
-**Completed:**
+**Completed:** 2026-06-16T18:46:06Z
+
+**Notes:**
+
+- **Collateral test edits beyond the Files list, forced by the new gate:** the
+  existing `refresh.test.ts` (4 POSTs) and `signout.test.ts` (3 POSTs) drove the
+  Cairn-shaped endpoints without a CSRF header and so 403'd once the gate
+  landed. Added `.set(CSRF_HEADER, '1')` to each (importing `CSRF_HEADER` from
+  the proxy `auth-paths` copy) — a direct consequence of making CSRF a real
+  precondition, not a scope expansion. The negative (missing-header → 403) cases
+  live in the new `csrf.test.ts`.
+- **CORS is stripped globally, not just on the Cairn-shaped endpoints.** The
+  pass-through now drops every `access-control-*` response header from GoTrue
+  (not only on `/auth/refresh|signout`). Cairn is same-origin behind Caddy, so
+  no `/auth` endpoint legitimately needs CORS; stripping globally is strictly
+  more defensive and also closes the OPTIONS-preflight leak (an `OPTIONS
+  /auth/refresh` falls through to the GoTrue pass-through, where the strip now
+  applies). The test asserts on the load-bearing Cairn-shaped endpoints plus the
+  `/auth/user` pass-through.
+- **CSRF gate is presence-only** (`req.get(CSRF_HEADER) !== undefined`), per the
+  task decision — the defence is that a cross-origin caller can't set a custom
+  header without a preflight the BFF won't grant, so there's no token value to
+  validate.
+- No `caddy/Caddyfile.prod` change needed (`/auth/refresh*` + `/auth/signout*`
+  were already on the `@gotrue` allow-list from 1.3/1.4); validated anyway.
 
 **Why:** On top of `SameSite=Lax`, state-changing auth requests must carry an
 explicit CSRF defence the BFF validates — a custom header a cross-origin attacker

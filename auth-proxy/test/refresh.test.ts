@@ -3,6 +3,7 @@ import http from 'node:http';
 import type { AddressInfo } from 'node:net';
 import request from 'supertest';
 import { app } from '../src/index.js';
+import { CSRF_HEADER } from '../src/lib/auth-paths.js';
 
 // Stub GoTrue: the refresh handler exchanges the durable refresh cookie for a
 // fresh token pair at POST /token?grant_type=refresh_token. Each test sets
@@ -59,7 +60,10 @@ describe('POST /auth/refresh', () => {
 				})
 			);
 		};
-		const res = await request(app).post('/auth/refresh').set('Cookie', 'cairn_session=OLD.refresh');
+		const res = await request(app)
+			.post('/auth/refresh')
+			.set(CSRF_HEADER, '1')
+			.set('Cookie', 'cairn_session=OLD.refresh');
 
 		expect(res.status).toBe(200);
 		// Rotated refresh re-planted in the durable cookie, fresh JWT in access.
@@ -80,7 +84,7 @@ describe('POST /auth/refresh', () => {
 			res.statusCode = 200;
 			res.end('{}');
 		};
-		const res = await request(app).post('/auth/refresh');
+		const res = await request(app).post('/auth/refresh').set(CSRF_HEADER, '1');
 		expect(res.status).toBe(401);
 		expect(lastReq).toBeNull();
 	});
@@ -98,6 +102,7 @@ describe('POST /auth/refresh', () => {
 		};
 		const res = await request(app)
 			.post('/auth/refresh')
+			.set(CSRF_HEADER, '1')
 			.set('Cookie', 'cairn_session=STALE.refresh');
 		expect(res.status).toBe(401);
 		expect(cookieFor(res, 'cairn_session=')).toContain('Max-Age=0');
@@ -111,6 +116,7 @@ describe('POST /auth/refresh', () => {
 		};
 		const res = await request(app)
 			.post('/auth/refresh')
+			.set(CSRF_HEADER, '1')
 			.set('Cookie', 'cairn_session=LIVE.refresh');
 		expect(res.status).toBe(503);
 		// No Set-Cookie at all — a blip must not sign the user out.

@@ -7,9 +7,9 @@
 // canonical source ever diverge. When you edit the canonical file, copy the
 // change here too — the drift guard will tell you if you forget.
 //
-// The proxy itself only reads BEARER_AUTH_PATHS, COOKIE_PLANT_PATHS, and
-// LOGOUT_PATHS, but the copy is verbatim (all exports) so the drift guard
-// can compare the whole file.
+// The proxy reads BEARER_AUTH_PATHS, COOKIE_PLANT_PATHS, LOGOUT_PATHS, and
+// CSRF_HEADER (via csrf.ts), but the copy is verbatim (all exports) so the
+// drift guard can compare the whole file.
 
 export const PUBLIC_AUTH_PATHS = ['/auth/login', '/auth/check', '/auth/callback'] as const;
 
@@ -20,6 +20,11 @@ export const BEARER_AUTH_PATHS = ['/auth/user'] as const;
 export const COOKIE_PLANT_PATHS = ['/auth/verify', '/auth/token'] as const;
 
 export const LOGOUT_PATHS = ['/auth/signout'] as const;
+
+// Required custom header on state-changing Cairn-shaped /auth/* requests. A
+// cross-origin attacker cannot set a custom header without a preflight the BFF
+// won't grant, so its presence is a CSRF defence on top of SameSite=Lax.
+export const CSRF_HEADER = 'X-Cairn-Auth';
 
 export function isSegmentMatch(url: string | undefined, paths: readonly string[]): boolean {
 	if (url === undefined) return false;

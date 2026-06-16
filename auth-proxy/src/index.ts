@@ -9,6 +9,7 @@ import {
 } from './lib/auth-paths.js';
 import { plantSession, clearSession, readAccessCookie, readSessionCookie } from './lib/cookies.js';
 import { refresh, logout, type LogoutScope } from './lib/session.js';
+import { requireCsrf } from './lib/csrf.js';
 
 // Production auth BFF (Cairn-shaped). This is the prod analogue of the dev
 // Vite proxy in web/vite.config.ts (~lines 30–185): it owns the dual-cookie
@@ -23,6 +24,12 @@ import { refresh, logout, type LogoutScope } from './lib/session.js';
 // The Cairn-shaped refresh endpoint — not a GoTrue passthrough, so it's handled
 // before the generic fetch-to-GoTrue path below.
 const REFRESH_PATH = '/auth/refresh';
+
+// State-changing Cairn-shaped endpoints that require the CSRF header. The
+// magic-link GoTrue pass-throughs (/auth/token, /auth/verify, /auth/magiclink)
+// are the deliberate exception — see csrf.ts. 2003 adds /auth/signin +
+// /auth/register here.
+const CSRF_PROTECTED_PATHS = [REFRESH_PATH, ...LOGOUT_PATHS];
 
 // Config is read per-request (not cached at module load) so tests can point
 // GOTRUE_URL at a stub server in beforeAll after the module is imported.
@@ -63,6 +70,15 @@ async function authHandler(req: Request, res: Response): Promise<void> {
 	// `/auth`-stripped — exactly what GoTrue expects (mirrors the dev
 	// `rewrite: (p) => p.replace(/^\/auth/, '')`).
 	const originalUrl = req.originalUrl;
+
+	// CSRF: a state-changing Cairn-shaped request must carry the custom header.
+	// Reject before any side effect (no GoTrue call, no cookie change).
+	if (req.method === 'POST' && isSegmentMatch(originalUrl, CSRF_PROTECTED_PATHS)) {
+		if (!requireCsrf(req)) {
+			res.status(403).json({ error: 'missing csrf header' });
+			return;
+		}
+	}
 
 	// Sign-out: revoke server-side at GoTrue, then clear both cookies. Cookies
 	// are cleared even if the GoTrue revoke fails (explicit user intent wins).
@@ -130,6 +146,13 @@ async function authHandler(req: Request, res: Response): Promise<void> {
 	upstream.headers.forEach((value, key) => {
 		const lower = key.toLowerCase();
 		if (SKIP_RESPONSE_HEADERS.has(lower)) return;
+		// Never forward GoTrue's CORS headers. The custom-header CSRF defence
+		// (csrf.ts) holds only because a cross-origin caller can't learn that
+		// X-Cairn-Auth is an allowed header; leaking an Access-Control-Allow-*
+		// would void it. Cairn is same-origin (behind Caddy), so no /auth
+		// endpoint needs CORS — strip them all, including off any OPTIONS
+		// preflight GoTrue answers.
+		if (lower.startsWith('access-control-')) return;
 		// Set-Cookie is re-emitted individually below; forwarding it through
 		// the comma-joining `forEach` value would corrupt multi-cookie replies.
 		if (lower === 'set-cookie') return;

@@ -5,6 +5,7 @@ import type { IncomingMessage, ServerResponse } from 'node:http';
 import {
 	BEARER_AUTH_PATHS,
 	COOKIE_PLANT_PATHS,
+	CSRF_HEADER,
 	LOGOUT_PATHS,
 	PUBLIC_AUTH_PATHS,
 	isSegmentMatch
@@ -54,6 +55,13 @@ function sessionCookie(name: string, value: string): string {
 
 function clearCookie(name: string): string {
 	return `${name}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0`;
+}
+
+// Dev mirror of auth-proxy/src/lib/csrf.ts: state-changing Cairn-shaped /auth/*
+// requests must carry the custom CSRF header so dev and prod behave identically.
+// Node lowercases header names.
+function hasCsrfHeader(req: IncomingMessage): boolean {
+	return req.headers[CSRF_HEADER.toLowerCase()] !== undefined;
 }
 
 async function handleDevRefresh(req: IncomingMessage, res: ServerResponse): Promise<void> {
@@ -176,6 +184,11 @@ export default defineConfig({
 						next();
 						return;
 					}
+					if (!hasCsrfHeader(req)) {
+						res.statusCode = 403;
+						res.end(JSON.stringify({ error: 'missing csrf header' }));
+						return;
+					}
 					void handleDevSignout(req, res);
 				});
 				// Bespoke dev mirror of the prod /auth/refresh handler
@@ -187,6 +200,11 @@ export default defineConfig({
 				server.middlewares.use((req, res, next) => {
 					if (req.url?.split('?')[0] !== '/auth/refresh' || req.method !== 'POST') {
 						next();
+						return;
+					}
+					if (!hasCsrfHeader(req)) {
+						res.statusCode = 403;
+						res.end(JSON.stringify({ error: 'missing csrf header' }));
 						return;
 					}
 					void handleDevRefresh(req, res);

@@ -3,6 +3,7 @@ import http from 'node:http';
 import type { AddressInfo } from 'node:net';
 import request from 'supertest';
 import { app } from '../src/index.js';
+import { CSRF_HEADER } from '../src/lib/auth-paths.js';
 
 // Stub GoTrue. Sign-out is a two-call dance: the proxy mints a fresh access
 // token from the durable refresh cookie (POST /token?grant_type=refresh_token —
@@ -75,7 +76,10 @@ function logoutCall(): Captured | undefined {
 
 describe('POST /auth/signout', () => {
 	it('(a) calls GoTrue /logout (local scope) with a minted bearer and clears both cookies', async () => {
-		const res = await request(app).post('/auth/signout').set('Cookie', 'cairn_session=R0.refresh');
+		const res = await request(app)
+			.post('/auth/signout')
+			.set(CSRF_HEADER, '1')
+			.set('Cookie', 'cairn_session=R0.refresh');
 
 		expect(res.status).toBe(204);
 		// Minted an access token from the durable refresh token, then logged out.
@@ -91,6 +95,7 @@ describe('POST /auth/signout', () => {
 	it('(b) ?scope=global calls GoTrue /logout?scope=global', async () => {
 		const res = await request(app)
 			.post('/auth/signout?scope=global')
+			.set(CSRF_HEADER, '1')
 			.set('Cookie', 'cairn_session=R0.refresh');
 
 		expect(res.status).toBe(204);
@@ -101,7 +106,10 @@ describe('POST /auth/signout', () => {
 
 	it('(c) clears both cookies even when GoTrue /logout fails', async () => {
 		logoutStatus = 500;
-		const res = await request(app).post('/auth/signout').set('Cookie', 'cairn_session=R0.refresh');
+		const res = await request(app)
+			.post('/auth/signout')
+			.set(CSRF_HEADER, '1')
+			.set('Cookie', 'cairn_session=R0.refresh');
 
 		// Explicit user intent wins — cookies cleared regardless of GoTrue.
 		expect(res.status).toBe(204);
