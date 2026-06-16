@@ -138,90 +138,92 @@
 </script>
 
 {#if viewState === 'edit'}
-	<AppTopBar showBack={true}>Edit profile</AppTopBar>
+	<div class="screen">
+		<AppTopBar showBack={true}>Edit profile</AppTopBar>
 
-	{#if showSourceSheet}
-		<AvatarSourceSheet
-			onfile={(file: File) => {
-				pendingFile = file;
-				showSourceSheet = false;
-				viewState = 'cropping';
-			}}
-			oncancel={() => (showSourceSheet = false)}
-		/>
-	{/if}
+		{#if showSourceSheet}
+			<AvatarSourceSheet
+				onfile={(file: File) => {
+					pendingFile = file;
+					showSourceSheet = false;
+					viewState = 'cropping';
+				}}
+				oncancel={() => (showSourceSheet = false)}
+			/>
+		{/if}
 
-	<div class="edit-body">
-		<div class="avatar-field">
-			<Label>Profile picture</Label>
-			<div class="avatar-section">
-				<Avatar
-					displayName={profile.displayName ?? ''}
-					uid={profile.uid ?? ''}
-					avatarVersion={profile.avatarVersion}
-					size={112}
-					data-test="profile-avatar"
-				/>
-				<div class="avatar-actions">
-					<Button
-						variant="pill"
-						tone="ink"
-						size="sm"
-						leadingIcon="pencil"
-						data-test="change-picture"
-						onclick={() => (showSourceSheet = true)}
-					>
-						{profile.avatarVersion > 0 ? 'Change' : 'Add a picture'}
-					</Button>
-					{#if profile.avatarVersion > 0}
+		<div class="screen-body edit-body">
+			<div class="avatar-field">
+				<Label>Profile picture</Label>
+				<div class="avatar-section">
+					<Avatar
+						displayName={profile.displayName ?? ''}
+						uid={profile.uid ?? ''}
+						avatarVersion={profile.avatarVersion}
+						size={112}
+						data-test="profile-avatar"
+					/>
+					<div class="avatar-actions">
 						<Button
 							variant="pill"
-							tone="destructive"
+							tone="ink"
 							size="sm"
-							leadingIcon="trash-2"
-							data-test="remove-avatar"
-							onclick={removeAvatar}
-							disabled={removing}>Remove</Button
+							leadingIcon="pencil"
+							data-test="change-picture"
+							onclick={() => (showSourceSheet = true)}
 						>
-					{/if}
+							{profile.avatarVersion > 0 ? 'Change' : 'Add a picture'}
+						</Button>
+						{#if profile.avatarVersion > 0}
+							<Button
+								variant="pill"
+								tone="destructive"
+								size="sm"
+								leadingIcon="trash-2"
+								data-test="remove-avatar"
+								onclick={removeAvatar}
+								disabled={removing}>Remove</Button
+							>
+						{/if}
+					</div>
 				</div>
+			</div>
+
+			<div class="field">
+				<Label for="display-name">Display name</Label>
+				<TextInput
+					id="display-name"
+					data-test="display-name-input"
+					bind:value={nameValue}
+					onkeydown={(e: KeyboardEvent) => {
+						if (e.key === 'Enter') {
+							e.preventDefault();
+							void saveName();
+						} else if (e.key === 'Escape') {
+							e.preventDefault();
+							history.back();
+						}
+					}}
+				/>
+			</div>
+			{#if nameError}
+				<p class="field-error">{nameError}</p>
+			{/if}
+			<p class="field-hint">What other list members see. E-mail stays private.</p>
+
+			<div class="save-row">
+				<Button variant="rect" tone="primary" size="md" data-test="save-profile" onclick={saveName}
+					>Save</Button
+				>
 			</div>
 		</div>
 
-		<div class="field">
-			<Label for="display-name">Display name</Label>
-			<TextInput
-				id="display-name"
-				data-test="display-name-input"
-				bind:value={nameValue}
-				onkeydown={(e: KeyboardEvent) => {
-					if (e.key === 'Enter') {
-						e.preventDefault();
-						void saveName();
-					} else if (e.key === 'Escape') {
-						e.preventDefault();
-						history.back();
-					}
-				}}
-			/>
-		</div>
-		{#if nameError}
-			<p class="field-error">{nameError}</p>
-		{/if}
-		<p class="field-hint">What other list members see. E-mail stays private.</p>
-
-		<div class="save-row">
-			<Button variant="rect" tone="primary" size="md" data-test="save-profile" onclick={saveName}
-				>Save</Button
-			>
-		</div>
+		<Snackbar
+			open={snackbarOpen}
+			message="Couldn't remove picture — try again."
+			onclose={() => (snackbarOpen = false)}
+		/>
 	</div>
-
-	<Snackbar
-		open={snackbarOpen}
-		message="Couldn't remove picture — try again."
-		onclose={() => (snackbarOpen = false)}
-	/>
 {:else if viewState === 'cropping'}
 	<AvatarCropScreen
 		imageFile={pendingFile!}
@@ -232,7 +234,7 @@
 	{@const isUploadState = viewState as Exclude<ViewState, 'edit' | 'cropping'>}
 	{@const isError =
 		viewState === 'too-big' || viewState === 'wrong-format' || viewState === 'network'}
-	<div data-test="upload-state">
+	<div class="screen" data-test="upload-state">
 		<AppTopBar showBack={false}>
 			{#snippet left()}
 				{#if viewState === 'uploading'}
@@ -248,7 +250,7 @@
 			Profile picture
 		</AppTopBar>
 
-		<div class="upload-body">
+		<div class="screen-body upload-body">
 			<div
 				class="upload-disc"
 				class:uploading={viewState === 'uploading'}
@@ -329,7 +331,6 @@
 	}
 
 	.upload-body {
-		flex: 1;
 		display: flex;
 		flex-direction: column;
 		align-items: center;

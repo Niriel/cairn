@@ -8,6 +8,7 @@
 	import NavRow from '$lib/shared/components/NavRow.svelte';
 	import RefreshButton from '$lib/basic/components/RefreshButton.svelte';
 	import Snackbar from '$lib/shared/components/Snackbar.svelte';
+	import { ICON_SIZE } from '$lib/shared/model/constants';
 	import { relationships, loadRelationships } from '$lib/privacy/state/relationships.svelte';
 	import {
 		userSettings,
@@ -76,7 +77,7 @@
 		{/snippet}
 	</AppTopBar>
 
-	<div class="content">
+	<div class="screen-body">
 		<section class="section">
 			<h2 class="section-label">Who can invite you to lists</h2>
 			<div
@@ -136,7 +137,7 @@
 						data-test="nav-circle"
 						onclick={() => void goto(resolve('/settings/circles'))}
 					>
-						{#snippet lead()}<Icon name="users" size={20} />{/snippet}
+						{#snippet lead()}<Icon name="users" size={ICON_SIZE} />{/snippet}
 						{#snippet trailing()}
 							{#if relationships.loaded}
 								<Badge tone="soft" data-test="circle-count">{relationships.circle.length}</Badge>
@@ -149,7 +150,7 @@
 						data-test="nav-blocked"
 						onclick={() => void goto(resolve('/settings/blocked'))}
 					>
-						{#snippet lead()}<Icon name="slash" size={20} />{/snippet}
+						{#snippet lead()}<Icon name="slash" size={ICON_SIZE} />{/snippet}
 						{#snippet trailing()}
 							{#if relationships.loaded}
 								<Badge tone="soft" data-test="blocked-count">{relationships.blocked.length}</Badge>
@@ -180,14 +181,7 @@
 <CircleExplainerSheet open={explainerOpen} onclose={() => (explainerOpen = false)} />
 
 <style>
-	.screen {
-		display: flex;
-		flex-direction: column;
-		min-height: 100%;
-	}
-
-	.content {
-		flex: 1;
+	.screen-body {
 		display: flex;
 		flex-direction: column;
 	}

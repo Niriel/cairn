@@ -2,6 +2,7 @@
 	import type { Snippet } from 'svelte';
 
 	import Icon from '$lib/basic/components/Icon.svelte';
+	import { ICON_SIZE } from '$lib/shared/model/constants';
 
 	let {
 		showBack = true,
@@ -30,7 +31,7 @@
 			{@render left()}
 		{:else if showBack}
 			<button class="icon-btn" onclick={() => history.back()} data-test="topbar-back">
-				<Icon name="chevron-left" size={22} />
+				<Icon name="chevron-left" size={ICON_SIZE} />
 			</button>
 		{/if}
 	</div>
@@ -55,11 +56,14 @@
 		align-items: flex-start;
 		gap: 0.625rem;
 		min-height: 3.5rem;
-		padding: calc(env(safe-area-inset-top) + 0.75rem) calc(env(safe-area-inset-right) + 1.125rem)
-			0.75rem calc(env(safe-area-inset-left) + 1.125rem);
+		padding: calc(env(safe-area-inset-top) + 0.75rem) calc(env(safe-area-inset-right) + 0.8rem)
+			0.75rem calc(env(safe-area-inset-left) + 0.8rem);
 		background: var(--paper);
 		color: var(--ink);
 		border-bottom: 1px solid var(--rule);
+		/* Breathing room under the hairline so screen content doesn't sit flush
+		   against the bar. Applied here so every screen gets it consistently. */
+		margin-bottom: 0.5rem;
 	}
 
 	.left {
@@ -80,19 +84,37 @@
 	}
 
 	.sub {
-		margin-top: 0.125rem;
+		/* Nothing ever renders under the sub line, so the inherited block margins
+		   (a tiny top, a useless bottom) only push the bar around — drop both. */
+		margin: 0;
 	}
 
 	/* Bar action button: a transparent ink-tinted icon target — chrome local to
-	   this single-instance bar. */
+	   this single-instance bar. The tap-target floor centres the ICON_SIZE glyph
+	   inside it. */
 	.icon-btn {
 		background: none;
 		border: none;
 		padding: 0.25rem;
+		min-width: var(--tap-target);
+		min-height: var(--tap-target);
 		color: var(--ink);
 		cursor: pointer;
 		display: flex;
 		align-items: center;
 		justify-content: center;
+	}
+
+	/* Icon buttons handed in via the left/right slots (IconButton, MoreButton,
+	   RefreshButton) share the same tap-target floor as the built-in back button.
+	   Scoped to the slots so it never touches the in-content variants of these
+	   buttons (e.g. the per-row ⋮), which carry their own alignment invariants,
+	   nor the plain text Buttons some sheets put in these slots. */
+	.left :global(.icon-btn),
+	.left :global(.refresh-btn),
+	.right :global(.icon-btn),
+	.right :global(.refresh-btn) {
+		min-width: var(--tap-target);
+		min-height: var(--tap-target);
 	}
 </style>

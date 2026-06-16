@@ -5,6 +5,7 @@
 	import Badge from '$lib/basic/components/Badge.svelte';
 	import Icon from '$lib/basic/components/Icon.svelte';
 	import type { IconName } from '$lib/basic/model/icon-paths';
+	import { ICON_SIZE } from '$lib/shared/model/constants';
 	import { profile } from '$lib/shared/state/profile.svelte';
 	import { preferences } from '$lib/shared/state/preferences.svelte';
 	import type { FontSize, Theme } from '$lib/shared/state/preferences.svelte';
@@ -31,7 +32,7 @@
 <div class="screen">
 	<AppTopBar>Settings</AppTopBar>
 
-	<div class="content">
+	<div class="screen-body">
 		<section class="profile-chip-section">
 			<h2>Profile</h2>
 			<div class="nav-rows">
@@ -47,13 +48,15 @@
 						onclick={() => goto(resolve('/profile'))}
 					>
 						{#snippet lead()}
-							<Avatar
-								displayName={profile.displayName ?? ''}
-								size={44}
-								uid={profile.uid ?? ''}
-								avatarVersion={profile.avatarVersion}
-								data-test="profile-avatar"
-							/>
+							<span class="profile-avatar-lead">
+								<Avatar
+									displayName={profile.displayName ?? ''}
+									size={36}
+									uid={profile.uid ?? ''}
+									avatarVersion={profile.avatarVersion}
+									data-test="profile-avatar"
+								/>
+							</span>
 						{/snippet}
 					</NavRow>
 				{/if}
@@ -71,7 +74,7 @@
 					data-test="settings-invites"
 					onclick={() => goto(resolve('/settings/invites'))}
 				>
-					{#snippet lead()}<Icon name="inbox" size={20} />{/snippet}
+					{#snippet lead()}<Icon name="inbox" size={ICON_SIZE} />{/snippet}
 					{#snippet trailing()}
 						{#if invitations.inbox.length > 0}
 							<Badge tone="primary">{invitations.inbox.length}</Badge>
@@ -84,7 +87,7 @@
 					data-test="settings-privacy"
 					onclick={() => goto(resolve('/settings/privacy'))}
 				>
-					{#snippet lead()}<Icon name="shield" size={20} />{/snippet}
+					{#snippet lead()}<Icon name="shield" size={ICON_SIZE} />{/snippet}
 				</NavRow>
 			</div>
 		</section>
@@ -134,7 +137,7 @@
 					data-test="settings-download-data"
 					onclick={() => goto(resolve('/settings/data-export'))}
 				>
-					{#snippet lead()}<Icon name="download" size={20} />{/snippet}
+					{#snippet lead()}<Icon name="download" size={ICON_SIZE} />{/snippet}
 				</NavRow>
 			</div>
 		</section>
@@ -148,7 +151,7 @@
 					data-test="settings-deleted-lists"
 					onclick={() => goto(resolve('/settings/deleted-lists'))}
 				>
-					{#snippet lead()}<Icon name="trash-2" size={20} />{/snippet}
+					{#snippet lead()}<Icon name="trash-2" size={ICON_SIZE} />{/snippet}
 				</NavRow>
 			</div>
 		</section>
@@ -157,7 +160,7 @@
 			<h2>Account</h2>
 			<div class="nav-rows">
 				<NavRow title="Sign out" data-test="signout" onclick={signOut}>
-					{#snippet lead()}<Icon name="log-out" size={20} />{/snippet}
+					{#snippet lead()}<Icon name="log-out" size={ICON_SIZE} />{/snippet}
 				</NavRow>
 				<NavRow
 					title="Delete account"
@@ -165,7 +168,7 @@
 					tone="destructive"
 					onclick={() => goto(resolve('/settings/delete-account'))}
 				>
-					{#snippet lead()}<Icon name="trash" size={20} />{/snippet}
+					{#snippet lead()}<Icon name="trash" size={ICON_SIZE} />{/snippet}
 				</NavRow>
 			</div>
 		</section>
@@ -173,15 +176,15 @@
 </div>
 
 <style>
-	.screen {
-		display: flex;
-		flex-direction: column;
-		height: 100%;
+	/* The profile avatar sits in NavRow's 44px lead band. 4px padding insets the
+	   image to 36px so it reads as an icon rather than filling the slot edge to
+	   edge, while the lead footprint stays 44px. */
+	.profile-avatar-lead {
+		display: inline-flex;
+		padding: 4px;
 	}
 
-	.content {
-		flex: 1 1 auto;
-		overflow-y: auto;
+	.screen-body {
 		display: flex;
 		flex-direction: column;
 		gap: 0.5rem;

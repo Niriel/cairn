@@ -70,7 +70,7 @@
 		{/snippet}
 	</AppTopBar>
 
-	<div class="content">
+	<div class="screen-body">
 		{#if loading}
 			<div class="loading caption" data-test="members-loading">Loading…</div>
 		{:else}
@@ -142,17 +142,6 @@
 {/if}
 
 <style>
-	.screen {
-		display: flex;
-		flex-direction: column;
-		height: 100%;
-	}
-
-	.content {
-		flex: 1;
-		overflow-y: auto;
-	}
-
 	.loading {
 		padding: 1rem 1.125rem;
 	}

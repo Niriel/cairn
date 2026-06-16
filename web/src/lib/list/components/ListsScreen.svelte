@@ -16,6 +16,7 @@
 	import EmptyState from '$lib/shared/components/EmptyState.svelte';
 	import WelcomeBanner from '$lib/shared/components/WelcomeBanner.svelte';
 	import { lists, refreshLists, undoDeleteList } from '$lib/list/state/lists.svelte';
+	import { ICON_SIZE } from '$lib/shared/model/constants';
 	import { timeAgo } from '$lib/shared/model/time-ago';
 	import type { List } from '$lib/list/model/list';
 
@@ -51,108 +52,114 @@
 		Cairn
 		{#snippet right()}
 			<IconButton
+				icon="rotate-ccw"
 				aria-label="Refresh"
 				data-test="lists-refresh"
 				disabled={lists.loading}
 				onclick={() => refreshLists()}
-			>
-				<Icon name="rotate-ccw" size={22} />
-			</IconButton>
+			/>
 			<IconButton
+				icon="settings"
 				aria-label="Settings"
 				data-test="lists-settings"
 				onclick={() => goto(resolve('/settings'))}
-			>
-				<Icon name="settings" size={22} />
-			</IconButton>
+			/>
 		{/snippet}
 	</AppTopBar>
 
-	<WelcomeBanner />
+	<div class="screen-body">
+		<WelcomeBanner />
 
-	<InvitesBanner />
+		<InvitesBanner />
 
-	{#if lists.loading}
-		<div class="content" data-test="lists-loading">Loading…</div>
-	{:else if lists.items.length === 0}
-		<EmptyState
-			data-test="lists-empty"
-			title="Start your first cairn"
-			body="A cairn is a small stack of stones hikers leave to mark the way. Make a list of things — movies, books, places — and share it with friends."
-			ctaLabel="Create your first list"
-			onCta={() => (createSheetOpen = true)}
-		>
-			{#snippet iconContent()}
-				<CairnGlyph size={44} color="var(--stone)" />
-			{/snippet}
-		</EmptyState>
-	{:else}
-		<ul class="rows">
-			{#each lists.items as item (item.id)}
-				<li class="row" data-test="list-row-{item.id}">
-					<NavRow
-						title={item.name}
-						data-test="list-nav-{item.id}"
-						onclick={() => void goto(resolve(`/lists/${item.id}`))}
-					>
-						{#snippet trailing()}{#if item.is_public}<span
-									class="public-marker"
-									data-test="list-public-marker-{item.id}"
-									><Icon name="globe" size={14} /><span class="sr-only">Public list</span></span
-								>{/if}{/snippet}
-					</NavRow>
-					<div class="extra">
-						<span class="more">
-							<MoreButton
-								size={18}
-								aria-label="List options"
-								data-test="list-overflow-{item.id}"
-								onclick={() => (overflowList = item)}
-								style="color: var(--stone)"
-							/>
-						</span>
-						{#if item.description !== null}
-							<button
-								class="desc body"
-								class:expanded={expandedIds.has(item.id)}
-								data-test="list-desc-{item.id}"
-								onclick={() => toggleDesc(item.id)}
-							>
-								<span class="desc-text" bind:this={descTextEls[item.id]}>{item.description}</span>
-								{#if expandedIds.has(item.id)}
-									<span class="see-toggle fine">(see less)</span>
-								{:else if truncatedIds.has(item.id)}
-									<span class="see-toggle fine">(see more)</span>
+		{#if lists.loading}
+			<div class="caption" data-test="lists-loading">Loading…</div>
+		{:else if lists.items.length === 0}
+			<EmptyState
+				data-test="lists-empty"
+				title="Start your first cairn"
+				body="A cairn is a small stack of stones hikers leave to mark the way. Make a list of things — movies, books, places — and share it with friends."
+				ctaLabel="Create your first list"
+				onCta={() => (createSheetOpen = true)}
+			>
+				{#snippet iconContent()}
+					<CairnGlyph size={44} color="var(--stone)" />
+				{/snippet}
+			</EmptyState>
+		{:else}
+			<ul class="rows">
+				{#each lists.items as item (item.id)}
+					<li class="row" data-test="list-row-{item.id}">
+						<NavRow
+							title={item.name}
+							data-test="list-nav-{item.id}"
+							onclick={() => void goto(resolve(`/lists/${item.id}`))}
+						>
+							{#snippet trailing()}{#if item.is_public}<span
+										class="public-marker"
+										data-test="list-public-marker-{item.id}"
+										><Icon name="globe" size={ICON_SIZE} /><span class="sr-only">Public list</span
+										></span
+									>{/if}{/snippet}
+						</NavRow>
+						<div class="extra">
+							<div class="extra-body">
+								{#if item.description !== null}
+									<button
+										class="desc body"
+										class:expanded={expandedIds.has(item.id)}
+										data-test="list-desc-{item.id}"
+										onclick={() => toggleDesc(item.id)}
+									>
+										<span class="desc-text" bind:this={descTextEls[item.id]}
+											>{item.description}</span
+										>
+										{#if expandedIds.has(item.id)}
+											<span class="see-toggle fine">(see less)</span>
+										{:else if truncatedIds.has(item.id)}
+											<span class="see-toggle fine">(see more)</span>
+										{/if}
+									</button>
+								{:else}
+									<div class="desc no-desc body" data-test="list-desc-{item.id}">
+										(no description)
+									</div>
 								{/if}
-							</button>
-						{:else}
-							<div class="desc no-desc body" data-test="list-desc-{item.id}">(no description)</div>
-						{/if}
-						<div class="meta fine">
-							<span>{item.item_count} {item.item_count === 1 ? 'item' : 'items'}</span>
-							<span class="dot">•</span>
-							<span>{timeAgo(item.modified_at)}</span>
-							{#if item.list_members.length > 0}
-								<span class="dot">•</span>
-								<span class="avatars">
-									{#each item.list_members as m, i (m.user_id + i)}
-										<span style="margin-left: {i === 0 ? 0 : -6}px">
-											<Avatar
-												displayName={m.profiles.display_name}
-												size={16}
-												uid={m.user_id}
-												avatarVersion={m.profiles.avatar_version}
-											/>
+								<div class="meta fine">
+									<span>{item.item_count} {item.item_count === 1 ? 'item' : 'items'}</span>
+									<span class="dot">•</span>
+									<span>{timeAgo(item.modified_at)}</span>
+									{#if item.list_members.length > 0}
+										<span class="dot">•</span>
+										<span class="avatars">
+											{#each item.list_members as m, i (m.user_id + i)}
+												<span style="margin-left: {i === 0 ? 0 : -6}px">
+													<Avatar
+														displayName={m.profiles.display_name}
+														size={16}
+														uid={m.user_id}
+														avatarVersion={m.profiles.avatar_version}
+													/>
+												</span>
+											{/each}
 										</span>
-									{/each}
-								</span>
-							{/if}
+									{/if}
+								</div>
+							</div>
+							<span class="more">
+								<MoreButton
+									aria-label="List options"
+									data-test="list-overflow-{item.id}"
+									onclick={() => (overflowList = item)}
+									style="color: var(--stone)"
+								/>
+							</span>
 						</div>
-					</div>
-				</li>
-			{/each}
-		</ul>
-	{/if}
+					</li>
+				{/each}
+			</ul>
+		{/if}
+	</div>
 </div>
 
 {#if !lists.pendingDelete}
@@ -213,23 +220,7 @@
 {/if}
 
 <style>
-	.screen {
-		display: flex;
-		flex-direction: column;
-		min-height: 100dvh;
-	}
-
-	.content {
-		flex: 1;
-	}
-
 	/* ── List rows ── */
-
-	/* Reserve space below the last row so it clears the fixed FAB floating over
-	   the content; without this the bottom list is permanently obscured. */
-	.rows {
-		padding-bottom: var(--fab-clearance);
-	}
 
 	/* The NavRow's inner button supplies the title's top/left inset, so the row
 	   itself carries no padding (otherwise the title would be indented twice). */
@@ -238,55 +229,56 @@
 	}
 
 	/* Horizontal real estate is scarce, so tighten the NavRow button's default
-	   md inset (0.75rem 1.125rem) to 0.5rem 0.8rem on this screen. The dependent
-	   offsets below (.extra left inset, .more) track this 0.8rem horizontal. */
+	   md horizontal inset (1.125rem) to 0.8rem on this screen. Vertical padding is
+	   0 — NavRow's 44px content bands set the row height (see NavRow). The
+	   dependent offsets below (.extra left inset, .more) track this 0.8rem. */
 	.row :global(.nav-row button) {
-		padding: 0.5rem 0.8rem;
+		padding: 0 0.8rem;
 	}
 
-	/* Extra-info block beneath the title nav-row: the More button (absolutely
-	   pinned top-end), description, and metadata. The wide right inset lets the
-	   ellipsizing description and metadata clear the More button. The full-bleed
-	   dashed rule (moved here from the old .row-top) separates title from extra
-	   info; it is edge-to-edge like the solid per-row divider now that .row has
-	   no padding. The left inset aligns description/meta under the title text. */
+	/* Extra-info block beneath the title nav-row: a row with the content column
+	   (description + metadata) beside the More button, which reserves its own
+	   space at the end rather than floating over the content. align-items:
+	   flex-start keeps the ⋮ in the top-end corner. The full-bleed dashed rule
+	   (moved here from the old .row-top) separates title from extra info; it is
+	   edge-to-edge like the solid per-row divider now that .row has no padding.
+	   The 0.8rem left padding aligns the content under the title text; the 0.8rem
+	   right padding aligns the ⋮ under the chevron (see .more). */
 	.extra {
-		position: relative;
-		padding: 0.5rem 2.5rem 0.875rem 0.8rem;
+		display: flex;
+		align-items: flex-start;
+		gap: 0.5rem;
+		padding: 0.5rem 0.8rem 0.875rem 0.8rem;
 		border-top: 1px dashed var(--rule);
 	}
 
-	/* The More button, pinned to the top-end corner of the extra-info block. The
-	   wrapping span is positioned (not the MoreButton itself) so its forwarded
-	   class can't clobber IconButton's .icon-btn padding. right: 0.55rem lines
-	   the More icon's centre up under the nav-row chevron's centre: the chevron
-	   sits ~22px from the row's right edge (0.8rem button padding + half of an
-	   18px icon), and the IconButton's 18px icon centres 13px from its own right
-	   edge, so the button's right edge needs to sit ~9px (0.55rem) in. */
-	/* ALIGNMENT INVARIANT: the ⋮ glyph sits under the nav-row's chevron only while
-	   right (0.55rem) + IconButton padding (4px) == nav-row button padding-right
-	   (0.8rem, above). The chevron is the fixed anchor; this button is what grows.
-	   If IconButton's padding increases for a 44px touch target (4px → ~13px),
-	   drop this `right` by the same amount (→ ~0) so the widened button doesn't
-	   push the glyph left out of line. Same coupling as the Items screen. */
+	/* The content column: description then metadata. min-width:0 lets the
+	   description ellipsize instead of pushing the More button off the edge. */
+	.extra-body {
+		flex: 1;
+		min-width: 0;
+	}
+
+	/* The More button at the end of the row. It's a 44px IconButton box around a
+	   24px glyph, and .extra's 0.8rem right padding equals the nav-row button's
+	   padding-right, so the ⋮ glyph centres at the same (right + 22px) as the
+	   chevron and sits directly under it. The wrapping span keeps its forwarded
+	   class off IconButton's own sizing. ALIGNMENT INVARIANT: keep .extra's right
+	   padding == that padding-right while both stay 44px boxes with equal glyphs.
+	   Same coupling as the Items screen. */
 	.more {
-		position: absolute;
-		top: 0.375rem;
-		right: 0.55rem;
+		flex-shrink: 0;
 	}
 
 	/* Public-list marker: a muted globe in the nav-row's trailing slot, so it
 	   sits at the row's right edge just before the chevron. flex-shrink:0 keeps
-	   it from being squeezed by a long wrapping name. No align-self override, so
-	   it inherits the button's align-items: flex-start and pins to the top of a
-	   wrapped multi-line name like the chevron, rather than centring against it.
-	   margin-top nudges it down by half the size gap to the chevron ((18-14)/2 =
-	   2px) so the smaller globe's optical centre lines up with the chevron's
-	   instead of riding high against its top. */
+	   it from being squeezed by a long wrapping name. NavRow now centres the
+	   trailing slot in a 44px band (same as the chevron), and the globe matches
+	   the chevron's 24px size, so the two share a midline with no margin-top nudge
+	   — it would only push the globe off that midline. */
 	.public-marker {
 		display: inline-flex;
 		flex-shrink: 0;
-		margin-top: 0.125rem;
 		margin-left: 0.375rem;
 		color: var(--stone);
 	}
