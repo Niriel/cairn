@@ -48,12 +48,22 @@ client even in an HttpOnly cookie" is the rejected stricter reading.
 Each successful refresh issues a **new** refresh token and invalidates the old
 one (rotation); the BFF re-plants the rotated token in the durable cookie.
 Replay of an already-rotated refresh token (beyond GoTrue's reuse-interval
-grace) is treated as a theft signal and **revokes the whole token family**, not
-just the replayed token. This rides GoTrue v2.158.1's native rotation +
-reuse-detection (`GOTRUE_SECURITY_REFRESH_TOKEN_ROTATION_ENABLED`,
-`GOTRUE_SECURITY_REFRESH_TOKEN_REUSE_INTERVAL`); the BFF surfaces a revoked
-family as a cleared cookie + a signed-out result, never a silent re-grant.
-(Parent R14.)
+grace) is **rejected** (`invalid_grant` / "Invalid Refresh Token: Already
+Used"), so a stale/stolen token cannot be exchanged. This rides GoTrue
+v2.158.1's native rotation + reuse-detection
+(`GOTRUE_SECURITY_REFRESH_TOKEN_ROTATION_ENABLED`,
+`GOTRUE_SECURITY_REFRESH_TOKEN_REUSE_INTERVAL` — integer seconds). The BFF
+surfaces a rejected refresh as a cleared cookie + a signed-out result, never a
+silent re-grant.
+
+**Detection-only — scope decided after the Task 1.1 spike.** The spike confirmed
+v2.158.1's reuse detection rejects the replayed token but does **not** auto-revoke
+the rest of the session family — the legitimate session keeps working after a
+theft-replay. Automatic theft→family-revoke is therefore **out of scope** for
+2002 (see Non-requirements and `TODO.md` → "Auth & production infrastructure");
+the manual compromise kill-switch is "sign out everywhere" (R4). The durable
+statement of this posture lives in `docs/architecture.md` → "JWT storage", not
+here. (Parent R14.)
 
 ## R4. Sign-out is revocable, and "sign out everywhere" revokes all sessions
 
@@ -178,11 +188,14 @@ deferred deliberately, not missed. (Parent R19, session-model half.)
 - **The synthetic-e-mail → stable-identity correction.** The identity-mechanism
   half of R19 (architecture.md "Considered and rejected", data-model.md
   `set_username` notes) lands with 2003's stable-identity work, not here (R12).
-- **A custom server-side session table in the BFF.** Revocation,
-  rotation/reuse-detection, and "sign out everywhere" ride GoTrue v2.158.1's
-  native `auth.refresh_tokens` / `auth.sessions` + `/logout?scope=`. A bespoke
-  session table is added only if a capability gap is found against the installed
-  GoTrue (confirmed by a spike in this plan); the default is GoTrue-native.
+- **A custom server-side session table in the BFF.** Revocation, rotation, and
+  "sign out everywhere" ride GoTrue v2.158.1's native `auth.refresh_tokens` /
+  `auth.sessions` + `/logout?scope=`. The Task 1.1 spike **did** find one
+  capability gap — reuse detection is detection-only, with no automatic
+  family-revoke on a theft-replay — and the decision (recorded in R3, `TODO.md`,
+  and `docs/architecture.md`) is to **accept it for alpha**, not to build a
+  bespoke session table now. Automatic theft→family-revoke (which would need such
+  a table) is deferred; the default stays GoTrue-native.
 - **MFA / second factor, passkeys / WebAuthn, step-up auth.** Parent
   non-requirements; a single factor is the credential for step 20.
 - **Device fingerprinting, anomaly detection, per-device session naming.** The

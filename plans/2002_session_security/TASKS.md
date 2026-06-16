@@ -146,10 +146,79 @@ dual cookie, and the new auth posture.
 
 ## Phase 1 — revocable rotating session core (R1, R2, R3, R4)
 
-### [ ] 1.1 Spike: confirm GoTrue v2.158.1 rotation, reuse detection, and logout scope
+### [x] 1.1 Spike: confirm GoTrue v2.158.1 rotation, reuse detection, and logout scope
 
 **Created:** 2026-06-15T17:55:34Z
-**Completed:**
+**Completed:** 2026-06-16T16:01:14Z
+
+**Notes (spike findings — 2026-06-16, run against the live local stack,
+`supabase/gotrue:v2.158.1`, image id `202c16530f2f`):**
+
+Throwaway env flip applied via a `-f /tmp/rotation-spike.yml` overlay
+(`GOTRUE_SECURITY_REFRESH_TOKEN_ROTATION_ENABLED=true`,
+`GOTRUE_SECURITY_REFRESH_TOKEN_REUSE_INTERVAL=2`), then reverted —
+`docker-compose.yml` untouched, git clean. Seed users alice/bob/carol,
+password `cairn-dev`, GoTrue on `localhost:9999`.
+
+- **Env-var names CONFIRMED.** Both `GOTRUE_SECURITY_REFRESH_TOKEN_ROTATION_ENABLED`
+  (bool) and `GOTRUE_SECURITY_REFRESH_TOKEN_REUSE_INTERVAL` (integer **seconds**)
+  are accepted by this image and take effect (visible in `docker compose exec
+gotrue env`; behaviour changed). These are the names Task 1.2 should use.
+- **Rotation (a) CONFIRMED — and on by default.** `POST /token?grant_type=refresh_token`
+  returns a _new_ refresh token and marks the old one `revoked=t` in
+  `auth.refresh_tokens`. This happened even with **no** rotation env set (image
+  default), so rotation is on by default in v2.158.1; the env flip only changes
+  the reuse interval.
+- **Reuse-interval grace is "child-still-live", not a strict clock.** Replaying a
+  just-revoked token whose _child is still live_ returns that live child
+  (HTTP 200) — observed even 4 s after rotation with the interval set to 2 s. The
+  grace tolerates retries as long as the chain hasn't advanced past the child.
+- **"Already Used" rejection.** Replaying a revoked token whose child has _itself_
+  been revoked (chain advanced ≥2 steps) returns **HTTP 400**
+  `{"error":"invalid_grant","error_description":"Invalid Refresh Token: Already Used"}`.
+- **GAP — reuse detection does NOT revoke the family/session (decision (b) FAILS).**
+  In _every_ scenario (both the 200-grace and the 400-already-used), the session's
+  current **live** refresh token kept working and rotating normally afterwards.
+  Verified via `auth.refresh_tokens` (linear chain `RT0→RT1→RT2→…`, all in one
+  `session_id`): replaying a stale/stolen root never flips the live descendant to
+  `revoked`. So **v2.158.1 does not implement refresh-token-family revocation on
+  reuse detection** — a stolen-and-replayed token is _rejected_ but the legitimate
+  session survives.
+- **`POST /logout?scope=global` (c) CONFIRMED.** With a valid bearer, returns
+  **HTTP 204** and revokes **all** of the user's refresh tokens (alice: 21 live
+  sessions → 0 non-revoked). Native server-side global revocation works — R4's
+  sign-out-everywhere is delivered. (`scope=local`/default not separately measured
+  here; the global path is the load-bearing one and it works.)
+
+**Consequence — this changes the plan; not proceeding to 1.2 without a decision:**
+
+1. _Good news:_ Task 1.2's "load-bearing reuse-interval" concern (a multi-tab boot
+   replaying the same durable cookie looking like theft and spuriously revoking the
+   whole family → "signed out everywhere") is **moot for this version** — reuse
+   _never_ revokes the family, so multi-tab boot cannot trigger a spurious global
+   sign-out. The 30 s interval is no longer load-bearing for that failure mode (it
+   still governs the grace-retry window).
+2. _Plan-changing gap:_ R3's theft-detection guarantee ("rotation **with reuse
+   detection** → family revoke") is **not** delivered by GoTrue-native behaviour.
+   Task 1.1's own decision said this exact outcome means "a thin session table would
+   enter scope as a new requirement + task." Two ways forward, user's call:
+   (a) add a thin custom session/refresh-tracking table + revocation path to get
+   real theft → family-revoke (new requirement + task), or (b) reframe R3 to
+   "rotation + already-used rejection, theft is detection-only (logged), not
+   auto-revoke," accepting the residual risk for alpha.
+
+**DECISION (user, 2026-06-16): option (b) — detection-only, keep it simple.** No
+custom session table in 2002. R3 reframed to rotation + already-used rejection
+(no automatic family-revoke); the manual kill-switch is `signout?scope=global`
+(R4). The deferred custom-session-table work is recorded durably in
+`docs/architecture.md` → "JWT storage" and `TODO.md` → "Auth & production
+infrastructure" (item 13), and reflected in this plan's `REQUIREMENTS.md` (R3 +
+Non-requirements). Consequence for **Task 1.2**: its "load-bearing reuse-interval"
+note (a multi-tab boot replaying the durable cookie spuriously revoking the whole
+family) is now **moot** — reuse never revokes the family on this image — but 1.2's
+concrete actions (enable rotation, set the reuse interval, lower `GOTRUE_JWT_EXP`,
+re-point the bearer to the access cookie) all still stand; the 30 s interval is a
+fine, no-longer-load-bearing default. 1.2 proceeds as written.
 
 **Why:** The whole plan rides on GoTrue-native rotation/reuse/`scope=global`
 (no custom session table). The end-to-end check 2001 deferred must be settled
@@ -228,7 +297,7 @@ cookie.
   multi-tab open look like token theft and revokes the whole family (R3), a
   spurious "signed out everywhere". **Pinned at 30 s** — comfortably covers
   multi-tab boot skew + clock skew while keeping theft-detection latency low
-  (GoTrue's ~10 s default is the floor, not a ceiling to shave below; a *longer*
+  (GoTrue's ~10 s default is the floor, not a ceiling to shave below; a _longer_
   interval would widen the window in which a genuinely stolen-and-replayed token
   escapes detection, so 30 s is the deliberate balance, not a starting point to
   tune down).
@@ -358,9 +427,9 @@ refreshToken, expiresIn })` sets both cookies (the durable `Max-Age` is a
   cookies + 401s. A GoTrue 5xx or an unreachable upstream (the existing handler's
   `fetch`-throws-`502` shape) must return a **non-clearing** error (e.g. 503) that
   leaves **both** cookies intact, so a momentary outage doesn't sign everyone out.
-  This matters because boot now *always* refreshes (Task 4.1): a transient failure
+  This matters because boot now _always_ refreshes (Task 4.1): a transient failure
   on cold start that cleared the durable cookie would force a needless re-auth, and
-  a response lost *after* GoTrue already rotated could later trip reuse-detection
+  a response lost _after_ GoTrue already rotated could later trip reuse-detection
   into a spurious global revoke. So `session.ts`'s `refresh()` returns three
   outcomes — `ok`, `revoked` (authoritative → clear+401), `unavailable` (transient
   → 503, no cookie change) — not two.
@@ -575,7 +644,7 @@ cannot set without a preflight the BFF won't grant (R7).
   divergence at build time** (chosen over a comment-only cross-reference because
   the BFF can't import across the package boundary and a silent drift, though
   fail-closed, should be a machine catch). Add `export const CSRF_HEADER =
-  'X-Cairn-Auth'` to the canonical `web/src/lib/shared/model/auth-paths.ts`
+'X-Cairn-Auth'` to the canonical `web/src/lib/shared/model/auth-paths.ts`
   **and** its verbatim copy `auth-proxy/src/lib/auth-paths.ts` — the same
   byte-identical pair the drift test already compares. Broaden that file's purpose
   comment from "URL path lists" to "auth constants that must stay byte-identical
@@ -745,7 +814,7 @@ before the password surface (2003) does; it is built and proven here.
   env with sane defaults; document them.
 - **What counts as a "failure" is an explicit signal from the handler, not any
   non-2xx.** The throttle increments only when the sign-in handler reports a
-  *credential* failure (so 2003's real check decides what counts), **not** on every
+  _credential_ failure (so 2003's real check decides what counts), **not** on every
   non-2xx. In particular the 2002 `/auth/signin` skeleton returns **501** (Task 3.1),
   which is **not** a failure and must **not** increment any bucket — otherwise the
   skeleton self-throttles. The unit tests drive a stub handler that can report
@@ -753,7 +822,7 @@ before the password surface (2003) does; it is built and proven here.
   the live skeleton (still 501 in 2002) only proves the middleware is wired.
 - **In-memory state is per-process and resets on restart/deploy — a known, accepted
   limitation at single-instance alpha.** A container restart or redeploy clears all
-  per-IP / per-account backoff, so this is brute-force *friction*, not durable
+  per-IP / per-account backoff, so this is brute-force _friction_, not durable
   protection; it is sound only because the auth-proxy runs as a single instance.
   Record this in a comment so it isn't later mistaken for persistent throttling (a
   shared/persistent store is a follow-up if the BFF is ever scaled out).
@@ -842,7 +911,7 @@ header name).
 **Decisions:**
 
 - **The CSRF header name has a shared home, added in Task 2.2.** `CSRF_HEADER =
-  'X-Cairn-Auth'` lives in `web/src/lib/shared/model/auth-paths.ts` (the
+'X-Cairn-Auth'` lives in `web/src/lib/shared/model/auth-paths.ts` (the
   drift-guarded web↔proxy lockstep registry). `session.svelte.ts` lives in the
   `shared/` tier and **cannot import from the `auth/` domain**
   (`docs/frontend-layout.md` one-way tier rule), but `auth-paths` is in
@@ -892,7 +961,7 @@ header name).
   forces signed-out in `finally` (preserve the current "explicit intent wins").
 - Keep the existing magic-link request/verify/callback components working
   (R9) — only the session-establish + signout endpoints reshape.
-- **The callback page needs little or no behavioural change.** It *already*
+- **The callback page needs little or no behavioural change.** It _already_
   establishes the session via the BFF — `exchangeRefreshToken(refreshToken)` POSTs
   `/auth/token?grant_type=refresh_token`, a `COOKIE_PLANT_PATHS` path R9 keeps
   alive, and Task 1.3 makes that generic plant set **both** cookies. So `+page.svelte`

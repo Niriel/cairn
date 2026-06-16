@@ -202,6 +202,25 @@
       `docs/architecture.md` and/or a new auth doc) before any code lands, and
       cross-check `docs/open-questions.md` so this isn't already tracked there.
 
+13. [ ] **Custom session table for automatic theft → family-revoke** —
+        deliberately deferred from plan 2002 (session security). A spike against
+        the installed GoTrue (`supabase/gotrue:v2.158.1`) found that its
+        refresh-token **reuse detection is detection-only**: a replayed
+        already-used token is rejected (`invalid_grant` / "Already Used"), but the
+        rest of the session family is **not** auto-revoked — the legitimate session
+        keeps working after a theft-replay event. So a stolen refresh token, once
+        the attacker has it, is refused on replay but does not by itself burn the
+        victim's live session. For alpha we accept this (the credential lives in an
+        HttpOnly cookie behind `__Host-` + CSRF, and `signout?scope=global` is the
+        manual compromise kill-switch — see `docs/architecture.md` → "JWT storage").
+        To get true automatic family-revoke on reuse, the BFF would track refresh
+        tokens / sessions in a thin Postgres table of its own and revoke the family
+        when it detects a replayed-rotated token, rather than relying on GoTrue
+        native behaviour. Weigh against simply tracking whether a newer GoTrue
+        image implements family-revoke-on-reuse natively before building anything
+        custom. Out of scope until there's a concrete threat driver (data-sensitivity
+        tier, abuse signal).
+
 ## Docs & copy
 
 13. [ ] **Review the "adding by e-mail is two-way" claim in the circles
