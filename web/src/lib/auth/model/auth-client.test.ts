@@ -2,6 +2,7 @@ import { http, HttpResponse } from 'msw';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, test, vi } from 'vitest';
 
 import { server } from '$lib/test/server';
+import { CSRF_HEADER } from '$lib/shared/model/auth-paths';
 
 // VITE_AUTH_BASE is pinned for the suite so the URL prefix the auth
 // client builds is asserted independently of any contributor's local
@@ -195,27 +196,73 @@ describe('verifyOtp', () => {
 	});
 });
 
-describe('logout', () => {
-	test('issues DELETE `${VITE_AUTH_BASE}/session`', async () => {
+describe('signOut', () => {
+	test('issues POST `${VITE_AUTH_BASE}/signout` with the CSRF header and no scope', async () => {
 		let seenPath: string | null = null;
 		let seenMethod: string | null = null;
+		let seenSearch: string | null = null;
+		let seenCsrf: string | null = null;
 		server.use(
-			http.delete('*/auth/session', ({ request }) => {
-				seenPath = new URL(request.url).pathname;
+			http.post('*/auth/signout', ({ request }) => {
+				const url = new URL(request.url);
+				seenPath = url.pathname;
+				seenSearch = url.search;
 				seenMethod = request.method;
+				seenCsrf = request.headers.get(CSRF_HEADER);
 				return new HttpResponse(null, { status: 204 });
 			})
 		);
-		await mod.logout();
-		expect(seenMethod).toBe('DELETE');
-		expect(seenPath).toBe('/auth/session');
+		await mod.signOut();
+		expect(seenMethod).toBe('POST');
+		expect(seenPath).toBe('/auth/signout');
+		expect(seenSearch).toBe('');
+		expect(seenCsrf).not.toBeNull();
 	});
 
 	test('throws on non-2xx', async () => {
-		server.use(http.delete('*/auth/session', () => new HttpResponse(null, { status: 500 })));
-		const rejection = expect(mod.logout()).rejects;
+		server.use(http.post('*/auth/signout', () => new HttpResponse(null, { status: 500 })));
+		const rejection = expect(mod.signOut()).rejects;
 		await rejection.toBeInstanceOf(Error);
 		await rejection.toBeInstanceOf(mod.HttpError);
 		await rejection.toMatchObject({ name: 'HttpError', status: 500 });
+	});
+});
+
+describe('signOutEverywhere', () => {
+	test('issues POST `${VITE_AUTH_BASE}/signout?scope=global` with the CSRF header', async () => {
+		let seenSearch: string | null = null;
+		let seenCsrf: string | null = null;
+		server.use(
+			http.post('*/auth/signout', ({ request }) => {
+				const url = new URL(request.url);
+				seenSearch = url.search;
+				seenCsrf = request.headers.get(CSRF_HEADER);
+				return new HttpResponse(null, { status: 204 });
+			})
+		);
+		await mod.signOutEverywhere();
+		expect(seenSearch).toBe('?scope=global');
+		expect(seenCsrf).not.toBeNull();
+	});
+});
+
+describe('refresh', () => {
+	test('delegates to the shared single-flight refresh(): POSTs /auth/refresh with the CSRF header', async () => {
+		let seenPath: string | null = null;
+		let seenMethod: string | null = null;
+		let seenCsrf: string | null = null;
+		server.use(
+			http.post('*/auth/refresh', ({ request }) => {
+				seenPath = new URL(request.url).pathname;
+				seenMethod = request.method;
+				seenCsrf = request.headers.get(CSRF_HEADER);
+				return HttpResponse.json({ user: SEED_USER });
+			})
+		);
+		const result = await mod.refresh();
+		expect(seenMethod).toBe('POST');
+		expect(seenPath).toBe('/auth/refresh');
+		expect(seenCsrf).not.toBeNull();
+		expect(result).toEqual({ status: 'ok', user: SEED_USER });
 	});
 });

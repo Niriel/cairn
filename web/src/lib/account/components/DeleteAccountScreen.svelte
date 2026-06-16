@@ -6,6 +6,7 @@
 	import Button from '$lib/basic/components/Button.svelte';
 	import Icon from '$lib/basic/components/Icon.svelte';
 	import TextInput from '$lib/basic/components/TextInput.svelte';
+	import { CSRF_HEADER } from '$lib/shared/model/auth-paths';
 	import { ApiError, pgPost } from '$lib/shared/http/postgrest';
 	import { AUTH_BASE, signOut } from '$lib/shared/state/session.svelte';
 
@@ -34,14 +35,19 @@
 		//    transaction can't perform. Fire-and-forget; the nightly orphan-sweep
 		//    reclaims the file if this never lands (see avatars.md).
 		void fetch('/avatars/me', { method: 'DELETE' }).catch(() => {});
-		// 3. Clear the session cookie. The auth row is already gone, so the JWT is
+		// 3. Clear the session cookies. The auth row is already gone, so the JWT is
 		//    void; we keep the session store signed-in here so the confirmation
 		//    view renders inside the app shell. "Back to sign in" calls signOut(),
-		//    which flips the store and lets the root guard redirect to /auth/login.
+		//    which re-POSTs /auth/signout, flips the store, and lets the root guard
+		//    redirect to /auth/login.
 		try {
-			await fetch(`${AUTH_BASE}/session`, { method: 'DELETE', credentials: 'same-origin' });
+			await fetch(`${AUTH_BASE}/signout`, {
+				method: 'POST',
+				credentials: 'same-origin',
+				headers: { [CSRF_HEADER]: '1' }
+			});
 		} catch {
-			// Ignore — signOut() retries the same DELETE on the way out.
+			// Ignore — signOut() re-POSTs /auth/signout on the way out.
 		}
 		// 4. Show the confirmation view.
 		done = true;

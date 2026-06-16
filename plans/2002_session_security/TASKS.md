@@ -1047,10 +1047,40 @@ R8; `PLAN.md` "rate-limiting … land as proven middleware now".
 
 ## Phase 4 — web client + session model + dev parity (R2, R9, R11)
 
-### [ ] 4.1 Reshape `auth-client.ts` + session boot for the revocable model
+### [x] 4.1 Reshape `auth-client.ts` + session boot for the revocable model
 
 **Created:** 2026-06-15T17:55:34Z
-**Completed:**
+**Completed:** 2026-06-16T19:44:32Z
+
+**Notes:**
+
+- **`DeleteAccountScreen.svelte` was edited even though not in the Files list** —
+  it directly issued the now-dead `DELETE /auth/session` (Task 1.4 flagged this as
+  4.1's to fix). Re-pointed to `POST /auth/signout` with the CSRF header; updated
+  its comments and its test's handler-reference comment.
+- **`web/src/lib/test/handlers.ts` was edited (not in Files list).** The shared
+  fresh-start default was `GET /auth/user → 401` + `DELETE /auth/session → 204`;
+  added `POST /auth/refresh → 401` (boot's new path) and renamed the logout default
+  to `POST /auth/signout → 204`. Left the `/auth/user` 401 default in place
+  (harmless; no longer load-bearing for boot).
+- **The shared `refresh()` returns a three-way `RefreshResult`** (`ok` / `revoked`
+  / `transient`), not just the user, so `bootSession` can map an authoritative 401
+  → signed-out while a 503/network/malformed body stays `unknown`. Any non-401
+  status is treated as transient (signed-out is reserved for authoritative
+  revocation). The local `isAuthUser` guard replaces today's unvalidated
+  `as AuthUser` cast at boot.
+- **`auth-client.ts` re-exports `refresh` from `session.svelte.ts`** (auth →
+  shared is allowed) rather than re-implementing the single-flight dedupe — the
+  "auth-client's refresh delegates to the shared refresh()" decision.
+- **No `+page.svelte` change for the callback, and no `page.test.ts` change
+  needed.** The callback test fully mocks `$lib/shared/state/session.svelte`, so
+  `bootSession`'s internal switch from `/auth/user` to `/auth/refresh` is mocked
+  out — no page-level interaction to re-assert. The existing boot-race
+  short-circuit coverage (cases j/k) still holds. Auto-mock absorbed the new
+  `refresh` export with no edit.
+- **CSRF header added uniformly via `postJson`** (covers magic-link `/token` /
+  `/verify` / `/magiclink` too) — harmless on the GoTrue pass-throughs (the named
+  CSRF exception), required on the Cairn-shaped endpoints.
 
 **Why:** The web client must call the BFF's Cairn-shaped endpoints (refresh,
 signout, sign-out-everywhere) with the CSRF header, and boot must refresh-then-

@@ -1,4 +1,11 @@
+import { CSRF_HEADER } from '$lib/shared/model/auth-paths';
 import type { AuthUser } from '$lib/shared/state/session.svelte';
+
+// The revocable session's single-flight refresh lives in the `shared/`
+// tier so boot, the /api 401-interceptor, and this client all await the
+// same in-flight request. `auth/` → `shared/` is an allowed import, so the
+// auth domain re-exports it rather than re-implementing the dedupe.
+export { refresh } from '$lib/shared/state/session.svelte';
 
 const AUTH_BASE = import.meta.env.VITE_AUTH_BASE ?? '/auth';
 
@@ -15,7 +22,13 @@ async function postJson<T>(path: string, body: unknown): Promise<T> {
 	const res = await fetch(`${AUTH_BASE}${path}`, {
 		method: 'POST',
 		credentials: 'same-origin',
-		headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+		headers: {
+			'Content-Type': 'application/json',
+			Accept: 'application/json',
+			// Required on the Cairn-shaped /auth/* endpoints; harmless on the
+			// GoTrue pass-throughs (the named CSRF exception). Sent uniformly.
+			[CSRF_HEADER]: '1'
+		},
 		body: JSON.stringify(body)
 	});
 	if (!res.ok) {
@@ -104,10 +117,23 @@ export async function verifyOtp(email: string, token: string): Promise<{ user: A
 	return { user: payload.user };
 }
 
-export async function logout(): Promise<void> {
-	const res = await fetch(`${AUTH_BASE}/session`, {
-		method: 'DELETE',
-		credentials: 'same-origin'
+// Revocable sign-out: POST /auth/signout revokes the session server-side
+// (GoTrue /logout) and clears both cookies. The CSRF header is required.
+export async function signOut(): Promise<void> {
+	await postSignout('');
+}
+
+// Sign out everywhere: revokes ALL of the user's sessions (compromise
+// kill-switch / future password-change re-auth).
+export async function signOutEverywhere(): Promise<void> {
+	await postSignout('?scope=global');
+}
+
+async function postSignout(query: string): Promise<void> {
+	const res = await fetch(`${AUTH_BASE}/signout${query}`, {
+		method: 'POST',
+		credentials: 'same-origin',
+		headers: { [CSRF_HEADER]: '1' }
 	});
 	if (!res.ok) {
 		const message = await readErrorMessage(res);

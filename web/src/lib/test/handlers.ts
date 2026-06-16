@@ -15,6 +15,10 @@ import { http, HttpResponse, type RequestHandler } from 'msw';
 // Keeping the fixture honest means a regression that taught the auth-client to
 // read tokens from the body would still fail under this default.
 export const handlers: RequestHandler[] = [
+	// Boot resolves the session via POST /auth/refresh now (not GET /auth/user).
+	// A 401 here is the authoritative "no session" answer for the fresh-start
+	// default, so unrelated tests render the logged-out view.
+	http.post('*/auth/refresh', () => new HttpResponse(null, { status: 401 })),
 	http.get('*/auth/user', () => new HttpResponse(null, { status: 401 })),
 	http.post('*/auth/magiclink', () => HttpResponse.json({})),
 	http.post('*/auth/verify', () =>
@@ -31,7 +35,7 @@ export const handlers: RequestHandler[] = [
 			user: { id: '11111111-1111-1111-1111-111111111111', email: 'dev@example.test' }
 		})
 	),
-	http.delete('*/auth/session', () => new HttpResponse(null, { status: 204 })),
+	http.post('*/auth/signout', () => new HttpResponse(null, { status: 204 })),
 	// Path-only pattern — MSW v2 query-string wildcard behaviour is unreliable
 	http.get('*/api/profiles', () =>
 		HttpResponse.json(
