@@ -20,10 +20,19 @@ self-contained.
 
 ## Phase 0 — reconcile session-model docs (R12)
 
-### [ ] 0.1 Correct `docs/architecture.md` to the dual-cookie revocable session + BFF
+### [x] 0.1 Correct `docs/architecture.md` to the dual-cookie revocable session + BFF
 
 **Created:** 2026-06-15T17:55:34Z
-**Completed:**
+**Completed:** 2026-06-16T14:14:17Z
+
+**Notes:** Beyond the four scoped edits, also updated the OTP sibling-path
+paragraph (≈ line 256), which still said the proxy "plants the `cairn_session`
+cookie" — corrected to the dual-cookie plant for internal consistency (step 4).
+The narrowing paragraph (≈ 168) and the magic-link URL-hash trade-off note were
+preserved as instructed; neither claims `cairn_session` is the access JWT, so
+no edit was needed there. The synthetic-e-mail "Considered and rejected" entry
+and the `set_username` notes were left untouched (2003's identity half), per the
+Decisions.
 
 **Why:** This sub-plan reverses load-bearing claims the docs (and 2001) recorded
 — that `cairn_session` _is_ the ~7-day access JWT and the refresh token is
@@ -85,10 +94,16 @@ session plant). They are different numbered lists; correct both.
 **Verify:** `pnpm --dir web exec prettier --check ../docs/architecture.md` (or
 `./scripts/check.sh` prettier step) · manual read for consistency.
 
-### [ ] 0.2 Correct `docs/deployment.md` auth-proxy description + pre-deploy checklist
+### [x] 0.2 Correct `docs/deployment.md` auth-proxy description + pre-deploy checklist
 
 **Created:** 2026-06-15T17:55:34Z
-**Completed:**
+**Completed:** 2026-06-16T14:17:36Z
+
+**Notes:** The guiding-principle line at the top of the doc (line 5) still
+summarises prod as "development plus four things — … and the cookie/JWT shim";
+left as-is since it's a high-level framing line outside this task's three
+scoped edits and still broadly accurate. Flagging it as a candidate for a
+later sweep when the BFF vocabulary is fully settled.
 
 **Why:** The deployment doc describes the auth-proxy as "the response-side half
 of the cookie/JWT shim (cookie-plant + token-strip)" and its pre-deploy checklist
