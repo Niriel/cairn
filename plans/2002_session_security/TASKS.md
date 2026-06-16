@@ -216,7 +216,8 @@ cookie.
 
 - `docker-compose.yml`: set `GOTRUE_JWT_EXP` to `300` (5 min, see PLAN.md Open
   questions), enable `GOTRUE_SECURITY_REFRESH_TOKEN_ROTATION_ENABLED=true`, set
-  `GOTRUE_SECURITY_REFRESH_TOKEN_REUSE_INTERVAL` (use the name Task 1.1 confirmed).
+  `GOTRUE_SECURITY_REFRESH_TOKEN_REUSE_INTERVAL=30` (use the name Task 1.1
+  confirmed; see the load-bearing note below for why 30 s, not the ~10 s default).
   These are base-compose changes (apply to dev and prod).
 - **The reuse interval is load-bearing — do not set it to "small" or 0.** Boot
   now _always_ refreshes (Task 4.1), rotating the durable token on every cold
@@ -225,9 +226,12 @@ cookie.
   cookie and each replay it. The reuse interval — **not** single-flight — is the
   only defence for that cross-realm case: a too-short interval makes a normal
   multi-tab open look like token theft and revokes the whole family (R3), a
-  spurious "signed out everywhere". Pin it to a value that safely covers
-  multi-tab boot skew + clock skew (GoTrue's ~10 s default is the floor, not a
-  ceiling to shave below). Record the chosen value here.
+  spurious "signed out everywhere". **Pinned at 30 s** — comfortably covers
+  multi-tab boot skew + clock skew while keeping theft-detection latency low
+  (GoTrue's ~10 s default is the floor, not a ceiling to shave below; a *longer*
+  interval would widen the window in which a genuinely stolen-and-replayed token
+  escapes detection, so 30 s is the deliberate balance, not a starting point to
+  tune down).
 - The access cookie is named `cairn_access` (dev) / `__Host-cairn_access` (prod);
   the durable cookie keeps `cairn_session` (dev) / `__Host-cairn_session` (prod).
   This task only **re-points the bearer source**; the `__Host-` prefix + the
@@ -297,18 +301,28 @@ refreshToken, expiresIn })` sets both cookies (the durable `Max-Age` is a
   **hardcoded ~30 d idle horizon** — _not_ the legacy `COOKIE_MAX_AGE` env, which
   was the old single-cookie value and is retired in Task 5.2), and
   `clearSession(res)` clears both.
-- **The access cookie's `Max-Age` must exceed the JWT TTL, not equal it.** If the
-  access cookie expires _with_ the JWT (`Max-Age = expiresIn`), the browser drops
-  it at expiry and the next `/api` call carries **no** cookie — Caddy attaches no
-  bearer, PostgREST runs as `anon`, and an RLS-protected path can answer `403` or
-  a `200` empty result, **not** the `401` the refresh-on-401 interceptor (Task 4.2)
-  needs. Set the access `Max-Age` to `expiresIn` **plus a slack** (e.g. a couple
-  of minutes) so an _expired-but-present_ JWT is still sent and PostgREST returns
-  an unambiguous `401 jwt expired`, which reliably fires the silent refresh. (The
-  durable refresh cookie's idle horizon is the real session lifetime; this slack
-  only governs how the access bearer signals expiry.) The cookie names +
+- **The access cookie's `Max-Age` is the durable ~30 d idle horizon, NOT the JWT
+  TTL.** If the access cookie expired _with_ the JWT (`Max-Age = expiresIn`), the
+  browser would drop it at expiry and the next `/api` call would carry **no**
+  cookie — Caddy attaches no bearer, PostgREST runs as `anon`, and an
+  RLS-protected SELECT answers `200 []` (with `PGRST_DB_ANON_ROLE=anon`),
+  **not** the `401` the refresh-on-401 interceptor (Task 4.2) needs. A short
+  `expiresIn`+slack only papers over a few minutes: a tab idle past the slack
+  drops the cookie and the user silently sees empty data with no refresh. So size
+  the access cookie's `Max-Age` to the **same ~30 d idle horizon** as the durable
+  refresh cookie. The cookie is then always _present_ while the session lives; the
+  JWT _inside_ it is what carries the 300 s `exp`, so PostgREST always returns an
+  unambiguous `401 jwt expired` on expiry and the silent refresh always fires. The
+  JWT's short `exp` — not the cookie's `Max-Age` — bounds the bearer's security
+  value, so a long-lived cookie holding an expired JWT is safe. The cookie names +
   `__Host-`/`Secure` come from a single env-derived helper
-  (`COOKIE_SECURE === 'true'` → prod names + Secure); the `__Host-` prefix itself
+  (`COOKIE_SECURE === 'true'` → prod names + Secure). **The helper must read
+  `process.env.COOKIE_SECURE` at call time (functions, not a module-load
+  `const`)** — matching the existing per-request `cookieAttrs()`/`gotrueUrl()`
+  pattern in `index.ts`, because both `shim.test.ts` case (f) and the new
+  `cookies.test.ts` toggle `COOKIE_SECURE` per test; a name resolved once at
+  module load would freeze the first test's value and break the rest. The
+  `__Host-` prefix itself
   is wired in Phase 2 but the name helper is introduced here so 1.3's tests pin
   the dev shape. Export the **access-cookie name + reader** too, so the
   bearer-attach site can use it.
@@ -384,8 +398,9 @@ updated); `web/vite.config.ts:113-172` (the dev proxy mirror).
 **Steps:**
 
 1. RED — `cookies.test.ts`: `plantSession` sets both `cairn_session` (refresh)
-   and `cairn_access` (access) with the right `Max-Age`s (durable ~30 d, access
-   = `expiresIn` **+ slack**, strictly greater than `expiresIn`) and
+   and `cairn_access` (access) with the right `Max-Age`s (**both the durable
+   ~30 d idle horizon** — the access cookie outlives its own JWT so an expired
+   bearer is still sent and PostgREST returns `401`, not anon-`200 []`) and
    HttpOnly/SameSite; `clearSession` clears both with `Max-Age=0`. Run vitest;
    confirm red.
 2. RED — update `shim.test.ts` case (a): `/auth/token` now plants **both**
@@ -759,10 +774,15 @@ before the password surface (2003) does; it is built and proven here.
   trustworthy client IP (Task 5.2).
 - **Per-account backoff must not be a weaponizable lockout.** Usernames are
   public (R1), so a hard temporary account lockout lets an attacker deny any
-  named victim sign-in by spamming failures from many IPs. Make the per-account
-  leg a **graded backoff** (escalating delay / soft throttle that still lets a
-  correct credential through), not a hard denial — or gate the hard lock on
-  repeated _same-IP_ failure. The per-IP leg stays the primary brute-force bound.
+  named victim sign-in by spamming failures from many IPs. **Decided (one design,
+  do not re-litigate):** the per-account leg is an **escalating delay** — each
+  successive failure for an account adds latency to that account's _next_ sign-in
+  attempt, but the attempt is still served and a **correct credential always
+  succeeds** (it is never a hard denial). A hard lock, if any, is gated on
+  repeated _same-IP_ failure only, never on cross-IP per-account failures. The
+  per-IP leg stays the primary brute-force bound. The unit tests assert exactly
+  this observable shape: an account under attack from many IPs still admits a
+  correct credential, while same-IP repetition is throttled.
 - Fully unit-test the middleware against a **stub sign-in handler** (no password
   credential needed): N failures from one IP → throttled; N failures for one
   account from varied IPs → graded/throttled; a client-supplied `X-Forwarded-For`
@@ -844,8 +864,14 @@ header name).
   `shared/http/postgrest.ts`, _and_ the `auth/` domain) so boot, the `/api`
   401-interceptor (Task 4.2), and `auth-client` all await the _same_ in-flight
   request. It POSTs `/auth/refresh` with the CSRF header and resolves to the
-  tokenless `user` the BFF returns (Task 1.3). `auth-client.ts` delegates to it
-  (auth → shared import is allowed).
+  tokenless `user` the BFF returns (Task 1.3). **Validate that `user` before
+  adopting it** — a small local guard in `shared/` that checks `id` and `email`
+  are strings (the `auth/` tier's `assertAuthUser` can't be imported here per the
+  one-way tier rule, and today's boot does an unvalidated `as AuthUser` cast at
+  `session.svelte.ts:36` — don't carry that forward, or a malformed BFF body sets
+  a half-populated signed-in session). On a malformed body, treat it as a
+  transient failure (leave `unknown`), not a sign-out. `auth-client.ts` delegates
+  to it (auth → shared import is allowed).
 - `auth-client.ts`: reshape `logout()` → `signOut()` (POST `/auth/signout`) and
   add `signOutEverywhere()` (POST `/auth/signout?scope=global`); the magic-link
   callback's session-establish posts the refresh token to the BFF (R9). Add the
@@ -935,11 +961,13 @@ endpoints + CSRF mirrored in Vite already, per their dev-parity steps).
   the original request **once**; if refresh fails, fall through to
   `onUnauthorized()` (signed-out). Guard against infinite loops (single retry;
   refresh failure is terminal). This relies on the expired access bearer
-  producing a **401**: Task 1.3 sizes the access cookie's `Max-Age` to outlive the
-  JWT so the (expired) bearer is still sent and PostgREST returns `401 jwt
-expired`, rather than the cookie vanishing and the request silently running as
-  `anon`. If a path is ever found to answer `403`/`200`-empty on an expired
-  bearer instead of `401`, that path needs the same refresh trigger — note it. Because `refresh()` is single-flight, a burst of
+  producing a **401**: Task 1.3 sizes the access cookie's `Max-Age` to the durable
+  ~30 d idle horizon (NOT the JWT TTL), so the cookie is always _present_ while the
+  session lives and the (expired) bearer is still sent — PostgREST returns `401 jwt
+expired` rather than the cookie vanishing and the request silently running as
+  `anon` (`200 []`). If a path is ever found to answer `403`/`200`-empty on an
+  expired bearer instead of `401`, that path needs the same refresh trigger — note
+  it. Because `refresh()` is single-flight, a burst of
   simultaneous `/api` 401s collapses to one `/auth/refresh`, so rotation +
   reuse-detection can't read concurrent retries as token theft and revoke the
   family (the `GOTRUE_SECURITY_REFRESH_TOKEN_REUSE_INTERVAL` set in Task 1.2 is
@@ -1013,13 +1041,21 @@ can't run here, say so explicitly per the testing rules.)
   request carrying **no** bearer runs as `anon` and a select returns `200 []`, which
   never fires the refresh-on-401 interceptor — so deleting the cookie tests the wrong
   path and can false-green. An expired-but-present bearer is what makes PostgREST
-  return `401 jwt expired` (the exact path Task 1.3's `Max-Age`-slack and Task 4.2's
-  interceptor depend on). After the action hits `/api`, assert the user stays signed
+  return `401 jwt expired` (the exact path Task 1.3's durable-`Max-Age` access
+  cookie and Task 4.2's interceptor depend on). After the action hits `/api`, assert the user stays signed
   in (the silent `/auth/refresh` + retry fires and a fresh `cairn_access` appears) —
   overwriting avoids waiting out the 5-min TTL while still exercising the real 401;
   (c) sign out → both cookies cleared and a subsequent `/api` call is
   unauthorized; (d) "sign out everywhere" from one context invalidates a second
-  signed-in context (its next refresh 401s).
+  signed-in context (its next refresh 401s); (e) **R10 forced-re-auth:** plant a
+  cookie under the bare pre-2002 name (`cairn_session=<any value>`, simulating an
+  old client) with **no** `cairn_access`, then boot — assert the user lands
+  signed-out (boot `/auth/refresh` reads `__Host-cairn_session`/`cairn_session`
+  per env and finds no _valid_ refresh token → 401) and `/api` runs `anon`. This
+  proves no fallback read of the old artefact authenticates and the
+  non-revocable gap is structurally closed. (In dev the durable name is
+  unprefixed, so this seeds a syntactically-old-but-invalid value; the
+  prove-the-old-name-is-dead intent is the same.)
 - Do not assert on token contents (HttpOnly; and `docs/logging.md` discipline) —
   assert on cookie presence/absence and signed-in/out UI state.
 
@@ -1032,7 +1068,7 @@ assertions to extend); `docs/testing.md` (Playwright layer; machine-conditional)
 
 **Steps:**
 
-1. RED — add the four scenarios; run against the stack; confirm they fail before
+1. RED — add the five scenarios; run against the stack; confirm they fail before
    the implementation is wired end-to-end (or confirm they pass if Phases 1–4 are
    already merged — note which, and that the assertions exercise the new paths).
 2. GREEN — fix any integration gaps surfaced; get all green.
