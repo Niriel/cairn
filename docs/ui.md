@@ -534,6 +534,12 @@ an `<Icon>`:
   `ICON_SIZE`.
 - **`<RefreshButton>`** — the spinning rotate-ccw refresh button; `ICON_SIZE`.
 
+A control that genuinely can't use these still honours the two sources of truth
+directly: the **vote thumbs** in `VoteControl` hand-roll their `<button>` (a
+`use:thumbButton` action fires `stopPropagation` synchronously, which Svelte's
+delegated `onclick` can't), but each thumb is a `var(--tap-target)` box around an
+`ICON_SIZE` glyph — same floor, same glyph size, just not via `IconButton`.
+
 Glyphs that are _not_ standalone controls keep their own purposeful sizes (the
 small inline globe on the Items subtitle, member-vote avatars, the empty-state
 illustration, the FAB's plus) — `ICON_SIZE` is for the recurring control icon,
