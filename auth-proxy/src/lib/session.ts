@@ -62,3 +62,25 @@ export async function refresh(refreshToken: string): Promise<RefreshResult> {
 		user: json.user
 	};
 }
+
+export type LogoutScope = 'local' | 'global';
+
+// Revoke server-side. GoTrue's /logout needs a bearer, so mint a fresh access
+// token from the durable refresh token first — the access cookie's JWT may
+// already be expired, and minting guarantees a usable bearer (the rotation it
+// triggers is harmless, we revoke the session next). `scope=local` revokes this
+// session; `scope=global` revokes all the user's sessions. Errors are swallowed:
+// the caller clears cookies regardless (explicit user intent wins), and the
+// token is never logged (docs/logging.md).
+export async function logout(refreshToken: string, scope: LogoutScope): Promise<void> {
+	const minted = await refresh(refreshToken);
+	if (minted.status !== 'ok') return;
+	try {
+		await fetch(`${gotrueUrl()}/logout?scope=${scope}`, {
+			method: 'POST',
+			headers: { Authorization: `Bearer ${minted.accessToken}` }
+		});
+	} catch {
+		// Swallow — the handler clears cookies regardless.
+	}
+}

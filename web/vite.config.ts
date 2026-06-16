@@ -112,6 +112,40 @@ async function handleDevRefresh(req: IncomingMessage, res: ServerResponse): Prom
 	res.end(JSON.stringify({ user: json.user }));
 }
 
+async function handleDevSignout(req: IncomingMessage, res: ServerResponse): Promise<void> {
+	const refreshToken = readBearerFromCookie(req, COOKIE_NAME);
+	const scope =
+		req.url && new URLSearchParams(req.url.split('?')[1] ?? '').get('scope') === 'global'
+			? 'global'
+			: 'local';
+	if (refreshToken) {
+		try {
+			// Mint a fresh access token, then revoke server-side (mirrors
+			// logout() in auth-proxy/src/lib/session.ts). Errors swallowed —
+			// cookies are cleared regardless.
+			const minted = await fetch('http://localhost:9999/token?grant_type=refresh_token', {
+				method: 'POST',
+				headers: { 'content-type': 'application/json' },
+				body: JSON.stringify({ refresh_token: refreshToken })
+			});
+			if (minted.status === 200) {
+				const json = (await minted.json()) as { access_token?: string };
+				if (typeof json.access_token === 'string') {
+					await fetch(`http://localhost:9999/logout?scope=${scope}`, {
+						method: 'POST',
+						headers: { Authorization: `Bearer ${json.access_token}` }
+					});
+				}
+			}
+		} catch {
+			// Swallow — clear cookies regardless (explicit user intent wins).
+		}
+	}
+	res.setHeader('Set-Cookie', [clearCookie(COOKIE_NAME), clearCookie(ACCESS_COOKIE_NAME)]);
+	res.statusCode = 204;
+	res.end();
+}
+
 export default defineConfig({
 	plugins: [
 		{
@@ -130,22 +164,19 @@ export default defineConfig({
 					}
 					next();
 				});
-				// Mounted at root (no path arg) so `req.url` stays the full
-				// request path — `server.middlewares.use('/auth/session', …)`
-				// would strip the mount and leave `req.url === '/'`, silently
-				// failing the segment match. See Task 1.5 Decisions.
+				// Sign-out: dev mirror of the prod POST /auth/signout handler
+				// (auth-proxy/src/index.ts) — revoke server-side at GoTrue, then
+				// clear both cookies (cleared regardless of the revoke outcome).
+				// Mounted at root (no path arg) so `req.url` stays the full request
+				// path — `server.middlewares.use('/auth/signout', …)` would strip
+				// the mount and leave `req.url === '/'`, silently failing the
+				// segment match.
 				server.middlewares.use((req, res, next) => {
-					if (!isSegmentMatch(req.url, LOGOUT_PATHS)) {
+					if (!isSegmentMatch(req.url, LOGOUT_PATHS) || req.method !== 'POST') {
 						next();
 						return;
 					}
-					if (req.method !== 'DELETE') {
-						next();
-						return;
-					}
-					res.setHeader('Set-Cookie', `${COOKIE_NAME}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0`);
-					res.statusCode = 204;
-					res.end();
+					void handleDevSignout(req, res);
 				});
 				// Bespoke dev mirror of the prod /auth/refresh handler
 				// (auth-proxy/src/index.ts): exchange the durable refresh cookie

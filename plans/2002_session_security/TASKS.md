@@ -537,10 +537,37 @@ updated); `web/vite.config.ts:113-172` (the dev proxy mirror).
 **Verify:** `pnpm --dir auth-proxy test` · `pnpm --dir web check` · Caddy config
 validate · `./scripts/check.sh` (lint/format/types).
 
-### [ ] 1.4 Reshape sign-out into revocable `POST /auth/signout` (+ sign-out-everywhere)
+### [x] 1.4 Reshape sign-out into revocable `POST /auth/signout` (+ sign-out-everywhere)
 
 **Created:** 2026-06-15T17:55:34Z
-**Completed:**
+**Completed:** 2026-06-16T17:07:27Z
+
+**Notes:**
+
+- **Two collateral test edits beyond the Files list, both forced by the
+  `/auth/session` → `/auth/signout` rename:**
+  - `auth-proxy/test/shim.test.ts` case (e) tested `DELETE /auth/session`, an
+    endpoint that no longer exists. Removed it (left a pointer comment); the new
+    behaviour is fully covered by `signout.test.ts`.
+  - `web/src/lib/shared/model/auth-paths.test.ts` asserted `LOGOUT_PATHS` matches
+    `/auth/session`. Updated to `/auth/signout` (+ the sibling-prefix negative
+    case to `/auth/signouts`). The drift guard only compares the proxy↔web
+    `auth-paths.ts` _source_, so this unit test was the one place the old literal
+    lived independently.
+- **`logout()` mints a fresh access token via `refresh()` before calling GoTrue
+  `/logout`.** GoTrue's `/logout` needs a bearer and the access cookie's JWT may
+  be expired, so minting from the durable refresh token guarantees a usable
+  bearer. The rotation this triggers is harmless — we revoke the session
+  immediately after. Cairn always passes an explicit `scope` (`local` by default,
+  `global` on `?scope=global`); the handler clears cookies regardless of the
+  revoke outcome (explicit user intent wins).
+- **Web-client sign-out is intentionally broken between this task and Task 4.1**
+  — analogous to 1.2's documented degraded interim. `session.svelte.ts`,
+  `auth-client.ts`, and `DeleteAccountScreen.svelte` still issue
+  `DELETE /auth/session`, which now matches nothing (falls through to the SPA in
+  prod / GoTrue 404 in dev). Task 4.1 reshapes the web client to
+  `POST /auth/signout` + `signOutEverywhere()` with the CSRF header. The branch
+  deploys whole, so this transient state never ships alone.
 
 **Why:** Sign-out today is a local cookie-clear that leaves the token valid
 (`DELETE /auth/session`). It must revoke server-side (R4), and a global variant

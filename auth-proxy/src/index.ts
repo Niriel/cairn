@@ -8,7 +8,7 @@ import {
 	isSegmentMatch
 } from './lib/auth-paths.js';
 import { plantSession, clearSession, readAccessCookie, readSessionCookie } from './lib/cookies.js';
-import { refresh } from './lib/session.js';
+import { refresh, logout, type LogoutScope } from './lib/session.js';
 
 // Production auth BFF (Cairn-shaped). This is the prod analogue of the dev
 // Vite proxy in web/vite.config.ts (~lines 30–185): it owns the dual-cookie
@@ -28,6 +28,15 @@ const REFRESH_PATH = '/auth/refresh';
 // GOTRUE_URL at a stub server in beforeAll after the module is imported.
 function gotrueUrl(): string {
 	return process.env.GOTRUE_URL ?? 'http://gotrue:9999';
+}
+
+// Sign-out defaults to revoking just this session; `?scope=global` revokes all.
+function logoutScope(originalUrl: string): LogoutScope {
+	const qIdx = originalUrl.indexOf('?');
+	if (qIdx === -1) return 'local';
+	return new URLSearchParams(originalUrl.slice(qIdx + 1)).get('scope') === 'global'
+		? 'global'
+		: 'local';
 }
 
 // Request headers we never forward upstream: a client-supplied Authorization
@@ -55,9 +64,12 @@ async function authHandler(req: Request, res: Response): Promise<void> {
 	// `rewrite: (p) => p.replace(/^\/auth/, '')`).
 	const originalUrl = req.originalUrl;
 
-	// Logout: clear both cookies locally, never round-trip to GoTrue. (Task 1.4
-	// reshapes this into a revocable POST /auth/signout.)
-	if (req.method === 'DELETE' && isSegmentMatch(originalUrl, LOGOUT_PATHS)) {
+	// Sign-out: revoke server-side at GoTrue, then clear both cookies. Cookies
+	// are cleared even if the GoTrue revoke fails (explicit user intent wins).
+	// `?scope=global` revokes all the user's sessions (compromise kill-switch).
+	if (req.method === 'POST' && isSegmentMatch(originalUrl, LOGOUT_PATHS)) {
+		const refreshToken = readSessionCookie(req.headers.cookie);
+		if (refreshToken) await logout(refreshToken, logoutScope(originalUrl));
 		clearSession(res);
 		res.status(204).end();
 		return;

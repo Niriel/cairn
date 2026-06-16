@@ -123,13 +123,8 @@ describe('auth-proxy shim', () => {
 		expect(capturedAuthHeader()).toBeUndefined();
 	});
 
-	it('(e) DELETE /auth/session clears the cookie with 204 and never hits GoTrue', async () => {
-		const res = await request(app).delete('/auth/session');
-		expect(res.status).toBe(204);
-		const cookie = sessionCookie(res);
-		expect(cookie).toContain('Max-Age=0');
-		expect(lastReq).toBeNull();
-	});
+	// Sign-out moved to POST /auth/signout (revocable, server-side); its
+	// behaviour is covered by signout.test.ts.
 
 	it('(f) marks the cookie Secure iff COOKIE_SECURE === "true"', async () => {
 		const insecure = await request(app).post('/auth/token').send({});
