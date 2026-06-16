@@ -829,10 +829,28 @@ the CSRF check is a sibling narrowing); OWASP CSRF custom-header pattern.
 
 ## Phase 3 — Cairn-shaped surface + rate-limiting (R5, R8)
 
-### [ ] 3.1 Define `/auth/signin` + `/auth/register` route skeletons behind the middleware
+### [x] 3.1 Define `/auth/signin` + `/auth/register` route skeletons behind the middleware
 
 **Created:** 2026-06-15T17:55:34Z
-**Completed:**
+**Completed:** 2026-06-16T19:02:44Z
+
+**Notes:**
+
+- **`username` is pinned as the field name in comments, not parsed yet.** The
+  decision says the 501 skeleton "parses just enough to expose that field to the
+  rate-limit middleware" — but that middleware doesn't exist until Task 3.2, so
+  parsing `username` here would be a consumer-less read (dead code / unused var).
+  The field name is fixed in the `/auth/signin` body contract via comments in
+  `index.ts`; the actual body parse rides into 3.2 where the rate-limiter reads it.
+- **No `auth-paths.ts` edit** (as the Decisions instruct) — the skeleton paths are
+  bespoke local consts in `index.ts` (`SIGNIN_PATH`/`REGISTER_PATH`), so the drift
+  guard stays green untouched.
+- **Comment-clarity correction (user, mid-task):** the first draft of the BFF
+  header comment wrote the skeletons' status as a bare `501` next to bare plan
+  numbers (`2003`), which read ambiguously (is `501` a plan?). Reworded across
+  `index.ts` + `vite.config.ts` to spell out "HTTP 501 (Not Implemented)" and to
+  drop bare plan-number references in favour of describing the work ("the
+  credential work", "magic-link sign-in still works").
 
 **Why:** R5's Cairn-shaped surface must exist as routes so the CSRF + rate-limit
 middleware can be mounted and tested now; 2003 fills in the credential logic.
@@ -899,10 +917,38 @@ proven against a real route.
 
 **Verify:** `pnpm --dir auth-proxy test` · Caddy validate · `./scripts/check.sh`.
 
-### [ ] 3.2 Per-IP + per-account sign-in rate-limiting with constant-shape failures
+### [x] 3.2 Per-IP + per-account sign-in rate-limiting with constant-shape failures
 
 **Created:** 2026-06-15T17:55:34Z
-**Completed:**
+**Completed:** 2026-06-16T19:28:42Z
+
+**Notes:**
+
+- **Caddy must set `X-Real-IP` on the auth upstream — and it does not yet.** The
+  trusted-IP derivation reads only the Caddy-set `X-Real-IP` and ignores
+  `X-Forwarded-For` (per the Decisions). But `caddy/Caddyfile.prod` is not in this
+  task's Files and the decision defers the Caddy-side work to Task 5.2, so no
+  Caddyfile edit was made here. Without `header_up X-Real-IP {remote_host}` on the
+  auth handle block, `X-Real-IP` is absent in prod and the per-IP leg falls back to
+  the socket address — Caddy's own container IP — collapsing every client into one
+  shared bucket (everyone throttled together). The per-account escalating-delay leg
+  is unaffected. **This is now captured in Task 5.2** (Decisions + Files +
+  Steps updated, user-approved 2026-06-16): 5.2 adds the `header_up X-Real-IP`
+  line and `caddy/Caddyfile.prod` is on its Files list.
+- **No Vite dev mirror** (deliberate dev-parity exception, per the Decisions): the
+  rate-limiter is BFF-only and fully unit-tested. Dev `/auth/signin` keeps the
+  route + CSRF gate from Task 3.1 but no throttle.
+- **Middleware idiom:** `signinRateLimit` returns a *sync* express handler wrapping
+  a `void`-discarded async IIFE, matching the existing `void authHandler(req, res)`
+  pattern in `index.ts`. A directly-`async` handler tripped
+  `@typescript-eslint/no-misused-promises` (the installed `RequestHandler` return
+  type is `void`, not `void | Promise<void>`). The skeleton `next` (the 501 sender)
+  fires after any imposed delay; the credential check that lands later takes its
+  place and is what calls `recordFailure`/`recordSuccess`.
+- **Recording is the handler's job, not the middleware's** — the middleware only
+  *checks* (block/delay). The skeleton 501 records nothing, so the live endpoint
+  never increments a bucket in this sub-step; the unit tests drive a stub handler
+  that reports success/credential-failure to exercise the throttle.
 
 **Why:** Username + password is brute-forceable in a way magic-link was not, so
 the BFF must throttle repeated sign-in failures per source IP **and** per account
@@ -1278,9 +1324,18 @@ deploy-time forced re-auth (R10) documented for the operator.
   this env (the access cookie tracks `expiresIn`), so the env is simply dead:
   **remove it.** (No "or set it to ~30 d" branch — 1.3 already decided `cookies.ts`
   doesn't read it.)
-- **Confirm Caddy forwards a trustworthy client IP** to the auth-proxy so the
+- **Make Caddy forward a trustworthy client IP** to the auth-proxy so the
   rate-limiter's per-IP key (Task 3.2) is sound and not driven by a spoofable
-  `X-Forwarded-For`.
+  `X-Forwarded-For`. Task 3.2's `clientIp()` derives the IP **only** from a
+  Caddy-set `X-Real-IP` header (it ignores `X-Forwarded-For` entirely), but Caddy
+  does **not** set `X-Real-IP` by default — it only appends `X-Forwarded-For`. So
+  this is a concrete **edit, not just a confirmation**: add `header_up X-Real-IP
+{remote_host}` to the auth handle block (`@gotrue`) in `caddy/Caddyfile.prod`.
+  Without it, `X-Real-IP` is absent in prod and `clientIp()` falls back to the
+  socket address — Caddy's own container IP — collapsing every client into one
+  shared per-IP bucket (everyone throttled together). Caddy setting `X-Real-IP`
+  itself also closes the spoof: it **overwrites** any client-supplied value, so a
+  forged `X-Real-IP` can't reach the BFF.
 - Document the **forced re-auth** in `docs/deployment.md`: on deploy, existing
   `cairn_session`-only clients are bounced to sign-in (structural — the `__Host-`
   rename + access-cookie re-point, no purge needed). Note any one-time
@@ -1295,12 +1350,17 @@ pre-deploy checklist); `caddy/Caddyfile.prod`; the compose overlays.
 
 - `docs/deployment.md` (modify)
 - `docker-compose.prod.yml` (modify if a prod-only override is needed)
+- `caddy/Caddyfile.prod` (modify — add `header_up X-Real-IP {remote_host}` to the
+  `@gotrue` auth handle block so the rate-limiter's per-IP key is real; see the
+  trustworthy-client-IP decision)
 
 **Steps:**
 
 1. Audit the prod overlay for coherence (per Decisions); fix any drift.
-2. Document the forced re-auth + any operator note in `docs/deployment.md`.
-3. Run the full gauntlet including e2e.
+2. Add `header_up X-Real-IP {remote_host}` to the `@gotrue` handle block in
+   `caddy/Caddyfile.prod` (the rate-limiter's `clientIp()` reads only this header).
+3. Document the forced re-auth + any operator note in `docs/deployment.md`.
+4. Run the full gauntlet including e2e.
 
 **Verify:** `docker compose -f docker-compose.yml -f docker-compose.prod.yml config`
 (prod overlay valid) · `./scripts/check.sh --e2e`.

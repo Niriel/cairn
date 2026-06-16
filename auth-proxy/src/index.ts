@@ -10,6 +10,7 @@ import {
 import { plantSession, clearSession, readAccessCookie, readSessionCookie } from './lib/cookies.js';
 import { refresh, logout, type LogoutScope } from './lib/session.js';
 import { requireCsrf } from './lib/csrf.js';
+import { RateLimiter, rateLimitConfigFromEnv, signinRateLimit } from './lib/rate-limit.js';
 
 // Production auth BFF (Cairn-shaped). This is the prod analogue of the dev
 // Vite proxy in web/vite.config.ts (~lines 30–185): it owns the dual-cookie
@@ -20,16 +21,42 @@ import { requireCsrf } from './lib/csrf.js';
 // stays in the Caddyfile and reads the access cookie. The narrowing lists are
 // the canonical ones (auth-paths.ts, guarded deep-equal against web/'s copy by
 // the drift test).
+//
+// The full Cairn-shaped BFF surface is:
+//   POST /auth/register  — create an account
+//   POST /auth/signin    — username + password sign-in
+//   POST /auth/signout    — revoke server-side + clear cookies (?scope=global)
+//   POST /auth/refresh   — rotate the durable refresh token, re-mint the access
+// /auth/signin and /auth/register are route skeletons for now: they reply HTTP
+// 501 (Not Implemented) until the username+password credential work lands. All
+// four are state-changing and require the CSRF header (csrf.ts). The magic-link
+// GoTrue pass-throughs (/auth/token, /auth/verify, /auth/magiclink, /auth/user)
+// keep GoTrue's own wire protocol so magic-link sign-in still works.
 
 // The Cairn-shaped refresh endpoint — not a GoTrue passthrough, so it's handled
 // before the generic fetch-to-GoTrue path below.
 const REFRESH_PATH = '/auth/refresh';
 
+// Cairn-shaped credential endpoints. These are route skeletons: they pass
+// through the CSRF (and, in prod, rate-limit) guards and then answer HTTP 501
+// (Not Implemented). The credential work fills in the username+password logic.
+// The sign-in body's identifier field is pinned as `username` now (the
+// per-account rate-limit leg keys on it); `password` and the credential check
+// arrive with that later work.
+const SIGNIN_PATH = '/auth/signin';
+const REGISTER_PATH = '/auth/register';
+
+// Sign-in is rate-limited (per-IP block + per-account escalating delay) — the
+// limiter is a single long-lived in-memory instance for this process. Register
+// is not a credential guess, so it's not throttled. The skeleton 501 reports no
+// outcome to the limiter, so nothing increments until the credential check lands.
+const signinLimiter = new RateLimiter(rateLimitConfigFromEnv());
+const signinGuard = signinRateLimit(signinLimiter);
+
 // State-changing Cairn-shaped endpoints that require the CSRF header. The
 // magic-link GoTrue pass-throughs (/auth/token, /auth/verify, /auth/magiclink)
-// are the deliberate exception — see csrf.ts. 2003 adds /auth/signin +
-// /auth/register here.
-const CSRF_PROTECTED_PATHS = [REFRESH_PATH, ...LOGOUT_PATHS];
+// are the deliberate exception — see csrf.ts.
+const CSRF_PROTECTED_PATHS = [REFRESH_PATH, SIGNIN_PATH, REGISTER_PATH, ...LOGOUT_PATHS];
 
 // Config is read per-request (not cached at module load) so tests can point
 // GOTRUE_URL at a stub server in beforeAll after the module is imported.
@@ -96,6 +123,26 @@ async function authHandler(req: Request, res: Response): Promise<void> {
 	// GoTrue grant_type translation — the browser never sees a token.
 	if (req.method === 'POST' && isSegmentMatch(originalUrl, [REFRESH_PATH])) {
 		await refreshHandler(req, res);
+		return;
+	}
+
+	// Cairn-shaped credential surface — skeletons. They sit behind the CSRF gate
+	// above so the guard is exercised against a real route; the credential work
+	// replaces the HTTP 501 with the username+password logic. No GoTrue call and
+	// no cookie change here.
+	//
+	// Sign-in additionally passes the rate-limit guard (per-IP block →
+	// constant-shape 429, per-account escalating delay) before the skeleton
+	// answers. The 501 sender is the guard's `next`; the credential check that
+	// lands later takes its place and reports the outcome to the limiter.
+	if (req.method === 'POST' && isSegmentMatch(originalUrl, [SIGNIN_PATH])) {
+		signinGuard(req, res, () => {
+			res.status(501).json({ error: 'not implemented' });
+		});
+		return;
+	}
+	if (req.method === 'POST' && isSegmentMatch(originalUrl, [REGISTER_PATH])) {
+		res.status(501).json({ error: 'not implemented' });
 		return;
 	}
 

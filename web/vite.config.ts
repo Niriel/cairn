@@ -209,6 +209,27 @@ export default defineConfig({
 					}
 					void handleDevRefresh(req, res);
 				});
+				// Cairn-shaped credential skeletons — dev mirror of the prod
+				// /auth/signin + /auth/register handlers (auth-proxy/src/index.ts).
+				// They reply HTTP 501 (Not Implemented) for now, sitting behind the
+				// CSRF gate so dev exercises the same routes + guard as prod; the
+				// username+password logic lands with the credential work. GoTrue:9999
+				// has no such routes, so these can't be a plain proxy. (The prod
+				// rate-limiter is BFF-only — a deliberate dev-parity exception.)
+				server.middlewares.use((req, res, next) => {
+					const path = req.url?.split('?')[0];
+					if ((path !== '/auth/signin' && path !== '/auth/register') || req.method !== 'POST') {
+						next();
+						return;
+					}
+					if (!hasCsrfHeader(req)) {
+						res.statusCode = 403;
+						res.end(JSON.stringify({ error: 'missing csrf header' }));
+						return;
+					}
+					res.statusCode = 501;
+					res.end(JSON.stringify({ error: 'not implemented' }));
+				});
 			}
 		},
 		sveltekit()
