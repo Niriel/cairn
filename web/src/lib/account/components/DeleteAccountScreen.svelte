@@ -7,6 +7,7 @@
 	import Icon from '$lib/basic/components/Icon.svelte';
 	import TextInput from '$lib/basic/components/TextInput.svelte';
 	import { CSRF_HEADER } from '$lib/shared/model/auth-paths';
+	import { bearerWrite } from '$lib/shared/http/bearer-write';
 	import { ApiError, pgPost } from '$lib/shared/http/postgrest';
 	import { AUTH_BASE, signOut } from '$lib/shared/state/session.svelte';
 
@@ -34,7 +35,7 @@
 		// 2. Best-effort sidecar avatar unlink — the one side-effect the RPC's
 		//    transaction can't perform. Fire-and-forget; the nightly orphan-sweep
 		//    reclaims the file if this never lands (see avatars.md).
-		void fetch('/avatars/me', { method: 'DELETE' }).catch(() => {});
+		void bearerWrite('/avatars/me', { method: 'DELETE' }).catch(() => {});
 		// 3. Clear the session cookies. The auth row is already gone, so the JWT is
 		//    void; we keep the session store signed-in here so the confirmation
 		//    view renders inside the app shell. "Back to sign in" calls signOut(),

@@ -1190,10 +1190,41 @@ header name).
 
 **Verify:** `pnpm --dir web test` · `pnpm --dir web check` · `pnpm --dir web lint`.
 
-### [ ] 4.2 `/api` 401-retry-via-refresh interceptor + dev-proxy parity
+### [x] 4.2 `/api` 401-retry-via-refresh interceptor + dev-proxy parity
 
 **Created:** 2026-06-15T17:55:34Z
-**Completed:**
+**Completed:** 2026-06-16T19:56:45Z
+
+**Notes:**
+
+- **No `vite.config.ts` change needed.** The dev proxy already mirrors
+  `/auth/refresh`, `/auth/signout`, the dual-cookie plant, the CSRF gate, and
+  reads the short-lived access cookie for `/api` + `/avatars` (all landed in
+  the Phase 1/2 dev-parity steps). The 401-retry interceptor lives entirely in
+  the web client (postgrest + bearer-write), so there is nothing to mirror in
+  the proxy.
+- **`postgrest.test.ts` was switched off the manual session mock to the real
+  session module.** The single-flight collapse of concurrent 401s is only
+  observable against the real `refresh()` primitive — a `vi.fn` mock would be
+  called N times. The two tests that previously asserted on the `onUnauthorized`
+  spy now assert observable session state (`signed-in` / `signed-out`) instead.
+- **`refresh` added to the manual session mock** (`__mocks__/session.svelte.ts`),
+  defaulting to `{ status: 'transient' }`, so any *other* test that mocks the
+  session module and transits the new 401-refresh path doesn't silently retry
+  unless it opts in.
+- **The bearer-write helper is a pure transport helper — it does NOT flip the
+  session to signed-out.** It refreshes-once-and-retries-once and returns the
+  Response; the next `/api` call drives sign-out if the session is genuinely
+  gone. Kept deliberately minimal (no `onUnauthorized` coupling). Typed to take
+  a `string | URL` (not a `Request`) so the retry can re-issue the body.
+- **A transient refresh failure (503) at the `/api` layer signs out**, same as
+  an authoritative 401 — per the task's "if refresh fails, fall through to
+  `onUnauthorized()`". The `/api` request already failed and can't recover, so
+  signed-out is the honest outcome; the transient-stays-`unknown` nuance is a
+  *boot* concern (Task 4.1), not a mid-session `/api` concern.
+- **Out-of-scope avatar fetch left alone:** `export/state/export.svelte.ts`'s
+  `GET /avatars/{uid}.webp` is a static read served by Caddy (no bearer), not a
+  bearer write — correctly not routed through the helper.
 
 **Why:** With short-lived access cookies, an `/api` call will 401 when the access
 cookie expires; the client must silently refresh once and retry so the user isn't
