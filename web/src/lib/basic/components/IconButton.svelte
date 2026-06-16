@@ -16,6 +16,8 @@
 		background: none;
 		border: none;
 		padding: 4px;
+		min-width: 44px;
+		min-height: 44px;
 		color: inherit;
 		cursor: pointer;
 		display: flex;

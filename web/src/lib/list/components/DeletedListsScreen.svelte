@@ -23,7 +23,7 @@
 				disabled={listTrash.loading}
 				onclick={() => void loadDeletedLists()}
 			>
-				<Icon name="rotate-ccw" size={22} />
+				<Icon name="rotate-ccw" size={24} />
 			</IconButton>
 		{/snippet}
 	</AppTopBar>

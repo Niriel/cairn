@@ -25,24 +25,36 @@
      draws both the outer band and the divider between adjacent rows. -->
 <div class="nav-row" class:destructive={tone === 'destructive'}>
 	<Button variant="text" {tone} size="md" {onclick} data-test={rest['data-test']}>
-		{#if lead}{@render lead()}{/if}
+		{#if lead}<span class="nav-row-lead">{@render lead()}</span>{/if}
 		<span class="nav-row-text">
 			<span class="nav-row-title row-title">{title}</span>
 			{#if sub}<span class="nav-row-sub caption">{sub}</span>{/if}
 		</span>
-		{#if trailing}{@render trailing()}{/if}
-		<Icon name="chevron-right" size={18} />
+		{#if trailing}<span class="nav-row-trailing">{@render trailing()}</span>{/if}
+		<span class="nav-row-chevron" aria-hidden="true">
+			<Icon name="chevron-right" size={24} />
+		</span>
 	</Button>
 </div>
 
 <style>
 	/* The text column fills the gap between the lead visual and the trailing
-	   chevron; min-width:0 lets a long title truncate rather than overflow. */
+	   chevron; min-width:0 lets a long title truncate rather than overflow.
+
+	   The padding-block centres the title's *first line* within a 44px band: the
+	   symmetric inset equals half the slack between the 44px tap target and one
+	   line-height (`1lh`), so a single-line title sits on the 22px midline (where
+	   the lead/trailing/chevron bands centre their glyphs too) while a wrapped
+	   title — or a title with a sub line below it — keeps that first line pinned
+	   at 22px and grows downward. Same technique as AccordionRow; no line-height
+	   constant baked in. */
 	.nav-row-text {
 		flex: 1;
 		min-width: 0;
 		display: flex;
 		flex-direction: column;
+		box-sizing: border-box;
+		padding-block: calc((44px - 1lh) / 2);
 	}
 
 	/* The title used to inherit wrap behaviour from a caller's .name class; now
@@ -58,12 +70,45 @@
 		margin-top: 0.125rem;
 	}
 
-	/* Top-align the row contents (Button defaults to align-items: center): on a
-	   wrapped multi-line title the trailing marker and chevron pin to the top of
-	   the name rather than centring against it (docs/ui.md "Row navigation
-	   pattern"). A no-op for single-line labels. */
+	/* Lead visual, trailing marker and chevron each centre their content within a
+	   44px-tall band so they sit on the same 22px midline as the title's first
+	   line. flex-shrink keeps them from being squeezed by a long wrapping title. */
+	.nav-row-lead,
+	.nav-row-trailing,
+	.nav-row-chevron {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		flex-shrink: 0;
+		min-height: 44px;
+	}
+
+	/* The chevron also gets a 44px width, so it's a square box matching
+	   AccordionRow: its 24px glyph centres at (button padding-right + 22px). That
+	   shared geometry is what lets callers (e.g. the Lists screen) pin a per-card
+	   ⋮ — itself a 44px IconButton — directly under the chevron with `right` set
+	   to the row button's padding-right. */
+	.nav-row-chevron {
+		min-width: 44px;
+	}
+
+	/* Top-align the row contents (Button defaults to align-items: center) so the
+	   text column can grow downward; each child centres within its own 44px band,
+	   so on a single line everything lines up on the 22px midline and on a wrapped
+	   title the lead/marker/chevron pin to the first line (docs/ui.md "Row
+	   navigation pattern"). min-height makes the row itself a 44px tap target. */
 	.nav-row :global(button) {
 		align-items: flex-start;
+		min-height: 44px;
+	}
+
+	/* Button's .text.size-md ships 0.75rem of vertical padding, but the 44px
+	   content bands already give the row its height — the padding would only
+	   inflate it (~68px). Zero it; the band's own interior space keeps the row
+	   from looking cramped. Needs `button.text` to out-specify .text.size-md;
+	   the horizontal inset is left to .text.size-md (or the call site). */
+	.nav-row :global(button.text) {
+		padding-block: 0;
 	}
 
 	/* The Button's tone="destructive" already colours the lead and chevron

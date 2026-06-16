@@ -56,14 +56,14 @@
 				disabled={lists.loading}
 				onclick={() => refreshLists()}
 			>
-				<Icon name="rotate-ccw" size={22} />
+				<Icon name="rotate-ccw" size={24} />
 			</IconButton>
 			<IconButton
 				aria-label="Settings"
 				data-test="lists-settings"
 				onclick={() => goto(resolve('/settings'))}
 			>
-				<Icon name="settings" size={22} />
+				<Icon name="settings" size={24} />
 			</IconButton>
 		{/snippet}
 	</AppTopBar>
@@ -98,13 +98,13 @@
 						{#snippet trailing()}{#if item.is_public}<span
 									class="public-marker"
 									data-test="list-public-marker-{item.id}"
-									><Icon name="globe" size={14} /><span class="sr-only">Public list</span></span
+									><Icon name="globe" size={24} /><span class="sr-only">Public list</span></span
 								>{/if}{/snippet}
 					</NavRow>
 					<div class="extra">
 						<span class="more">
 							<MoreButton
-								size={18}
+								size={24}
 								aria-label="List options"
 								data-test="list-overflow-{item.id}"
 								onclick={() => (overflowList = item)}
@@ -238,10 +238,11 @@
 	}
 
 	/* Horizontal real estate is scarce, so tighten the NavRow button's default
-	   md inset (0.75rem 1.125rem) to 0.5rem 0.8rem on this screen. The dependent
-	   offsets below (.extra left inset, .more) track this 0.8rem horizontal. */
+	   md horizontal inset (1.125rem) to 0.8rem on this screen. Vertical padding is
+	   0 — NavRow's 44px content bands set the row height (see NavRow). The
+	   dependent offsets below (.extra left inset, .more) track this 0.8rem. */
 	.row :global(.nav-row button) {
-		padding: 0.5rem 0.8rem;
+		padding: 0 0.8rem;
 	}
 
 	/* Extra-info block beneath the title nav-row: the More button (absolutely
@@ -258,35 +259,28 @@
 
 	/* The More button, pinned to the top-end corner of the extra-info block. The
 	   wrapping span is positioned (not the MoreButton itself) so its forwarded
-	   class can't clobber IconButton's .icon-btn padding. right: 0.55rem lines
-	   the More icon's centre up under the nav-row chevron's centre: the chevron
-	   sits ~22px from the row's right edge (0.8rem button padding + half of an
-	   18px icon), and the IconButton's 18px icon centres 13px from its own right
-	   edge, so the button's right edge needs to sit ~9px (0.55rem) in. */
-	/* ALIGNMENT INVARIANT: the ⋮ glyph sits under the nav-row's chevron only while
-	   right (0.55rem) + IconButton padding (4px) == nav-row button padding-right
-	   (0.8rem, above). The chevron is the fixed anchor; this button is what grows.
-	   If IconButton's padding increases for a 44px touch target (4px → ~13px),
-	   drop this `right` by the same amount (→ ~0) so the widened button doesn't
-	   push the glyph left out of line. Same coupling as the Items screen. */
+	   class can't clobber IconButton's .icon-btn sizing. The chevron and this ⋮
+	   are now identical 44px boxes around 24px glyphs, so their glyphs both centre
+	   at (right inset + 22px): setting `right` equal to the nav-row button's
+	   padding-right (0.8rem) lines the ⋮ up directly under the chevron. */
+	/* ALIGNMENT INVARIANT: the ⋮ sits under the chevron only while this `right`
+	   equals the nav-row button's padding-right (0.8rem, above) and both are 44px
+	   boxes with equal-size glyphs. Same coupling as the Items screen. */
 	.more {
 		position: absolute;
 		top: 0.375rem;
-		right: 0.55rem;
+		right: 0.8rem;
 	}
 
 	/* Public-list marker: a muted globe in the nav-row's trailing slot, so it
 	   sits at the row's right edge just before the chevron. flex-shrink:0 keeps
-	   it from being squeezed by a long wrapping name. No align-self override, so
-	   it inherits the button's align-items: flex-start and pins to the top of a
-	   wrapped multi-line name like the chevron, rather than centring against it.
-	   margin-top nudges it down by half the size gap to the chevron ((18-14)/2 =
-	   2px) so the smaller globe's optical centre lines up with the chevron's
-	   instead of riding high against its top. */
+	   it from being squeezed by a long wrapping name. NavRow now centres the
+	   trailing slot in a 44px band (same as the chevron), and the globe matches
+	   the chevron's 24px size, so the two share a midline with no margin-top nudge
+	   — it would only push the globe off that midline. */
 	.public-marker {
 		display: inline-flex;
 		flex-shrink: 0;
-		margin-top: 0.125rem;
 		margin-left: 0.375rem;
 		color: var(--stone);
 	}

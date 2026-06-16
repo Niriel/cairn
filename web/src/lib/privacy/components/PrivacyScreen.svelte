@@ -136,7 +136,7 @@
 						data-test="nav-circle"
 						onclick={() => void goto(resolve('/settings/circles'))}
 					>
-						{#snippet lead()}<Icon name="users" size={20} />{/snippet}
+						{#snippet lead()}<Icon name="users" size={24} />{/snippet}
 						{#snippet trailing()}
 							{#if relationships.loaded}
 								<Badge tone="soft" data-test="circle-count">{relationships.circle.length}</Badge>
@@ -149,7 +149,7 @@
 						data-test="nav-blocked"
 						onclick={() => void goto(resolve('/settings/blocked'))}
 					>
-						{#snippet lead()}<Icon name="slash" size={20} />{/snippet}
+						{#snippet lead()}<Icon name="slash" size={24} />{/snippet}
 						{#snippet trailing()}
 							{#if relationships.loaded}
 								<Badge tone="soft" data-test="blocked-count">{relationships.blocked.length}</Badge>

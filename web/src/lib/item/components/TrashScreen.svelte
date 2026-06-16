@@ -26,7 +26,7 @@
 				disabled={itemTrash.loading}
 				onclick={() => void loadTrash(listId)}
 			>
-				<Icon name="rotate-ccw" size={22} />
+				<Icon name="rotate-ccw" size={24} />
 			</IconButton>
 		{/snippet}
 	</TopBar>

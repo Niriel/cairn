@@ -172,7 +172,7 @@
 	<AppTopBar showBack={false}>
 		{#snippet left()}
 			<button class="icon-btn" data-test="crop-cancel" onclick={oncancel}>
-				<Icon name="chevron-left" size={22} />
+				<Icon name="chevron-left" size={24} />
 			</button>
 		{/snippet}
 		Crop
@@ -339,6 +339,7 @@
 		cursor: pointer;
 		display: flex;
 		align-items: center;
+		justify-content: center;
 	}
 
 	/* Save sits at the foot of the form, full-width, where people expect the

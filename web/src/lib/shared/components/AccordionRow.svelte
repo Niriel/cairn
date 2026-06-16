@@ -65,6 +65,15 @@
 		align-items: flex-start;
 	}
 
+	/* Button's .text.size-md ships 0.75rem of vertical padding, but the 44px
+	   content bands already give the row its height — the padding would only
+	   inflate it. Zero it; the band's own interior space keeps the row from
+	   looking cramped. Needs `button.text` to out-specify .text.size-md; the
+	   horizontal inset is left to .text.size-md (or the call site). */
+	.accordion-row :global(button.text) {
+		padding-block: 0;
+	}
+
 	/* The trailing badge shares the chevron's 44px band so it centres on the
 	   first line alongside it; flex-shrink keeps it from collapsing. */
 	.trailing {
@@ -77,7 +86,7 @@
 	/* The fold indicator. chevron-right rotates a quarter-turn to point down when
 	   the panel opens; the small transition makes the toggle legible. flex-shrink
 	   keeps it from being squeezed by a long wrapping title. The box is sized to a
-	   44×44 minimum tap target (the 18px glyph sits centred inside it). */
+	   44×44 minimum tap target (the 24px glyph sits centred inside it). */
 	.chevron {
 		display: inline-flex;
 		align-items: center;

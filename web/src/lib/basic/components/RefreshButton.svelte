@@ -21,7 +21,7 @@
 	{onclick}
 >
 	<span class="icon-wrap" class:spin={spinning}>
-		<Icon name="rotate-ccw" size={22} />
+		<Icon name="rotate-ccw" size={24} />
 	</span>
 </button>
 
