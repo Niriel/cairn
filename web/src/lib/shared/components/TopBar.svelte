@@ -2,6 +2,7 @@
 	import type { Snippet } from 'svelte';
 
 	import Icon from '$lib/basic/components/Icon.svelte';
+	import { ICON_SIZE } from '$lib/shared/model/constants';
 
 	let {
 		showBack = true,
@@ -30,7 +31,7 @@
 			{@render left()}
 		{:else if showBack}
 			<button class="icon-btn" onclick={() => history.back()} data-test="topbar-back">
-				<Icon name="chevron-left" size={24} />
+				<Icon name="chevron-left" size={ICON_SIZE} />
 			</button>
 		{/if}
 	</div>
@@ -86,14 +87,14 @@
 	}
 
 	/* Bar action button: a transparent ink-tinted icon target — chrome local to
-	   this single-instance bar. min 44×44 is the tap-target floor (the 24px glyph
-	   centres inside it). */
+	   this single-instance bar. The tap-target floor centres the ICON_SIZE glyph
+	   inside it. */
 	.icon-btn {
 		background: none;
 		border: none;
 		padding: 0.25rem;
-		min-width: 44px;
-		min-height: 44px;
+		min-width: var(--tap-target);
+		min-height: var(--tap-target);
 		color: var(--ink);
 		cursor: pointer;
 		display: flex;
@@ -102,15 +103,15 @@
 	}
 
 	/* Icon buttons handed in via the left/right slots (IconButton, MoreButton,
-	   RefreshButton) share the same 44×44 tap-target floor as the built-in back
-	   button. Scoped to the slots so it never touches the in-content variants of
-	   these buttons (e.g. the per-row ⋮), which carry their own alignment
-	   invariants, nor the plain text Buttons some sheets put in these slots. */
+	   RefreshButton) share the same tap-target floor as the built-in back button.
+	   Scoped to the slots so it never touches the in-content variants of these
+	   buttons (e.g. the per-row ⋮), which carry their own alignment invariants,
+	   nor the plain text Buttons some sheets put in these slots. */
 	.left :global(.icon-btn),
 	.left :global(.refresh-btn),
 	.right :global(.icon-btn),
 	.right :global(.refresh-btn) {
-		min-width: 44px;
-		min-height: 44px;
+		min-width: var(--tap-target);
+		min-height: var(--tap-target);
 	}
 </style>

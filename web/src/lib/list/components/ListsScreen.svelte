@@ -16,6 +16,7 @@
 	import EmptyState from '$lib/shared/components/EmptyState.svelte';
 	import WelcomeBanner from '$lib/shared/components/WelcomeBanner.svelte';
 	import { lists, refreshLists, undoDeleteList } from '$lib/list/state/lists.svelte';
+	import { ICON_SIZE } from '$lib/shared/model/constants';
 	import { timeAgo } from '$lib/shared/model/time-ago';
 	import type { List } from '$lib/list/model/list';
 
@@ -51,20 +52,18 @@
 		Cairn
 		{#snippet right()}
 			<IconButton
+				icon="rotate-ccw"
 				aria-label="Refresh"
 				data-test="lists-refresh"
 				disabled={lists.loading}
 				onclick={() => refreshLists()}
-			>
-				<Icon name="rotate-ccw" size={24} />
-			</IconButton>
+			/>
 			<IconButton
+				icon="settings"
 				aria-label="Settings"
 				data-test="lists-settings"
 				onclick={() => goto(resolve('/settings'))}
-			>
-				<Icon name="settings" size={24} />
-			</IconButton>
+			/>
 		{/snippet}
 	</AppTopBar>
 
@@ -98,7 +97,8 @@
 						{#snippet trailing()}{#if item.is_public}<span
 									class="public-marker"
 									data-test="list-public-marker-{item.id}"
-									><Icon name="globe" size={24} /><span class="sr-only">Public list</span></span
+									><Icon name="globe" size={ICON_SIZE} /><span class="sr-only">Public list</span
+									></span
 								>{/if}{/snippet}
 					</NavRow>
 					<div class="extra">
@@ -145,7 +145,6 @@
 						</div>
 						<span class="more">
 							<MoreButton
-								size={24}
 								aria-label="List options"
 								data-test="list-overflow-{item.id}"
 								onclick={() => (overflowList = item)}

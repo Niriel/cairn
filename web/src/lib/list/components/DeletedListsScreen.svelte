@@ -5,7 +5,6 @@
 	import AppTopBar from '$lib/shared/components/AppTopBar.svelte';
 	import Button from '$lib/basic/components/Button.svelte';
 	import EmptyState from '$lib/shared/components/EmptyState.svelte';
-	import Icon from '$lib/basic/components/Icon.svelte';
 	import IconButton from '$lib/basic/components/IconButton.svelte';
 
 	$effect(() => {
@@ -18,13 +17,12 @@
 		Deleted lists
 		{#snippet right()}
 			<IconButton
+				icon="rotate-ccw"
 				aria-label="Refresh"
 				data-test="deleted-lists-refresh"
 				disabled={listTrash.loading}
 				onclick={() => void loadDeletedLists()}
-			>
-				<Icon name="rotate-ccw" size={24} />
-			</IconButton>
+			/>
 		{/snippet}
 	</AppTopBar>
 

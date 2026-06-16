@@ -1,5 +1,11 @@
 :root {
 	--app-max-w: 26rem;
+	/* Minimum hit area for any interactive control — the WCAG 2.5.5 / Apple HIG
+	   44×44 floor, sized for small screens with poor touch resolution. Controls
+	   set min-width/min-height to this; the glyph inside is the smaller
+	   ICON_SIZE (24px, in constants.ts) centred within it. See docs/ui.md →
+	   "Tap targets and icon sizing". */
+	--tap-target: 44px;
 	--paper: oklch(98% 0.012 85);
 	--paper-alt: oklch(96% 0.014 82);
 	--ink: oklch(24% 0.02 65);

@@ -3,6 +3,7 @@
 
 	import Button from '$lib/basic/components/Button.svelte';
 	import Icon from '$lib/basic/components/Icon.svelte';
+	import { ICON_SIZE } from '$lib/shared/model/constants';
 
 	type Props = {
 		lead?: Snippet;
@@ -32,7 +33,7 @@
 		</span>
 		{#if trailing}<span class="nav-row-trailing">{@render trailing()}</span>{/if}
 		<span class="nav-row-chevron" aria-hidden="true">
-			<Icon name="chevron-right" size={24} />
+			<Icon name="chevron-right" size={ICON_SIZE} />
 		</span>
 	</Button>
 </div>
@@ -54,7 +55,7 @@
 		display: flex;
 		flex-direction: column;
 		box-sizing: border-box;
-		padding-block: calc((44px - 1lh) / 2);
+		padding-block: calc((var(--tap-target) - 1lh) / 2);
 	}
 
 	/* The title used to inherit wrap behaviour from a caller's .name class; now
@@ -71,7 +72,7 @@
 	}
 
 	/* Lead visual, trailing marker and chevron each centre their content within a
-	   44px-tall band so they sit on the same 22px midline as the title's first
+	   tap-target-tall band so they sit on the same midline as the title's first
 	   line. flex-shrink keeps them from being squeezed by a long wrapping title. */
 	.nav-row-lead,
 	.nav-row-trailing,
@@ -80,26 +81,26 @@
 		align-items: center;
 		justify-content: center;
 		flex-shrink: 0;
-		min-height: 44px;
+		min-height: var(--tap-target);
 	}
 
-	/* The chevron also gets a 44px width, so it's a square box matching
-	   AccordionRow: its 24px glyph centres at (button padding-right + 22px). That
-	   shared geometry is what lets callers (e.g. the Lists screen) pin a per-card
-	   ⋮ — itself a 44px IconButton — directly under the chevron with `right` set
-	   to the row button's padding-right. */
+	/* The chevron also gets a tap-target width, so it's a square box matching
+	   AccordionRow: its glyph centres at (button padding-right + half the box).
+	   That shared geometry is what lets callers (e.g. the Lists screen) pin a
+	   per-card ⋮ — itself a tap-target IconButton — directly under the chevron
+	   with `right` set to the row button's padding-right. */
 	.nav-row-chevron {
-		min-width: 44px;
+		min-width: var(--tap-target);
 	}
 
 	/* Top-align the row contents (Button defaults to align-items: center) so the
-	   text column can grow downward; each child centres within its own 44px band,
-	   so on a single line everything lines up on the 22px midline and on a wrapped
-	   title the lead/marker/chevron pin to the first line (docs/ui.md "Row
-	   navigation pattern"). min-height makes the row itself a 44px tap target. */
+	   text column can grow downward; each child centres within its own band, so on
+	   a single line everything lines up on the midline and on a wrapped title the
+	   lead/marker/chevron pin to the first line (docs/ui.md "Row navigation
+	   pattern"). min-height makes the row itself a tap target. */
 	.nav-row :global(button) {
 		align-items: flex-start;
-		min-height: 44px;
+		min-height: var(--tap-target);
 	}
 
 	/* Button's .text.size-md ships 0.75rem of vertical padding, but the 44px

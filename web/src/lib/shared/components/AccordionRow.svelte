@@ -3,6 +3,7 @@
 
 	import Button from '$lib/basic/components/Button.svelte';
 	import Icon from '$lib/basic/components/Icon.svelte';
+	import { ICON_SIZE } from '$lib/shared/model/constants';
 
 	type Props = {
 		title: string;
@@ -27,7 +28,7 @@
 		<span class="accordion-row-title row-title">{title}</span>
 		{#if trailing}<span class="trailing">{@render trailing()}</span>{/if}
 		<span class="chevron" aria-hidden="true">
-			<Icon name="chevron-right" size={24} />
+			<Icon name="chevron-right" size={ICON_SIZE} />
 		</span>
 	</Button>
 </div>
@@ -51,7 +52,7 @@
 		white-space: normal;
 		overflow-wrap: anywhere;
 		box-sizing: border-box;
-		padding-block: calc((44px - 1lh) / 2);
+		padding-block: calc((var(--tap-target) - 1lh) / 2);
 	}
 
 	/* Top-align the row contents so the title can grow downward when it wraps;
@@ -74,26 +75,26 @@
 		padding-block: 0;
 	}
 
-	/* The trailing badge shares the chevron's 44px band so it centres on the
-	   first line alongside it; flex-shrink keeps it from collapsing. */
+	/* The trailing badge shares the chevron's band so it centres on the first line
+	   alongside it; flex-shrink keeps it from collapsing. */
 	.trailing {
 		display: inline-flex;
 		align-items: center;
 		flex-shrink: 0;
-		min-height: 44px;
+		min-height: var(--tap-target);
 	}
 
 	/* The fold indicator. chevron-right rotates a quarter-turn to point down when
 	   the panel opens; the small transition makes the toggle legible. flex-shrink
-	   keeps it from being squeezed by a long wrapping title. The box is sized to a
-	   44×44 minimum tap target (the 24px glyph sits centred inside it). */
+	   keeps it from being squeezed by a long wrapping title. The box is a square
+	   tap target (the ICON_SIZE glyph sits centred inside it). */
 	.chevron {
 		display: inline-flex;
 		align-items: center;
 		justify-content: center;
 		flex-shrink: 0;
-		min-width: 44px;
-		min-height: 44px;
+		min-width: var(--tap-target);
+		min-height: var(--tap-target);
 		transition: transform 0.09s ease;
 	}
 

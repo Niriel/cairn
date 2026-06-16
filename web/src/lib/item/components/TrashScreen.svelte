@@ -21,13 +21,12 @@
 		Bin
 		{#snippet right()}
 			<IconButton
+				icon="rotate-ccw"
 				aria-label="Refresh"
 				data-test="trash-refresh"
 				disabled={itemTrash.loading}
 				onclick={() => void loadTrash(listId)}
-			>
-				<Icon name="rotate-ccw" size={24} />
-			</IconButton>
+			/>
 		{/snippet}
 	</TopBar>
 

@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { ICON_SIZE } from '$lib/shared/model/constants';
 	import Icon from './Icon.svelte';
 
 	let {
@@ -21,7 +22,7 @@
 	{onclick}
 >
 	<span class="icon-wrap" class:spin={spinning}>
-		<Icon name="rotate-ccw" size={24} />
+		<Icon name="rotate-ccw" size={ICON_SIZE} />
 	</span>
 </button>
 

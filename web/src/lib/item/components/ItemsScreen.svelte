@@ -139,14 +139,13 @@
 		{/snippet}
 		{#snippet right()}
 			<IconButton
+				icon="rotate-ccw"
 				aria-label="Refresh"
 				data-test="items-refresh"
 				disabled={items.loading}
 				onclick={refreshItems}
-			>
-				<Icon name="rotate-ccw" size={24} />
-			</IconButton>
-			<MoreButton aria-label="More options" size={24} onclick={() => (overflowOpen = true)} />
+			/>
+			<MoreButton aria-label="More options" onclick={() => (overflowOpen = true)} />
 		{/snippet}
 	</TopBar>
 
@@ -238,7 +237,6 @@
 							</div>
 							<span class="more">
 								<MoreButton
-									size={24}
 									aria-label="Item options"
 									data-test="item-overflow-{item.id}"
 									onclick={() => (overflowItem = item)}

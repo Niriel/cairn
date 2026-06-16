@@ -504,6 +504,41 @@ the screens were prototyped in px. So:
   (`1px solid`), shadow offsets, and genuinely fixed structural measures. A 1px
   rule is 1px at every font size.
 
+### Tap targets and icon sizing
+
+Every interactive control presents a **minimum 44 × 44 px hit area** — the
+WCAG 2.5.5 / Apple HIG floor, chosen for small screens with poor touch
+resolution where a smaller target is easy to miss or mis-hit. The glyph drawn
+inside that area is the smaller **standard icon size, 24 px**, centred within
+the hit area; the gap between glyph and edge is dead space that still taps.
+
+Two sources of truth, so neither number is repeated by hand:
+
+- **`--tap-target: 44px`** (in `tokens.css`) — the hit-area floor. Controls set
+  `min-width`/`min-height` to it (e.g. `min-height: var(--tap-target)`), never
+  a bare `44px`. It's a _minimum_: content may grow past it.
+- **`ICON_SIZE` (= 24)** (in `shared/model/constants.ts`) — the glyph size, a
+  TS constant because `<Icon size={…}>` takes a number prop, not CSS. Use
+  `size={ICON_SIZE}` rather than `size={24}` for any standard control icon
+  (chevrons, top-bar actions, the ⋮ More button, nav-row leads).
+
+The floor is **embedded in the icon-button components** so call sites don't
+re-implement it. Reach for these rather than hand-rolling a `<button>` around
+an `<Icon>`:
+
+- **`<IconButton>`** (`basic/`) — a transparent square icon button at the
+  tap-target floor. Pass `icon="settings"` for the common case (it renders the
+  `ICON_SIZE` glyph itself); fall back to a child snippet only for bespoke
+  content.
+- **`<MoreButton>`** — the ⋮ overflow button (wraps `IconButton`); defaults to
+  `ICON_SIZE`.
+- **`<RefreshButton>`** — the spinning rotate-ccw refresh button; `ICON_SIZE`.
+
+Glyphs that are _not_ standalone controls keep their own purposeful sizes (the
+small inline globe on the Items subtitle, member-vote avatars, the empty-state
+illustration, the FAB's plus) — `ICON_SIZE` is for the recurring control icon,
+not a blanket "all icons are 24".
+
 ### App shell width and fixed-position elements
 
 The app is constrained to `--app-max-w: 26rem` (≈ 416 px), centered with `margin-inline: auto`. This token lives in `tokens.css` and is referenced by `+layout.svelte`.
@@ -547,10 +582,10 @@ Screens that can show an empty state should be flex columns that fill the viewpo
 Every `<TopBar>` renders with:
 
 - Newsreader serif, 1.375 rem (22 px), weight 500, letter-spacing −0.01 em for the title
-- `min-height: 56px`; padding 12 px top / 18 px sides (plus safe-area insets)
+- `min-height: 56px`; padding 12 px top/bottom / 0.8 rem sides (plus safe-area insets). The side padding is tight because the action buttons are wide — they're `--tap-target` (44 px) hit areas around `ICON_SIZE` glyphs, which also set the bar's effective height past the 56 px floor.
 - `border-bottom: 1px solid var(--rule)`
 
-The TopBar uses `display: flex; align-items: center; gap: 10px`. The title div has `flex: 1; min-width: 0`, so the leading element and title are visually adjacent. Optional props:
+The TopBar uses `display: flex; align-items: flex-start; gap: 10px` (flex-start, not center, so a wrapped two-line title grows downward and the action buttons stay pinned to the top). The title div has `flex: 1; min-width: 0`, so the leading element and title are visually adjacent. Action icons handed into the `left`/`right` slots (`IconButton`, `MoreButton`, `RefreshButton`) get the `--tap-target` floor from a slot-scoped rule. Optional props:
 
 - **`left?: Snippet`** — rendered in the leading slot. When provided, it replaces the back button (`showBack` is ignored). Use this for root screens that need a brand element rather than a back arrow (e.g. `<CairnGlyph>` on the Lists screen).
 - **`sub?: string`** — a secondary line rendered directly below the title; the `.caption` role (1 rem, `var(--stone)`).
@@ -566,14 +601,14 @@ When a list row has a primary label and a trailing chevron that both navigate to
 ```svelte
 <button class="row-nav" onclick={navigate}>
   <h3 class="row-title">{item.name}</h3>
-  <span class="chevron"><Icon name="chevron-right" size={18} /></span>
+  <span class="chevron"><Icon name="chevron-right" size={ICON_SIZE} /></span>
 </button>
 ```
 
 ```css
 .row-nav {
 	display: flex;
-	align-items: flex-start; /* NOT center — pins chevron to top when name wraps */
+	align-items: flex-start; /* NOT center — pins chevron to first line when name wraps */
 	gap: 12px;
 	width: 100%;
 	background: none;
@@ -590,7 +625,17 @@ When a list row has a primary label and a trailing chevron that both navigate to
 }
 ```
 
-`align-items: flex-start` is required so the chevron stays at the top of a multi-line name rather than drifting to the vertical midpoint.
+In practice this pattern is the shared **`<NavRow>`** (and its sibling
+**`<AccordionRow>`**) — prefer them to re-rolling the markup. They implement
+the tap-target rule above: the chevron is the `ICON_SIZE` glyph in a square
+`--tap-target` box, the lead/trailing/chevron each centre within a
+`--tap-target`-tall band, and the title's first line is centred on that same
+midline via `padding-block: calc((var(--tap-target) - 1lh) / 2)`.
+`align-items: flex-start` keeps the chevron and any lead/trailing pinned to the
+title's first line rather than drifting to the midpoint of a wrapped name. A
+caller (e.g. the Lists card) that pins a per-row ⋮ beneath the chevron aligns
+it by giving the ⋮ `right` = the row button's `padding-right`, since chevron
+and ⋮ are both `--tap-target` boxes around `ICON_SIZE` glyphs.
 
 ### Row separators
 
