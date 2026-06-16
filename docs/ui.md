@@ -547,7 +547,7 @@ not a blanket "all icons are 24".
 
 ### App shell width and fixed-position elements
 
-The app is constrained to `--app-max-w: 26rem` (≈ 416 px), centered with `margin-inline: auto`. This token lives in `tokens.css` and is referenced by `+layout.svelte`.
+The app shell is capped at `--app-max-w: 624px`, centered with `margin-inline: auto`. This token lives in `tokens.css` and is referenced by `+layout.svelte`. It is a **desktop ceiling, not a phone frame**: mobile viewports sit below it and take all the horizontal space they have, while only wider (desktop) viewports actually hit the cap — so the two no longer need to look alike. The value is held in **px, not rem, on purpose**: it must not scale with the user's font-size preference, since an earlier rem-based width shrank the usable real estate on large-screen phones with small fonts.
 
 Fixed-position elements (`position: fixed`) are placed relative to the viewport, not the shell, so naïve `left: 0; right: 0` or `right: 16px` will escape the container on wide screens. The correct patterns:
 
@@ -562,18 +562,56 @@ right: max(16px, calc(50% - var(--app-max-w) / 2 + 16px));
 
 These are already in `Sheet.svelte` and `Fab.svelte`. Any new fixed-position element (snackbar, tooltip, keyboard-shortcut bar, etc.) must use the same pattern — **never bare `left: 0` or `right: 16px` on a fixed element**.
 
+### Scroll model and the screen bottom gutter
+
+Every authenticated screen uses **one** scroll model: the `.screen` is a flex
+column with `min-height: 100%`, content grows it past the viewport, and the
+whole screen — TopBar included — scrolls at the document level. Screens do
+**not** pin the TopBar with an inner `overflow-y: auto` scroller; that variant
+was retired so the app scrolls consistently everywhere. (The sole exception is
+`AvatarCropScreen`, a fixed-viewport crop UI that marks its root
+`class="screen no-gutter"`.)
+
+The bottom gutter is applied **once**, in the `(app)` shell layout
+(`routes/(app)/+layout.svelte`), as `.screen:not(.no-gutter) { padding-bottom:
+var(--fab-clearance) }` — so no screen needs to repeat it. It keeps the last
+row/control off the viewport edge (a flush edge reads as "more below") and, on
+FAB screens, doubles as the clearance that keeps the last row from hiding under
+the floating button.
+
 ### Full-height screens and vertical centring
 
-Screens that can show an empty state should be flex columns that fill the viewport so the empty state can be centered:
+`.screen` and `.screen-body` are **global layout primitives**
+(`src/lib/shared/styles/layout.css`, imported in the root layout), not
+per-screen rules — they were duplicated on every screen, so they live in one
+place like the `.rows` divider model. Every screen follows the same shape:
+
+```svelte
+<div class="screen">
+	<TopBar … />
+	<div class="screen-body"><!-- loading / empty / loaded all live here --></div>
+	<!-- fixed overlays (FAB, snackbars, sheets) stay OUTSIDE .screen-body -->
+</div>
+```
+
+`.screen` gives the flex column + `min-height: 100dvh`; `.screen-body` is the
+single growing region that holds **all** of a screen's states (don't tag only
+the loading branch). Per-screen padding, gaps, and column layout are added
+locally on `.screen-body`. Splash variants (auth pages) add only their deltas
+(centring, padding) on top of `.screen`; `AvatarCropScreen` opts out of the
+bottom gutter with `class="screen no-gutter"` and names its bespoke region
+`.crop-stage`. Sheets don't need a body class — the `Sheet` component's own
+container is the padded, scrollable body.
 
 ```css
+/* layout.css — the global primitives */
 .screen {
 	display: flex;
 	flex-direction: column;
 	min-height: 100dvh; /* dvh, not vh — shrinks when iOS Safari chrome expands */
 }
-.content {
-	flex: 1; /* fills remaining height below the TopBar */
+.screen-body {
+	flex: 1; /* the growing region below the TopBar; screens add padding locally */
 }
 .empty {
 	display: flex;

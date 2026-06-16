@@ -65,9 +65,10 @@
 {/if}
 
 <style>
+	/* Splash variant of the global .screen primitive: centred column with a
+	   tall top inset. Only the deltas live here; flex/column/min-height come
+	   from layout.css. */
 	.screen {
-		display: flex;
-		flex-direction: column;
 		align-items: center;
 		gap: 12px;
 		padding: 80px 28px 40px;

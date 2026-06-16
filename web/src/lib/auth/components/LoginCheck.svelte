@@ -151,9 +151,9 @@
 />
 
 <style>
+	/* Splash deltas on the global .screen primitive (layout.css): centred
+	   column with a tall top inset. */
 	.screen {
-		display: flex;
-		flex-direction: column;
 		align-items: center;
 		text-align: center;
 		padding: 80px 28px 40px;

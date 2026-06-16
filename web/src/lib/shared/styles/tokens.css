@@ -1,5 +1,10 @@
 :root {
-	--app-max-w: 26rem;
+	/* Desktop ceiling for the app shell, in px so it does NOT scale with the
+	   user's font-size preference. Mobile screens sit below it and take all the
+	   horizontal space they have; only wider viewports hit the cap. Held fixed
+	   in px deliberately — an earlier rem-based value shrank the usable width on
+	   large-screen phones with small fonts. See docs/ui.md → "App shell width". */
+	--app-max-w: 624px;
 	/* Minimum hit area for any interactive control — the WCAG 2.5.5 / Apple HIG
 	   44×44 floor, sized for small screens with poor touch resolution. Controls
 	   set min-width/min-height to this; the glyph inside is the smaller
@@ -19,9 +24,16 @@
 	--ember-bg: oklch(94% 0.05 38);
 	--accent: oklch(45% 0.07 70);
 	--shadow: 0 1px 0 rgba(60, 40, 20, 0.04), 0 8px 24px rgba(60, 40, 20, 0.06);
+	/* Cast by the app shell against the body backdrop. Zero offset, wide blur so
+	   it reads as a soft halo down both vertical edges of the column — only
+	   visible on desktop, where the shell is narrower than the viewport. */
+	--shell-shadow: 0 0 32px rgba(60, 40, 20, 0.1);
 	--fab-bottom: calc(env(safe-area-inset-bottom) + 16px);
-	/* Bottom padding a scrollable list needs so its last row clears the fixed
-	   FAB (56px tall) floating above it, plus breathing room. */
+	/* The standard bottom gutter applied to every authenticated screen (in the
+	   (app) shell layout, on `.screen`). Doubles as FAB clearance: it's tall
+	   enough that a scrollable list's last row clears the fixed FAB (56px)
+	   floating above it. On screens without a FAB it's just breathing room so
+	   the last row doesn't kiss the viewport edge. */
 	--fab-clearance: 5.625rem;
 }
 
@@ -39,6 +51,7 @@
 	--ember-bg: oklch(30% 0.07 38);
 	--accent: oklch(78% 0.06 75);
 	--shadow: 0 1px 0 rgba(0, 0, 0, 0.3), 0 8px 24px rgba(0, 0, 0, 0.35);
+	--shell-shadow: 0 0 32px rgba(0, 0, 0, 0.45);
 }
 
 @keyframes cairnBlink {
@@ -66,5 +79,6 @@
 		--ember-bg: oklch(30% 0.07 38);
 		--accent: oklch(78% 0.06 75);
 		--shadow: 0 1px 0 rgba(0, 0, 0, 0.3), 0 8px 24px rgba(0, 0, 0, 0.35);
+		--shell-shadow: 0 0 32px rgba(0, 0, 0, 0.45);
 	}
 }

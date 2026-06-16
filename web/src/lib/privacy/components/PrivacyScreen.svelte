@@ -77,7 +77,7 @@
 		{/snippet}
 	</AppTopBar>
 
-	<div class="content">
+	<div class="screen-body">
 		<section class="section">
 			<h2 class="section-label">Who can invite you to lists</h2>
 			<div
@@ -181,14 +181,7 @@
 <CircleExplainerSheet open={explainerOpen} onclose={() => (explainerOpen = false)} />
 
 <style>
-	.screen {
-		display: flex;
-		flex-direction: column;
-		min-height: 100%;
-	}
-
-	.content {
-		flex: 1;
+	.screen-body {
 		display: flex;
 		flex-direction: column;
 	}

@@ -127,9 +127,8 @@
 />
 
 <style>
+	/* Deltas on the global .screen primitive (layout.css); just the tall inset. */
 	.screen {
-		display: flex;
-		flex-direction: column;
 		padding: 60px 28px 40px;
 	}
 

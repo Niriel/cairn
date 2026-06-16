@@ -67,95 +67,99 @@
 		{/snippet}
 	</AppTopBar>
 
-	<WelcomeBanner />
+	<div class="screen-body">
+		<WelcomeBanner />
 
-	<InvitesBanner />
+		<InvitesBanner />
 
-	{#if lists.loading}
-		<div class="content" data-test="lists-loading">Loading…</div>
-	{:else if lists.items.length === 0}
-		<EmptyState
-			data-test="lists-empty"
-			title="Start your first cairn"
-			body="A cairn is a small stack of stones hikers leave to mark the way. Make a list of things — movies, books, places — and share it with friends."
-			ctaLabel="Create your first list"
-			onCta={() => (createSheetOpen = true)}
-		>
-			{#snippet iconContent()}
-				<CairnGlyph size={44} color="var(--stone)" />
-			{/snippet}
-		</EmptyState>
-	{:else}
-		<ul class="rows">
-			{#each lists.items as item (item.id)}
-				<li class="row" data-test="list-row-{item.id}">
-					<NavRow
-						title={item.name}
-						data-test="list-nav-{item.id}"
-						onclick={() => void goto(resolve(`/lists/${item.id}`))}
-					>
-						{#snippet trailing()}{#if item.is_public}<span
-									class="public-marker"
-									data-test="list-public-marker-{item.id}"
-									><Icon name="globe" size={ICON_SIZE} /><span class="sr-only">Public list</span
-									></span
-								>{/if}{/snippet}
-					</NavRow>
-					<div class="extra">
-						<div class="extra-body">
-							{#if item.description !== null}
-								<button
-									class="desc body"
-									class:expanded={expandedIds.has(item.id)}
-									data-test="list-desc-{item.id}"
-									onclick={() => toggleDesc(item.id)}
-								>
-									<span class="desc-text" bind:this={descTextEls[item.id]}>{item.description}</span>
-									{#if expandedIds.has(item.id)}
-										<span class="see-toggle fine">(see less)</span>
-									{:else if truncatedIds.has(item.id)}
-										<span class="see-toggle fine">(see more)</span>
-									{/if}
-								</button>
-							{:else}
-								<div class="desc no-desc body" data-test="list-desc-{item.id}">
-									(no description)
-								</div>
-							{/if}
-							<div class="meta fine">
-								<span>{item.item_count} {item.item_count === 1 ? 'item' : 'items'}</span>
-								<span class="dot">•</span>
-								<span>{timeAgo(item.modified_at)}</span>
-								{#if item.list_members.length > 0}
-									<span class="dot">•</span>
-									<span class="avatars">
-										{#each item.list_members as m, i (m.user_id + i)}
-											<span style="margin-left: {i === 0 ? 0 : -6}px">
-												<Avatar
-													displayName={m.profiles.display_name}
-													size={16}
-													uid={m.user_id}
-													avatarVersion={m.profiles.avatar_version}
-												/>
-											</span>
-										{/each}
-									</span>
+		{#if lists.loading}
+			<div class="caption" data-test="lists-loading">Loading…</div>
+		{:else if lists.items.length === 0}
+			<EmptyState
+				data-test="lists-empty"
+				title="Start your first cairn"
+				body="A cairn is a small stack of stones hikers leave to mark the way. Make a list of things — movies, books, places — and share it with friends."
+				ctaLabel="Create your first list"
+				onCta={() => (createSheetOpen = true)}
+			>
+				{#snippet iconContent()}
+					<CairnGlyph size={44} color="var(--stone)" />
+				{/snippet}
+			</EmptyState>
+		{:else}
+			<ul class="rows">
+				{#each lists.items as item (item.id)}
+					<li class="row" data-test="list-row-{item.id}">
+						<NavRow
+							title={item.name}
+							data-test="list-nav-{item.id}"
+							onclick={() => void goto(resolve(`/lists/${item.id}`))}
+						>
+							{#snippet trailing()}{#if item.is_public}<span
+										class="public-marker"
+										data-test="list-public-marker-{item.id}"
+										><Icon name="globe" size={ICON_SIZE} /><span class="sr-only">Public list</span
+										></span
+									>{/if}{/snippet}
+						</NavRow>
+						<div class="extra">
+							<div class="extra-body">
+								{#if item.description !== null}
+									<button
+										class="desc body"
+										class:expanded={expandedIds.has(item.id)}
+										data-test="list-desc-{item.id}"
+										onclick={() => toggleDesc(item.id)}
+									>
+										<span class="desc-text" bind:this={descTextEls[item.id]}
+											>{item.description}</span
+										>
+										{#if expandedIds.has(item.id)}
+											<span class="see-toggle fine">(see less)</span>
+										{:else if truncatedIds.has(item.id)}
+											<span class="see-toggle fine">(see more)</span>
+										{/if}
+									</button>
+								{:else}
+									<div class="desc no-desc body" data-test="list-desc-{item.id}">
+										(no description)
+									</div>
 								{/if}
+								<div class="meta fine">
+									<span>{item.item_count} {item.item_count === 1 ? 'item' : 'items'}</span>
+									<span class="dot">•</span>
+									<span>{timeAgo(item.modified_at)}</span>
+									{#if item.list_members.length > 0}
+										<span class="dot">•</span>
+										<span class="avatars">
+											{#each item.list_members as m, i (m.user_id + i)}
+												<span style="margin-left: {i === 0 ? 0 : -6}px">
+													<Avatar
+														displayName={m.profiles.display_name}
+														size={16}
+														uid={m.user_id}
+														avatarVersion={m.profiles.avatar_version}
+													/>
+												</span>
+											{/each}
+										</span>
+									{/if}
+								</div>
 							</div>
+							<span class="more">
+								<MoreButton
+									aria-label="List options"
+									data-test="list-overflow-{item.id}"
+									onclick={() => (overflowList = item)}
+									style="color: var(--stone)"
+								/>
+							</span>
 						</div>
-						<span class="more">
-							<MoreButton
-								aria-label="List options"
-								data-test="list-overflow-{item.id}"
-								onclick={() => (overflowList = item)}
-								style="color: var(--stone)"
-							/>
-						</span>
-					</div>
-				</li>
-			{/each}
-		</ul>
-	{/if}
+					</li>
+				{/each}
+			</ul>
+		{/if}
+	</div>
 </div>
 
 {#if !lists.pendingDelete}
@@ -216,23 +220,7 @@
 {/if}
 
 <style>
-	.screen {
-		display: flex;
-		flex-direction: column;
-		min-height: 100dvh;
-	}
-
-	.content {
-		flex: 1;
-	}
-
 	/* ── List rows ── */
-
-	/* Reserve space below the last row so it clears the fixed FAB floating over
-	   the content; without this the bottom list is permanently obscured. */
-	.rows {
-		padding-bottom: var(--fab-clearance);
-	}
 
 	/* The NavRow's inner button supplies the title's top/left inset, so the row
 	   itself carries no padding (otherwise the title would be indented twice). */

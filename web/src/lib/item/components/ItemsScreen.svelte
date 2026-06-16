@@ -149,106 +149,110 @@
 		{/snippet}
 	</TopBar>
 
-	{#if items.loading}
-		<div class="content loading caption" data-test="items-loading">Loading…</div>
-	{:else if items.rows.length === 0}
-		<EmptyState
-			data-test="items-empty"
-			icon="feather"
-			title="Nothing here yet"
-			body="Drop the first stone — add an item with a name and (optionally) a note."
-			ctaLabel="Add the first item"
-			onCta={() => (addSheetOpen = true)}
-		/>
-	{:else}
-		<ul class="rows">
-			{#each items.rows as item (item.id)}
-				<li class="row" class:open={openId === item.id}>
-					<AccordionRow
-						title={item.name}
-						open={openId === item.id}
-						onclick={() => toggleRow(item.id)}
-						data-test="row-{item.id}"
-					>
-						{#snippet trailing()}
-							{#if item.score !== 0}
-								<Badge tone="score" sign={item.score > 0 ? 'positive' : 'negative'}>
-									{item.score > 0 ? '+' : ''}{item.score}
-								</Badge>
-							{/if}
-						{/snippet}
-					</AccordionRow>
-					{#if openId === item.id}
-						<div data-test="item-extra" class="extra surface-alt">
-							<div class="extra-body">
-								{#if item.notes}
-									<div class="notes body" data-test="item-notes-{item.id}">{item.notes}</div>
-								{:else}
-									<div class="notes no-notes body" data-test="item-notes-{item.id}">(no notes)</div>
+	<div class="screen-body">
+		{#if items.loading}
+			<div class="loading caption" data-test="items-loading">Loading…</div>
+		{:else if items.rows.length === 0}
+			<EmptyState
+				data-test="items-empty"
+				icon="feather"
+				title="Nothing here yet"
+				body="Drop the first stone — add an item with a name and (optionally) a note."
+				ctaLabel="Add the first item"
+				onCta={() => (addSheetOpen = true)}
+			/>
+		{:else}
+			<ul class="rows">
+				{#each items.rows as item (item.id)}
+					<li class="row" class:open={openId === item.id}>
+						<AccordionRow
+							title={item.name}
+							open={openId === item.id}
+							onclick={() => toggleRow(item.id)}
+							data-test="row-{item.id}"
+						>
+							{#snippet trailing()}
+								{#if item.score !== 0}
+									<Badge tone="score" sign={item.score > 0 ? 'positive' : 'negative'}>
+										{item.score > 0 ? '+' : ''}{item.score}
+									</Badge>
 								{/if}
-								<div class="votes-row">
-									{#if item.member_votes.length > 0}
-										<div class="member-votes">
-											{#each item.member_votes as mv (mv.user_id)}
-												<span class="member-vote fine">
-													<Avatar
-														displayName={mv.display_name}
-														size={18}
-														uid={mv.user_id}
-														avatarVersion={mv.avatar_version}
-													/>
-													<span class="mv-name">{mv.display_name}</span>
-													<span
-														class="mv-val"
-														class:positive={mv.value > 0}
-														class:negative={mv.value < 0}
-													>
-														{mv.value > 0 ? '+' : ''}{mv.value}
-													</span>
-												</span>
-											{/each}
-										</div>
+							{/snippet}
+						</AccordionRow>
+						{#if openId === item.id}
+							<div data-test="item-extra" class="extra surface-alt">
+								<div class="extra-body">
+									{#if item.notes}
+										<div class="notes body" data-test="item-notes-{item.id}">{item.notes}</div>
 									{:else}
-										<span class="no-votes body" data-test="item-votes-{item.id}">(no votes)</span>
+										<div class="notes no-notes body" data-test="item-notes-{item.id}">
+											(no notes)
+										</div>
 									{/if}
-									<div class="vote-control-slot">
-										<VoteControl
-											value={item.my_vote}
-											onchange={(v: number | null) => handleVote(item.id, v)}
-										/>
+									<div class="votes-row">
+										{#if item.member_votes.length > 0}
+											<div class="member-votes">
+												{#each item.member_votes as mv (mv.user_id)}
+													<span class="member-vote fine">
+														<Avatar
+															displayName={mv.display_name}
+															size={18}
+															uid={mv.user_id}
+															avatarVersion={mv.avatar_version}
+														/>
+														<span class="mv-name">{mv.display_name}</span>
+														<span
+															class="mv-val"
+															class:positive={mv.value > 0}
+															class:negative={mv.value < 0}
+														>
+															{mv.value > 0 ? '+' : ''}{mv.value}
+														</span>
+													</span>
+												{/each}
+											</div>
+										{:else}
+											<span class="no-votes body" data-test="item-votes-{item.id}">(no votes)</span>
+										{/if}
+										<div class="vote-control-slot">
+											<VoteControl
+												value={item.my_vote}
+												onchange={(v: number | null) => handleVote(item.id, v)}
+											/>
+										</div>
+									</div>
+									<div class="attribution fine">
+										Added by <strong
+											data-test="attribution-creator-{item.id}"
+											class:tombstone={item.created_by === TOMBSTONE_UID}
+											>{item.created_by_name}</strong
+										>
+										{timeAgo(item.created_at)}.
+										{#if item.modified_by_name}
+											Last edited by <strong
+												data-test="attribution-editor-{item.id}"
+												class:tombstone={item.modified_by === TOMBSTONE_UID}
+												>{item.modified_by_name}</strong
+											>
+											{timeAgo(item.modified_at)}.
+										{/if}
 									</div>
 								</div>
-								<div class="attribution fine">
-									Added by <strong
-										data-test="attribution-creator-{item.id}"
-										class:tombstone={item.created_by === TOMBSTONE_UID}
-										>{item.created_by_name}</strong
-									>
-									{timeAgo(item.created_at)}.
-									{#if item.modified_by_name}
-										Last edited by <strong
-											data-test="attribution-editor-{item.id}"
-											class:tombstone={item.modified_by === TOMBSTONE_UID}
-											>{item.modified_by_name}</strong
-										>
-										{timeAgo(item.modified_at)}.
-									{/if}
-								</div>
+								<span class="more">
+									<MoreButton
+										aria-label="Item options"
+										data-test="item-overflow-{item.id}"
+										onclick={() => (overflowItem = item)}
+										style="color: var(--stone)"
+									/>
+								</span>
 							</div>
-							<span class="more">
-								<MoreButton
-									aria-label="Item options"
-									data-test="item-overflow-{item.id}"
-									onclick={() => (overflowItem = item)}
-									style="color: var(--stone)"
-								/>
-							</span>
-						</div>
-					{/if}
-				</li>
-			{/each}
-		</ul>
-	{/if}
+						{/if}
+					</li>
+				{/each}
+			</ul>
+		{/if}
+	</div>
 
 	{#if !items.pendingDelete}
 		<Fab onclick={() => (addSheetOpen = true)} aria-label="Add item" data-test="items-fab">
@@ -359,17 +363,6 @@
 {/if}
 
 <style>
-	.screen {
-		display: flex;
-		flex-direction: column;
-		min-height: 100%;
-	}
-
-	.content {
-		flex: 1;
-		padding: 1rem;
-	}
-
 	/* Public-list marker in the TopBar sub line: "· 🌐 Public". inline-flex keeps
 	   the separator, globe, and label on one baseline; the gap puts even space
 	   between the dot and the icon (and the icon and the label). Inherits the
@@ -388,10 +381,7 @@
 		display: flex;
 		align-items: center;
 		justify-content: center;
-	}
-
-	.rows {
-		padding-bottom: var(--fab-clearance);
+		padding: 1rem;
 	}
 
 	/* Open-row tint — a genuine toggled state, so the background lives here as a

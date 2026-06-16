@@ -34,7 +34,7 @@
 </script>
 
 <Sheet open={true} onclose={oncancel}>
-	<div class="content">
+	<div class="confirm-row">
 		<div class="icon-wrap">
 			<Icon name="trash" size={18} />
 		</div>
@@ -56,7 +56,7 @@
 </Sheet>
 
 <style>
-	.content {
+	.confirm-row {
 		display: flex;
 		gap: 0.875rem;
 		align-items: flex-start;

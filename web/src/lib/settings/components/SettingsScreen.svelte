@@ -32,7 +32,7 @@
 <div class="screen">
 	<AppTopBar>Settings</AppTopBar>
 
-	<div class="content">
+	<div class="screen-body">
 		<section class="profile-chip-section">
 			<h2>Profile</h2>
 			<div class="nav-rows">
@@ -176,12 +176,6 @@
 </div>
 
 <style>
-	.screen {
-		display: flex;
-		flex-direction: column;
-		height: 100%;
-	}
-
 	/* The profile avatar sits in NavRow's 44px lead band. 4px padding insets the
 	   image to 36px so it reads as an icon rather than filling the slot edge to
 	   edge, while the lead footprint stays 44px. */
@@ -190,9 +184,7 @@
 		padding: 4px;
 	}
 
-	.content {
-		flex: 1 1 auto;
-		overflow-y: auto;
+	.screen-body {
 		display: flex;
 		flex-direction: column;
 		gap: 0.5rem;

@@ -61,6 +61,9 @@
 		background: var(--paper);
 		color: var(--ink);
 		border-bottom: 1px solid var(--rule);
+		/* Breathing room under the hairline so screen content doesn't sit flush
+		   against the bar. Applied here so every screen gets it consistently. */
+		margin-bottom: 0.5rem;
 	}
 
 	.left {

@@ -18,7 +18,7 @@
 <div class="screen">
 	<AppTopBar>Download my data</AppTopBar>
 
-	<div class="content">
+	<div class="screen-body">
 		{#if exportState.status === 'idle'}
 			<h1 class="headline">Take everything with you.</h1>
 			<p class="lede">
@@ -94,16 +94,8 @@
 </div>
 
 <style>
-	.screen {
-		display: flex;
-		flex-direction: column;
-		height: 100%;
-	}
-
-	.content {
-		flex: 1 1 auto;
-		overflow-y: auto;
-		padding: 1.25rem 1.375rem 1.75rem;
+	.screen-body {
+		padding: 1.25rem 1.375rem;
 	}
 
 	.headline {

@@ -38,7 +38,7 @@
 		{/snippet}
 	</AppTopBar>
 
-	<div class="content">
+	<div class="screen-body">
 		{#if invitations.inboxLoading}
 			<div class="loading caption" data-test="inbox-loading">Loading…</div>
 		{:else if invitations.inbox.length === 0}
@@ -70,15 +70,7 @@
 </div>
 
 <style>
-	.screen {
-		display: flex;
-		flex-direction: column;
-		height: 100%;
-	}
-
-	.content {
-		flex: 1 1 auto;
-		overflow-y: auto;
+	.screen-body {
 		display: flex;
 		flex-direction: column;
 	}
