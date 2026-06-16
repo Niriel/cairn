@@ -66,6 +66,12 @@
 	<div class="wordmark">Cairn</div>
 	<div class="tagline">here's the way,<br />you'll like this</div>
 
+	<p class="blurb">
+		Cairn is for making ranked lists and sharing them with friends; the films worth watching, the
+		places worth going, the things worth remembering. Build them together, keep them close, or share
+		them with the world.
+	</p>
+
 	<form class="form" onsubmit={onSubmit}>
 		<div class="field">
 			<Label for="login-email-input">E-mail</Label>
@@ -113,7 +119,7 @@
 	</form>
 
 	<footer class="legal fine">
-		<p>Your data lives on a small server in Germany.</p>
+		<p>Wholly European, private, and law-abiding.</p>
 
 		<a href={resolve('/imprint')} data-test="login-imprint-link">Imprint</a>
 	</footer>
@@ -127,9 +133,8 @@
 />
 
 <style>
+	/* Deltas on the global .screen primitive (layout.css); just the tall inset. */
 	.screen {
-		display: flex;
-		flex-direction: column;
 		padding: 60px 28px 40px;
 	}
 
@@ -159,8 +164,16 @@
 		font-family: 'Newsreader', Georgia, serif;
 	}
 
+	.blurb {
+		margin-top: 28px;
+		padding: 0px 2rem;
+		text-align: center;
+		color: var(--stone);
+		line-height: 1.6;
+	}
+
 	.form {
-		margin-top: 56px;
+		margin-top: 40px;
 		display: flex;
 		flex-direction: column;
 	}

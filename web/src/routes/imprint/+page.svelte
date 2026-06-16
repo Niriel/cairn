@@ -5,7 +5,7 @@
 <div class="screen" data-test="imprint-screen">
 	<TopBar>Imprint</TopBar>
 
-	<div class="content">
+	<div class="screen-body">
 		<p class="intro caption">
 			Information about the operator of this service, provided in accordance with § 5 DDG.
 		</p>
@@ -34,13 +34,7 @@
 </div>
 
 <style>
-	.screen {
-		display: flex;
-		flex-direction: column;
-		min-height: 100%;
-	}
-
-	.content {
+	.screen-body {
 		display: flex;
 		flex-direction: column;
 		gap: 1.5rem;

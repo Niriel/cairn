@@ -1,0 +1,27 @@
+/* App-shell layout primitives. Structural, not visual: this is the one
+   exception to "layout local, visual global" (docs/ui.md), kept here because
+   the contract is identical on every screen and was otherwise copy-pasted into
+   each component's scoped <style>. Like the .rows divider model in
+   surfaces.css, it earns a global home by being shared verbatim. Per-screen
+   padding, gap, and the .content region stay local. */
+
+/* The standard full-height screen: a flex column the TopBar and content stack
+   into. `min-height: 100dvh` (not %, whose percentage is indefinite here since
+   the shell's height is content-driven) so the screen fills the viewport and
+   empty states can centre; dvh shrinks when iOS Safari chrome expands. The
+   authenticated (app) shell adds the bottom gutter on top of this; see
+   routes/(app)/+layout.svelte. */
+.screen {
+	display: flex;
+	flex-direction: column;
+	min-height: 100dvh;
+}
+
+/* The growing region a screen stacks below its TopBar: it takes the leftover
+   height so short pages still fill the viewport (letting empty states centre)
+   and tall ones scroll. Screens add their own padding / column layout / gap on
+   top locally. This is the one shared role of what used to be a catch-all
+   `.content` class; sheet bodies and the crop stage have their own names. */
+.screen-body {
+	flex: 1;
+}

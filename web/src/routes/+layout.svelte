@@ -17,6 +17,7 @@
 	import '$lib/shared/styles/tokens.css';
 	import '$lib/shared/styles/reset.css';
 	import '$lib/shared/styles/typography.css';
+	import '$lib/shared/styles/layout.css';
 	import '$lib/shared/styles/surfaces.css';
 	import '$lib/shared/styles/controls.css';
 	import '$lib/shared/state/preferences.svelte';
@@ -86,18 +87,24 @@
 
 <style>
 	/*
-	 * 26rem ≈ 416px at the default font size — deliberately a hair above
-	 * the iOS 402px and Android 412px design-canvas frames so the form
-	 * gets a touch of breathing room without device chrome to consume it.
-	 * Because `1rem` already includes `--font-size-scale` (see
-	 * typography.css), the shell widens with the user's font-size
-	 * preference automatically — no extra wiring. Per-screen horizontal
-	 * padding (e.g. LoginRequest's 28px) stays on the screen so the
-	 * layout doesn't double-pad.
+	 * --app-max-w (624px, in tokens.css) is a desktop ceiling, not a phone
+	 * frame: mobile viewports stay below it and take all the width they get,
+	 * while wide screens cap here. Held in px so it does NOT scale with the
+	 * user's font-size preference (a rem-based value shrank the usable width
+	 * on large-screen phones with small fonts). Per-screen horizontal
+	 * padding (e.g. LoginRequest's 28px) stays on the screen so the layout
+	 * doesn't double-pad.
 	 */
 	.app-shell {
 		max-width: var(--app-max-w);
 		margin-inline: auto;
+		/* Paint the app surface over the body backdrop (--paper-alt), so on
+		   desktop the shell reads as a distinct column against tinted margins.
+		   min-height keeps that surface full-height even when content is short,
+		   so the backdrop never bleeds up under a short page. */
+		min-height: 100dvh;
+		background: var(--paper);
+		box-shadow: var(--shell-shadow);
 	}
 	.boot-screen {
 		display: flex;

@@ -11,7 +11,11 @@ body {
 }
 
 body {
-	background: var(--paper);
+	/* The page backdrop. On desktop the app shell is narrower than the viewport
+	   (capped at --app-max-w), so this colour shows in the margins either side;
+	   the shell itself paints --paper over it. On mobile the shell fills the
+	   width, so this is only ever seen behind safe-area insets. */
+	background: var(--paper-alt);
 	color: var(--ink);
 	font-family: 'Newsreader Variable', Georgia, serif;
 }

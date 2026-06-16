@@ -42,75 +42,78 @@
 <div class="screen" data-test="circle-screen">
 	<AppTopBar>Your circle</AppTopBar>
 
-	<div class="intro">
-		<p class="intro-text caption">
-			When your privacy is set to <em>Your circle</em>, these are the only people who can invite you
-			to a list.
-		</p>
-		<div class="whats-this">
-			<Button variant="link" data-test="whats-this" onclick={() => (explainerOpen = true)}
-				>What's this?</Button
-			>
-		</div>
-	</div>
-
-	{#if relationships.loaded}
-		<section data-test="circle-list">
-			<h2 class="section-header">People in your circle · {relationships.circle.length}</h2>
-			{#if relationships.circle.length > 0}
-				<ul class="circle-list rows">
-					{#each relationships.circle as entry (entry.otherUserId)}
-						<li class="row media" data-test="circle-row-{entry.otherUserId}">
-							<Avatar
-								displayName={entry.displayName}
-								uid={entry.otherUserId}
-								avatarVersion={entry.avatarVersion}
-								size={36}
-							/>
-							<div class="row-text">
-								<h3 class="display-name">{entry.displayName}</h3>
-								<span class="sub caption">{addedAtLabel(entry.createdAt)}</span>
-							</div>
-							<Button
-								variant="pill"
-								tone="destructive"
-								size="sm"
-								data-test="remove-{entry.otherUserId}"
-								onclick={() => void removeFromCircle(entry.otherUserId)}>Remove</Button
-							>
-						</li>
-					{/each}
-				</ul>
-			{/if}
-		</section>
-	{/if}
-
-	<div class="add-card card-dashed">
-		<div class="field">
-			<Label for="circle-add-input">E-mail address</Label>
-			<div class="add-input-row">
-				<div class="add-input-wrap">
-					<TextInput
-						id="circle-add-input"
-						data-test="circle-add-input"
-						type="email"
-						autocomplete="email"
-						inputmode="email"
-						placeholder="friend@example.net"
-						bind:value={emailInput}
-					/>
-				</div>
-				<Button variant="rect" tone="ink" data-test="circle-add-btn" onclick={handleAdd}>Add</Button
+	<div class="screen-body">
+		<div class="intro">
+			<p class="intro-text caption">
+				When your privacy is set to <em>Your circle</em>, these are the only people who can invite
+				you to a list.
+			</p>
+			<div class="whats-this">
+				<Button variant="link" data-test="whats-this" onclick={() => (explainerOpen = true)}
+					>What's this?</Button
 				>
 			</div>
 		</div>
-		{#if addError}
-			<p class="hint hint-error" data-test="circle-add-error">{addError}</p>
+
+		{#if relationships.loaded}
+			<section data-test="circle-list">
+				<h2 class="section-header">People in your circle · {relationships.circle.length}</h2>
+				{#if relationships.circle.length > 0}
+					<ul class="circle-list rows">
+						{#each relationships.circle as entry (entry.otherUserId)}
+							<li class="row media" data-test="circle-row-{entry.otherUserId}">
+								<Avatar
+									displayName={entry.displayName}
+									uid={entry.otherUserId}
+									avatarVersion={entry.avatarVersion}
+									size={36}
+								/>
+								<div class="row-text">
+									<h3 class="display-name">{entry.displayName}</h3>
+									<span class="sub caption">{addedAtLabel(entry.createdAt)}</span>
+								</div>
+								<Button
+									variant="pill"
+									tone="destructive"
+									size="sm"
+									data-test="remove-{entry.otherUserId}"
+									onclick={() => void removeFromCircle(entry.otherUserId)}>Remove</Button
+								>
+							</li>
+						{/each}
+					</ul>
+				{/if}
+			</section>
 		{/if}
-		<p class="explainer add-hint">
-			They'll be added to your circle. If they have you blocked, the add still succeeds on your side
-			— but their side stays untouched.
-		</p>
+
+		<div class="add-card card-dashed">
+			<div class="field">
+				<Label for="circle-add-input">E-mail address</Label>
+				<div class="add-input-row">
+					<div class="add-input-wrap">
+						<TextInput
+							id="circle-add-input"
+							data-test="circle-add-input"
+							type="email"
+							autocomplete="email"
+							inputmode="email"
+							placeholder="friend@example.net"
+							bind:value={emailInput}
+						/>
+					</div>
+					<Button variant="rect" tone="ink" data-test="circle-add-btn" onclick={handleAdd}
+						>Add</Button
+					>
+				</div>
+			</div>
+			{#if addError}
+				<p class="hint hint-error" data-test="circle-add-error">{addError}</p>
+			{/if}
+			<p class="explainer add-hint">
+				They'll be added to your circle. If they have you blocked, the add still succeeds on your
+				side — but their side stays untouched.
+			</p>
+		</div>
 	</div>
 </div>
 
@@ -124,12 +127,6 @@
 <CircleExplainerSheet open={explainerOpen} onclose={() => (explainerOpen = false)} />
 
 <style>
-	.screen {
-		display: flex;
-		flex-direction: column;
-		min-height: 100%;
-	}
-
 	.intro {
 		padding: 0.875rem 1.125rem 0.375rem;
 		display: flex;

@@ -139,115 +139,120 @@
 		{/snippet}
 		{#snippet right()}
 			<IconButton
+				icon="rotate-ccw"
 				aria-label="Refresh"
 				data-test="items-refresh"
 				disabled={items.loading}
 				onclick={refreshItems}
-			>
-				<Icon name="rotate-ccw" size={22} />
-			</IconButton>
-			<MoreButton aria-label="More options" size={22} onclick={() => (overflowOpen = true)} />
+			/>
+			<MoreButton aria-label="More options" onclick={() => (overflowOpen = true)} />
 		{/snippet}
 	</TopBar>
 
-	{#if items.loading}
-		<div class="content loading caption" data-test="items-loading">Loading…</div>
-	{:else if items.rows.length === 0}
-		<EmptyState
-			data-test="items-empty"
-			icon="feather"
-			title="Nothing here yet"
-			body="Drop the first stone — add an item with a name and (optionally) a note."
-			ctaLabel="Add the first item"
-			onCta={() => (addSheetOpen = true)}
-		/>
-	{:else}
-		<ul class="rows">
-			{#each items.rows as item (item.id)}
-				<li class="row" class:open={openId === item.id}>
-					<AccordionRow
-						title={item.name}
-						open={openId === item.id}
-						onclick={() => toggleRow(item.id)}
-						data-test="row-{item.id}"
-					>
-						{#snippet trailing()}
-							{#if item.score !== 0}
-								<Badge tone="score" sign={item.score > 0 ? 'positive' : 'negative'}>
-									{item.score > 0 ? '+' : ''}{item.score}
-								</Badge>
-							{/if}
-						{/snippet}
-					</AccordionRow>
-					{#if openId === item.id}
-						<div data-test="item-extra" class="extra surface-alt">
-							<span class="more">
-								<MoreButton
-									size={18}
-									aria-label="Item options"
-									data-test="item-overflow-{item.id}"
-									onclick={() => (overflowItem = item)}
-									style="color: var(--stone)"
-								/>
-							</span>
-							{#if item.notes}
-								<div class="notes body" data-test="item-notes-{item.id}">{item.notes}</div>
-							{:else}
-								<div class="notes no-notes body" data-test="item-notes-{item.id}">(no notes)</div>
-							{/if}
-							<div class="votes-row">
-								{#if item.member_votes.length > 0}
-									<div class="member-votes">
-										{#each item.member_votes as mv (mv.user_id)}
-											<span class="member-vote fine">
-												<Avatar
-													displayName={mv.display_name}
-													size={18}
-													uid={mv.user_id}
-													avatarVersion={mv.avatar_version}
-												/>
-												<span class="mv-name">{mv.display_name}</span>
-												<span
-													class="mv-val"
-													class:positive={mv.value > 0}
-													class:negative={mv.value < 0}
-												>
-													{mv.value > 0 ? '+' : ''}{mv.value}
-												</span>
-											</span>
-										{/each}
+	<div class="screen-body">
+		{#if items.loading}
+			<div class="loading caption" data-test="items-loading">Loading…</div>
+		{:else if items.rows.length === 0}
+			<EmptyState
+				data-test="items-empty"
+				icon="feather"
+				title="Nothing here yet"
+				body="Drop the first stone — add an item with a name and (optionally) a note."
+				ctaLabel="Add the first item"
+				onCta={() => (addSheetOpen = true)}
+			/>
+		{:else}
+			<ul class="rows">
+				{#each items.rows as item (item.id)}
+					<li class="row" class:open={openId === item.id}>
+						<AccordionRow
+							title={item.name}
+							open={openId === item.id}
+							onclick={() => toggleRow(item.id)}
+							data-test="row-{item.id}"
+						>
+							{#snippet trailing()}
+								{#if item.score !== 0}
+									<Badge tone="score" sign={item.score > 0 ? 'positive' : 'negative'}>
+										{item.score > 0 ? '+' : ''}{item.score}
+									</Badge>
+								{/if}
+							{/snippet}
+						</AccordionRow>
+						{#if openId === item.id}
+							<div data-test="item-extra" class="extra surface-alt">
+								<div class="extra-body">
+									{#if item.notes}
+										<div class="notes body" data-test="item-notes-{item.id}">{item.notes}</div>
+									{:else}
+										<div class="notes no-notes body" data-test="item-notes-{item.id}">
+											(no notes)
+										</div>
+									{/if}
+									<div class="votes-row">
+										{#if item.member_votes.length > 0}
+											<div class="member-votes">
+												{#each item.member_votes as mv (mv.user_id)}
+													<span class="member-vote fine">
+														<Avatar
+															displayName={mv.display_name}
+															size={18}
+															uid={mv.user_id}
+															avatarVersion={mv.avatar_version}
+														/>
+														<span class="mv-name">{mv.display_name}</span>
+														<span
+															class="mv-val"
+															class:positive={mv.value > 0}
+															class:negative={mv.value < 0}
+														>
+															{mv.value > 0 ? '+' : ''}{mv.value}
+														</span>
+													</span>
+												{/each}
+											</div>
+										{:else}
+											<span class="no-votes body" data-test="item-votes-{item.id}">(no votes)</span>
+										{/if}
+										<div class="vote-control-slot">
+											<VoteControl
+												value={item.my_vote}
+												onchange={(v: number | null) => handleVote(item.id, v)}
+											/>
+										</div>
 									</div>
-								{:else}
-									<span class="no-votes body" data-test="item-votes-{item.id}">(no votes)</span>
-								{/if}
-								<div class="vote-control-slot">
-									<VoteControl
-										value={item.my_vote}
-										onchange={(v: number | null) => handleVote(item.id, v)}
-									/>
+									<div class="attribution fine">
+										Added by <strong
+											data-test="attribution-creator-{item.id}"
+											class:tombstone={item.created_by === TOMBSTONE_UID}
+											>{item.created_by_name}</strong
+										>
+										{timeAgo(item.created_at)}.
+										{#if item.modified_by_name}
+											Last edited by <strong
+												data-test="attribution-editor-{item.id}"
+												class:tombstone={item.modified_by === TOMBSTONE_UID}
+												>{item.modified_by_name}</strong
+											>
+											{timeAgo(item.modified_at)}.
+										{/if}
+									</div>
 								</div>
+								<span class="more">
+									<MoreButton
+										aria-label="Item options"
+										data-test="item-overflow-{item.id}"
+										onclick={() => (overflowItem = item)}
+										style="color: var(--stone)"
+									/>
+								</span>
 							</div>
-							<div class="attribution fine">
-								Added by <strong
-									data-test="attribution-creator-{item.id}"
-									class:tombstone={item.created_by === TOMBSTONE_UID}>{item.created_by_name}</strong
-								>
-								{timeAgo(item.created_at)}.
-								{#if item.modified_by_name}
-									Last edited by <strong
-										data-test="attribution-editor-{item.id}"
-										class:tombstone={item.modified_by === TOMBSTONE_UID}
-										>{item.modified_by_name}</strong
-									>
-									{timeAgo(item.modified_at)}.
-								{/if}
-							</div>
-						</div>
-					{/if}
-				</li>
-			{/each}
-		</ul>
-	{/if}
+						{/if}
+					</li>
+				{/each}
+			</ul>
+		{/if}
+	</div>
 
 	{#if !items.pendingDelete}
 		<Fab onclick={() => (addSheetOpen = true)} aria-label="Add item" data-test="items-fab">
@@ -358,17 +363,6 @@
 {/if}
 
 <style>
-	.screen {
-		display: flex;
-		flex-direction: column;
-		min-height: 100%;
-	}
-
-	.content {
-		flex: 1;
-		padding: 1rem;
-	}
-
 	/* Public-list marker in the TopBar sub line: "· 🌐 Public". inline-flex keeps
 	   the separator, globe, and label on one baseline; the gap puts even space
 	   between the dot and the icon (and the icon and the label). Inherits the
@@ -387,10 +381,7 @@
 		display: flex;
 		align-items: center;
 		justify-content: center;
-	}
-
-	.rows {
-		padding-bottom: var(--fab-clearance);
+		padding: 1rem;
 	}
 
 	/* Open-row tint — a genuine toggled state, so the background lives here as a
@@ -399,50 +390,51 @@
 		background: var(--paper-alt);
 	}
 
-	/* Tighten the AccordionRow button's md inset (Button default 0.75rem 1.125rem)
-	   to match the Lists screen's nav-rows. This lives at the call site, not in
-	   AccordionRow: from here the selector out-specifies Button's own
-	   `.text.size-md` padding (the same reason the Lists screen sets its nav-row
-	   inset locally). This 0.8rem padding-right is also the chevron's anchor: the
-	   `.more` button in the extra panel is aligned to it (see the alignment
-	   invariant on `.more` below). Changing it here means re-checking that. */
+	/* Tighten the AccordionRow button's md horizontal inset (Button default
+	   1.125rem) to 0.8rem, matching the Lists screen's nav-rows. Vertical padding
+	   is 0 — AccordionRow's 44px content bands set the row height (see
+	   AccordionRow). This lives at the call site because from here the selector
+	   out-specifies Button's own `.text.size-md` padding. This 0.8rem
+	   padding-right is also the chevron's anchor: the `.more` button in the extra
+	   panel is aligned to it (see the alignment invariant on `.more` below).
+	   Changing it here means re-checking that. */
 	.row :global(.accordion-row button) {
-		padding: 0.5rem 0.8rem;
+		padding: 0 0.8rem;
 	}
 
-	/* A flex column laying out notes, votes, and attribution with an even gap.
-	   position: relative anchors the absolutely-pinned .more button; the wide
-	   right inset (2.5rem) keeps the first row's content from sliding under that
-	   top-right button. Insets tuned in the running app (light + dark, with and
-	   without notes). */
+	/* The extra panel is a row: the content column (notes, votes, attribution)
+	   beside the More button, which reserves its own space at the end rather than
+	   floating over the content. align-items:flex-start keeps the ⋮ in the
+	   top-end corner. The 0.8rem right padding aligns the ⋮ under the chevron
+	   (see .more); the 0.8rem left padding aligns the content under the title. */
 	.extra {
-		position: relative;
 		display: flex;
-		flex-direction: column;
+		align-items: flex-start;
 		gap: 0.5rem;
-		padding: 0.625rem 2.5rem 1rem 0.8rem;
+		padding: 0.625rem 0.8rem 1rem 0.8rem;
 		border-top: 1px dashed var(--rule);
 	}
 
-	/* The More button, pinned to the top-end corner of the extra panel. The
-	   wrapping span is positioned (not the MoreButton itself) so its forwarded
-	   class can't clobber IconButton's .icon-btn padding. Mirrors the Lists
-	   screen's .more placement. */
-	/* ALIGNMENT INVARIANT: the ⋮ glyph must sit directly under the row's chevron.
-	   Both are 18px glyphs right-aligned in their containers, so their centres
-	   line up only while:
-	       right (0.55rem) + IconButton padding (4px) == accordion button
-	       padding-right (0.8rem, set in `.row :global(.accordion-row button)`).
-	   i.e. 8.8px + 4px == 12.8px. The chevron is the fixed anchor (it lives in the
-	   already-large full-row button, so touch-target work won't move it); this
-	   button is the one that will grow. If IconButton's padding increases to make
-	   a 44px touch target (4px → ~13px), this `right` must DROP by the same amount
-	   (0.55rem → ~0) to keep the glyph centred under the chevron — otherwise the
-	   widened button pushes the glyph left and the two fall out of line. */
+	/* The content column: notes, votes and attribution stacked with an even gap.
+	   min-width:0 lets the notes/attribution ellipsize instead of pushing the
+	   More button off the edge. */
+	.extra-body {
+		flex: 1;
+		min-width: 0;
+		display: flex;
+		flex-direction: column;
+		gap: 0.5rem;
+	}
+
+	/* The More button at the end of the row. It's a 44px IconButton box around a
+	   24px glyph, and .extra's 0.8rem right padding equals the accordion button's
+	   padding-right (set in `.row :global(.accordion-row button)`), so the ⋮ glyph
+	   centres at the same (right + 22px) as the row's chevron and sits directly
+	   under it. The wrapping span keeps its forwarded class off IconButton's own
+	   sizing. ALIGNMENT INVARIANT: keep .extra's right padding == that
+	   padding-right while both stay 44px boxes with equal glyphs. */
 	.more {
-		position: absolute;
-		top: 0.375rem;
-		right: 0.55rem;
+		flex-shrink: 0;
 	}
 
 	/* Editorial serif-italic for free-text notes — an annotated exception to the

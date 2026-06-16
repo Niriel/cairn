@@ -1,5 +1,6 @@
 <script lang="ts">
 	import Icon from '$lib/basic/components/Icon.svelte';
+	import { ICON_SIZE } from '$lib/shared/model/constants';
 
 	type Props = {
 		value: number | null;
@@ -31,7 +32,7 @@
 	function thumbStyle(dir: 1 | -1): string {
 		const atLimit = (dir === 1 && value === 3) || (dir === -1 && value === -3);
 		const dim = disabled || atLimit;
-		return `width: 36px; height: 36px; border: none; background: transparent; border-radius: 10px;
+		return `width: var(--tap-target); height: var(--tap-target); border: none; background: transparent; border-radius: 10px;
 			color: var(--ink-soft); cursor: ${dim ? 'default' : 'pointer'}; opacity: ${dim ? 0.35 : 1};
 			display: flex; align-items: center; justify-content: center;`;
 	}
@@ -67,7 +68,7 @@
 		style={thumbStyle(-1)}
 		aria-disabled={disabled || value === -3}
 	>
-		<Icon name="thumbs-down" size={18} />
+		<Icon name="thumbs-down" size={ICON_SIZE} />
 	</button>
 
 	<span
@@ -86,6 +87,6 @@
 		style={thumbStyle(1)}
 		aria-disabled={disabled || value === 3}
 	>
-		<Icon name="thumbs-up" size={18} />
+		<Icon name="thumbs-up" size={ICON_SIZE} />
 	</button>
 </div>

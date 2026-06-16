@@ -59,57 +59,53 @@
 		</a>
 	</header>
 
-	{#if status === 'loading'}
-		<div class="content caption" data-test="public-loading">Loading…</div>
-	{:else if status === 'unavailable'}
-		<EmptyState
-			data-test="public-unavailable"
-			icon="slash"
-			title="List not available"
-			body="This list is private or no longer exists. Ask whoever shared it for an up-to-date link."
-		/>
-	{:else if list}
-		<div class="content" data-test="public-list">
-			<h1 class="list-name">{list.name}</h1>
-			{#if list.description}
-				<p class="list-desc body">{list.description}</p>
-			{/if}
+	<div class="screen-body">
+		{#if status === 'loading'}
+			<div class="caption" data-test="public-loading">Loading…</div>
+		{:else if status === 'unavailable'}
+			<EmptyState
+				data-test="public-unavailable"
+				icon="slash"
+				title="List not available"
+				body="This list is private or no longer exists. Ask whoever shared it for an up-to-date link."
+			/>
+		{:else if list}
+			<div data-test="public-list">
+				<h1 class="list-name">{list.name}</h1>
+				{#if list.description}
+					<p class="list-desc body">{list.description}</p>
+				{/if}
 
-			{#if list.items.length > 0}
-				<ul class="rows">
-					{#each list.items as item (item.id)}
-						<li class="row" data-test="public-item-{item.id}">
-							<div class="row-top media">
-								<span class="item-name row-title">{item.name}</span>
-								{#if item.score !== 0}
-									<Badge tone="score" sign={item.score > 0 ? 'positive' : 'negative'}>
-										{item.score > 0 ? '+' : ''}{item.score}
-									</Badge>
+				{#if list.items.length > 0}
+					<ul class="rows">
+						{#each list.items as item (item.id)}
+							<li class="row" data-test="public-item-{item.id}">
+								<div class="row-top media">
+									<span class="item-name row-title">{item.name}</span>
+									{#if item.score !== 0}
+										<Badge tone="score" sign={item.score > 0 ? 'positive' : 'negative'}>
+											{item.score > 0 ? '+' : ''}{item.score}
+										</Badge>
+									{/if}
+								</div>
+								{#if item.notes}
+									<p class="notes body">{item.notes}</p>
 								{/if}
-							</div>
-							{#if item.notes}
-								<p class="notes body">{item.notes}</p>
-							{/if}
-							<p class="added fine" data-test="public-item-added-{item.id}">
-								Added {timeAgo(item.created_at)}
-							</p>
-						</li>
-					{/each}
-				</ul>
-			{:else}
-				<p class="empty-note caption" data-test="public-empty-items">No items yet.</p>
-			{/if}
-		</div>
-	{/if}
+								<p class="added fine" data-test="public-item-added-{item.id}">
+									Added {timeAgo(item.created_at)}
+								</p>
+							</li>
+						{/each}
+					</ul>
+				{:else}
+					<p class="empty-note caption" data-test="public-empty-items">No items yet.</p>
+				{/if}
+			</div>
+		{/if}
+	</div>
 </div>
 
 <style>
-	.screen {
-		display: flex;
-		flex-direction: column;
-		min-height: 100%;
-	}
-
 	/* Non-app masthead: this page sits outside the (app) shell, so it has no
 	   TopBar — just the wordmark, centred, with the same hairline base rule the
 	   TopBar uses. */
@@ -125,8 +121,7 @@
 		text-decoration: none;
 	}
 
-	.content {
-		flex: 1;
+	.screen-body {
 		padding: 1.125rem;
 	}
 

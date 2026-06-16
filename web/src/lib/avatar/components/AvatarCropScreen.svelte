@@ -168,17 +168,17 @@
 	}
 </script>
 
-<div class="screen">
+<div class="screen no-gutter">
 	<AppTopBar showBack={false}>
 		{#snippet left()}
 			<button class="icon-btn" data-test="crop-cancel" onclick={oncancel}>
-				<Icon name="chevron-left" size={22} />
+				<Icon name="chevron-left" size={24} />
 			</button>
 		{/snippet}
 		Crop
 	</AppTopBar>
 
-	<div class="content">
+	<div class="crop-stage">
 		<div class="stage">
 			<canvas
 				bind:this={canvasEl}
@@ -224,15 +224,15 @@
 </div>
 
 <style>
+	/* Deltas on the global .screen primitive (layout.css): a fixed-height crop
+	   viewport with its own surface, rather than the scrolling min-height body. */
 	.screen {
-		display: flex;
-		flex-direction: column;
 		height: 100%;
 		background: var(--paper);
 		color: var(--ink);
 	}
 
-	.content {
+	.crop-stage {
 		flex: 1;
 		display: flex;
 		flex-direction: column;
@@ -339,6 +339,7 @@
 		cursor: pointer;
 		display: flex;
 		align-items: center;
+		justify-content: center;
 	}
 
 	/* Save sits at the foot of the form, full-width, where people expect the

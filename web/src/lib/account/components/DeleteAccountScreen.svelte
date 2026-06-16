@@ -51,7 +51,7 @@
 <div class="screen" data-test="delete-account-screen">
 	<AppTopBar>Delete account</AppTopBar>
 
-	<div class="content">
+	<div class="screen-body">
 		{#if done}
 			<div class="done" data-test="delete-account-done">
 				<h2>Your account has been deleted.</h2>
@@ -73,7 +73,7 @@
 			<!-- Courtesy nudge: offer a data copy before the irreversible action. -->
 			<div class="export-card card-alt">
 				<div class="export-head">
-					<Icon name="download" size={18} />
+					<Icon name="download" size={24} />
 					<div class="export-text">
 						<p class="export-title">Want a copy of your data first?</p>
 						<p class="caption">A few seconds. Yours to keep, even after deletion.</p>
@@ -150,16 +150,8 @@
 </div>
 
 <style>
-	.screen {
-		display: flex;
-		flex-direction: column;
-		height: 100%;
-	}
-
-	.content {
-		flex: 1 1 auto;
-		overflow-y: auto;
-		padding: 0.875rem 1.25rem 1.5rem;
+	.screen-body {
+		padding: 0.875rem 1.25rem;
 	}
 
 	.hero {
