@@ -19,10 +19,12 @@ cairn.{$DOMAIN} {
 		Referrer-Policy "no-referrer"
 	}
 
-	# Data plane: /api/* -> PostgREST, prefix stripped. The session cookie is
-	# translated into the Authorization: Bearer header PostgREST expects.
+	# Data plane: /api/* -> PostgREST, prefix stripped. The short-lived access
+	# cookie (not the durable refresh-token cookie) is translated into the
+	# Authorization: Bearer header PostgREST expects. (The __Host- prefix is
+	# added to this name in Task 2.1.)
 	handle_path /api/* {
-		@cookie header_regexp token Cookie cairn_session=([^;]+)
+		@cookie header_regexp token Cookie cairn_access=([^;]+)
 		request_header @cookie Authorization "Bearer {http.regexp.token.1}"
 		reverse_proxy postgrest:3000
 	}
@@ -44,7 +46,7 @@ cairn.{$DOMAIN} {
 		path /avatars*
 	}
 	handle @avatar_writes {
-		@avatar_cookie header_regexp token Cookie cairn_session=([^;]+)
+		@avatar_cookie header_regexp token Cookie cairn_access=([^;]+)
 		request_header @avatar_cookie Authorization "Bearer {http.regexp.token.1}"
 		reverse_proxy sidecar:3001
 	}

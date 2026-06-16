@@ -21,15 +21,23 @@ declare module 'node:http' {
 }
 
 // Dev-only cookie shim. In production Caddy translates between the
-// HttpOnly `cairn_session` cookie and the `Authorization: Bearer …`
-// header that PostgREST expects; locally Vite's dev proxy plays the
-// same role so the SvelteKit app sees identical paths and cookie
-// behaviour in both environments. See docs/development.md.
+// HttpOnly cookies and the `Authorization: Bearer …` header that
+// PostgREST expects; locally Vite's dev proxy plays the same role so
+// the SvelteKit app sees identical paths and cookie behaviour in both
+// environments. See docs/development.md.
+//
+// Two cookies (mirrors Caddyfile.prod): the durable `cairn_session`
+// holds the rotating refresh token (the session lifetime / sign-out
+// target), and the short-lived `cairn_access` holds the BFF-minted
+// access JWT that the data plane attaches as a bearer. The data plane
+// (`/api`, `/avatars`) reads the access cookie; the durable cookie is
+// what the auth plane refreshes against.
 const COOKIE_NAME = 'cairn_session';
+const ACCESS_COOKIE_NAME = 'cairn_access';
 
-function readBearerFromCookie(req: IncomingMessage): string | null {
+function readBearerFromCookie(req: IncomingMessage, name: string): string | null {
 	const cookie = req.headers.cookie ?? '';
-	const m = cookie.match(new RegExp(`(?:^|; )${COOKIE_NAME}=([^;]+)`));
+	const m = cookie.match(new RegExp(`(?:^|; )${name}=([^;]+)`));
 	return m ? decodeURIComponent(m[1]) : null;
 }
 
@@ -80,7 +88,7 @@ export default defineConfig({
 				rewrite: (p) => p.replace(/^\/api/, ''),
 				configure: (proxy) => {
 					proxy.on('proxyReq', (proxyReq, req) => {
-						const token = readBearerFromCookie(req);
+						const token = readBearerFromCookie(req, ACCESS_COOKIE_NAME);
 						if (token && !proxyReq.getHeader('authorization')) {
 							proxyReq.setHeader('Authorization', `Bearer ${token}`);
 						}
@@ -92,7 +100,7 @@ export default defineConfig({
 				changeOrigin: false,
 				configure: (proxy) => {
 					proxy.on('proxyReq', (proxyReq, req) => {
-						const token = readBearerFromCookie(req);
+						const token = readBearerFromCookie(req, ACCESS_COOKIE_NAME);
 						if (token && !proxyReq.getHeader('authorization')) {
 							proxyReq.setHeader('Authorization', `Bearer ${token}`);
 						}
@@ -117,7 +125,9 @@ export default defineConfig({
 						if (!isSegmentMatch(req.cairnOriginalUrl ?? req.url, BEARER_AUTH_PATHS)) {
 							return;
 						}
-						const token = readBearerFromCookie(req);
+						// Durable cookie until Task 1.3 re-points /auth/user's
+						// bearer-read to the access cookie.
+						const token = readBearerFromCookie(req, COOKIE_NAME);
 						if (token && !proxyReq.getHeader('authorization')) {
 							proxyReq.setHeader('Authorization', `Bearer ${token}`);
 						}

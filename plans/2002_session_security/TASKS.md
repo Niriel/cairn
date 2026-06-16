@@ -269,10 +269,33 @@ commit.
 automated test — this is a capability spike; the behaviours are pinned by the
 unit tests in 1.3/1.4.)
 
-### [ ] 1.2 Enable GoTrue rotation + short access TTL; re-point Caddy/Vite to the access cookie
+### [x] 1.2 Enable GoTrue rotation + short access TTL; re-point Caddy/Vite to the access cookie
 
 **Created:** 2026-06-15T17:55:34Z
-**Completed:**
+**Completed:** 2026-06-16T16:18:22Z
+
+**Notes:**
+
+- **No `docs/deployment.md` edit needed.** The Files list flagged it conditionally
+  ("if 0.2 left the exact name to here"); 0.2 had already documented `/api` +
+  avatar-write reading the short-lived access cookie and named the prod cookie
+  `__Host-cairn_access`, so the condition didn't fire.
+- **Caddyfile uses the unprefixed `cairn_access`**, per the 1.2/2.1 split — the
+  `__Host-` prefix is added by Task 2.1. Added an inline comment in the Caddyfile
+  pointing at 2.1 so the unprefixed name doesn't read as an oversight.
+- **The reuse-interval comment reflects the 1.1 decision.** The plan's
+  "load-bearing reuse interval" rationale (multi-tab boot spuriously revoking the
+  family) is moot on this GoTrue (reuse detection is rejection-only, not
+  family-revoke), so the `docker-compose.yml` comment states 30 s as a benign
+  grace window and points at `docs/architecture.md` rather than restating the
+  now-moot theft-revoke framing.
+- **Did not restart the live dev stack.** Doing so would push the running dev
+  environment into the documented 1.2→1.3 degraded interim (`/api` reads a
+  `cairn_access` cookie nobody plants yet → anon) mid-review. The new gotrue env
+  applies naturally on the next `docker compose up`, which 1.3 will do once the
+  dual-cookie plant exists. Per the task, the 1.2 verify reduces to static
+  validation until then: `docker compose config` (base + prod) and `caddy validate`
+  both pass.
 
 **Why:** The access token must be short-lived (R2) and refresh tokens must rotate
 with reuse detection (R3); and once the durable cookie holds a refresh token, the
