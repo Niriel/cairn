@@ -35,10 +35,81 @@ declare module 'node:http' {
 const COOKIE_NAME = 'cairn_session';
 const ACCESS_COOKIE_NAME = 'cairn_access';
 
+// ~30-day idle horizon for both cookies — mirrors IDLE_HORIZON_SECONDS in
+// auth-proxy/src/lib/cookies.ts (the prod sibling). The access cookie outlives
+// its own JWT deliberately; see that file for why.
+const COOKIE_MAX_AGE = 60 * 60 * 24 * 30;
+
 function readBearerFromCookie(req: IncomingMessage, name: string): string | null {
 	const cookie = req.headers.cookie ?? '';
 	const m = cookie.match(new RegExp(`(?:^|; )${name}=([^;]+)`));
 	return m ? decodeURIComponent(m[1]) : null;
+}
+
+// Dev Set-Cookie strings (no Secure — localhost is plain HTTP). Mirror
+// plantSession/clearSession in auth-proxy/src/lib/cookies.ts.
+function sessionCookie(name: string, value: string): string {
+	return `${name}=${encodeURIComponent(value)}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${COOKIE_MAX_AGE}`;
+}
+
+function clearCookie(name: string): string {
+	return `${name}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0`;
+}
+
+async function handleDevRefresh(req: IncomingMessage, res: ServerResponse): Promise<void> {
+	const refreshToken = readBearerFromCookie(req, COOKIE_NAME);
+	if (!refreshToken) {
+		res.setHeader('Set-Cookie', [clearCookie(COOKIE_NAME), clearCookie(ACCESS_COOKIE_NAME)]);
+		res.statusCode = 401;
+		res.end(JSON.stringify({ error: 'no session' }));
+		return;
+	}
+
+	let upstream: Response;
+	try {
+		upstream = await fetch('http://localhost:9999/token?grant_type=refresh_token', {
+			method: 'POST',
+			headers: { 'content-type': 'application/json' },
+			body: JSON.stringify({ refresh_token: refreshToken })
+		});
+	} catch {
+		// Transient — leave both cookies intact.
+		res.statusCode = 503;
+		res.end(JSON.stringify({ error: 'upstream auth service unavailable' }));
+		return;
+	}
+
+	if (upstream.status >= 500) {
+		res.statusCode = 503;
+		res.end(JSON.stringify({ error: 'upstream auth service unavailable' }));
+		return;
+	}
+	if (upstream.status !== 200) {
+		// Authoritative revoke — clear both cookies.
+		res.setHeader('Set-Cookie', [clearCookie(COOKIE_NAME), clearCookie(ACCESS_COOKIE_NAME)]);
+		res.statusCode = 401;
+		res.end(JSON.stringify({ error: 'session revoked' }));
+		return;
+	}
+
+	const json = (await upstream.json()) as {
+		access_token?: string;
+		refresh_token?: string;
+		user?: unknown;
+	};
+	if (typeof json.access_token !== 'string' || typeof json.refresh_token !== 'string') {
+		res.statusCode = 503;
+		res.end(JSON.stringify({ error: 'upstream auth service unavailable' }));
+		return;
+	}
+
+	res.setHeader('Set-Cookie', [
+		sessionCookie(COOKIE_NAME, json.refresh_token),
+		sessionCookie(ACCESS_COOKIE_NAME, json.access_token)
+	]);
+	res.setHeader('content-type', 'application/json');
+	res.statusCode = 200;
+	res.end(JSON.stringify({ user: json.user }));
 }
 
 export default defineConfig({
@@ -75,6 +146,19 @@ export default defineConfig({
 					res.setHeader('Set-Cookie', `${COOKIE_NAME}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0`);
 					res.statusCode = 204;
 					res.end();
+				});
+				// Bespoke dev mirror of the prod /auth/refresh handler
+				// (auth-proxy/src/index.ts): exchange the durable refresh cookie
+				// at GoTrue, re-plant both cookies, return a tokenless user.
+				// GoTrue has no /refresh route, so this can't be a plain proxy.
+				// Distinguishes an authoritative revoke (clear + 401) from a
+				// transient blip (503, cookies intact).
+				server.middlewares.use((req, res, next) => {
+					if (req.url?.split('?')[0] !== '/auth/refresh' || req.method !== 'POST') {
+						next();
+						return;
+					}
+					void handleDevRefresh(req, res);
 				});
 			}
 		},
@@ -125,9 +209,9 @@ export default defineConfig({
 						if (!isSegmentMatch(req.cairnOriginalUrl ?? req.url, BEARER_AUTH_PATHS)) {
 							return;
 						}
-						// Durable cookie until Task 1.3 re-points /auth/user's
-						// bearer-read to the access cookie.
-						const token = readBearerFromCookie(req, COOKIE_NAME);
+						// Read the short-lived access cookie — the durable cookie now
+						// holds a refresh token GoTrue's /user would reject.
+						const token = readBearerFromCookie(req, ACCESS_COOKIE_NAME);
 						if (token && !proxyReq.getHeader('authorization')) {
 							proxyReq.setHeader('Authorization', `Bearer ${token}`);
 						}
@@ -155,14 +239,18 @@ export default defineConfig({
 									// since `rewrite` mutated `req.url` before we got here.
 									if (
 										typeof json?.access_token === 'string' &&
+										typeof json?.refresh_token === 'string' &&
 										isSegmentMatch(req.cairnOriginalUrl ?? req.url, COOKIE_PLANT_PATHS)
 									) {
-										const cookie =
-											`${COOKIE_NAME}=${encodeURIComponent(json.access_token)}; ` +
-											// fallback tracks GOTRUE_JWT_EXP — keep in sync if the env var changes
-											`Path=/; HttpOnly; SameSite=Lax; Max-Age=${json.expires_in ?? 604800}`;
+										// Plant BOTH cookies: refresh token in the durable
+										// cookie, access JWT in the short-lived one. Mirrors
+										// plantSession() in auth-proxy/src/lib/cookies.ts.
 										// append — preserves any upstream Set-Cookie the header-copy loop already forwarded
-										res.appendHeader('set-cookie', cookie);
+										res.appendHeader('set-cookie', sessionCookie(COOKIE_NAME, json.refresh_token));
+										res.appendHeader(
+											'set-cookie',
+											sessionCookie(ACCESS_COOKIE_NAME, json.access_token)
+										);
 									}
 									// strip tokens unconditionally — JS has no use for them; cookie is the source of truth (docs/architecture.md:145, :233)
 									if (

@@ -7,36 +7,27 @@ import {
 	LOGOUT_PATHS,
 	isSegmentMatch
 } from './lib/auth-paths.js';
+import { plantSession, clearSession, readAccessCookie, readSessionCookie } from './lib/cookies.js';
+import { refresh } from './lib/session.js';
 
-// Production cookie/JWT shim. This is the prod analogue of the dev Vite
-// proxy in web/vite.config.ts (~lines 30–176): it translates between the
-// HttpOnly `cairn_session` cookie the browser holds and the bearer/JSON
-// GoTrue speaks, so the JWT never reaches page JavaScript. Caddy routes the
-// GoTrue endpoints (/auth/magiclink|verify|token|user|session) here; the
-// stock cookie→bearer direction for /api and /avatars stays in the
-// Caddyfile. The narrowing lists are the canonical ones (auth-paths.ts,
-// guarded deep-equal against web/'s copy by the drift test).
-const COOKIE_NAME = 'cairn_session';
+// Production auth BFF (Cairn-shaped). This is the prod analogue of the dev
+// Vite proxy in web/vite.config.ts (~lines 30–185): it owns the dual-cookie
+// session (durable `cairn_session` refresh token + short-lived `cairn_access`
+// JWT), so no token ever reaches page JavaScript. Caddy routes the GoTrue
+// endpoints (/auth/magiclink|verify|token|user|session) and the Cairn-shaped
+// /auth/refresh here; the stock cookie→bearer direction for /api and /avatars
+// stays in the Caddyfile and reads the access cookie. The narrowing lists are
+// the canonical ones (auth-paths.ts, guarded deep-equal against web/'s copy by
+// the drift test).
+
+// The Cairn-shaped refresh endpoint — not a GoTrue passthrough, so it's handled
+// before the generic fetch-to-GoTrue path below.
+const REFRESH_PATH = '/auth/refresh';
 
 // Config is read per-request (not cached at module load) so tests can point
 // GOTRUE_URL at a stub server in beforeAll after the module is imported.
 function gotrueUrl(): string {
 	return process.env.GOTRUE_URL ?? 'http://gotrue:9999';
-}
-
-// Shared cookie attributes for both plant and clear. `Secure` is appended
-// only in production (COOKIE_SECURE === 'true') — dev runs over plain HTTP
-// on localhost, where a Secure cookie would never be sent back. See
-// docs/architecture.md "JWT storage".
-function cookieAttrs(maxAge: string): string {
-	const secure = process.env.COOKIE_SECURE === 'true' ? '; Secure' : '';
-	return `Path=/; HttpOnly; SameSite=Lax; Max-Age=${maxAge}${secure}`;
-}
-
-function readBearerFromCookie(cookieHeader: string | undefined): string | null {
-	const cookie = cookieHeader ?? '';
-	const m = cookie.match(new RegExp(`(?:^|; )${COOKIE_NAME}=([^;]+)`));
-	return m ? decodeURIComponent(m[1]) : null;
 }
 
 // Request headers we never forward upstream: a client-supplied Authorization
@@ -64,10 +55,19 @@ async function authHandler(req: Request, res: Response): Promise<void> {
 	// `rewrite: (p) => p.replace(/^\/auth/, '')`).
 	const originalUrl = req.originalUrl;
 
-	// Logout: clear the cookie locally, never round-trip to GoTrue.
+	// Logout: clear both cookies locally, never round-trip to GoTrue. (Task 1.4
+	// reshapes this into a revocable POST /auth/signout.)
 	if (req.method === 'DELETE' && isSegmentMatch(originalUrl, LOGOUT_PATHS)) {
-		res.setHeader('Set-Cookie', `${COOKIE_NAME}=; ${cookieAttrs('0')}`);
+		clearSession(res);
 		res.status(204).end();
+		return;
+	}
+
+	// Refresh: exchange the durable refresh cookie for a fresh token pair,
+	// re-plant both cookies, and return a tokenless user payload. Owns the
+	// GoTrue grant_type translation — the browser never sees a token.
+	if (req.method === 'POST' && isSegmentMatch(originalUrl, [REFRESH_PATH])) {
+		await refreshHandler(req, res);
 		return;
 	}
 
@@ -81,7 +81,9 @@ async function authHandler(req: Request, res: Response): Promise<void> {
 	// Bearer attach is narrowed to BEARER_AUTH_PATHS (/auth/user) — anonymous
 	// endpoints (/auth/magiclink|verify|token) must not receive a credential.
 	if (isSegmentMatch(originalUrl, BEARER_AUTH_PATHS)) {
-		const token = readBearerFromCookie(req.headers.cookie);
+		// Read the short-lived access cookie — the durable cookie now holds a
+		// refresh token, which GoTrue's /user would reject.
+		const token = readAccessCookie(req.headers.cookie);
 		if (token) headers.set('Authorization', `Bearer ${token}`);
 	}
 
@@ -137,17 +139,21 @@ async function authHandler(req: Request, res: Response): Promise<void> {
 			// Cookie-plant is narrowed to the deliberate-login endpoints
 			// (COOKIE_PLANT_PATHS = /auth/verify, /auth/token) — a 2xx from
 			// /auth/magiclink (or a future token-returning endpoint) must not
-			// plant a session unless explicitly added to the allow-list.
+			// plant a session unless explicitly added to the allow-list. Plants
+			// BOTH cookies (refresh in the durable cookie, access in the
+			// short-lived one) so a magic-link/OTP sign-in establishes the
+			// dual-cookie session.
 			if (
 				typeof json.access_token === 'string' &&
+				typeof json.refresh_token === 'string' &&
 				isSegmentMatch(originalUrl, COOKIE_PLANT_PATHS)
 			) {
 				const expiresIn = typeof json.expires_in === 'number' ? json.expires_in : undefined;
-				const maxAge = String(expiresIn ?? process.env.COOKIE_MAX_AGE ?? '604800');
-				res.appendHeader(
-					'set-cookie',
-					`${COOKIE_NAME}=${encodeURIComponent(json.access_token)}; ${cookieAttrs(maxAge)}`
-				);
+				plantSession(res, {
+					accessToken: json.access_token,
+					refreshToken: json.refresh_token,
+					expiresIn
+				});
 			}
 			// Strip tokens unconditionally — page JS has no use for them; the
 			// cookie is the source of truth.
@@ -163,6 +169,40 @@ async function authHandler(req: Request, res: Response): Promise<void> {
 	}
 
 	res.end(buf);
+}
+
+// POST /auth/refresh: read the durable refresh cookie, exchange it at GoTrue,
+// re-plant the rotated pair, and answer with a tokenless `user` payload so the
+// web boot can adopt the user without a second /auth/user round-trip (Task 4.1
+// consumes it). Distinguishes an authoritative revocation (clear + 401) from a
+// transient upstream blip (503, cookies left intact) so a momentary outage
+// doesn't sign everyone out. Never logs the token (docs/logging.md).
+async function refreshHandler(req: Request, res: Response): Promise<void> {
+	const refreshToken = readSessionCookie(req.headers.cookie);
+	if (!refreshToken) {
+		clearSession(res);
+		res.status(401).json({ error: 'no session' });
+		return;
+	}
+
+	const result = await refresh(refreshToken);
+	if (result.status === 'unavailable') {
+		// Transient — leave both cookies intact.
+		res.status(503).json({ error: 'upstream auth service unavailable' });
+		return;
+	}
+	if (result.status === 'revoked') {
+		clearSession(res);
+		res.status(401).json({ error: 'session revoked' });
+		return;
+	}
+
+	plantSession(res, {
+		accessToken: result.accessToken,
+		refreshToken: result.refreshToken,
+		expiresIn: result.expiresIn
+	});
+	res.status(200).json({ user: result.user });
 }
 
 const app = express();

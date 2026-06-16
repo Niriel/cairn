@@ -34,7 +34,7 @@ cairn.{$DOMAIN} {
 	# are NOT listed here, so they fall through to `web`. A blanket
 	# `handle_path /auth/*` would strip /auth and break both the proxy's
 	# segment matching and the callback page (the subtlest prod-only failure).
-	@gotrue path /auth/magiclink* /auth/verify* /auth/token* /auth/user* /auth/session*
+	@gotrue path /auth/magiclink* /auth/verify* /auth/token* /auth/user* /auth/session* /auth/refresh*
 	handle @gotrue {
 		reverse_proxy auth-proxy:3002
 	}

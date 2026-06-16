@@ -368,10 +368,31 @@ cookie.
 **Verify:** `docker compose config` (compose valid) · Caddy config validate ·
 `pnpm --dir web check` (vite.config types) · `./scripts/check.sh` lint/format.
 
-### [ ] 1.3 Dual-cookie reshape of the proxy: plant, bearer-read, `POST /auth/refresh`
+### [x] 1.3 Dual-cookie reshape of the proxy: plant, bearer-read, `POST /auth/refresh`
 
 **Created:** 2026-06-15T17:55:34Z
-**Completed:**
+**Completed:** 2026-06-16T16:41:36Z
+
+**Notes:**
+
+- **`shim.test.ts` case (c) updated too** (beyond the case-(a) edit the Files
+  list named). Re-pointing the `/auth/user` bearer-read to the access cookie
+  necessarily breaks case (c), which set `Cookie: cairn_session=…` and expected a
+  bearer; it now sets `cairn_access=…`. A direct consequence of the bearer-read
+  decision, not a scope expansion.
+- **DELETE `/auth/session` now clears _both_ cookies via `clearSession`.** The
+  old handler cleared only the durable cookie; since 1.3 introduces the access
+  cookie, leaving it on logout would be a fresh leak, so the DELETE handler uses
+  the new `clearSession`. Task 1.4 still owns the full signout reshape
+  (method/path/GoTrue revoke); this is just the cookie-clear made dual. Case (e)
+  still passes (it asserts `cairn_session` cleared with `Max-Age=0`).
+- **`plantSession`'s `expiresIn` is accepted but unused for Max-Age** (both
+  cookies use the ~30 d idle horizon, per the Decisions). Kept in the signature
+  for forward-compat/documentation; not destructured, so no unused-var lint.
+- **Did not run the live stack.** The dual cookie + refresh now exist in code, so
+  the 1.2→1.3 degraded interim is closed; verification here is the unit suite +
+  static validation (Caddy validate, svelte-check, full `check.sh`), all green.
+  The real-stack cookie-contract + refresh round-trip is Task 5.1's job.
 
 **Why:** The core of the revocable model, landed as **one atomic commit** so no
 intermediate state breaks magic-link sign-in: the BFF must plant _both_ cookies

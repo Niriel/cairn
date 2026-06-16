@@ -68,6 +68,12 @@ function sessionCookie(res: request.Response): string | undefined {
 	return list.find((c) => c.startsWith('cairn_session='));
 }
 
+function accessCookie(res: request.Response): string | undefined {
+	const raw: unknown = res.headers['set-cookie'];
+	const list = Array.isArray(raw) ? (raw as string[]) : [];
+	return list.find((c) => c.startsWith('cairn_access='));
+}
+
 // Read the Authorization header GoTrue saw, via a helper so the assertions
 // aren't tripped by TS narrowing `lastReq` to `null` after a `lastReq = null`
 // reset (the value is repopulated asynchronously by the stub's request handler).
@@ -76,14 +82,15 @@ function capturedAuthHeader(): string | undefined {
 }
 
 describe('auth-proxy shim', () => {
-	it('(a) plants the session cookie on COOKIE_PLANT_PATHS but not on /auth/magiclink', async () => {
+	it('(a) plants both cookies on COOKIE_PLANT_PATHS but neither on /auth/magiclink', async () => {
 		const onToken = await request(app).post('/auth/token').send({ grant_type: 'refresh_token' });
-		const plantedCookie = sessionCookie(onToken);
-		expect(plantedCookie).toBeDefined();
-		expect(plantedCookie).toContain('cairn_session=AAA.token');
+		// Durable cookie holds the refresh token, access cookie holds the JWT.
+		expect(sessionCookie(onToken)).toContain('cairn_session=RRR.token');
+		expect(accessCookie(onToken)).toContain('cairn_access=AAA.token');
 
 		const onMagiclink = await request(app).post('/auth/magiclink').send({ email: 'x@y.z' });
 		expect(sessionCookie(onMagiclink)).toBeUndefined();
+		expect(accessCookie(onMagiclink)).toBeUndefined();
 	});
 
 	it('(b) strips access_token and refresh_token from the forwarded body', async () => {
@@ -94,14 +101,16 @@ describe('auth-proxy shim', () => {
 		expect(body.user).toEqual({ id: 'u1' });
 	});
 
-	it('(c) attaches the bearer only on BEARER_AUTH_PATHS, never on anonymous endpoints', async () => {
-		await request(app).get('/auth/user').set('Cookie', 'cairn_session=xxx.yyy.zzz');
+	it('(c) attaches the bearer from the access cookie only on BEARER_AUTH_PATHS, never on anonymous endpoints', async () => {
+		// The bearer comes from the short-lived access cookie — the durable
+		// cookie now holds a refresh token GoTrue's /user would reject.
+		await request(app).get('/auth/user').set('Cookie', 'cairn_access=xxx.yyy.zzz');
 		expect(capturedAuthHeader()).toBe('Bearer xxx.yyy.zzz');
 
 		lastReq = null;
 		await request(app)
 			.post('/auth/magiclink')
-			.set('Cookie', 'cairn_session=xxx.yyy.zzz')
+			.set('Cookie', 'cairn_access=xxx.yyy.zzz')
 			.send({ email: 'x@y.z' });
 		expect(capturedAuthHeader()).toBeUndefined();
 	});
