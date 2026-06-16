@@ -102,6 +102,47 @@
 								>{/if}{/snippet}
 					</NavRow>
 					<div class="extra">
+						<div class="extra-body">
+							{#if item.description !== null}
+								<button
+									class="desc body"
+									class:expanded={expandedIds.has(item.id)}
+									data-test="list-desc-{item.id}"
+									onclick={() => toggleDesc(item.id)}
+								>
+									<span class="desc-text" bind:this={descTextEls[item.id]}>{item.description}</span>
+									{#if expandedIds.has(item.id)}
+										<span class="see-toggle fine">(see less)</span>
+									{:else if truncatedIds.has(item.id)}
+										<span class="see-toggle fine">(see more)</span>
+									{/if}
+								</button>
+							{:else}
+								<div class="desc no-desc body" data-test="list-desc-{item.id}">
+									(no description)
+								</div>
+							{/if}
+							<div class="meta fine">
+								<span>{item.item_count} {item.item_count === 1 ? 'item' : 'items'}</span>
+								<span class="dot">•</span>
+								<span>{timeAgo(item.modified_at)}</span>
+								{#if item.list_members.length > 0}
+									<span class="dot">•</span>
+									<span class="avatars">
+										{#each item.list_members as m, i (m.user_id + i)}
+											<span style="margin-left: {i === 0 ? 0 : -6}px">
+												<Avatar
+													displayName={m.profiles.display_name}
+													size={16}
+													uid={m.user_id}
+													avatarVersion={m.profiles.avatar_version}
+												/>
+											</span>
+										{/each}
+									</span>
+								{/if}
+							</div>
+						</div>
 						<span class="more">
 							<MoreButton
 								size={24}
@@ -111,43 +152,6 @@
 								style="color: var(--stone)"
 							/>
 						</span>
-						{#if item.description !== null}
-							<button
-								class="desc body"
-								class:expanded={expandedIds.has(item.id)}
-								data-test="list-desc-{item.id}"
-								onclick={() => toggleDesc(item.id)}
-							>
-								<span class="desc-text" bind:this={descTextEls[item.id]}>{item.description}</span>
-								{#if expandedIds.has(item.id)}
-									<span class="see-toggle fine">(see less)</span>
-								{:else if truncatedIds.has(item.id)}
-									<span class="see-toggle fine">(see more)</span>
-								{/if}
-							</button>
-						{:else}
-							<div class="desc no-desc body" data-test="list-desc-{item.id}">(no description)</div>
-						{/if}
-						<div class="meta fine">
-							<span>{item.item_count} {item.item_count === 1 ? 'item' : 'items'}</span>
-							<span class="dot">•</span>
-							<span>{timeAgo(item.modified_at)}</span>
-							{#if item.list_members.length > 0}
-								<span class="dot">•</span>
-								<span class="avatars">
-									{#each item.list_members as m, i (m.user_id + i)}
-										<span style="margin-left: {i === 0 ? 0 : -6}px">
-											<Avatar
-												displayName={m.profiles.display_name}
-												size={16}
-												uid={m.user_id}
-												avatarVersion={m.profiles.avatar_version}
-											/>
-										</span>
-									{/each}
-								</span>
-							{/if}
-						</div>
 					</div>
 				</li>
 			{/each}
@@ -245,31 +249,38 @@
 		padding: 0 0.8rem;
 	}
 
-	/* Extra-info block beneath the title nav-row: the More button (absolutely
-	   pinned top-end), description, and metadata. The wide right inset lets the
-	   ellipsizing description and metadata clear the More button. The full-bleed
-	   dashed rule (moved here from the old .row-top) separates title from extra
-	   info; it is edge-to-edge like the solid per-row divider now that .row has
-	   no padding. The left inset aligns description/meta under the title text. */
+	/* Extra-info block beneath the title nav-row: a row with the content column
+	   (description + metadata) beside the More button, which reserves its own
+	   space at the end rather than floating over the content. align-items:
+	   flex-start keeps the ⋮ in the top-end corner. The full-bleed dashed rule
+	   (moved here from the old .row-top) separates title from extra info; it is
+	   edge-to-edge like the solid per-row divider now that .row has no padding.
+	   The 0.8rem left padding aligns the content under the title text; the 0.8rem
+	   right padding aligns the ⋮ under the chevron (see .more). */
 	.extra {
-		position: relative;
-		padding: 0.5rem 2.5rem 0.875rem 0.8rem;
+		display: flex;
+		align-items: flex-start;
+		gap: 0.5rem;
+		padding: 0.5rem 0.8rem 0.875rem 0.8rem;
 		border-top: 1px dashed var(--rule);
 	}
 
-	/* The More button, pinned to the top-end corner of the extra-info block. The
-	   wrapping span is positioned (not the MoreButton itself) so its forwarded
-	   class can't clobber IconButton's .icon-btn sizing. The chevron and this ⋮
-	   are now identical 44px boxes around 24px glyphs, so their glyphs both centre
-	   at (right inset + 22px): setting `right` equal to the nav-row button's
-	   padding-right (0.8rem) lines the ⋮ up directly under the chevron. */
-	/* ALIGNMENT INVARIANT: the ⋮ sits under the chevron only while this `right`
-	   equals the nav-row button's padding-right (0.8rem, above) and both are 44px
-	   boxes with equal-size glyphs. Same coupling as the Items screen. */
+	/* The content column: description then metadata. min-width:0 lets the
+	   description ellipsize instead of pushing the More button off the edge. */
+	.extra-body {
+		flex: 1;
+		min-width: 0;
+	}
+
+	/* The More button at the end of the row. It's a 44px IconButton box around a
+	   24px glyph, and .extra's 0.8rem right padding equals the nav-row button's
+	   padding-right, so the ⋮ glyph centres at the same (right + 22px) as the
+	   chevron and sits directly under it. The wrapping span keeps its forwarded
+	   class off IconButton's own sizing. ALIGNMENT INVARIANT: keep .extra's right
+	   padding == that padding-right while both stay 44px boxes with equal glyphs.
+	   Same coupling as the Items screen. */
 	.more {
-		position: absolute;
-		top: 0.375rem;
-		right: 0.8rem;
+		flex-shrink: 0;
 	}
 
 	/* Public-list marker: a muted globe in the nav-row's trailing slot, so it

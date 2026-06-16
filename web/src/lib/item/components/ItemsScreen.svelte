@@ -181,6 +181,61 @@
 					</AccordionRow>
 					{#if openId === item.id}
 						<div data-test="item-extra" class="extra surface-alt">
+							<div class="extra-body">
+								{#if item.notes}
+									<div class="notes body" data-test="item-notes-{item.id}">{item.notes}</div>
+								{:else}
+									<div class="notes no-notes body" data-test="item-notes-{item.id}">(no notes)</div>
+								{/if}
+								<div class="votes-row">
+									{#if item.member_votes.length > 0}
+										<div class="member-votes">
+											{#each item.member_votes as mv (mv.user_id)}
+												<span class="member-vote fine">
+													<Avatar
+														displayName={mv.display_name}
+														size={18}
+														uid={mv.user_id}
+														avatarVersion={mv.avatar_version}
+													/>
+													<span class="mv-name">{mv.display_name}</span>
+													<span
+														class="mv-val"
+														class:positive={mv.value > 0}
+														class:negative={mv.value < 0}
+													>
+														{mv.value > 0 ? '+' : ''}{mv.value}
+													</span>
+												</span>
+											{/each}
+										</div>
+									{:else}
+										<span class="no-votes body" data-test="item-votes-{item.id}">(no votes)</span>
+									{/if}
+									<div class="vote-control-slot">
+										<VoteControl
+											value={item.my_vote}
+											onchange={(v: number | null) => handleVote(item.id, v)}
+										/>
+									</div>
+								</div>
+								<div class="attribution fine">
+									Added by <strong
+										data-test="attribution-creator-{item.id}"
+										class:tombstone={item.created_by === TOMBSTONE_UID}
+										>{item.created_by_name}</strong
+									>
+									{timeAgo(item.created_at)}.
+									{#if item.modified_by_name}
+										Last edited by <strong
+											data-test="attribution-editor-{item.id}"
+											class:tombstone={item.modified_by === TOMBSTONE_UID}
+											>{item.modified_by_name}</strong
+										>
+										{timeAgo(item.modified_at)}.
+									{/if}
+								</div>
+							</div>
 							<span class="more">
 								<MoreButton
 									size={24}
@@ -190,58 +245,6 @@
 									style="color: var(--stone)"
 								/>
 							</span>
-							{#if item.notes}
-								<div class="notes body" data-test="item-notes-{item.id}">{item.notes}</div>
-							{:else}
-								<div class="notes no-notes body" data-test="item-notes-{item.id}">(no notes)</div>
-							{/if}
-							<div class="votes-row">
-								{#if item.member_votes.length > 0}
-									<div class="member-votes">
-										{#each item.member_votes as mv (mv.user_id)}
-											<span class="member-vote fine">
-												<Avatar
-													displayName={mv.display_name}
-													size={18}
-													uid={mv.user_id}
-													avatarVersion={mv.avatar_version}
-												/>
-												<span class="mv-name">{mv.display_name}</span>
-												<span
-													class="mv-val"
-													class:positive={mv.value > 0}
-													class:negative={mv.value < 0}
-												>
-													{mv.value > 0 ? '+' : ''}{mv.value}
-												</span>
-											</span>
-										{/each}
-									</div>
-								{:else}
-									<span class="no-votes body" data-test="item-votes-{item.id}">(no votes)</span>
-								{/if}
-								<div class="vote-control-slot">
-									<VoteControl
-										value={item.my_vote}
-										onchange={(v: number | null) => handleVote(item.id, v)}
-									/>
-								</div>
-							</div>
-							<div class="attribution fine">
-								Added by <strong
-									data-test="attribution-creator-{item.id}"
-									class:tombstone={item.created_by === TOMBSTONE_UID}>{item.created_by_name}</strong
-								>
-								{timeAgo(item.created_at)}.
-								{#if item.modified_by_name}
-									Last edited by <strong
-										data-test="attribution-editor-{item.id}"
-										class:tombstone={item.modified_by === TOMBSTONE_UID}
-										>{item.modified_by_name}</strong
-									>
-									{timeAgo(item.modified_at)}.
-								{/if}
-							</div>
 						</div>
 					{/if}
 				</li>
@@ -411,33 +414,39 @@
 		padding: 0 0.8rem;
 	}
 
-	/* A flex column laying out notes, votes, and attribution with an even gap.
-	   position: relative anchors the absolutely-pinned .more button; the wide
-	   right inset (2.5rem) keeps the first row's content from sliding under that
-	   top-right button. Insets tuned in the running app (light + dark, with and
-	   without notes). */
+	/* The extra panel is a row: the content column (notes, votes, attribution)
+	   beside the More button, which reserves its own space at the end rather than
+	   floating over the content. align-items:flex-start keeps the ⋮ in the
+	   top-end corner. The 0.8rem right padding aligns the ⋮ under the chevron
+	   (see .more); the 0.8rem left padding aligns the content under the title. */
 	.extra {
-		position: relative;
 		display: flex;
-		flex-direction: column;
+		align-items: flex-start;
 		gap: 0.5rem;
-		padding: 0.625rem 2.5rem 1rem 0.8rem;
+		padding: 0.625rem 0.8rem 1rem 0.8rem;
 		border-top: 1px dashed var(--rule);
 	}
 
-	/* The More button, pinned to the top-end corner of the extra panel. The
-	   wrapping span is positioned (not the MoreButton itself) so its forwarded
-	   class can't clobber IconButton's .icon-btn sizing. Mirrors the Lists
-	   screen's .more placement. */
-	/* ALIGNMENT INVARIANT: the ⋮ glyph must sit directly under the row's chevron.
-	   The chevron and this ⋮ are identical 44px boxes around 24px glyphs, so both
-	   glyphs centre at (right inset + 22px): this `right` equals the accordion
-	   button's padding-right (0.8rem, set in `.row :global(.accordion-row button)`)
-	   so the two line up. Re-derive if either box size or that padding changes. */
+	/* The content column: notes, votes and attribution stacked with an even gap.
+	   min-width:0 lets the notes/attribution ellipsize instead of pushing the
+	   More button off the edge. */
+	.extra-body {
+		flex: 1;
+		min-width: 0;
+		display: flex;
+		flex-direction: column;
+		gap: 0.5rem;
+	}
+
+	/* The More button at the end of the row. It's a 44px IconButton box around a
+	   24px glyph, and .extra's 0.8rem right padding equals the accordion button's
+	   padding-right (set in `.row :global(.accordion-row button)`), so the ⋮ glyph
+	   centres at the same (right + 22px) as the row's chevron and sits directly
+	   under it. The wrapping span keeps its forwarded class off IconButton's own
+	   sizing. ALIGNMENT INVARIANT: keep .extra's right padding == that
+	   padding-right while both stay 44px boxes with equal glyphs. */
 	.more {
-		position: absolute;
-		top: 0.375rem;
-		right: 0.8rem;
+		flex-shrink: 0;
 	}
 
 	/* Editorial serif-italic for free-text notes — an annotated exception to the
