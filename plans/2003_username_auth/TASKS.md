@@ -232,10 +232,25 @@ signup-then-UPDATE rationale); `scripts/seed.sh` (the signup shape);
 
 ## Phase 2 — DB revise-forward + new RPCs (R1, R2, R3)
 
-### [ ] 2.1 Simplify `set_username` to profiles-only (migration + pgTAP + doc)
+### [x] 2.1 Simplify `set_username` to profiles-only (migration + pgTAP + doc)
 
 **Created:** 2026-06-17T08:42:42Z
-**Completed:**
+**Completed:** 2026-06-17T11:15:27Z
+
+**Notes:** Went as planned. The flipped assertion (b) gave the expected red
+(`have: newname@users.cairn.invalid` / `want: alice-known@example.test`) before
+the migration, then passed once `0020`'s profiles-only `set_username` landed;
+assertion (c) removed and `plan()` dropped 10 → 9.
+
+- **Doc divergence (pre-existing, not introduced here):** `docs/data-model.md`
+  was already not Prettier-clean at HEAD — a markdown table further down the file
+  was unaligned. Editing the file means `prettier --check` (the task's verifier)
+  covers the whole file, so running `prettier --write` re-aligned that table too.
+  The diff therefore carries ~48 lines of table-alignment churn unrelated to the
+  three synthetic-e-mail corrections. This is the formatter doing its job on a
+  file the pre-commit hook had never reformatted (it only runs on staged files,
+  and this doc hadn't been touched recently); flagging it so the churn isn't read
+  as scope creep.
 
 **Why:** Under the stable identity (R1), the GoTrue login handle no longer encodes
 the username, so `set_username` must stop rewriting `auth.users.email`. Dropping
