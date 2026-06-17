@@ -109,18 +109,6 @@ export async function exchangeRefreshToken(refreshToken: string): Promise<{ user
 	return { user: payload.user };
 }
 
-export async function devPasswordSignIn(
-	email: string,
-	password: string
-): Promise<{ user: AuthUser }> {
-	const payload = await postJson<{ user?: unknown }>('/token?grant_type=password', {
-		email,
-		password
-	});
-	assertAuthUser(payload?.user);
-	return { user: payload.user };
-}
-
 export async function verifyOtp(email: string, token: string): Promise<{ user: AuthUser }> {
 	// The typed six-digit code from the magic-link e-mail. On 200 the auth
 	// shim has already planted the cookie and stripped the tokens; the JSON

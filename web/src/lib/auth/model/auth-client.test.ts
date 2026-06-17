@@ -106,49 +106,6 @@ describe('exchangeRefreshToken', () => {
 	});
 });
 
-describe('devPasswordSignIn', () => {
-	test('POSTs `${VITE_AUTH_BASE}/token?grant_type=password` with explicit password and returns { user }', async () => {
-		let seenPath: string | null = null;
-		let seenSearch: string | null = null;
-		let seenBody: unknown = null;
-		server.use(
-			http.post('*/auth/token', async ({ request }) => {
-				const url = new URL(request.url);
-				seenPath = url.pathname;
-				seenSearch = url.search;
-				seenBody = await request.json();
-				return HttpResponse.json({
-					token_type: 'bearer',
-					expires_in: 604800,
-					user: SEED_USER
-				});
-			})
-		);
-		const result = await mod.devPasswordSignIn('alice@example.test', 'cairn-dev');
-		expect(seenPath).toBe('/auth/token');
-		expect(seenSearch).toBe('?grant_type=password');
-		expect(seenBody).toEqual({ email: 'alice@example.test', password: 'cairn-dev' });
-		expect(result).toEqual({ user: SEED_USER });
-	});
-
-	test('throws when the 200 body is missing user.id/user.username', async () => {
-		server.use(http.post('*/auth/token', () => HttpResponse.json({ access_token: 'x' })));
-		await expect(mod.devPasswordSignIn('alice@example.test', 'cairn-dev')).rejects.toBeInstanceOf(
-			Error
-		);
-	});
-
-	test('throws on non-2xx', async () => {
-		server.use(
-			http.post('*/auth/token', () => HttpResponse.json({ msg: 'invalid grant' }, { status: 400 }))
-		);
-		const rejection = expect(mod.devPasswordSignIn('alice@example.test', 'cairn-dev')).rejects;
-		await rejection.toBeInstanceOf(Error);
-		await rejection.toBeInstanceOf(mod.HttpError);
-		await rejection.toMatchObject({ name: 'HttpError', status: 400 });
-	});
-});
-
 describe('signIn', () => {
 	test('POSTs `${VITE_AUTH_BASE}/signin` with {username,password} + the CSRF header and returns { user }', async () => {
 		let seenPath: string | null = null;

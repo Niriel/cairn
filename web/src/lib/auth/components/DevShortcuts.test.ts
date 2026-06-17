@@ -2,7 +2,7 @@ import { fireEvent } from '@testing-library/svelte';
 import { tick } from 'svelte';
 import { afterAll, afterEach, beforeAll, describe, expect, test, vi } from 'vitest';
 
-import { devPasswordSignIn, HttpError } from '$lib/auth/model/auth-client';
+import { signIn, HttpError } from '$lib/auth/model/auth-client';
 import { setSignedIn } from '$lib/shared/state/session.svelte';
 import { render } from '$lib/test/render';
 
@@ -43,18 +43,18 @@ describe('DevShortcuts', () => {
 		expect(queryByDataTest('dev-login-carol')).not.toBeNull();
 	});
 
-	test('(i) clicking dev-login-alice calls devPasswordSignIn then setSignedIn, in order', async () => {
-		vi.mocked(devPasswordSignIn).mockResolvedValueOnce({ user: SEED_USER });
+	test('(i) clicking dev-login-alice calls signIn then setSignedIn, in order', async () => {
+		vi.mocked(signIn).mockResolvedValueOnce({ user: SEED_USER });
 
 		const { getByDataTest } = render(DevShortcuts, makeProps());
 		await fireEvent.click(getByDataTest('dev-login-alice'));
 		await tick();
 		await tick();
 
-		expect(vi.mocked(devPasswordSignIn)).toHaveBeenCalledWith('alice@example.test', 'cairn-dev');
+		expect(vi.mocked(signIn)).toHaveBeenCalledWith('alice', 'cairn-dev');
 		expect(vi.mocked(setSignedIn)).toHaveBeenCalledWith(SEED_USER);
 
-		const signInOrder = vi.mocked(devPasswordSignIn).mock.invocationCallOrder[0];
+		const signInOrder = vi.mocked(signIn).mock.invocationCallOrder[0];
 		const setSignedInOrder = vi.mocked(setSignedIn).mock.invocationCallOrder[0];
 		expect(signInOrder).toBeLessThan(setSignedInOrder);
 	});
@@ -76,7 +76,7 @@ describe('DevShortcuts', () => {
 	});
 
 	test('(k) non-HttpError rejection calls onServerError, not onInlineError; no setSignedIn', async () => {
-		vi.mocked(devPasswordSignIn).mockRejectedValueOnce(new TypeError('Failed to fetch'));
+		vi.mocked(signIn).mockRejectedValueOnce(new TypeError('Failed to fetch'));
 		const props = makeProps();
 
 		const { getByDataTest } = render(DevShortcuts, props);
@@ -90,9 +90,7 @@ describe('DevShortcuts', () => {
 	});
 
 	test('(l) 4xx HttpError calls onInlineError(err.message); no onServerError; no setSignedIn', async () => {
-		vi.mocked(devPasswordSignIn).mockRejectedValueOnce(
-			new HttpError(400, 'Invalid login credentials')
-		);
+		vi.mocked(signIn).mockRejectedValueOnce(new HttpError(400, 'Invalid login credentials'));
 		const props = makeProps();
 
 		const { getByDataTest } = render(DevShortcuts, props);
@@ -106,7 +104,7 @@ describe('DevShortcuts', () => {
 	});
 
 	test('(m) 5xx HttpError calls onServerError, not onInlineError; no setSignedIn', async () => {
-		vi.mocked(devPasswordSignIn).mockRejectedValueOnce(new HttpError(503, 'service unavailable'));
+		vi.mocked(signIn).mockRejectedValueOnce(new HttpError(503, 'service unavailable'));
 		const props = makeProps();
 
 		const { getByDataTest } = render(DevShortcuts, props);
@@ -119,9 +117,9 @@ describe('DevShortcuts', () => {
 		expect(vi.mocked(setSignedIn)).not.toHaveBeenCalled();
 	});
 
-	test('in-flight gating: setSending(true) before await, setSending(false) in finally; no second devPasswordSignIn while pending', async () => {
+	test('in-flight gating: setSending(true) before await, setSending(false) in finally; no second signIn while pending', async () => {
 		let resolveSignin!: (v: { user: typeof SEED_USER }) => void;
-		vi.mocked(devPasswordSignIn).mockImplementationOnce(
+		vi.mocked(signIn).mockImplementationOnce(
 			() =>
 				new Promise((r) => {
 					resolveSignin = r;
@@ -134,14 +132,14 @@ describe('DevShortcuts', () => {
 		await tick();
 
 		expect(props.setSending).toHaveBeenCalledWith(true);
-		expect(vi.mocked(devPasswordSignIn)).toHaveBeenCalledTimes(1);
+		expect(vi.mocked(signIn)).toHaveBeenCalledTimes(1);
 
 		// Parent would flip sending=true in response to setSending(true). Simulate that.
 		await rerender({ ...props, sending: true });
 
 		await fireEvent.click(getByDataTest('dev-login-alice'));
 		await tick();
-		expect(vi.mocked(devPasswordSignIn)).toHaveBeenCalledTimes(1);
+		expect(vi.mocked(signIn)).toHaveBeenCalledTimes(1);
 
 		resolveSignin({ user: SEED_USER });
 		await tick();

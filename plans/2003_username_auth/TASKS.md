@@ -1403,10 +1403,27 @@ mirror); `docs/testing.md` (Playwright layer); the firefox-default convention.
 
 **Verify:** `cd web && pnpm exec playwright test e2e/auth.spec.ts --project=firefox` (or `./scripts/check.sh --e2e`)
 
-### [ ] 4.5 Migrate the dev-login shortcut + seed to the username credential
+### [x] 4.5 Migrate the dev-login shortcut + seed to the username credential
 
 **Created:** 2026-06-17T10:54:00Z
-**Completed:**
+**Completed:** 2026-06-17T16:42:35Z
+
+**Notes:** Went as planned.
+
+- **`db/seed/dev_seed.sql` left untouched** (not in the Files list). It looks up
+  the seed accounts by `email = 'alice@example.test'`, which only works while the
+  original signup e-mail still exists. So the new `adopt_one` step in `seed.sh`
+  (sets `profiles.username` + rewrites `auth.users.email` to `<uid>@cairn.internal`)
+  runs **after** `dev_seed.sql`, keyed on the original e-mail, with the e-mail
+  rewrite as the very last write. Idempotent: a re-run finds the e-mail already
+  rewritten and every UPDATE is a no-op (confirmed: re-run is all `UPDATE 0`).
+- **Smoke test against the running stack** (after `reset-db --full && migrate &&
+  seed`): `resolve_username('alice')` → `(uid, "alice")`; password grant against
+  `<uid>@cairn.internal` → **200**; grant against the old `alice@example.test` →
+  **400** (transient identity genuinely gone). The dev-shortcut path
+  (`resolveUsername` → grant against the stable identity) works end-to-end.
+- `VITE_DEV_LOGIN_PASSWORD` (`web/.env.example`) already equals `DEV_PASSWORD`
+  (`scripts/seed.sh`), both `cairn-dev` — no reconciliation needed.
 
 **Why:** The R6 lockdown (Task 3.2) rejects `grant_type=password` on the
 `/auth/token` pass-through — including the dev mirror in `web/vite.config.ts`. But

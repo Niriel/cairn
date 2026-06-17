@@ -59,6 +59,28 @@ signup_one() {
   esac
 }
 
+# Give a freshly-signed-up seed user a known, fixed username and the
+# stable GoTrue identity (<uid>@cairn.internal), so it resolves and
+# password-grants under the username sign-in flow. Keyed on the original
+# signup e-mail, which still exists when this runs (the e-mail rewrite is
+# the last write). Idempotent: a re-run finds the e-mail already rewritten
+# and the UPDATEs are no-ops.
+adopt_one() {
+  local email="$1"
+  local username="$2"
+  psql -h localhost -p 5432 -U cairn -d cairn -v ON_ERROR_STOP=1 \
+    -v email="$email" -v username="$username" <<'SQL'
+UPDATE public.profiles p
+SET username = :'username'
+FROM auth.users u
+WHERE p.id = u.id AND u.email = :'email';
+
+UPDATE auth.users
+SET email = id || '@cairn.internal'
+WHERE email = :'email';
+SQL
+}
+
 wait_for_gotrue
 
 for email in alice@example.test bob@example.test carol@example.test; do
@@ -67,3 +89,7 @@ done
 
 export PGPASSWORD="$POSTGRES_PASSWORD"
 psql -h localhost -p 5432 -U cairn -d cairn -v ON_ERROR_STOP=1 -f db/seed/dev_seed.sql
+
+adopt_one alice@example.test alice
+adopt_one bob@example.test bob
+adopt_one carol@example.test carol

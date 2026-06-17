@@ -278,7 +278,7 @@ VITE_AUTH_BASE=/auth
 
 `VITE_API_BASE` and `VITE_AUTH_BASE` are paths, not full URLs — same in dev and prod, because Caddy and Vite both serve the API at `/api` and the auth service at `/auth` on the same origin as the app.
 
-`VITE_DEV_LOGIN_SHORTCUT=true` (the default in `web/.env.example`) enables three secondary buttons — _Alice_, _Bob_, _Carol_ — under the email field on `/auth/login`. Each calls GoTrue's `POST /token?grant_type=password` with the corresponding seeded email and the dev password `cairn-dev`, the same cookie-plant shim that handles the magic-link callback sets the `cairn_session` cookie, and you land on `/` signed in. The shortcut is dev-only by belt-and-braces: in a production build `import.meta.env.DEV` is `false` regardless of which env vars are set, and Vite tree-shakes the dead branch out of the bundle. To disable locally without losing the dev build mode, unset the env var.
+`VITE_DEV_LOGIN_SHORTCUT=true` (the default in `web/.env.example`) enables three secondary buttons — _Alice_, _Bob_, _Carol_ — under the email field on `/auth/login`. Each calls `POST /auth/signin` with the corresponding seed username (`alice` / `bob` / `carol`) and the dev password `cairn-dev` — the same path the sign-in screen uses, since the public password grant is now locked to the BFF. The BFF resolves the username, runs the grant against the account's stable `<uid>@cairn.internal` identity, plants the session cookies, and you land on `/` signed in. The shortcut is dev-only by belt-and-braces: in a production build `import.meta.env.DEV` is `false` regardless of which env vars are set, and Vite tree-shakes the dead branch out of the bundle. To disable locally without losing the dev build mode, unset the env var.
 
 ### Building for production locally
 
@@ -373,12 +373,17 @@ docker compose exec postgres psql -U cairn -d cairn
 
 — or connect with a GUI client (TablePlus, DBeaver, Postico) to `localhost:5432` with the credentials in `.env`.
 
-**Hit the API directly.** PostgREST is plain HTTP+JSON. You need a JWT for anything beyond the OpenAPI doc — grab one from GoTrue's password grant using a seed user:
+**Hit the API directly.** PostgREST is plain HTTP+JSON. You need a JWT for anything beyond the OpenAPI doc — grab one from GoTrue's password grant using a seed user. The seed accounts authenticate under the stable identity `<uid>@cairn.internal` (`alice@example.test` no longer exists at GoTrue once the seed has adopted it), so resolve the username to its uid first (`resolve_username` is anon-callable):
 
 ```bash
+curl -s -X POST 'http://localhost:3000/rpc/resolve_username' \
+  -H 'Content-Type: application/json' \
+  -d '{"p_username":"alice"}'
+# → [{"id":"<uid>","username":"alice"}]
+
 curl -X POST 'http://localhost:9999/token?grant_type=password' \
   -H 'Content-Type: application/json' \
-  -d '{"email":"alice@example.test","password":"cairn-dev"}'
+  -d '{"email":"<uid>@cairn.internal","password":"cairn-dev"}'
 ```
 
 The `access_token` in the response body is the JWT. Pass it as `Authorization: Bearer <jwt>` to PostgREST:

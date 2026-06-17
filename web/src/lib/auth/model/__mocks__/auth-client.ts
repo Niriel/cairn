@@ -33,11 +33,6 @@ export const exchangeRefreshToken = vi.fn(
 	(_refreshToken: string): Promise<{ user: AuthUser }> => Promise.resolve({ user: SEED_USER })
 );
 
-export const devPasswordSignIn = vi.fn(
-	(_email: string, _password: string): Promise<{ user: AuthUser }> =>
-		Promise.resolve({ user: SEED_USER })
-);
-
 export const verifyOtp = vi.fn(
 	(_email: string, _token: string): Promise<{ user: AuthUser }> =>
 		Promise.resolve({ user: SEED_USER })
