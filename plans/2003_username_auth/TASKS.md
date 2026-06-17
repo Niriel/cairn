@@ -156,10 +156,41 @@ intent for the alpha (`DISABLE_SIGNUP=false`); this task records it in the docs.
 
 ## Phase 1 — confirm the stable-identity mechanism (spike, R1)
 
-### [ ] 1.1 Confirm signup-then-rewrite + password grant against the real stack
+### [x] 1.1 Confirm signup-then-rewrite + password grant against the real stack
 
 **Created:** 2026-06-17T08:42:42Z
-**Completed:**
+**Completed:** 2026-06-17T11:06:40Z
+
+**Notes:** Mechanism confirmed end-to-end against the running dev stack.
+
+- **GoTrue version:** `supabase/gotrue:v2.158.1` (the `/health` endpoint reports
+  `version: vunspecified`; the real tag is the container image).
+- **Confirmed sequence** (account cleaned up afterwards):
+  1. `POST /signup` with `{email: <random-uuid>@cairn.internal, password}` →
+     **200**, token set returned, and `email_confirmed_at` was **already set** in
+     the response (autoconfirm via `GOTRUE_MAILER_AUTOCONFIRM=true`). No
+     confirmation-token round-trip needed — the account is immediately usable.
+  2. `UPDATE auth.users SET email = id || '@cairn.internal' WHERE id = <user.id>`
+     → `UPDATE 1`; `email_confirmed_at` stayed set (the direct SQL UPDATE does not
+     reset confirmation state).
+  3. `POST /token?grant_type=password` with `{email: <uid>@cairn.internal,
+     password}` → **200 with an `access_token`** (the load-bearing check). The
+     returned `user.email` is the rewritten `<uid>@cairn.internal`.
+  4. Complement check: the grant against the **old** transient address now returns
+     **400 `invalid_grant` / "Invalid login credentials"** — confirming GoTrue
+     authenticates the password grant against `auth.users.email`, so the SQL
+     rewrite genuinely moves the login handle.
+- **Post-signup state:** none needed attention — autoconfirm means
+  `email_confirmed_at` is set at signup and survives the rewrite.
+- **One observation for Phases 2–4 (no adjustment required):** a direct
+  `UPDATE auth.users SET email` does **not** rewrite the matching `auth.identities`
+  row, whose `identity_data.email` / `email` keeps the transient value. The
+  password grant succeeded anyway (it reads `auth.users.email`), so this does not
+  block `adopt_stable_identity` (Phase 2) or register (Phase 3). It's internal,
+  non-deliverable data and harmless for the alpha; flagging it only so a future
+  reader doesn't mistake the stale identity-row e-mail for a bug. `set_username`
+  in 2001 took the same direct-`auth.users`-UPDATE shape, so this is the
+  established behaviour, not a regression.
 
 **Why:** The whole sub-step rests on a GoTrue behaviour 2001 deferred verifying:
 that GoTrue authenticates the **password grant** against an `auth.users.email`
