@@ -1402,10 +1402,45 @@ assertions to extend); `docs/testing.md` (Playwright layer; machine-conditional)
 
 **Verify:** `cd web && pnpm test:e2e` (or `./scripts/check.sh --e2e`).
 
-### [ ] 5.2 Prod-facing close: confirm compose/Caddy/.env align + document the forced re-auth
+### [x] 5.2 Prod-facing close: confirm compose/Caddy/.env align + document the forced re-auth
 
 **Created:** 2026-06-15T17:55:34Z
-**Completed:**
+**Completed:** 2026-06-17T07:45:36Z
+
+**Notes:**
+
+- **Two concrete edits + several confirmations.** Edits: (1) removed the dead
+  `COOKIE_MAX_AGE: "604800"` from `docker-compose.prod.yml` (1.3 hardcoded the
+  ~30 d `IDLE_HORIZON_SECONDS` in `cookies.ts`; verified the env is read nowhere);
+  (2) added `header_up X-Real-IP {remote_host}` to the `@gotrue` handle block in
+  `caddy/Caddyfile.prod` (the limiter's `clientIp()` reads only `x-real-ip`).
+- **Confirmed coherent, no edit needed:** GoTrue rotation + `GOTRUE_JWT_EXP=300`
+  + reuse interval live in the **base** `docker-compose.yml` (apply to prod);
+  the access-cookie `__Host-cairn_access` Caddy regex matches `cookies.ts`; the
+  `@gotrue` allow-list already covers `/auth/refresh* /auth/signout* /auth/signin*
+  /auth/register*` and the dead `/auth/session*` was already dropped (1.4); the
+  rate-limit tunables have prod-safe defaults via `intFromEnv` (no prod env
+  required); the CSRF header name is a code constant (`auth-paths.ts`), not env.
+- **Doc edits to `docs/deployment.md`:** tidied the Caddyfile-section bullets that
+  still said "lands with Task 1.2 / once 2003 lands" to the shipped state (access
+  cookie regex shipped; signin/register are 501 skeletons), documented the
+  `X-Real-IP` requirement in that bullet and as a pre-deploy checklist item, and
+  added a **"Forced re-auth on the revocable-session deploy"** subsection
+  (structural sign-out via the `__Host-` rename + cookie-contents change +
+  separate access cookie; no purge; one-time notice optional).
+- **Verify status:** prod compose `config` valid; `caddy validate` valid;
+  `./scripts/check.sh` (full non-e2e gauntlet incl. prettier on the changed docs)
+  **all green**. E2e: chromium+firefox **86 passed**, with **one pre-existing,
+  unrelated failure** — `public-list.spec.ts (b)` ("copy public link surfaces
+  Copied") fails with a shared-page "context closed" / clipboard-permission issue
+  in this headless env. 5.2 touches **zero** web/e2e/src files (only the prod
+  overlay + Caddyfile.prod + docs), so it cannot be implicated; flagged as a
+  standing clipboard/serial-describe flake. **webkit cannot launch here** (missing
+  system libs — same environmental limit noted in 5.1).
+- **Left as-is (flagged, not edited):** `docs/deployment.md` line 5's
+  guiding-principle summary ("development plus four things — … the cookie/JWT
+  shim") still uses the pre-BFF "shim" vocabulary; 0.2 already flagged it for a
+  later sweep and it's broadly accurate framing, so out of 5.2's scope.
 
 **Why:** 2002 changes the live `auth-proxy`, the cookies, the Caddyfile, and
 GoTrue config; before merge, the prod overlay must be coherent and the
