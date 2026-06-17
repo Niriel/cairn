@@ -608,10 +608,45 @@ in logs).
 
 **Verify:** `cd auth-proxy && pnpm lint && pnpm test` · `cd web && pnpm lint && pnpm check`
 
-### [ ] 3.2 Implement `/auth/signin` + lock the public password grant (R4, R6)
+### [x] 3.2 Implement `/auth/signin` + lock the public password grant (R4, R6)
 
 **Created:** 2026-06-17T08:42:42Z
-**Completed:**
+**Completed:** 2026-06-17T12:03:51Z
+
+**Notes:** Went as planned. A few worth-recording points:
+
+- **`passwordGrant` is three-way, not binary.** The Decisions said "on grant
+  failure return constant-shape 401", but a GoTrue 5xx is a transient upstream
+  blip, not a credential verdict — collapsing it into a 401 would both mislead
+  the caller and (worse) call `recordFailure` on an outage, letting a flapping
+  GoTrue trip the per-IP block. So `passwordGrant` returns `ok` / `invalid` /
+  `unavailable`, mirroring the existing `refresh()` shape: `invalid` →
+  constant-shape 401 + `recordFailure`; `unavailable` → 503, no record. The
+  signin tests don't cover the 503 branch (not in the task's case list), but it's
+  the correct and codebase-consistent behaviour.
+
+- **Pre-existing test updated:** `test/skeletons.test.ts` asserted `/auth/signin`
+  answers 501. Sign-in is now real, so I narrowed that suite to `/auth/register`
+  only (still a skeleton until Task 3.3); signin's behaviour is covered by the new
+  `test/signin.test.ts`. Side work, not a deviation.
+
+- **Test isolation gotcha (recordFailure/recordSuccess):** the per-account
+  escalating delay is real wall-clock sleep, and the limiter is a single
+  process-wide instance shared across tests in a file. Reusing a username across
+  the (f)/(g) rate-limit tests meant the second test inherited the first's
+  per-account failure count and slept ~4.5s, blowing the 5s timeout. Fixed by
+  giving every failing-attempt username a globally-unique namespace so only the
+  per-IP leg (the property under test) fires. Tests assert the limiter wiring via
+  its observable effects (eventual 429; bucket reset after a success) rather than
+  spying on the un-exported limiter.
+
+- **`docs/deployment.md` pre-deploy item reframed, not dropped:** the old item
+  said "the password grant must be unreachable for real accounts". It's now the
+  intended sign-in path, so the item is reframed to *who* may reach it — the BFF
+  rejects a direct `grant_type=password` (403, no forward) and the only path is
+  the rate-limited `/auth/signin`; the pre-deploy check becomes "GoTrue is not
+  publicly reachable except via Caddy → BFF", since a caller hitting `:9999`
+  directly would bypass both the lockdown and the rate limiter.
 
 **Why:** Replace the `501` sign-in skeleton with the real credential check, and
 close the bypass it would otherwise leave open: with `resolve_username` public,

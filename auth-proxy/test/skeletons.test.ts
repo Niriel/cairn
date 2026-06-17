@@ -36,22 +36,23 @@ beforeEach(() => {
 	requests = [];
 });
 
-// 2002 defines the Cairn-shaped credential surface as route skeletons behind the
-// CSRF guard; 2003 fills in the username+password logic. The skeletons must pass
-// the CSRF gate (proving the guard is mounted) and then answer 501, without ever
-// reaching GoTrue.
-describe('Cairn-shaped credential skeletons (/auth/signin, /auth/register)', () => {
-	for (const path of ['/auth/signin', '/auth/register']) {
-		it(`${path} without the CSRF header → 403, no GoTrue call`, async () => {
-			const res = await request(app).post(path);
-			expect(res.status).toBe(403);
-			expect(requests).toHaveLength(0);
-		});
+// 2002 defined the Cairn-shaped credential surface as route skeletons behind the
+// CSRF guard; 2003 fills in the username+password logic. Sign-in is now real
+// (see signin.test.ts); /auth/register remains a skeleton until its
+// account-creation work lands. The skeleton must pass the CSRF gate (proving the
+// guard is mounted) and then answer 501, without ever reaching GoTrue.
+describe('Cairn-shaped credential skeleton (/auth/register)', () => {
+	const path = '/auth/register';
 
-		it(`${path} WITH the CSRF header → 501 (skeleton), no GoTrue call`, async () => {
-			const res = await request(app).post(path).set(CSRF_HEADER, '1').send({ username: 'alice' });
-			expect(res.status).toBe(501);
-			expect(requests).toHaveLength(0);
-		});
-	}
+	it(`${path} without the CSRF header → 403, no GoTrue call`, async () => {
+		const res = await request(app).post(path);
+		expect(res.status).toBe(403);
+		expect(requests).toHaveLength(0);
+	});
+
+	it(`${path} WITH the CSRF header → 501 (skeleton), no GoTrue call`, async () => {
+		const res = await request(app).post(path).set(CSRF_HEADER, '1').send({ username: 'alice' });
+		expect(res.status).toBe(501);
+		expect(requests).toHaveLength(0);
+	});
 });

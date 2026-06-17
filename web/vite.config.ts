@@ -161,6 +161,102 @@ async function handleDevSignout(req: IncomingMessage, res: ServerResponse): Prom
 	res.end();
 }
 
+function readRequestBody(req: IncomingMessage): Promise<string> {
+	return new Promise((resolve) => {
+		const chunks: Buffer[] = [];
+		req.on('data', (c: Buffer) => chunks.push(c));
+		req.on('end', () => resolve(Buffer.concat(chunks).toString('utf8')));
+	});
+}
+
+// Dev mirror of the prod POST /auth/signin handler (auth-proxy/src/index.ts):
+// resolve the typed username → uid against PostgREST (anon), then run the GoTrue
+// password grant against the stable `<uid>@cairn.internal` identity; on success
+// plant both cookies and return a tokenless `{ user: { id, username } }`. Unknown
+// username and wrong password both answer a constant-shape 401. The prod per-IP /
+// per-account rate-limiter is BFF-only — a deliberate dev-parity exception.
+async function handleDevSignin(req: IncomingMessage, res: ServerResponse): Promise<void> {
+	let creds: { username?: unknown; password?: unknown };
+	try {
+		creds = JSON.parse(await readRequestBody(req)) as typeof creds;
+	} catch {
+		res.statusCode = 400;
+		res.end(JSON.stringify({ error: 'invalid request' }));
+		return;
+	}
+	const username = typeof creds.username === 'string' ? creds.username : '';
+	const password = typeof creds.password === 'string' ? creds.password : '';
+	if (!username || !password) {
+		res.statusCode = 400;
+		res.end(JSON.stringify({ error: 'invalid request' }));
+		return;
+	}
+
+	// Resolve the username → uid (anon; resolve_username RPC). The `/api` proxy
+	// rewrites away, so call PostgREST directly at its dev base.
+	let resolved: { id: string; username: string } | null = null;
+	try {
+		const r = await fetch(`${POSTGREST_DEV_URL}/rpc/resolve_username`, {
+			method: 'POST',
+			headers: { 'content-type': 'application/json' },
+			body: JSON.stringify({ p_username: username })
+		});
+		if (r.ok) {
+			const rows = (await r.json()) as Array<{ id?: unknown; username?: unknown }>;
+			const row = Array.isArray(rows) ? rows[0] : undefined;
+			if (row && typeof row.id === 'string' && typeof row.username === 'string') {
+				resolved = { id: row.id, username: row.username };
+			}
+		}
+	} catch {
+		res.statusCode = 503;
+		res.end(JSON.stringify({ error: 'upstream auth service unavailable' }));
+		return;
+	}
+	if (!resolved) {
+		res.statusCode = 401;
+		res.end(JSON.stringify({ error: 'invalid credentials' }));
+		return;
+	}
+
+	let grant: Response;
+	try {
+		grant = await fetch('http://localhost:9999/token?grant_type=password', {
+			method: 'POST',
+			headers: { 'content-type': 'application/json' },
+			body: JSON.stringify({ email: `${resolved.id}@cairn.internal`, password })
+		});
+	} catch {
+		res.statusCode = 503;
+		res.end(JSON.stringify({ error: 'upstream auth service unavailable' }));
+		return;
+	}
+	if (grant.status >= 500) {
+		res.statusCode = 503;
+		res.end(JSON.stringify({ error: 'upstream auth service unavailable' }));
+		return;
+	}
+	if (grant.status !== 200) {
+		res.statusCode = 401;
+		res.end(JSON.stringify({ error: 'invalid credentials' }));
+		return;
+	}
+	const json = (await grant.json()) as { access_token?: string; refresh_token?: string };
+	if (typeof json.access_token !== 'string' || typeof json.refresh_token !== 'string') {
+		res.statusCode = 503;
+		res.end(JSON.stringify({ error: 'upstream auth service unavailable' }));
+		return;
+	}
+
+	res.setHeader('Set-Cookie', [
+		sessionCookie(COOKIE_NAME, json.refresh_token),
+		sessionCookie(ACCESS_COOKIE_NAME, json.access_token)
+	]);
+	res.setHeader('content-type', 'application/json');
+	res.statusCode = 200;
+	res.end(JSON.stringify({ user: { id: resolved.id, username: resolved.username } }));
+}
+
 export default defineConfig({
 	plugins: [
 		{
@@ -218,11 +314,11 @@ export default defineConfig({
 				});
 				// Cairn-shaped credential skeletons — dev mirror of the prod
 				// /auth/signin + /auth/register handlers (auth-proxy/src/index.ts).
-				// They reply HTTP 501 (Not Implemented) for now, sitting behind the
-				// CSRF gate so dev exercises the same routes + guard as prod; the
-				// username+password logic lands with the credential work. GoTrue:9999
-				// has no such routes, so these can't be a plain proxy. (The prod
-				// rate-limiter is BFF-only — a deliberate dev-parity exception.)
+				// Sign-in is now the real username+password flow; /auth/register is
+				// still a 501 skeleton until its account-creation work lands. Both sit
+				// behind the CSRF gate so dev exercises the same routes + guard as
+				// prod. GoTrue:9999 has no such routes, so these can't be a plain
+				// proxy. (The prod rate-limiter is BFF-only — a dev-parity exception.)
 				server.middlewares.use((req, res, next) => {
 					const path = req.url?.split('?')[0];
 					if ((path !== '/auth/signin' && path !== '/auth/register') || req.method !== 'POST') {
@@ -234,8 +330,29 @@ export default defineConfig({
 						res.end(JSON.stringify({ error: 'missing csrf header' }));
 						return;
 					}
+					if (path === '/auth/signin') {
+						void handleDevSignin(req, res);
+						return;
+					}
 					res.statusCode = 501;
 					res.end(JSON.stringify({ error: 'not implemented' }));
+				});
+				// R6 lockdown (dev parity): the public GoTrue password grant must be
+				// unreachable; the only password-grant path is /auth/signin above.
+				// The legacy magic-link refresh-token grant still proxies through, so
+				// reject only grant_type=password (read from the query string).
+				server.middlewares.use((req, res, next) => {
+					if (req.url?.split('?')[0] !== '/auth/token' || req.method !== 'POST') {
+						next();
+						return;
+					}
+					const grantType = new URLSearchParams(req.url.split('?')[1] ?? '').get('grant_type');
+					if (grantType === 'password') {
+						res.statusCode = 403;
+						res.end(JSON.stringify({ error: 'use /auth/signin' }));
+						return;
+					}
+					next();
 				});
 			}
 		},

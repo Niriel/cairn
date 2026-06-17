@@ -8,9 +8,16 @@ import {
 	isSegmentMatch
 } from './lib/auth-paths.js';
 import { plantSession, clearSession, readAccessCookie, readSessionCookie } from './lib/cookies.js';
-import { refresh, logout, type LogoutScope } from './lib/session.js';
+import { refresh, logout, passwordGrant, type LogoutScope } from './lib/session.js';
+import { resolveUsername } from './lib/profiles.js';
 import { requireCsrf } from './lib/csrf.js';
-import { RateLimiter, rateLimitConfigFromEnv, signinRateLimit } from './lib/rate-limit.js';
+import {
+	RateLimiter,
+	rateLimitConfigFromEnv,
+	signinRateLimit,
+	clientIp,
+	constantShapeFailure
+} from './lib/rate-limit.js';
 
 // Production auth BFF (Cairn-shaped). This is the prod analogue of the dev
 // Vite proxy in web/vite.config.ts (~lines 30–185): it owns the dual-cookie
@@ -27,11 +34,13 @@ import { RateLimiter, rateLimitConfigFromEnv, signinRateLimit } from './lib/rate
 //   POST /auth/signin    — username + password sign-in
 //   POST /auth/signout    — revoke server-side + clear cookies (?scope=global)
 //   POST /auth/refresh   — rotate the durable refresh token, re-mint the access
-// /auth/signin and /auth/register are route skeletons for now: they reply HTTP
-// 501 (Not Implemented) until the username+password credential work lands. All
-// four are state-changing and require the CSRF header (csrf.ts). The magic-link
-// GoTrue pass-throughs (/auth/token, /auth/verify, /auth/magiclink, /auth/user)
-// keep GoTrue's own wire protocol so magic-link sign-in still works.
+// /auth/signin is the real username+password sign-in; /auth/register is still a
+// route skeleton (HTTP 501) until the account-creation work lands. All four are
+// state-changing and require the CSRF header (csrf.ts). The magic-link GoTrue
+// pass-throughs (/auth/token, /auth/verify, /auth/magiclink, /auth/user) keep
+// GoTrue's own wire protocol so magic-link sign-in still works — except the
+// public password grant on /auth/token, which is locked down (the only
+// password-grant path is the rate-limited /auth/signin).
 
 // The Cairn-shaped refresh endpoint — not a GoTrue passthrough, so it's handled
 // before the generic fetch-to-GoTrue path below.
@@ -46,10 +55,16 @@ const REFRESH_PATH = '/auth/refresh';
 const SIGNIN_PATH = '/auth/signin';
 const REGISTER_PATH = '/auth/register';
 
+// The GoTrue token endpoint, kept as a pass-through for the legacy magic-link
+// refresh-token grant. The public password grant against it is locked down (the
+// only password-grant path is the rate-limited /auth/signin) — see authHandler.
+const TOKEN_PATH = '/auth/token';
+
 // Sign-in is rate-limited (per-IP block + per-account escalating delay) — the
-// limiter is a single long-lived in-memory instance for this process. Register
-// is not a credential guess, so it's not throttled. The skeleton 501 reports no
-// outcome to the limiter, so nothing increments until the credential check lands.
+// limiter is a single long-lived in-memory instance for this process. The
+// signin handler reports each outcome to it (recordFailure on a credential miss,
+// recordSuccess on a valid sign-in). Register (Task 3.3) will reuse this same
+// instance's per-IP leg so the two share one mass-signup/brute-force bound.
 const signinLimiter = new RateLimiter(rateLimitConfigFromEnv());
 const signinGuard = signinRateLimit(signinLimiter);
 
@@ -71,6 +86,15 @@ function logoutScope(originalUrl: string): LogoutScope {
 	return new URLSearchParams(originalUrl.slice(qIdx + 1)).get('scope') === 'global'
 		? 'global'
 		: 'local';
+}
+
+// GoTrue carries the grant kind in the query string (`/auth/token?grant_type=…`),
+// not the body, so the lockdown reads it from there. `isSegmentMatch` discards
+// the query to compare the path, so it can't be used to inspect the grant type.
+function grantTypeOf(originalUrl: string): string | null {
+	const qIdx = originalUrl.indexOf('?');
+	if (qIdx === -1) return null;
+	return new URLSearchParams(originalUrl.slice(qIdx + 1)).get('grant_type');
 }
 
 // Request headers we never forward upstream: a client-supplied Authorization
@@ -126,23 +150,29 @@ async function authHandler(req: Request, res: Response): Promise<void> {
 		return;
 	}
 
-	// Cairn-shaped credential surface — skeletons. They sit behind the CSRF gate
-	// above so the guard is exercised against a real route; the credential work
-	// replaces the HTTP 501 with the username+password logic. No GoTrue call and
-	// no cookie change here.
-	//
-	// Sign-in additionally passes the rate-limit guard (per-IP block →
-	// constant-shape 429, per-account escalating delay) before the skeleton
-	// answers. The 501 sender is the guard's `next`; the credential check that
-	// lands later takes its place and reports the outcome to the limiter.
+	// Sign-in: behind the CSRF gate above and the rate-limit guard (per-IP block →
+	// 429, per-account escalating delay). The guard's `next` is the credential
+	// handler, which resolves the username, runs the password grant, and reports
+	// the outcome to the limiter (recordSuccess / recordFailure).
 	if (req.method === 'POST' && isSegmentMatch(originalUrl, [SIGNIN_PATH])) {
 		signinGuard(req, res, () => {
-			res.status(501).json({ error: 'not implemented' });
+			void signinHandler(req, res);
 		});
 		return;
 	}
+	// Register skeleton — still HTTP 501 until the account-creation work lands.
 	if (req.method === 'POST' && isSegmentMatch(originalUrl, [REGISTER_PATH])) {
 		res.status(501).json({ error: 'not implemented' });
+		return;
+	}
+
+	// R6 lockdown: the public GoTrue password grant must be unreachable, since
+	// anyone can compute `<uid>@cairn.internal` from the public resolver. The only
+	// password-grant path is the rate-limited /auth/signin above. The legacy
+	// magic-link refresh-token grant still flows through /auth/token, so reject
+	// only grant_type=password (read from the query string) and never forward it.
+	if (isSegmentMatch(originalUrl, [TOKEN_PATH]) && grantTypeOf(originalUrl) === 'password') {
+		res.status(403).json({ error: 'use /auth/signin' });
 		return;
 	}
 
@@ -285,6 +315,62 @@ async function refreshHandler(req: Request, res: Response): Promise<void> {
 		expiresIn: result.expiresIn
 	});
 	res.status(200).json({ user: result.user });
+}
+
+// POST /auth/signin: resolve the typed username → uid (anon PostgREST), then run
+// the GoTrue password grant against the stable `<uid>@cairn.internal` identity.
+// On success, plant both cookies and return a tokenless `{ user: { id, username } }`
+// (canonical casing from the resolver, no second lookup). The unknown-username
+// and wrong-password branches return a byte-identical constant-shape 401 so a
+// caller can't tell which factor failed. Every credential failure is reported to
+// the limiter (recordFailure); a success clears the caller's buckets
+// (recordSuccess). Never logs the username, e-mail, password, or token.
+async function signinHandler(req: Request, res: Response): Promise<void> {
+	const ip = clientIp(req);
+
+	// express.raw gives a Buffer; parse the credentials ourselves.
+	let creds: { username?: unknown; password?: unknown };
+	try {
+		if (!Buffer.isBuffer(req.body) || req.body.length === 0) throw new Error('empty body');
+		creds = JSON.parse(req.body.toString('utf8')) as typeof creds;
+	} catch {
+		res.status(400).json({ error: 'invalid request' });
+		return;
+	}
+	const username = typeof creds.username === 'string' ? creds.username : '';
+	const password = typeof creds.password === 'string' ? creds.password : '';
+	if (!username || !password) {
+		res.status(400).json({ error: 'invalid request' });
+		return;
+	}
+
+	const resolved = await resolveUsername(username);
+	if (!resolved) {
+		// Unknown username — a credential failure; answer constant-shape.
+		signinLimiter.recordFailure(ip, username);
+		constantShapeFailure(res);
+		return;
+	}
+
+	const grant = await passwordGrant(`${resolved.id}@cairn.internal`, password);
+	if (grant.status === 'unavailable') {
+		// Transient upstream blip — not a credential verdict, don't record it.
+		res.status(503).json({ error: 'upstream auth service unavailable' });
+		return;
+	}
+	if (grant.status === 'invalid') {
+		signinLimiter.recordFailure(ip, username);
+		constantShapeFailure(res);
+		return;
+	}
+
+	signinLimiter.recordSuccess(ip, username);
+	plantSession(res, {
+		accessToken: grant.accessToken,
+		refreshToken: grant.refreshToken,
+		expiresIn: grant.expiresIn
+	});
+	res.status(200).json({ user: { id: resolved.id, username: resolved.username } });
 }
 
 const app = express();
