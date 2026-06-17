@@ -1296,10 +1296,53 @@ parity).
 
 ## Phase 5 — e2e + prod-facing close (R9, R10, R11)
 
-### [ ] 5.1 Playwright: silent refresh, revocable sign-out, sign-out-everywhere
+### [x] 5.1 Playwright: silent refresh, revocable sign-out, sign-out-everywhere
 
 **Created:** 2026-06-15T17:55:34Z
-**Completed:**
+**Completed:** 2026-06-17T07:27:27Z
+
+**Notes:**
+
+- **All five scenarios pass against the real dev stack on chromium (6/6 in a
+  clean run) and firefox (5/5 + scenario (d) skipped).** webkit **cannot run in
+  this environment** — Playwright reports missing system libs (`libicu74`,
+  `libjpeg-turbo8`, `gstreamer1.0-libav`) and `playwright install-deps` needs
+  root. Not a test defect; flagged per the testing rules.
+- **Scenarios (a) and (c) were folded into the existing `magic-link happy path
+  and sign-out` test** rather than added as standalone tests — that test already
+  signs in via magic-link and signs out, so adding the `cairn_access` cookie
+  assertions (a) and the dual-cookie-clear + protected-route-bounce (c) there
+  avoids a redundant second magic-link sign-in (and a needless second hit on
+  GoTrue's per-e-mail send throttle). (b), (d), (e) are a new `revocable session`
+  describe block.
+- **Scenario (d) uses the dev-login password grant for two same-user sessions,
+  chromium-only — a deliberate deviation from "two magic-link sign-ins".** Two
+  *distinct* sessions are required (a single cloned session can't distinguish a
+  global revoke from a local one), but GoTrue throttles a repeat magic-link to
+  the same e-mail — **confirmed empirically: 2nd `POST /magiclink` within 60 s →
+  429**. The password grant has no such throttle. That fixes the e-mail to the
+  shared seed `alice@example.test`, so a concurrent global revoke from another
+  Playwright project would interfere; the scenario is therefore restricted to a
+  single project (`test.skip` on the others). The revoke is backend-side and
+  browser-independent, so one browser proves it — **firefox** is the chosen one
+  (Cairn's users are on firefox; user preference). There is no sign-out-everywhere
+  UI yet, so context A drives `POST /auth/signout?scope=global` directly via
+  `page.evaluate` (carrying A's cookies + the CSRF header).
+- **Scenario (b) overwrites `cairn_access` with an expired-but-bogus-signature
+  JWT** (not a validly-signed one — PostgREST 401s on expired *or* bad-sig
+  either way, and the load-bearing property is only "present bearer → 401, not
+  anon `200 []`"). It uses a unique per-run e-mail (`Date.now().toString(36)`,
+  the `runId` pattern from `avatar`/`privacy` specs) so a rapid re-run doesn't
+  trip the magic-link throttle. The in-app `/api` trigger is the
+  `[data-test="lists-refresh"]` button (the 401-interceptor lives in the `pgGet`
+  wrapper; a raw fetch wouldn't exercise it).
+- **`CSRF_HEADER` is imported from `../src/lib/shared/model/auth-paths`** into the
+  spec rather than hard-coded, so no third copy of the header name exists.
+- **Pre-existing fragility observed (not introduced here):** the happy-path and
+  code-entry tests key their e-mail on the stable `test.info().testId`, so two
+  full runs within ~60 s trip the magic-link throttle and reuse a consumed link.
+  Spaced runs pass; the new tests avoid this (unique e-mail / no magic-link).
+  Left as-is — converting them to the `runId` pattern is out of scope for 5.1.
 
 **Why:** The revocable model's user-visible behaviours — staying signed in across
 access-token expiry, sign-out actually revoking, and "sign out everywhere"
