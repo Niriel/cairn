@@ -25,10 +25,10 @@ RED steps precede GREEN within a task.
 
 ## Phase 0 — reconcile docs (R9)
 
-### [ ] 0.1 Correct `docs/architecture.md` to the stable-identity mechanism
+### [x] 0.1 Correct `docs/architecture.md` to the stable-identity mechanism
 
 **Created:** 2026-06-17T08:42:42Z
-**Completed:**
+**Completed:** 2026-06-17T10:47:43Z
 
 **Why:** 2001's docs describe a synthetic e-mail (`lower(username)@users.cairn.invalid`)
 as the GoTrue identity, rewritten by `set_username`. The revised design (parent
