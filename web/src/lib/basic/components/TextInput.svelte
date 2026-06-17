@@ -3,7 +3,7 @@
 
 	type Props = {
 		value: string;
-		type?: 'text' | 'email';
+		type?: 'text' | 'email' | 'password';
 		id?: string;
 		name?: string;
 		placeholder?: string;

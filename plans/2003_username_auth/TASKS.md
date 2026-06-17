@@ -1118,10 +1118,39 @@ separate); `auth-client.ts` + `session.svelte.ts` as cited above.
 
 **Verify:** `cd web && pnpm lint && pnpm check && pnpm test`
 
-### [ ] 4.2 Register + sign-in screens and routes; serve them in dev and prod
+### [x] 4.2 Register + sign-in screens and routes; serve them in dev and prod
 
 **Created:** 2026-06-17T08:42:42Z
-**Completed:**
+**Completed:** 2026-06-17T13:14:31Z
+
+**Notes:** Went as planned. Worth recording:
+
+- **`TextInput` `type` union widened to include `'password'`** (was `'text' | 'email'`).
+  Both new screens need a password field. Backward-compatible — checked there is
+  **no** manual mock for `TextInput` (`src/lib/basic/components/__mocks__/` holds
+  Fab/Icon/Sheet/IconButton/RefreshButton/Button only) and no test `vi.mock`s it,
+  so nothing else needed updating. (Flagged because the user asked.)
+
+- **Register does not client-block on the username format.** The `400` path
+  (`Register.test.ts` (d)) submits a 2-char username and expects the server's 400
+  to drive the inline message, so submit gates on non-empty fields only; the
+  `a-zA-Z0-9`/3–30 and min-8 rules are surfaced as helper copy and the server stays
+  authoritative. Matches the task's "helper/validation copy" + "map 400 → format
+  message" framing.
+
+- **Caddy split (prod-facing, verify by inspection — `caddy` not installed here).**
+  Removed `/auth/signin*` `/auth/register*` from the all-methods `@gotrue` matcher
+  and added a new `@auth_credentials { method POST; path /auth/signin* /auth/register* }`
+  handle that proxies to `auth-proxy:3002` with the same `header_up X-Real-IP
+  {remote_host}` (these are the rate-limited paths). A GET to either now falls
+  through to `web` (the SPA). Could not run `caddy validate` (binary absent on this
+  box); verified the matcher/handle shape against the `@avatar_writes` precedent by
+  inspection.
+
+- **Dev `vite.config.ts` unchanged** — the auth middleware already POST-gates
+  signin/register (line 468) and passes other methods through via `next()`. The dev
+  "GET serves the page" check belongs to Task 4.3 (after the `PUBLIC_AUTH_PATHS`
+  edit), as the task notes.
 
 **Why:** The user-facing surface for the new credential, and the
 routing that lets `/auth/signin` + `/auth/register` serve the SPA pages rather
