@@ -1,3 +1,5 @@
+import { randomUUID } from 'node:crypto';
+
 import { sveltekit } from '@sveltejs/kit/vite';
 import { defineConfig } from 'vite';
 import type { IncomingMessage, ServerResponse } from 'node:http';
@@ -257,6 +259,127 @@ async function handleDevSignin(req: IncomingMessage, res: ServerResponse): Promi
 	res.end(JSON.stringify({ user: { id: resolved.id, username: resolved.username } }));
 }
 
+// Dev mirror of the prod POST /auth/register handler (auth-proxy/src/index.ts):
+// validate → availability pre-check → GoTrue signup with a transient
+// `<random>@cairn.internal` address → adopt the stable identity → set the chosen
+// username → plant the session → tokenless `{ user }`. The prod per-IP throttle
+// is BFF-only and omitted in dev (covered by the auth-proxy unit test).
+async function handleDevRegister(req: IncomingMessage, res: ServerResponse): Promise<void> {
+	let creds: { username?: unknown; password?: unknown };
+	try {
+		creds = JSON.parse(await readRequestBody(req)) as typeof creds;
+	} catch {
+		res.statusCode = 400;
+		res.end(JSON.stringify({ error: 'invalid request' }));
+		return;
+	}
+	const username = typeof creds.username === 'string' ? creds.username : '';
+	const password = typeof creds.password === 'string' ? creds.password : '';
+	if (!/^[A-Za-z0-9]{3,30}$/.test(username)) {
+		res.statusCode = 400;
+		res.end(JSON.stringify({ error: 'invalid username' }));
+		return;
+	}
+	if (password.length < 8) {
+		res.statusCode = 400;
+		res.end(JSON.stringify({ error: 'password too short' }));
+		return;
+	}
+
+	// Availability pre-check (anon resolve_username RPC).
+	try {
+		const r = await fetch(`${POSTGREST_DEV_URL}/rpc/resolve_username`, {
+			method: 'POST',
+			headers: { 'content-type': 'application/json' },
+			body: JSON.stringify({ p_username: username })
+		});
+		const rows = r.ok ? ((await r.json()) as unknown[]) : [];
+		if (Array.isArray(rows) && rows.length > 0) {
+			res.statusCode = 409;
+			res.end(JSON.stringify({ error: 'username taken' }));
+			return;
+		}
+	} catch {
+		res.statusCode = 503;
+		res.end(JSON.stringify({ error: 'upstream auth service unavailable' }));
+		return;
+	}
+
+	// Create the GoTrue account with a transient random address.
+	let signup: Response;
+	try {
+		signup = await fetch('http://localhost:9999/signup', {
+			method: 'POST',
+			headers: { 'content-type': 'application/json' },
+			body: JSON.stringify({ email: `${randomUUID()}@cairn.internal`, password })
+		});
+	} catch {
+		res.statusCode = 503;
+		res.end(JSON.stringify({ error: 'upstream auth service unavailable' }));
+		return;
+	}
+	if (signup.status !== 200 && signup.status !== 201) {
+		// 4xx → signups disabled (operator switch); 5xx → transient.
+		res.statusCode = signup.status >= 500 ? 503 : 403;
+		res.end(
+			JSON.stringify({
+				error: signup.status >= 500 ? 'upstream auth service unavailable' : 'registration closed'
+			})
+		);
+		return;
+	}
+	const created = (await signup.json()) as {
+		access_token?: string;
+		refresh_token?: string;
+		user?: { id?: string };
+	};
+	if (
+		typeof created.access_token !== 'string' ||
+		typeof created.refresh_token !== 'string' ||
+		typeof created.user?.id !== 'string'
+	) {
+		res.statusCode = 503;
+		res.end(JSON.stringify({ error: 'upstream auth service unavailable' }));
+		return;
+	}
+	const bearer = {
+		'content-type': 'application/json',
+		Authorization: `Bearer ${created.access_token}`
+	};
+
+	// Adopt the stable identity, then set the chosen username — both as the new
+	// account's bearer. Any failure leaves a sessionless orphan; never plant.
+	const adopt = await fetch(`${POSTGREST_DEV_URL}/rpc/adopt_stable_identity`, {
+		method: 'POST',
+		headers: bearer,
+		body: '{}'
+	});
+	if (!adopt.ok) {
+		res.statusCode = 500;
+		res.end(JSON.stringify({ error: 'registration failed' }));
+		return;
+	}
+	const named = await fetch(`${POSTGREST_DEV_URL}/rpc/set_username`, {
+		method: 'POST',
+		headers: bearer,
+		body: JSON.stringify({ p_username: username })
+	});
+	if (!named.ok) {
+		const code = (await named.json().catch(() => ({}) as { code?: string })).code;
+		res.statusCode = code === '23505' ? 409 : 500;
+		res.end(JSON.stringify({ error: code === '23505' ? 'username taken' : 'registration failed' }));
+		return;
+	}
+
+	res.setHeader('Set-Cookie', [
+		sessionCookie(COOKIE_NAME, created.refresh_token),
+		sessionCookie(ACCESS_COOKIE_NAME, created.access_token)
+	]);
+	res.setHeader('content-type', 'application/json');
+	res.statusCode = 200;
+	res.end(JSON.stringify({ user: { id: created.user.id, username } }));
+}
+
 export default defineConfig({
 	plugins: [
 		{
@@ -312,13 +435,12 @@ export default defineConfig({
 					}
 					void handleDevRefresh(req, res);
 				});
-				// Cairn-shaped credential skeletons — dev mirror of the prod
-				// /auth/signin + /auth/register handlers (auth-proxy/src/index.ts).
-				// Sign-in is now the real username+password flow; /auth/register is
-				// still a 501 skeleton until its account-creation work lands. Both sit
-				// behind the CSRF gate so dev exercises the same routes + guard as
-				// prod. GoTrue:9999 has no such routes, so these can't be a plain
-				// proxy. (The prod rate-limiter is BFF-only — a dev-parity exception.)
+				// Cairn-shaped credential endpoints — dev mirror of the prod
+				// /auth/signin + /auth/register handlers (auth-proxy/src/index.ts),
+				// both now the real username+password flows. They sit behind the CSRF
+				// gate so dev exercises the same routes + guard as prod. GoTrue:9999
+				// has no such routes, so these can't be a plain proxy. (The prod
+				// rate-limiter is BFF-only — a dev-parity exception.)
 				server.middlewares.use((req, res, next) => {
 					const path = req.url?.split('?')[0];
 					if ((path !== '/auth/signin' && path !== '/auth/register') || req.method !== 'POST') {
@@ -334,8 +456,7 @@ export default defineConfig({
 						void handleDevSignin(req, res);
 						return;
 					}
-					res.statusCode = 501;
-					res.end(JSON.stringify({ error: 'not implemented' }));
+					void handleDevRegister(req, res);
 				});
 				// R6 lockdown (dev parity): the public GoTrue password grant must be
 				// unreachable; the only password-grant path is /auth/signin above.

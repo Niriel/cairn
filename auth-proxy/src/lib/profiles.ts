@@ -31,6 +31,46 @@ export async function resolveUsername(
 	return { id: row.id, username: row.username };
 }
 
+// Outcome of an authenticated PostgREST RPC write. On failure, `code` carries the
+// Postgres SQLSTATE PostgREST echoes in its error body (e.g. '23505' for a
+// unique-violation) so the register handler can map the set_username race onto a
+// "username taken" 409 and any other error onto a 500.
+export type RpcOutcome = { ok: true } | { ok: false; code: string | null };
+
+async function callRpc(name: string, args: unknown, accessToken: string): Promise<RpcOutcome> {
+	let res: globalThis.Response;
+	try {
+		res = await fetch(`${postgrestUrl()}/rpc/${name}`, {
+			method: 'POST',
+			headers: { 'content-type': 'application/json', Authorization: `Bearer ${accessToken}` },
+			body: JSON.stringify(args)
+		});
+	} catch {
+		return { ok: false, code: null };
+	}
+	if (res.ok) return { ok: true };
+	let code: string | null = null;
+	try {
+		const body = (await res.json()) as { code?: unknown };
+		if (typeof body.code === 'string') code = body.code;
+	} catch {
+		// Non-JSON error body — leave code null; the handler maps it to a 500.
+	}
+	return { ok: false, code };
+}
+
+// Set the caller's permanent GoTrue identity to `<uid>@cairn.internal` (the
+// adopt_stable_identity RPC, run as the just-signed-up bearer). Idempotent.
+export function adoptStableIdentity(accessToken: string): Promise<RpcOutcome> {
+	return callRpc('adopt_stable_identity', {}, accessToken);
+}
+
+// Set the caller's chosen username (the set_username RPC, run as the bearer). A
+// '23505' code means the case-fold uniqueness lost a race — surface as "taken".
+export function setUsername(username: string, accessToken: string): Promise<RpcOutcome> {
+	return callRpc('set_username', { p_username: username }, accessToken);
+}
+
 // Look up the stored (case-preserving) username for a uid, as the
 // authenticated bearer — profiles_select permits reading any profile. Used to
 // enrich a user-returning response with the username the GoTrue user lacks.

@@ -741,10 +741,40 @@ reframes); `docs/logging.md`.
 
 **Verify:** `cd auth-proxy && pnpm lint && pnpm test` · `cd web && pnpm lint && pnpm check` · `cd web && pnpm exec prettier --check ../docs/deployment.md`
 
-### [ ] 3.3 Implement `/auth/register` (R5)
+### [x] 3.3 Implement `/auth/register` (R5)
 
 **Created:** 2026-06-17T08:42:42Z
-**Completed:**
+**Completed:** 2026-06-17T12:32:58Z
+
+**Notes:** Went as planned. Worth recording:
+
+- **RPC helpers landed in `profiles.ts`, not just `session.ts`.** The task's Files
+  list named only `session.ts` (signup helper), but the two authenticated
+  post-signup writes — `adopt_stable_identity` and `set_username` — are PostgREST
+  RPC calls, so they belong with the other PostgREST helpers. Added
+  `adoptStableIdentity()` + `setUsername()` (over a shared `callRpc()` that surfaces
+  the SQLSTATE `code` from PostgREST's error body, so the handler can map the
+  `23505` race onto a "taken" 409 and anything else onto a 500).
+
+- **Deleted `test/skeletons.test.ts`.** It asserted both `/auth/signin` and
+  `/auth/register` answer 501; Task 3.2 narrowed it to register-only, and now that
+  register is real the whole file is obsolete (the "credential skeleton" concept is
+  gone). Removed it rather than leave a test asserting behaviour the code no longer
+  has. The CSRF-gate and route-mounting coverage it provided is subsumed by the
+  per-endpoint `signin.test.ts` / `register.test.ts` (each has a missing-CSRF case).
+
+- **`signup` maps any non-5xx, non-2xx response to `disabled`.** GoTrue answers a
+  closed instance with a 4xx (403/422). Because the handler pre-validates username
+  format + password length and signs up with a random address, a 4xx from
+  `/signup` in normal operation means signups are disabled rather than a bad
+  request — so the helper reports `disabled` (→ 403 "registration closed") and 5xx
+  → `unavailable` (→ 503). This satisfies the "surface a clear 403/503; don't
+  crash" decision without trying to parse GoTrue's specific error code.
+
+- **Dev mirror omits the per-IP throttle** per the task's dev-scope note (prod-only,
+  covered by the auth-proxy unit test). The functional flow — validate → pre-check
+  → signup → adopt + set_username → plant → tokenless `{user}`, with the 400/409/500
+  shapes — is mirrored in `web/vite.config.ts`.
 
 **Why:** Replace the `501` register skeleton with account creation: signup →
 adopt the stable identity → set the chosen username → plant the session.

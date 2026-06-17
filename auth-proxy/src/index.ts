@@ -1,3 +1,5 @@
+import { randomUUID } from 'node:crypto';
+
 import express from 'express';
 import type { Request, Response } from 'express';
 
@@ -8,8 +10,8 @@ import {
 	isSegmentMatch
 } from './lib/auth-paths.js';
 import { plantSession, clearSession, readAccessCookie, readSessionCookie } from './lib/cookies.js';
-import { refresh, logout, passwordGrant, type LogoutScope } from './lib/session.js';
-import { resolveUsername } from './lib/profiles.js';
+import { refresh, logout, passwordGrant, signup, type LogoutScope } from './lib/session.js';
+import { resolveUsername, adoptStableIdentity, setUsername } from './lib/profiles.js';
 import { requireCsrf } from './lib/csrf.js';
 import {
 	RateLimiter,
@@ -34,9 +36,9 @@ import {
 //   POST /auth/signin    — username + password sign-in
 //   POST /auth/signout    — revoke server-side + clear cookies (?scope=global)
 //   POST /auth/refresh   — rotate the durable refresh token, re-mint the access
-// /auth/signin is the real username+password sign-in; /auth/register is still a
-// route skeleton (HTTP 501) until the account-creation work lands. All four are
-// state-changing and require the CSRF header (csrf.ts). The magic-link GoTrue
+// /auth/signin is the real username+password sign-in and /auth/register is the
+// real open account-creation flow. All four are state-changing and require the
+// CSRF header (csrf.ts). The magic-link GoTrue
 // pass-throughs (/auth/token, /auth/verify, /auth/magiclink, /auth/user) keep
 // GoTrue's own wire protocol so magic-link sign-in still works — except the
 // public password grant on /auth/token, which is locked down (the only
@@ -54,6 +56,12 @@ const REFRESH_PATH = '/auth/refresh';
 // arrive with that later work.
 const SIGNIN_PATH = '/auth/signin';
 const REGISTER_PATH = '/auth/register';
+
+// Username format + minimum password length, enforced at the BFF before any
+// account is created. The username rule mirrors set_username's CHECK
+// (`^[A-Za-z0-9]{3,30}$`) so a register that passes here can't fail the DB guard.
+const USERNAME_RE = /^[A-Za-z0-9]{3,30}$/;
+const MIN_PASSWORD_LENGTH = 8;
 
 // The GoTrue token endpoint, kept as a pass-through for the legacy magic-link
 // refresh-token grant. The public password grant against it is locked down (the
@@ -160,9 +168,12 @@ async function authHandler(req: Request, res: Response): Promise<void> {
 		});
 		return;
 	}
-	// Register skeleton — still HTTP 501 until the account-creation work lands.
+	// Register: open account creation behind the CSRF gate above and a per-IP
+	// throttle (shared with sign-in) so an open endpoint can't be hammered into
+	// mass signup. The handler creates the GoTrue account, adopts the stable
+	// identity, and sets the chosen username.
 	if (req.method === 'POST' && isSegmentMatch(originalUrl, [REGISTER_PATH])) {
-		res.status(501).json({ error: 'not implemented' });
+		await registerHandler(req, res);
 		return;
 	}
 
@@ -371,6 +382,94 @@ async function signinHandler(req: Request, res: Response): Promise<void> {
 		expiresIn: grant.expiresIn
 	});
 	res.status(200).json({ user: { id: resolved.id, username: resolved.username } });
+}
+
+// POST /auth/register: open account creation. Behind a per-IP throttle (the
+// sign-in limiter's per-IP leg, keyed on IP with no username so register and
+// sign-in share one mass-signup/brute-force bound from a given source). The flow:
+// validate format + password length → availability pre-check → GoTrue signup with
+// a transient `<random>@cairn.internal` address → adopt the stable identity → set
+// the chosen username → plant the session and return a tokenless user.
+//
+// On any post-signup step failure (the set_username 23505 race, or an
+// adopt/set_username error), no session is planted: the half-registered account
+// is a sessionless, unreachable orphan (its transient identity and provisional
+// username are unguessable), which the alpha accepts. Never logs the username,
+// e-mail, password, or token.
+async function registerHandler(req: Request, res: Response): Promise<void> {
+	const ip = clientIp(req);
+	// Per-IP throttle: a blocked IP is refused before any work. Every attempt
+	// counts toward the window (recordFailure, no username); register never calls
+	// recordSuccess, so a successful mass-signup run stays bounded.
+	if (signinLimiter.check(ip).blocked) {
+		res.status(429).json({ error: 'too many requests' });
+		return;
+	}
+	signinLimiter.recordFailure(ip);
+
+	// express.raw gives a Buffer; parse the body ourselves.
+	let creds: { username?: unknown; password?: unknown };
+	try {
+		if (!Buffer.isBuffer(req.body) || req.body.length === 0) throw new Error('empty body');
+		creds = JSON.parse(req.body.toString('utf8')) as typeof creds;
+	} catch {
+		res.status(400).json({ error: 'invalid request' });
+		return;
+	}
+	const username = typeof creds.username === 'string' ? creds.username : '';
+	const password = typeof creds.password === 'string' ? creds.password : '';
+	if (!USERNAME_RE.test(username)) {
+		res.status(400).json({ error: 'invalid username' });
+		return;
+	}
+	if (password.length < MIN_PASSWORD_LENGTH) {
+		res.status(400).json({ error: 'password too short' });
+		return;
+	}
+
+	// Availability pre-check — refuse a taken handle without creating an account.
+	if (await resolveUsername(username)) {
+		res.status(409).json({ error: 'username taken' });
+		return;
+	}
+
+	// Create the GoTrue account with a transient random address (never the
+	// username, so concurrent same-username signups can't collide at GoTrue's
+	// email-unique index).
+	const created = await signup(`${randomUUID()}@cairn.internal`, password);
+	if (created.status === 'disabled') {
+		res.status(403).json({ error: 'registration closed' });
+		return;
+	}
+	if (created.status !== 'ok') {
+		res.status(503).json({ error: 'upstream auth service unavailable' });
+		return;
+	}
+
+	// Post-signup, under the new account's bearer: adopt the stable identity, then
+	// set the chosen username. Any failure here leaves a sessionless orphan.
+	const adopted = await adoptStableIdentity(created.accessToken);
+	if (!adopted.ok) {
+		res.status(500).json({ error: 'registration failed' });
+		return;
+	}
+	const named = await setUsername(username, created.accessToken);
+	if (!named.ok) {
+		// 23505: the case-fold uniqueness lost a race past the pre-check.
+		if (named.code === '23505') {
+			res.status(409).json({ error: 'username taken' });
+			return;
+		}
+		res.status(500).json({ error: 'registration failed' });
+		return;
+	}
+
+	plantSession(res, {
+		accessToken: created.accessToken,
+		refreshToken: created.refreshToken,
+		expiresIn: created.expiresIn
+	});
+	res.status(200).json({ user: { id: created.userId, username } });
 }
 
 const app = express();
