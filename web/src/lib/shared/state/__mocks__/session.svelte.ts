@@ -10,9 +10,9 @@
 
 import { vi } from 'vitest';
 
-import type { AuthUser, Session } from '../session.svelte';
+import type { AuthUser, RefreshResult, Session } from '../session.svelte';
 
-export type { AuthUser, Session };
+export type { AuthUser, RefreshResult, Session };
 
 export const session = $state<{ current: Session }>({
 	current: { status: 'unknown' }
@@ -32,3 +32,10 @@ export const setSignedIn = vi.fn((user: AuthUser): void => {
 export const onUnauthorized = vi.fn((): void => {
 	session.current = { status: 'signed-out' };
 });
+
+// Default to a transient outcome so a 401-driven consumer (the /api wrapper,
+// the bearer-write helper) does NOT silently retry under the auto-mock unless
+// a test opts in. Tests that exercise the refresh-retry path override this.
+export const refresh = vi.fn(
+	(): Promise<RefreshResult> => Promise.resolve({ status: 'transient' })
+);

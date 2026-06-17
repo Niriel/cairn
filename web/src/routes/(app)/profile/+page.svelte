@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { profile } from '$lib/shared/state/profile.svelte';
+	import { bearerWrite } from '$lib/shared/http/bearer-write';
 	import { pgPost, ApiError } from '$lib/shared/http/postgrest';
 	import Avatar from '$lib/shared/components/Avatar.svelte';
 	import AppTopBar from '$lib/shared/components/AppTopBar.svelte';
@@ -51,7 +52,7 @@
 		removing = true;
 		try {
 			await pgPost('/rpc/clear_avatar', {});
-			void fetch('/avatars/me', { method: 'DELETE' }).catch(() => {});
+			void bearerWrite('/avatars/me', { method: 'DELETE' }).catch(() => {});
 			profile.avatarVersion = 0;
 		} catch {
 			removing = false;
@@ -64,7 +65,7 @@
 		const formData = new FormData();
 		formData.append('file', blob, 'avatar.jpg');
 		try {
-			const res = await fetch('/avatars', { method: 'POST', body: formData });
+			const res = await bearerWrite('/avatars', { method: 'POST', body: formData });
 			if (res.status === 413) {
 				viewState = 'too-big';
 				return;

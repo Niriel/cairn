@@ -54,7 +54,7 @@ ufw allow https
 ufw --force enable
 ```
 
-From now on, log in as `cairn`, not root. Test that `ssh cairn@<ip>` works *before* logging out of your root session.
+From now on, log in as `cairn`, not root. Test that `ssh cairn@<ip>` works _before_ logging out of your root session.
 
 ### Docker
 
@@ -106,7 +106,7 @@ The repo lives on the VPS at `/home/cairn/cairn`. Updates are `git pull && docke
 
 ### Production compose overrides
 
-The split between dev and prod is structural rather than override-by-override: **`docker-compose.yml` is the prod-safe base** — it publishes *no* ports and defines only the services common to both environments. The dev-only pieces (every published port, the `static` nginx and `mailpit` services, the dev GoTrue env) live in **`docker-compose.override.yml`**, which Compose auto-loads for a bare `docker compose up` but which production never loads. **`docker-compose.prod.yml`** then adds only what production needs on top of the base. Both files are real and kept in sync by this plan — read them rather than a pseudocode copy here.
+The split between dev and prod is structural rather than override-by-override: **`docker-compose.yml` is the prod-safe base** — it publishes _no_ ports and defines only the services common to both environments. The dev-only pieces (every published port, the `static` nginx and `mailpit` services, the dev GoTrue env) live in **`docker-compose.override.yml`**, which Compose auto-loads for a bare `docker compose up` but which production never loads. **`docker-compose.prod.yml`** then adds only what production needs on top of the base. Both files are real and kept in sync by this plan — read them rather than a pseudocode copy here.
 
 The production overlay (`docker-compose.prod.yml`) is started with:
 
@@ -117,7 +117,7 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml --env-file .env.
 The services in the production stack:
 
 - **postgres / postgrest / gotrue** — internal only; reached by service name on the Compose network. Postgres additionally publishes `127.0.0.1:5432:5432` (loopback only) so `scripts/migrate.sh` can reach it from the host; it is not internet-reachable.
-- **auth-proxy** — the Node sidecar that performs the response-side half of the cookie/JWT shim (cookie-plant + token-strip), reusing the dev-proxy logic and the shared `auth-paths.ts` narrowing lists. Caddy routes `/auth/*` to it; it forwards to `gotrue:9999`. See `architecture.md` → "JWT storage".
+- **auth-proxy** — a small Cairn-shaped **BFF** (not just the response-side half of the old cookie/JWT shim): it plants the **dual session cookie** (durable revocable refresh token + short-lived access JWT), exposes `POST /auth/refresh` (refresh-token exchange with rotation + reuse detection) and `POST /auth/signout` (server-side revocation; `?scope=global` for sign-out-everywhere), enforces a CSRF header on its state-changing endpoints, and rate-limits sign-in. It still reuses the dev-proxy logic and the shared `auth-paths.ts` narrowing/constant lists. Caddy routes `/auth/*` to it; it forwards to `gotrue:9999`. See `architecture.md` → "JWT storage".
 - **web** — the SvelteKit static bundle, built in production mode and served by Caddy inside the image (see `web/Dockerfile`). Also serves `/gotrue/templates/*`.
 - **sidecar** — the avatar upload sidecar on port `3001` (see `avatars.md`); validates, resizes to 256×256 WebP, writes `/srv/cairn/avatars/{uid}.webp`, calls `bump_avatar_version` on PostgREST.
 - **caddy** — the only public entry point, publishing `80`/`443`, terminating TLS, and mounting `caddy/Caddyfile.prod`.
@@ -134,8 +134,8 @@ Notes:
 The canonical production reverse-proxy config is the real `caddy/Caddyfile.prod` in the repo — read it rather than a pseudocode copy here. Its shape, single origin `cairn.{$DOMAIN}` with automatic Let's Encrypt TLS:
 
 - `encode gzip` and the security headers (HSTS `max-age=31536000; includeSubDomains`, `X-Content-Type-Options: nosniff`, `Referrer-Policy: no-referrer`).
-- **`/api/*`** → `postgrest:3000` via `handle_path` (strips the `/api` prefix), with the stock cookie→bearer translation (`header_regexp Cookie cairn_session=([^;]+)` → `Authorization: Bearer …`).
-- **`/auth/*`** → an **explicit allow-list** of the GoTrue endpoints (`/auth/magiclink* /auth/verify* /auth/token* /auth/user* /auth/session*`) → `reverse_proxy auth-proxy:3002`, with **no** prefix strip (the sidecar matches against `/auth/…`-shaped lists and strips `/auth` itself). A blanket `handle_path /auth/*` would break the SvelteKit client routes (`/auth/login|check|callback`) and the sidecar's narrowing — the subtlest prod-only failure. The response-side cookie-plant + token-strip happens inside the `auth-proxy` sidecar, not Caddy.
+- **`/api/*`** → `postgrest:3000` via `handle_path` (strips the `/api` prefix), with the stock cookie→bearer translation. This reads the **short-lived access cookie** (`__Host-cairn_access` in prod) via `header_regexp … Cookie __Host-cairn_access=…`, _not_ the durable refresh-token cookie, and emits `Authorization: Bearer …`.
+- **`/auth/*`** → an **explicit allow-list** → `reverse_proxy auth-proxy:3002`, with **no** prefix strip (the sidecar matches against `/auth/…`-shaped lists and strips `/auth` itself). The list covers the retained GoTrue magic-link endpoints (`/auth/magiclink* /auth/verify* /auth/token* /auth/user*`) **and** the Cairn-shaped BFF endpoints (`/auth/refresh* /auth/signout* /auth/signin* /auth/register*` — the last two are route skeletons returning `501` until the username + password credential lands in 2003). A blanket `handle_path /auth/*` would break the SvelteKit client routes (`/auth/login|check|callback`) and the sidecar's narrowing — the subtlest prod-only failure. The dual-cookie plant + token-strip happens inside the `auth-proxy` BFF, not Caddy. The `@gotrue` handle also sets **`header_up X-Real-IP {remote_host}`**: the BFF's sign-in rate-limiter keys per-IP off `X-Real-IP` only (never the spoofable `X-Forwarded-For`), Caddy doesn't set it by default, and Caddy overwrites any client-supplied value — so this both gives the limiter a true client IP and closes the spoof. Without it every client collapses into one shared per-IP bucket (Caddy's container address).
 - **`/avatars/*.webp`** (GET) → `file_server` over the avatars volume with a one-year immutable `Cache-Control`; `POST/DELETE /avatars*` → `sidecar:3001` with the same cookie→bearer translation.
 - **Everything else** (including `/gotrue/templates/*`) → `web:80`.
 
@@ -189,7 +189,7 @@ RESTIC_PASSWORD=$RESTIC_PASSWORD \
   restic -r sftp:u123456@u123456.your-storagebox.de:/cairn init
 ```
 
-The repository password is encryption at rest. It is *not* stored on the VPS. You hold this password; the Storage Box doesn't.
+The repository password is encryption at rest. It is _not_ stored on the VPS. You hold this password; the Storage Box doesn't.
 
 ### The nightly job
 
@@ -271,7 +271,7 @@ A PWA with a service worker has one operational gotcha worth knowing about: **a 
 Two countermeasures, both in the SvelteKit project:
 
 - The build emits a content-hashed bundle. The service worker compares the hash against its cache and triggers an update when it changes.
-- On detecting an update, the app shows a small *"A new version is available — refresh"* affordance (non-modal, dismissable). It auto-applies on next launch regardless.
+- On detecting an update, the app shows a small _"A new version is available — refresh"_ affordance (non-modal, dismissable). It auto-applies on next launch regardless.
 
 This is invisible day-to-day. It only matters if you ship a release, immediately push a hotfix, and want to be sure users actually get the hotfix. For Cairn's release cadence, the lazy update path is fine.
 
@@ -316,9 +316,21 @@ The login screen at `web/src/lib/auth/components/LoginRequest.svelte` ships a de
 
 Two things still must be confirmed before opening Cairn to public traffic:
 
-1. **GoTrue password grant must be unreachable for real accounts in prod.** The `/auth/token?grant_type=password` endpoint is server-side; whether the client bundle ships a helper for it is decorative — an attacker can hit it with `curl` either way. Verify in the GoTrue config that no real prod user can be password-signed-in. If a real admin account can, the bundle issue is the lesser problem and we have a separate vulnerability.
+1. **GoTrue password grant must be unreachable for real accounts in prod.** The `/auth/token?grant_type=password` endpoint is server-side; whether the client bundle ships a helper for it is decorative — an attacker can hit it with `curl` either way. Verify in the GoTrue config that no real prod user can be password-signed-in. If a real admin account can, the bundle issue is the lesser problem and we have a separate vulnerability. _(This item changes when the username + password credential lands: the password grant becomes the real, intended sign-in path for prod accounts, so this check is reframed rather than dropped.)_
 
 2. **`VITE_DEV_LOGIN_PASSWORD` must be unset when `pnpm build` runs for prod.** Vite inlines every `import.meta.env.VITE_*` reference at build time as a string literal — with no warning if a dev-only var leaks into the build environment. The structural fix above keeps `DevShortcuts.svelte` (and its env-var read) out of the prod graph, but if anyone ever adds another caller of `VITE_DEV_LOGIN_PASSWORD` outside the gated module, the value would re-leak. Grep `web/build/_app/immutable/` for the current dev password value before each prod release as a belt-and-braces watch.
+
+3. **The revocable-session config must be in force.** GoTrue refresh-token rotation enabled with a reuse interval that safely covers multi-tab boot skew; `GOTRUE_JWT_EXP` lowered to the short access TTL (single-digit minutes); both session cookies `__Host-`-prefixed (forcing `Secure` + `Path=/` + no `Domain`); the CSRF header enforced on the Cairn-shaped state-changing `/auth/*` endpoints; and Caddy setting `X-Real-IP` on the `@gotrue` upstream so the sign-in rate-limiter's per-IP key is the real client, not Caddy's container. Confirm these before opening public traffic — a deploy with rotation off or the JWT TTL still long silently loses the revocability and reuse-detection guarantees.
+
+### Forced re-auth on the revocable-session deploy
+
+Deploying the revocable session **signs every existing user out once**, by design — they land on the sign-in screen on their next visit and re-authenticate via magic link. No session purge, cache flush, or operator action is needed; the sign-out is structural:
+
+- The durable cookie is **renamed** under the `__Host-` prefix (`cairn_session` → `__Host-cairn_session`), so a browser still holding the old pre-deploy `cairn_session` cookie sends a name the new BFF and Caddy don't read.
+- Even if the old cookie's name matched, its contents are now wrong: the pre-2002 `cairn_session` held an **access JWT**, whereas the new durable cookie holds a **refresh token**. Boot does refresh-then-check (`POST /auth/refresh`), so an old artefact is offered to GoTrue's refresh-token exchange, rejected, and the client falls to signed-out.
+- The data plane reads the separate short-lived `__Host-cairn_access` cookie, which no pre-deploy client has at all → `/api` runs as `anon` until re-auth.
+
+This is the intended close of the non-revocable-session gap: the old long-lived bearer can no longer authenticate anything. The alpha is small, so no scheduled-maintenance banner is warranted — but if a one-time "please sign in again" notice is ever wanted, this deploy is the moment for it.
 
 ## What's not here yet
 

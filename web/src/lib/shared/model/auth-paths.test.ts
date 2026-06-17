@@ -94,12 +94,12 @@ describe('isSegmentMatch against COOKIE_PLANT_PATHS', () => {
 });
 
 describe('isSegmentMatch against LOGOUT_PATHS', () => {
-	test('matches /auth/session', () => {
-		expect(isSegmentMatch('/auth/session', LOGOUT_PATHS)).toBe(true);
+	test('matches /auth/signout', () => {
+		expect(isSegmentMatch('/auth/signout', LOGOUT_PATHS)).toBe(true);
 	});
 
-	test('sibling-prefix /auth/sessions is NOT a match', () => {
-		expect(isSegmentMatch('/auth/sessions', LOGOUT_PATHS)).toBe(false);
+	test('sibling-prefix /auth/signouts is NOT a match', () => {
+		expect(isSegmentMatch('/auth/signouts', LOGOUT_PATHS)).toBe(false);
 	});
 });
 

@@ -19,10 +19,13 @@ cairn.{$DOMAIN} {
 		Referrer-Policy "no-referrer"
 	}
 
-	# Data plane: /api/* -> PostgREST, prefix stripped. The session cookie is
-	# translated into the Authorization: Bearer header PostgREST expects.
+	# Data plane: /api/* -> PostgREST, prefix stripped. The short-lived access
+	# cookie (not the durable refresh-token cookie) is translated into the
+	# Authorization: Bearer header PostgREST expects. The cookie carries the
+	# __Host- prefix in prod (Secure + Path=/ + no Domain); the auth-proxy plants
+	# that exact name (see auth-proxy/src/lib/cookies.ts).
 	handle_path /api/* {
-		@cookie header_regexp token Cookie cairn_session=([^;]+)
+		@cookie header_regexp token Cookie __Host-cairn_access=([^;]+)
 		request_header @cookie Authorization "Bearer {http.regexp.token.1}"
 		reverse_proxy postgrest:3000
 	}
@@ -32,9 +35,18 @@ cairn.{$DOMAIN} {
 	# are NOT listed here, so they fall through to `web`. A blanket
 	# `handle_path /auth/*` would strip /auth and break both the proxy's
 	# segment matching and the callback page (the subtlest prod-only failure).
-	@gotrue path /auth/magiclink* /auth/verify* /auth/token* /auth/user* /auth/session*
+	@gotrue path /auth/magiclink* /auth/verify* /auth/token* /auth/user* /auth/signout* /auth/refresh* /auth/signin* /auth/register*
 	handle @gotrue {
-		reverse_proxy auth-proxy:3002
+		# The auth-proxy's sign-in rate-limiter keys per-IP off X-Real-IP ONLY
+		# (it ignores the spoofable X-Forwarded-For). Caddy does not set
+		# X-Real-IP by default, so set it here to the real socket peer — Caddy
+		# OVERWRITES any client-supplied value, which both gives the limiter a
+		# true client IP and closes the spoof. Without this, X-Real-IP is absent
+		# and clientIp() falls back to Caddy's container IP, collapsing every
+		# client into one shared bucket. See auth-proxy/src/lib/rate-limit.ts.
+		reverse_proxy auth-proxy:3002 {
+			header_up X-Real-IP {remote_host}
+		}
 	}
 
 	# Avatar writes -> sidecar, prefix preserved (the sidecar routes on
@@ -44,7 +56,7 @@ cairn.{$DOMAIN} {
 		path /avatars*
 	}
 	handle @avatar_writes {
-		@avatar_cookie header_regexp token Cookie cairn_session=([^;]+)
+		@avatar_cookie header_regexp token Cookie __Host-cairn_access=([^;]+)
 		request_header @avatar_cookie Authorization "Bearer {http.regexp.token.1}"
 		reverse_proxy sidecar:3001
 	}

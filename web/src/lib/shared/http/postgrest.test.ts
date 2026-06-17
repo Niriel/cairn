@@ -1,26 +1,29 @@
-import { http, HttpResponse } from 'msw';
+import { delay, http, HttpResponse } from 'msw';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, test, vi } from 'vitest';
 
 import { server } from '$lib/test/server';
 
-// VITE_API_BASE is pinned for the suite so the URL prefix `pgGet/pgPost/
-// pgPatch/pgDelete` build is asserted independently of any contributor's
-// local `.env`. Same pattern as the session store suite (Task 2.2).
+// VITE_API_BASE / VITE_AUTH_BASE pinned for the suite so the URL prefixes the
+// wrapper + the shared refresh build are asserted independently of any
+// contributor's local `.env`. Same pattern as the session store suite.
 beforeAll(() => {
 	vi.stubEnv('VITE_API_BASE', '/api');
+	vi.stubEnv('VITE_AUTH_BASE', '/auth');
 });
 
 afterAll(() => {
 	vi.unstubAllEnvs();
 });
 
-// The session-store mock from `__mocks__/session.svelte.ts` is the
-// substitute — the test asserts that `onUnauthorized` was called via
-// the mock's spy.
-vi.mock('$lib/shared/state/session.svelte');
-
+// The 401-retry path drives the REAL session module: the silent-refresh
+// interceptor calls the shared single-flight `refresh()`, and the single-flight
+// collapse of concurrent 401s is only observable against the real primitive.
+// Session state is asserted directly (signed-in / signed-out) rather than via a
+// spy.
 let mod: typeof import('./postgrest');
 let session: typeof import('$lib/shared/state/session.svelte');
+
+const USER = { id: 'u1', email: 'alice@example.test' };
 
 beforeEach(async () => {
 	vi.resetModules();
@@ -128,11 +131,92 @@ describe('pgDelete', () => {
 	});
 });
 
-describe('401 handling', () => {
-	test('calls session.onUnauthorized and throws AuthError', async () => {
-		server.use(http.get('*/api/lists', () => new HttpResponse(null, { status: 401 })));
+describe('401 handling with silent refresh', () => {
+	test('a successful refresh retries the request once and resolves; session stays signed-in', async () => {
+		session.setSignedIn(USER);
+		let apiHits = 0;
+		let refreshHits = 0;
+		server.use(
+			http.get('*/api/lists', () => {
+				apiHits++;
+				return apiHits === 1
+					? new HttpResponse(null, { status: 401 })
+					: HttpResponse.json([{ id: 1 }]);
+			}),
+			http.post('*/auth/refresh', () => {
+				refreshHits++;
+				return HttpResponse.json({ user: USER });
+			})
+		);
+		await expect(mod.pgGet('/lists')).resolves.toEqual([{ id: 1 }]);
+		expect(apiHits).toBe(2);
+		expect(refreshHits).toBe(1);
+		expect(session.session.current.status).toBe('signed-in');
+	});
+
+	test('an authoritative refresh failure → no retry, signs out, throws AuthError', async () => {
+		session.setSignedIn(USER);
+		let apiHits = 0;
+		server.use(
+			http.get('*/api/lists', () => {
+				apiHits++;
+				return new HttpResponse(null, { status: 401 });
+			}),
+			http.post('*/auth/refresh', () => new HttpResponse(null, { status: 401 }))
+		);
 		await expect(mod.pgGet('/lists')).rejects.toBeInstanceOf(mod.AuthError);
-		expect(session.onUnauthorized).toHaveBeenCalledTimes(1);
+		expect(apiHits).toBe(1); // refresh didn't succeed → no retry
+		expect(session.session.current.status).toBe('signed-out');
+	});
+
+	test('a transient refresh failure (503) → no retry, signs out, throws AuthError', async () => {
+		session.setSignedIn(USER);
+		let apiHits = 0;
+		server.use(
+			http.get('*/api/lists', () => {
+				apiHits++;
+				return new HttpResponse(null, { status: 401 });
+			}),
+			http.post('*/auth/refresh', () => new HttpResponse(null, { status: 503 }))
+		);
+		await expect(mod.pgGet('/lists')).rejects.toBeInstanceOf(mod.AuthError);
+		expect(apiHits).toBe(1);
+		expect(session.session.current.status).toBe('signed-out');
+	});
+
+	test('the retry is attempted exactly once: a still-401 retry signs out without looping', async () => {
+		session.setSignedIn(USER);
+		let apiHits = 0;
+		let refreshHits = 0;
+		server.use(
+			http.get('*/api/lists', () => {
+				apiHits++;
+				return new HttpResponse(null, { status: 401 });
+			}),
+			http.post('*/auth/refresh', () => {
+				refreshHits++;
+				return HttpResponse.json({ user: USER });
+			})
+		);
+		await expect(mod.pgGet('/lists')).rejects.toBeInstanceOf(mod.AuthError);
+		expect(apiHits).toBe(2); // initial + a single retry, no loop
+		expect(refreshHits).toBe(1);
+		expect(session.session.current.status).toBe('signed-out');
+	});
+
+	test('N concurrent 401s collapse to exactly one /auth/refresh (single-flight)', async () => {
+		session.setSignedIn(USER);
+		let refreshHits = 0;
+		server.use(
+			http.get('*/api/lists', () => new HttpResponse(null, { status: 401 })),
+			http.post('*/auth/refresh', async () => {
+				refreshHits++;
+				await delay(20);
+				return HttpResponse.json({ user: USER });
+			})
+		);
+		await Promise.allSettled([mod.pgGet('/lists'), mod.pgGet('/lists'), mod.pgGet('/lists')]);
+		expect(refreshHits).toBe(1);
 	});
 });
 
@@ -151,6 +235,7 @@ describe('non-2xx error handling', () => {
 				)
 			)
 		);
+		session.setSignedIn(USER);
 		await expect(mod.pgGet('/lists')).rejects.toMatchObject({
 			name: 'ApiError',
 			code: '42501',
@@ -162,7 +247,8 @@ describe('non-2xx error handling', () => {
 		await mod.pgGet('/lists').catch((err) => {
 			expect(err).toBeInstanceOf(mod.ApiError);
 			expect(err).toBeInstanceOf(Error);
-			expect(session.onUnauthorized).not.toHaveBeenCalled();
+			// A 403 is not an auth failure — the session must be untouched.
+			expect(session.session.current.status).toBe('signed-in');
 		});
 	});
 });
