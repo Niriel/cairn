@@ -169,10 +169,26 @@ logs).
 
 ## Phase 3 — 2003: username + password sign-in
 
-### [ ] 3.1 Plan and implement sub-step 2003 (stable identity + resolver, `set_username` revise-forward, register/sign-in)
+### [x] 3.1 Plan and implement sub-step 2003 (stable identity + resolver, `set_username` revise-forward, register/sign-in)
 
 **Created:** 2026-06-15T17:24:58Z
-**Completed:**
+**Completed:** 2026-06-17T17:45:34Z
+
+**Notes:** Sub-plan `plans/2003_username_auth/` planned and implemented task by
+task (RED before GREEN), then merged `--no-ff` into `2000_username_identity`.
+
+- **Gauntlet green on the merged branch** (`./scripts/check.sh`, exit 0). **E2E was
+  not run** — this machine (the laptop) has no Playwright browsers installed, per the
+  standing machine-conditional rule; the password-credential e2e was authored and
+  is covered by the sub-plan's own Playwright touch, to be run on the work box.
+- **One pre-existing test bug fixed during the merge gauntlet:** `auth-proxy`'s
+  `password-grant-lockdown.test.ts` only stubbed GoTrue, but the `/auth/token`
+  forward became a username-enrichment (PostgREST) path when session-restore
+  responses started carrying the username — so the `refresh_token` forward hung on
+  the prod PostgREST host and timed out. Added a PostgREST stub (mirroring
+  `enrich.test.ts`); the code was correct, the test just lacked the stub. It slipped
+  through because the pre-push hook skips `auth-proxy` vitest unless auth-proxy
+  files are in the push.
 
 **Why:** Turns the new identity into a usable sign-in on top of 2002's secure
 BFF: register and sign-in by username + password, and the DB/identity
