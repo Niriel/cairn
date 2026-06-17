@@ -72,4 +72,55 @@ $$;
 REVOKE ALL ON FUNCTION public.set_username(text) FROM public;
 GRANT EXECUTE ON FUNCTION public.set_username(text) TO authenticated;
 
+-- 2. adopt_stable_identity — set the caller's permanent GoTrue identity to
+-- the stable, uid-derived <uid>@cairn.internal. Registration (the BFF) signs
+-- up with a transient <random>@cairn.internal address, then the just-signed-up
+-- user calls this to adopt the permanent identity — the BFF holds no GoTrue
+-- admin credential, so the write goes through SECURITY DEFINER (precedent:
+-- set_username / admin.ban_user writing auth.users directly). The value
+-- derives from public.uid(), never a parameter, so a caller can only ever set
+-- THEIR OWN identity to the deterministic <uid>@cairn.internal.
+--
+-- OVERWRITE GUARD (load-bearing, not cosmetic): the
+-- `email IS NULL OR email LIKE '%@cairn.internal'` predicate. The function is
+-- granted to `authenticated`, so it is reachable by ANY logged-in user via
+-- the public PostgREST surface, not just the register handler. Without the
+-- predicate it would unconditionally overwrite the caller's email — and a
+-- legacy magic-link account (still holding a real, deliverable recovery
+-- e-mail) would lose its only reset path. The predicate lets the RPC act only
+-- on the transient <random>@cairn.internal (register) and the already-stable
+-- <uid>@cairn.internal (idempotent re-call) shapes, refusing any real address.
+-- "Calling twice is a no-op" holds only BECAUSE of this guard.
+CREATE FUNCTION public.adopt_stable_identity()
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, auth
+AS $$
+DECLARE
+  uid uuid := public.uid();
+BEGIN
+  IF uid IS NULL THEN
+    RAISE EXCEPTION 'not authenticated' USING errcode = '28000';
+  END IF;
+  IF uid = '00000000-0000-0000-0000-000000000000' THEN
+    RAISE EXCEPTION 'cannot act as the tombstone user'
+    USING errcode = '28000';
+  END IF;
+
+  UPDATE auth.users
+  SET email = uid || '@cairn.internal'
+  WHERE id = uid
+    AND (email IS NULL OR email LIKE '%@cairn.internal');
+END;
+$$;
+
+-- The explicit REVOKE is load-bearing: Postgres default-grants EXECUTE on a
+-- new function to PUBLIC (which includes anon), so without it the
+-- "authenticated only" intent does not hold — and an anon-reachable
+-- UPDATE auth.users is exactly the over-grant the project treats as an
+-- unverified claim. Mirrors the set_username grant above.
+REVOKE EXECUTE ON FUNCTION public.adopt_stable_identity() FROM public;
+GRANT EXECUTE ON FUNCTION public.adopt_stable_identity() TO authenticated;
+
 COMMIT;

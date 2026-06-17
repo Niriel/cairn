@@ -326,10 +326,10 @@ pgTAP is `db/tests/set_username.sql`.
 
 **Verify:** `./scripts/test-db.sh` · `cd web && pnpm exec prettier --check ../docs/data-model.md`
 
-### [ ] 2.2 Add `adopt_stable_identity()` RPC (migration + pgTAP + doc)
+### [x] 2.2 Add `adopt_stable_identity()` RPC (migration + pgTAP + doc)
 
 **Created:** 2026-06-17T08:42:42Z
-**Completed:**
+**Completed:** 2026-06-17T11:24:40Z
 
 **Why:** Registration (Phase 3) signs up with a transient address, then must set
 the account's permanent GoTrue identity to `<uid>@cairn.internal`. The BFF holds
