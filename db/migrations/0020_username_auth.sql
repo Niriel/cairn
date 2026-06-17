@@ -159,4 +159,191 @@ $$;
 REVOKE EXECUTE ON FUNCTION public.resolve_username(text) FROM public;
 GRANT EXECUTE ON FUNCTION public.resolve_username(text) TO anon, authenticated;
 
+-- 4. export_my_data — revise the user sub-document forward to the username.
+-- The GoTrue identity must never surface in the UI or an export, and under
+-- the stable identity auth.users.email is the meaningless <uid>@cairn.internal,
+-- so the canonical data.json must not carry it. This is byte-for-byte the 0018
+-- body except the user block: 'email', u.email becomes 'username', p.username
+-- (the public identity, already joined from public.profiles AS p). The
+-- recovery-e-mail is deliberately NOT added here — that is a later step; this
+-- only removes the meaningless identity and substitutes the username.
+CREATE OR REPLACE FUNCTION public.export_my_data()
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+STABLE
+SET search_path = public, auth
+AS $$
+DECLARE
+  uid uuid := public.uid();
+  result jsonb;
+BEGIN
+  IF uid IS NULL THEN
+    RAISE EXCEPTION 'not authenticated' USING errcode = '28000';
+  END IF;
+  IF uid = '00000000-0000-0000-0000-000000000000' THEN
+    RAISE EXCEPTION 'cannot export the tombstone user'
+    USING errcode = '28000';
+  END IF;
+
+  SELECT jsonb_build_object(
+    'exported_at', to_jsonb(now()),
+    'schema_version', 1,
+    'user', (
+      -- Allowlist: id, username, display_name, signed_up_at,
+      -- invite_policy, has_avatar. Never to_jsonb(u). The public identity
+      -- is the username; the GoTrue e-mail is never exported.
+      SELECT jsonb_build_object(
+        'id', u.id,
+        'username', p.username,
+        'display_name', p.display_name,
+        'signed_up_at', u.created_at,
+        'invite_policy', s.invite_policy,
+        'has_avatar', p.avatar_version > 0
+      )
+      FROM auth.users AS u
+      JOIN public.profiles AS p ON p.id = u.id
+      LEFT JOIN public.user_settings AS s ON s.id = u.id
+      WHERE u.id = uid
+    ),
+    'lists', coalesce(
+      (
+        SELECT jsonb_agg(
+          jsonb_build_object(
+            'id', l.id,
+            'name', l.name,
+            'description', l.description,
+            'created_at', l.created_at,
+            'deleted_at', l.deleted_at,
+            'members', coalesce(
+              (
+                SELECT jsonb_agg(
+                  jsonb_build_object('id', mp.id, 'display_name', mp.display_name)
+                )
+                FROM public.list_members AS lm2
+                JOIN public.profiles AS mp ON mp.id = lm2.user_id
+                WHERE lm2.list_id = l.id AND lm2.deleted_at IS NULL
+              ),
+              '[]'::jsonb
+            ),
+            'items', coalesce(
+              (
+                SELECT jsonb_agg(
+                  -- Base item shape; all_votes is merged in below only
+                  -- when the caller added the item (Option B).
+                  jsonb_build_object(
+                    'id', it.id,
+                    'name', it.name,
+                    'notes', it.notes,
+                    'created_by', jsonb_build_object(
+                      'id', cp.id, 'display_name', cp.display_name
+                    ),
+                    'created_at', it.created_at,
+                    'deleted_at', it.deleted_at,
+                    'your_vote', (
+                      SELECT v.value FROM public.votes AS v
+                      WHERE v.item_id = it.id AND v.user_id = uid
+                    )
+                  )
+                  || CASE WHEN it.created_by = uid THEN jsonb_build_object(
+                    'all_votes', coalesce(
+                      (
+                        SELECT jsonb_agg(
+                          jsonb_build_object(
+                            'user_display_name', vp.display_name,
+                            'value', av.value
+                          )
+                        )
+                        FROM public.votes AS av
+                        JOIN public.profiles AS vp ON vp.id = av.user_id
+                        WHERE av.item_id = it.id
+                      ),
+                      '[]'::jsonb
+                    )
+                  ) ELSE '{}'::jsonb END
+                )
+                FROM public.items AS it
+                JOIN public.profiles AS cp ON cp.id = it.created_by
+                WHERE it.list_id = l.id
+              ),
+              '[]'::jsonb
+            )
+          )
+        )
+        FROM public.lists AS l
+        WHERE EXISTS (
+          SELECT 1 FROM public.list_members AS lm
+          WHERE
+            lm.list_id = l.id
+            AND lm.user_id = uid
+            AND lm.deleted_at IS NULL
+        )
+      ),
+      '[]'::jsonb
+    ),
+    'circle', coalesce(
+      (
+        SELECT jsonb_agg(jsonb_build_object('display_name', op.display_name))
+        FROM public.relationships AS r
+        JOIN public.profiles AS op ON op.id = r.other_user_id
+        WHERE r.user_id = uid AND r.status = 'circle'
+      ),
+      '[]'::jsonb
+    ),
+    'blocked', coalesce(
+      (
+        SELECT jsonb_agg(jsonb_build_object('display_name', op.display_name))
+        FROM public.relationships AS r
+        JOIN public.profiles AS op ON op.id = r.other_user_id
+        WHERE r.user_id = uid AND r.status = 'blocked'
+      ),
+      '[]'::jsonb
+    ),
+    'invitations_sent', coalesce(
+      (
+        SELECT jsonb_agg(
+          jsonb_build_object(
+            'list_id', i.list_id,
+            'list_name', il.name,
+            'created_at', i.created_at
+          )
+          -- invitee display name only where a claiming user exists;
+          -- target_email is never exposed (it is the invitee's e-mail).
+          || CASE WHEN tp.id IS NOT NULL THEN jsonb_build_object(
+            'invitee_display_name', tp.display_name
+          ) ELSE '{}'::jsonb END
+        )
+        FROM public.invitations AS i
+        JOIN public.lists AS il ON il.id = i.list_id
+        LEFT JOIN public.profiles AS tp ON tp.id = i.target_user_id
+        WHERE i.created_by = uid
+      ),
+      '[]'::jsonb
+    ),
+    'invitations_received', coalesce(
+      (
+        SELECT jsonb_agg(
+          jsonb_build_object(
+            'list_id', i.list_id,
+            'list_name', il.name,
+            'created_at', i.created_at,
+            'inviter_display_name', ip.display_name
+          )
+        )
+        FROM public.invitations AS i
+        JOIN public.lists AS il ON il.id = i.list_id
+        JOIN public.profiles AS ip ON ip.id = i.created_by
+        WHERE i.target_user_id = uid
+      ),
+      '[]'::jsonb
+    )
+  ) INTO result;
+
+  RETURN result;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.export_my_data() FROM public;
+GRANT EXECUTE ON FUNCTION public.export_my_data() TO authenticated;
+
 COMMIT;

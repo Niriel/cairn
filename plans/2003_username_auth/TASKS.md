@@ -465,10 +465,18 @@ granted to `anon`.
 
 **Verify:** `./scripts/test-db.sh` · `cd web && pnpm exec prettier --check ../docs/data-model.md`
 
-### [ ] 2.4 Switch `export_my_data()` to the username identity (migration + pgTAP)
+### [x] 2.4 Switch `export_my_data()` to the username identity (migration + pgTAP)
 
 **Created:** 2026-06-17T10:54:00Z
-**Completed:**
+**Completed:** 2026-06-17T11:34:30Z
+
+**Notes:** As planned, with one small deviation in the test: the flip became
+**two** assertions rather than one — `username` carries the stored handle, plus
+a separate `ok(NOT jsonb_exists(j -> 'user', 'email'))` proving the e-mail key is
+gone — so `plan()` went 32 → 33 (not a straight swap). The task said "assert it
+carries `username` … and **no** `email` key", which is cleanest as two distinct
+checks. Also added a known-username UPDATE on Alice in the fixture so the new
+assertion is non-vacuous (the signup default is a provisional `u<hex>` handle).
 
 **Why:** R7 says the GoTrue identity must never surface "in the UI **or an
 export**". The data export's user object is built by `export_my_data()`
