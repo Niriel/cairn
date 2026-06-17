@@ -76,13 +76,20 @@ export function setUsername(username: string, accessToken: string): Promise<RpcO
 // enrich a user-returning response with the username the GoTrue user lacks.
 // Returns null when no profile row matches.
 export async function usernameForUid(uid: string, accessToken: string): Promise<string | null> {
-	const res = await fetch(
-		`${postgrestUrl()}/profiles?id=eq.${encodeURIComponent(uid)}&select=username`,
-		{ headers: { Authorization: `Bearer ${accessToken}` } }
-	);
-	if (!res.ok) return null;
-	const rows = (await res.json()) as Array<{ username?: unknown }>;
-	const row = Array.isArray(rows) ? rows[0] : undefined;
-	if (!row || typeof row.username !== 'string') return null;
-	return row.username;
+	try {
+		const res = await fetch(
+			`${postgrestUrl()}/profiles?id=eq.${encodeURIComponent(uid)}&select=username`,
+			{ headers: { Authorization: `Bearer ${accessToken}` } }
+		);
+		if (!res.ok) return null;
+		const rows = (await res.json()) as Array<{ username?: unknown }>;
+		const row = Array.isArray(rows) ? rows[0] : undefined;
+		if (!row || typeof row.username !== 'string') return null;
+		return row.username;
+	} catch {
+		// Unreachable PostgREST / malformed body — degrade to "no username" rather
+		// than throw, so an enriched session-restore path falls back to { id }
+		// instead of failing the request (docs/logging.md: never log the token).
+		return null;
+	}
 }

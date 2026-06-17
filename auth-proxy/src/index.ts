@@ -11,7 +11,12 @@ import {
 } from './lib/auth-paths.js';
 import { plantSession, clearSession, readAccessCookie, readSessionCookie } from './lib/cookies.js';
 import { refresh, logout, passwordGrant, signup, type LogoutScope } from './lib/session.js';
-import { resolveUsername, adoptStableIdentity, setUsername } from './lib/profiles.js';
+import {
+	resolveUsername,
+	adoptStableIdentity,
+	setUsername,
+	usernameForUid
+} from './lib/profiles.js';
 import { requireCsrf } from './lib/csrf.js';
 import {
 	RateLimiter,
@@ -258,6 +263,7 @@ async function authHandler(req: Request, res: Response): Promise<void> {
 				access_token?: unknown;
 				refresh_token?: unknown;
 				expires_in?: unknown;
+				user?: unknown;
 			};
 			// Cookie-plant is narrowed to the deliberate-login endpoints
 			// (COOKIE_PLANT_PATHS = /auth/verify, /auth/token) — a 2xx from
@@ -277,6 +283,10 @@ async function authHandler(req: Request, res: Response): Promise<void> {
 					refreshToken: json.refresh_token,
 					expiresIn
 				});
+				// Enrich the forwarded user with the username (Task 3.4), using the
+				// freshly planted access token, so a legacy magic-link sign-in adopts
+				// the same AuthUser shape as /auth/signin and /auth/refresh.
+				json.user = await enrichUser(json.user, json.access_token);
 			}
 			// Strip tokens unconditionally — page JS has no use for them; the
 			// cookie is the source of truth.
@@ -292,6 +302,22 @@ async function authHandler(req: Request, res: Response): Promise<void> {
 	}
 
 	res.end(buf);
+}
+
+// Build the client-facing user from a GoTrue user + the freshly minted access
+// token: `{ id, username }` when the profile lookup finds a username, else
+// `{ id }`. GoTrue's user object has no username, so every session-returning path
+// (refresh, the magic-link cookie-plant) routes through here so the client adopts
+// an identically-shaped AuthUser. A profile-lookup *error* degrades the same way
+// as an empty result (bare `{ id }`) rather than signing the session out — the
+// degraded shape is effectively unreachable, since every account gets a profile
+// (with a provisional username) at signup. Returns the user unchanged when it
+// carries no string id (shouldn't happen for a valid session).
+async function enrichUser(user: unknown, accessToken: string): Promise<unknown> {
+	const id = (user as { id?: unknown } | null | undefined)?.id;
+	if (typeof id !== 'string') return user;
+	const username = await usernameForUid(id, accessToken);
+	return username !== null ? { id, username } : { id };
 }
 
 // POST /auth/refresh: read the durable refresh cookie, exchange it at GoTrue,
@@ -325,7 +351,10 @@ async function refreshHandler(req: Request, res: Response): Promise<void> {
 		refreshToken: result.refreshToken,
 		expiresIn: result.expiresIn
 	});
-	res.status(200).json({ user: result.user });
+	// Enrich the bare GoTrue user with the username before returning it to the
+	// web boot (Task 3.4) — this couples session restore to PostgREST, so a
+	// PostgREST outage degrades the user to `{ id }` rather than 401-ing it out.
+	res.status(200).json({ user: await enrichUser(result.user, result.accessToken) });
 }
 
 // POST /auth/signin: resolve the typed username → uid (anon PostgREST), then run

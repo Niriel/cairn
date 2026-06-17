@@ -73,6 +73,28 @@ function hasCsrfHeader(req: IncomingMessage): boolean {
 	return req.headers[CSRF_HEADER.toLowerCase()] !== undefined;
 }
 
+// Dev mirror of enrichUser() in auth-proxy/src/index.ts: turn a bare GoTrue user
+// into the client-facing `{ id, username }` (or `{ id }` when the profile lookup
+// is empty or errors), looked up by uid with the freshly planted access token.
+async function enrichDevUser(user: unknown, accessToken: string): Promise<unknown> {
+	const id = (user as { id?: unknown } | null | undefined)?.id;
+	if (typeof id !== 'string') return user;
+	try {
+		const r = await fetch(
+			`${POSTGREST_DEV_URL}/profiles?id=eq.${encodeURIComponent(id)}&select=username`,
+			{ headers: { Authorization: `Bearer ${accessToken}` } }
+		);
+		if (r.ok) {
+			const rows = (await r.json()) as Array<{ username?: unknown }>;
+			const row = Array.isArray(rows) ? rows[0] : undefined;
+			if (row && typeof row.username === 'string') return { id, username: row.username };
+		}
+	} catch {
+		// Fall through to the bare { id } — never sign a live session out on a blip.
+	}
+	return { id };
+}
+
 async function handleDevRefresh(req: IncomingMessage, res: ServerResponse): Promise<void> {
 	const refreshToken = readBearerFromCookie(req, COOKIE_NAME);
 	if (!refreshToken) {
@@ -126,7 +148,7 @@ async function handleDevRefresh(req: IncomingMessage, res: ServerResponse): Prom
 	]);
 	res.setHeader('content-type', 'application/json');
 	res.statusCode = 200;
-	res.end(JSON.stringify({ user: json.user }));
+	res.end(JSON.stringify({ user: await enrichDevUser(json.user, json.access_token) }));
 }
 
 async function handleDevSignout(req: IncomingMessage, res: ServerResponse): Promise<void> {
@@ -534,7 +556,10 @@ export default defineConfig({
 					proxy.on('proxyRes', (proxyRes, req: IncomingMessage, res: ServerResponse) => {
 						const chunks: Buffer[] = [];
 						proxyRes.on('data', (c: Buffer) => chunks.push(c));
-						proxyRes.on('end', () => {
+						// async so the cookie-plant branch can enrich the user with the
+						// username (a PostgREST lookup) before forwarding; http-proxy
+						// ignores the returned promise and `res.end(body)` still runs last.
+						proxyRes.on('end', async () => {
 							let body = Buffer.concat(chunks);
 							for (const [k, v] of Object.entries(proxyRes.headers)) {
 								if (v === undefined) continue;
@@ -566,6 +591,10 @@ export default defineConfig({
 											'set-cookie',
 											sessionCookie(ACCESS_COOKIE_NAME, json.access_token)
 										);
+										// Enrich the forwarded user with the username (Task 3.4),
+										// using the freshly planted access token, before tokens
+										// are stripped below.
+										json.user = await enrichDevUser(json.user, json.access_token);
 									}
 									// strip tokens unconditionally — JS has no use for them; cookie is the source of truth (docs/architecture.md:145, :233)
 									if (

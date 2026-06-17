@@ -879,10 +879,37 @@ operator switch.
 
 **Verify:** `cd auth-proxy && pnpm lint && pnpm test` · `cd web && pnpm lint && pnpm check`
 
-### [ ] 3.4 Enrich `/auth/refresh` + cookie-plant responses with username (R7)
+### [x] 3.4 Enrich `/auth/refresh` + cookie-plant responses with username (R7)
 
 **Created:** 2026-06-17T08:42:42Z
-**Completed:**
+**Completed:** 2026-06-17T12:44:50Z
+
+**Notes:** Implemented a shared `enrichUser(user, accessToken)` helper in
+`index.ts` used by both the refresh handler and the cookie-plant pass-through, so
+the two paths can't drift; mirrored as `enrichDevUser` in `vite.config.ts`.
+
+- **`usernameForUid` hardened to never throw (side work, required).** It
+  previously `await fetch(...)` with no try/catch, so a network error propagated.
+  Enrichment now runs on the cookie-plant path, which several **pre-existing**
+  tests exercise — and those tests don't set `POSTGREST_URL`, so the lookup hit
+  the default `postgrest:3000` and **threw** (`ENOTFOUND`), which surfaced as a
+  failed token-strip in `shim.test.ts` and 5s timeouts in `csrf.test.ts`. Wrapping
+  the fetch in try/catch → `null` is both the correct production behaviour (the
+  Decisions require a lookup *error* to degrade to `{ id }`, not fail the request)
+  and what makes those paths resilient. The `transient`/degraded boot trade-off
+  the Decisions flag (refresh now depends on PostgREST) is realised by this.
+
+- **Pre-existing `shim.test.ts` + `csrf.test.ts` got a PostgREST stub.** Because
+  cookie-plant + refresh now do a profile lookup, those two files needed a stub
+  PostgREST (returning `[]`, so enrichment degrades to `{ id }` — irrelevant to
+  what they assert: narrowing/token-stripping and the CSRF gate/CORS stripping).
+  Without it the lookup would hit the compose hostname and hang. Not in the task's
+  Files list, but a direct consequence of the behaviour change.
+
+- **Used `/auth/token` for the pass-through enrichment test** (`enrich.test.ts`),
+  with no `grant_type` so the Task 3.2 password-grant lockdown (which only rejects
+  `grant_type=password`) doesn't intercept it — the magic-link token exchange this
+  models is the realistic cookie-plant case.
 
 **Why:** The client's `AuthUser` carries `username` (Task 4.1), but GoTrue's user
 object does not. `/auth/signin` and `/auth/register` already return the username;

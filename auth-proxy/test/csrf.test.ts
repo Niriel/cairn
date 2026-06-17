@@ -12,6 +12,11 @@ import { CSRF_HEADER } from '../src/lib/auth-paths.js';
 // header, so the BFF must strip GoTrue's CORS headers rather than forward them.
 let requests: { method: string; url: string }[];
 let gotrue: http.Server;
+// The refresh + cookie-plant paths now enrich the user via a PostgREST profile
+// lookup (usernameForUid). A stub PostgREST returning an empty result keeps these
+// CSRF tests fast and offline; enrichment degrades the user to `{ id }`, which is
+// irrelevant to what these tests assert (the CSRF gate and CORS stripping).
+let postgrest: http.Server;
 
 beforeAll(async () => {
 	gotrue = http.createServer((req, res) => {
@@ -33,14 +38,23 @@ beforeAll(async () => {
 			);
 		});
 	});
+	postgrest = http.createServer((_req, res) => {
+		res.statusCode = 200;
+		res.setHeader('content-type', 'application/json');
+		res.end('[]'); // no profile row → enrichment degrades to { id }
+	});
 	await new Promise<void>((resolve) => gotrue.listen(0, '127.0.0.1', resolve));
-	const { port } = gotrue.address() as AddressInfo;
-	process.env.GOTRUE_URL = `http://127.0.0.1:${port}`;
+	await new Promise<void>((resolve) => postgrest.listen(0, '127.0.0.1', resolve));
+	process.env.GOTRUE_URL = `http://127.0.0.1:${(gotrue.address() as AddressInfo).port}`;
+	process.env.POSTGREST_URL = `http://127.0.0.1:${(postgrest.address() as AddressInfo).port}`;
 });
 
 afterAll(async () => {
 	await new Promise<void>((resolve, reject) =>
 		gotrue.close((err) => (err ? reject(err) : resolve()))
+	);
+	await new Promise<void>((resolve, reject) =>
+		postgrest.close((err) => (err ? reject(err) : resolve()))
 	);
 });
 
