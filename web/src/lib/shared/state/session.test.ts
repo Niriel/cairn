@@ -31,7 +31,7 @@ afterEach(() => {
 	vi.restoreAllMocks();
 });
 
-const USER: AuthUser = { id: 'u1', email: 'alice@example.test' };
+const USER: AuthUser = { id: 'u1', username: 'alice' };
 
 describe('refresh', () => {
 	test('POSTs /auth/refresh with the CSRF header and adopts the tokenless user → ok', async () => {
@@ -77,6 +77,16 @@ describe('refresh', () => {
 	test('a malformed user body on 200 → transient (not signed in with a half user)', async () => {
 		vi.spyOn(console, 'error').mockImplementation(() => {});
 		server.use(http.post('*/auth/refresh', () => HttpResponse.json({ user: { id: 'u1' } })));
+		expect(await mod.refresh()).toEqual({ status: 'transient' });
+	});
+
+	test('a user carrying only id+email (no username) → transient (the guard requires username)', async () => {
+		vi.spyOn(console, 'error').mockImplementation(() => {});
+		server.use(
+			http.post('*/auth/refresh', () =>
+				HttpResponse.json({ user: { id: 'u1', email: 'alice@example.test' } })
+			)
+		);
 		expect(await mod.refresh()).toEqual({ status: 'transient' });
 	});
 
@@ -190,7 +200,7 @@ describe('signOut', () => {
 		// Boot is delayed enough that signOut clearly resolves first; signOut
 		// then writes signed-out in `finally`, and boot's ok branch must observe
 		// `status !== 'unknown'` and skip the overwrite.
-		const ghost: AuthUser = { id: 'ghost', email: 'ghost@example.test' };
+		const ghost: AuthUser = { id: 'ghost', username: 'ghost' };
 		server.use(
 			http.post('*/auth/refresh', async () => {
 				await delay(30);
@@ -263,7 +273,7 @@ describe('setSignedIn', () => {
 	});
 
 	test('race: setSignedIn while unknown, boot resolves ok with a different user — keeps setSignedIn user', async () => {
-		const bootUser: AuthUser = { id: 'u2', email: 'eve@example.test' };
+		const bootUser: AuthUser = { id: 'u2', username: 'eve' };
 		server.use(
 			http.post('*/auth/refresh', async () => {
 				await delay(30);
@@ -277,8 +287,8 @@ describe('setSignedIn', () => {
 	});
 
 	test('while already signed-in is a no-op (does not overwrite the existing user)', () => {
-		const u1: AuthUser = { id: 'u1-aaaa', email: 'alice@example.test' };
-		const u2: AuthUser = { id: 'u2-bbbb', email: 'other@example.test' };
+		const u1: AuthUser = { id: 'u1-aaaa', username: 'alice' };
+		const u2: AuthUser = { id: 'u2-bbbb', username: 'other' };
 		mod.setSignedIn(u1);
 		expect(mod.session.current).toEqual({ status: 'signed-in', user: u1 });
 		mod.setSignedIn(u2);

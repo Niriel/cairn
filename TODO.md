@@ -221,6 +221,23 @@
         custom. Out of scope until there's a concrete threat driver (data-sensitivity
         tier, abuse signal).
 
+14. [ ] **Flip the prod signup default to open (`DISABLE_SIGNUP:-false`)** — the
+        prod compose default is fail-closed:
+        `GOTRUE_DISABLE_SIGNUP: "${DISABLE_SIGNUP:-true}"` in
+        `docker-compose.prod.yml`, so signup is _disabled_ unless the prod `.env`
+        explicitly overrides it to `false`. But Cairn's alpha posture is **open**
+        registration (the auth-proxy's `/auth/register`), so the default disagrees
+        with intent and creates a footgun: a deploy whose `.env` omits the line
+        silently closes signups. Fail-closed buys little real safety here — the
+        mass-signup bound is the per-IP register throttle and the password grant is
+        locked to the rate-limited BFF, not `DISABLE_SIGNUP` (which is just an
+        operator on/off switch). Change the default to `${DISABLE_SIGNUP:-false}` so
+        the default matches reality, with an operator setting `=true` to close.
+        Prod-facing (touches `docker-compose.prod.yml`); update the
+        `docs/deployment.md` pre-deploy checklist item to match once it lands.
+        Surfaced during plan `2003_username_auth` task 0.2, which was scoped to
+        doc-only reconciliation and so deliberately left the compose default alone.
+
 ## Docs & copy
 
 13. [ ] **Review the "adding by e-mail is two-way" claim in the circles

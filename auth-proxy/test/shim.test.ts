@@ -18,6 +18,12 @@ interface CapturedRequest {
 let lastReq: CapturedRequest | null;
 let respond: (req: http.IncomingMessage, res: http.ServerResponse) => void;
 let gotrue: http.Server;
+// The cookie-plant path now enriches the forwarded user with the username via a
+// PostgREST profile lookup (usernameForUid). A stub PostgREST returning an empty
+// result keeps these narrowing tests fast and offline — enrichment degrades the
+// user to `{ id }`, which is fine here (these tests assert narrowing + token
+// stripping, not the username shape).
+let postgrest: http.Server;
 
 function defaultRespond(_req: http.IncomingMessage, res: http.ServerResponse) {
 	res.statusCode = 200;
@@ -41,14 +47,23 @@ beforeAll(async () => {
 			respond(req, res);
 		});
 	});
+	postgrest = http.createServer((_req, res) => {
+		res.statusCode = 200;
+		res.setHeader('content-type', 'application/json');
+		res.end('[]'); // no profile row → enrichment degrades to { id }
+	});
 	await new Promise<void>((resolve) => gotrue.listen(0, '127.0.0.1', resolve));
-	const { port } = gotrue.address() as AddressInfo;
-	process.env.GOTRUE_URL = `http://127.0.0.1:${port}`;
+	await new Promise<void>((resolve) => postgrest.listen(0, '127.0.0.1', resolve));
+	process.env.GOTRUE_URL = `http://127.0.0.1:${(gotrue.address() as AddressInfo).port}`;
+	process.env.POSTGREST_URL = `http://127.0.0.1:${(postgrest.address() as AddressInfo).port}`;
 });
 
 afterAll(async () => {
 	await new Promise<void>((resolve, reject) =>
 		gotrue.close((err) => (err ? reject(err) : resolve()))
+	);
+	await new Promise<void>((resolve, reject) =>
+		postgrest.close((err) => (err ? reject(err) : resolve()))
 	);
 });
 

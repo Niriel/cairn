@@ -10,11 +10,14 @@
 --     credential/recovery-token column (copied from admin_inspect.sql)
 --     and assert each key is ABSENT. A denylist body that forgot a
 --     column would leak the sentinel and fail here.
---   * No e-mail but the caller's own appears anywhere in the document
---     — co-members render by display name only, and the email-keyed
---     invite's target_email (the invitee's e-mail, not the caller's)
---     is excluded. We assert the document text never contains a
---     co-member's or invitee's e-mail.
+--   * No e-mail appears anywhere in the document. Under the stable
+--     identity the caller's own GoTrue e-mail is the meaningless
+--     <uid>@cairn.internal, so the user block carries the public
+--     `username` instead and the e-mail is dropped outright. Co-members
+--     render by display name only, and the email-keyed invite's
+--     target_email (the invitee's e-mail) is excluded. We assert the
+--     user block has no `email` key and the document text never contains
+--     a co-member's or invitee's e-mail.
 --
 -- Scoping is exercised with deliberately awkward fixtures: a trashed
 -- list the caller is still a member of (carries through), a
@@ -22,11 +25,11 @@
 -- member of (excluded). Vote scope is Option B: every vote on an item
 -- the caller added is included, by display name.
 --
--- 32 assertions — see the inline section headers.
+-- 33 assertions — see the inline section headers.
 
 BEGIN;
 
-SELECT plan(32);
+SELECT plan(33);
 
 -- Shared list 11111111 (Alice + Bob) and the three-user fixture.
 -- Claims are left set to Alice by the fixture.
@@ -40,6 +43,11 @@ UPDATE public.profiles SET display_name = 'Bob'
 WHERE id = 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb';
 UPDATE public.profiles SET display_name = 'Carol'
 WHERE id = 'cccccccc-cccc-cccc-cccc-cccccccccccc';
+
+-- A known username on Alice so the user-block username assertion is
+-- non-vacuous (the signup default is a provisional u<hex> handle).
+UPDATE public.profiles SET username = 'AliceHandle'
+WHERE id = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
 
 -- Sentinel secrets on Alice so the allowlist test is non-vacuous.
 UPDATE auth.users SET
@@ -133,9 +141,13 @@ SELECT public.export_my_data() AS j;
 
 -- ── (a) user allowlist: shape ──────────────────────────────────────
 SELECT is(
-  (SELECT j -> 'user' ->> 'email' FROM _doc),
-  'alice@test',
-  'export: user carries the caller''s own email'
+  (SELECT j -> 'user' ->> 'username' FROM _doc),
+  'AliceHandle',
+  'export: user carries the caller''s username (the public identity)'
+);
+SELECT ok(
+  (SELECT NOT jsonb_exists(j -> 'user', 'email') FROM _doc),
+  'export: user omits the GoTrue e-mail entirely'
 );
 SELECT is(
   (SELECT j -> 'user' ->> 'display_name' FROM _doc),

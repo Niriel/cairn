@@ -8,7 +8,7 @@ import { CSRF_HEADER } from '$lib/shared/model/auth-paths';
 
 export const AUTH_BASE = import.meta.env.VITE_AUTH_BASE ?? '/auth';
 
-export type AuthUser = { id: string; email: string };
+export type AuthUser = { id: string; username: string };
 
 export type Session =
 	| { status: 'unknown' }
@@ -43,7 +43,7 @@ function isAuthUser(value: unknown): value is AuthUser {
 		value !== null &&
 		typeof value === 'object' &&
 		typeof (value as { id?: unknown }).id === 'string' &&
-		typeof (value as { email?: unknown }).email === 'string'
+		typeof (value as { username?: unknown }).username === 'string'
 	);
 }
 

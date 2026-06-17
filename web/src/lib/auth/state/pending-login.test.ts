@@ -40,7 +40,7 @@ describe('pendingLogin', () => {
 		// missed setup step or a state leak rather than from the
 		// `$effect.root` reacting to the signed-in transition.
 		expect(pendingLogin.email).toBe('alice@example.test');
-		setSignedIn({ id: 'u1', email: 'alice@example.test' });
+		setSignedIn({ id: 'u1', username: 'alice' });
 		await tick();
 		expect(pendingLogin.email).toBeNull();
 	});

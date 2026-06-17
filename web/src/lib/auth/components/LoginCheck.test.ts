@@ -18,7 +18,7 @@ afterEach(() => {
 	vi.clearAllMocks();
 });
 
-const SEED_USER = { id: '11111111-1111-1111-1111-111111111111', email: 'alice@example.test' };
+const SEED_USER = { id: '11111111-1111-1111-1111-111111111111', username: 'alice' };
 
 describe('LoginCheck', () => {
 	test('(a) renders the heading and the email from the email prop', () => {

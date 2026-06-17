@@ -1,3 +1,5 @@
+import { randomUUID } from 'node:crypto';
+
 import { sveltekit } from '@sveltejs/kit/vite';
 import { defineConfig } from 'vite';
 import type { IncomingMessage, ServerResponse } from 'node:http';
@@ -36,6 +38,13 @@ declare module 'node:http' {
 const COOKIE_NAME = 'cairn_session';
 const ACCESS_COOKIE_NAME = 'cairn_access';
 
+// PostgREST base for the dev BFF handlers. In prod the auth-proxy reads
+// POSTGREST_URL (http://postgrest:3000); in dev the `/api` proxy already
+// targets PostgREST here, so the credential handlers (sign-in/register,
+// Tasks 3.2/3.3) reuse the same base to resolve usernames via the
+// resolve_username RPC. Mirrors postgrestUrl() in auth-proxy/src/lib/profiles.ts.
+const POSTGREST_DEV_URL = 'http://localhost:3000';
+
 // ~30-day idle horizon for both cookies — mirrors IDLE_HORIZON_SECONDS in
 // auth-proxy/src/lib/cookies.ts (the prod sibling). The access cookie outlives
 // its own JWT deliberately; see that file for why.
@@ -62,6 +71,28 @@ function clearCookie(name: string): string {
 // Node lowercases header names.
 function hasCsrfHeader(req: IncomingMessage): boolean {
 	return req.headers[CSRF_HEADER.toLowerCase()] !== undefined;
+}
+
+// Dev mirror of enrichUser() in auth-proxy/src/index.ts: turn a bare GoTrue user
+// into the client-facing `{ id, username }` (or `{ id }` when the profile lookup
+// is empty or errors), looked up by uid with the freshly planted access token.
+async function enrichDevUser(user: unknown, accessToken: string): Promise<unknown> {
+	const id = (user as { id?: unknown } | null | undefined)?.id;
+	if (typeof id !== 'string') return user;
+	try {
+		const r = await fetch(
+			`${POSTGREST_DEV_URL}/profiles?id=eq.${encodeURIComponent(id)}&select=username`,
+			{ headers: { Authorization: `Bearer ${accessToken}` } }
+		);
+		if (r.ok) {
+			const rows = (await r.json()) as Array<{ username?: unknown }>;
+			const row = Array.isArray(rows) ? rows[0] : undefined;
+			if (row && typeof row.username === 'string') return { id, username: row.username };
+		}
+	} catch {
+		// Fall through to the bare { id } — never sign a live session out on a blip.
+	}
+	return { id };
 }
 
 async function handleDevRefresh(req: IncomingMessage, res: ServerResponse): Promise<void> {
@@ -117,7 +148,7 @@ async function handleDevRefresh(req: IncomingMessage, res: ServerResponse): Prom
 	]);
 	res.setHeader('content-type', 'application/json');
 	res.statusCode = 200;
-	res.end(JSON.stringify({ user: json.user }));
+	res.end(JSON.stringify({ user: await enrichDevUser(json.user, json.access_token) }));
 }
 
 async function handleDevSignout(req: IncomingMessage, res: ServerResponse): Promise<void> {
@@ -152,6 +183,223 @@ async function handleDevSignout(req: IncomingMessage, res: ServerResponse): Prom
 	res.setHeader('Set-Cookie', [clearCookie(COOKIE_NAME), clearCookie(ACCESS_COOKIE_NAME)]);
 	res.statusCode = 204;
 	res.end();
+}
+
+function readRequestBody(req: IncomingMessage): Promise<string> {
+	return new Promise((resolve) => {
+		const chunks: Buffer[] = [];
+		req.on('data', (c: Buffer) => chunks.push(c));
+		req.on('end', () => resolve(Buffer.concat(chunks).toString('utf8')));
+	});
+}
+
+// Dev mirror of the prod POST /auth/signin handler (auth-proxy/src/index.ts):
+// resolve the typed username → uid against PostgREST (anon), then run the GoTrue
+// password grant against the stable `<uid>@cairn.internal` identity; on success
+// plant both cookies and return a tokenless `{ user: { id, username } }`. Unknown
+// username and wrong password both answer a constant-shape 401. The prod per-IP /
+// per-account rate-limiter is BFF-only — a deliberate dev-parity exception.
+async function handleDevSignin(req: IncomingMessage, res: ServerResponse): Promise<void> {
+	let creds: { username?: unknown; password?: unknown };
+	try {
+		creds = JSON.parse(await readRequestBody(req)) as typeof creds;
+	} catch {
+		res.statusCode = 400;
+		res.end(JSON.stringify({ error: 'invalid request' }));
+		return;
+	}
+	const username = typeof creds.username === 'string' ? creds.username : '';
+	const password = typeof creds.password === 'string' ? creds.password : '';
+	if (!username || !password) {
+		res.statusCode = 400;
+		res.end(JSON.stringify({ error: 'invalid request' }));
+		return;
+	}
+
+	// Resolve the username → uid (anon; resolve_username RPC). The `/api` proxy
+	// rewrites away, so call PostgREST directly at its dev base.
+	let resolved: { id: string; username: string } | null = null;
+	try {
+		const r = await fetch(`${POSTGREST_DEV_URL}/rpc/resolve_username`, {
+			method: 'POST',
+			headers: { 'content-type': 'application/json' },
+			body: JSON.stringify({ p_username: username })
+		});
+		if (r.ok) {
+			const rows = (await r.json()) as Array<{ id?: unknown; username?: unknown }>;
+			const row = Array.isArray(rows) ? rows[0] : undefined;
+			if (row && typeof row.id === 'string' && typeof row.username === 'string') {
+				resolved = { id: row.id, username: row.username };
+			}
+		}
+	} catch {
+		res.statusCode = 503;
+		res.end(JSON.stringify({ error: 'upstream auth service unavailable' }));
+		return;
+	}
+	if (!resolved) {
+		res.statusCode = 401;
+		res.end(JSON.stringify({ error: 'invalid credentials' }));
+		return;
+	}
+
+	let grant: Response;
+	try {
+		grant = await fetch('http://localhost:9999/token?grant_type=password', {
+			method: 'POST',
+			headers: { 'content-type': 'application/json' },
+			body: JSON.stringify({ email: `${resolved.id}@cairn.internal`, password })
+		});
+	} catch {
+		res.statusCode = 503;
+		res.end(JSON.stringify({ error: 'upstream auth service unavailable' }));
+		return;
+	}
+	if (grant.status >= 500) {
+		res.statusCode = 503;
+		res.end(JSON.stringify({ error: 'upstream auth service unavailable' }));
+		return;
+	}
+	if (grant.status !== 200) {
+		res.statusCode = 401;
+		res.end(JSON.stringify({ error: 'invalid credentials' }));
+		return;
+	}
+	const json = (await grant.json()) as { access_token?: string; refresh_token?: string };
+	if (typeof json.access_token !== 'string' || typeof json.refresh_token !== 'string') {
+		res.statusCode = 503;
+		res.end(JSON.stringify({ error: 'upstream auth service unavailable' }));
+		return;
+	}
+
+	res.setHeader('Set-Cookie', [
+		sessionCookie(COOKIE_NAME, json.refresh_token),
+		sessionCookie(ACCESS_COOKIE_NAME, json.access_token)
+	]);
+	res.setHeader('content-type', 'application/json');
+	res.statusCode = 200;
+	res.end(JSON.stringify({ user: { id: resolved.id, username: resolved.username } }));
+}
+
+// Dev mirror of the prod POST /auth/register handler (auth-proxy/src/index.ts):
+// validate → availability pre-check → GoTrue signup with a transient
+// `<random>@cairn.internal` address → adopt the stable identity → set the chosen
+// username → plant the session → tokenless `{ user }`. The prod per-IP throttle
+// is BFF-only and omitted in dev (covered by the auth-proxy unit test).
+async function handleDevRegister(req: IncomingMessage, res: ServerResponse): Promise<void> {
+	let creds: { username?: unknown; password?: unknown };
+	try {
+		creds = JSON.parse(await readRequestBody(req)) as typeof creds;
+	} catch {
+		res.statusCode = 400;
+		res.end(JSON.stringify({ error: 'invalid request' }));
+		return;
+	}
+	const username = typeof creds.username === 'string' ? creds.username : '';
+	const password = typeof creds.password === 'string' ? creds.password : '';
+	if (!/^[A-Za-z0-9]{3,30}$/.test(username)) {
+		res.statusCode = 400;
+		res.end(JSON.stringify({ error: 'invalid username' }));
+		return;
+	}
+	if (password.length < 8) {
+		res.statusCode = 400;
+		res.end(JSON.stringify({ error: 'password too short' }));
+		return;
+	}
+
+	// Availability pre-check (anon resolve_username RPC).
+	try {
+		const r = await fetch(`${POSTGREST_DEV_URL}/rpc/resolve_username`, {
+			method: 'POST',
+			headers: { 'content-type': 'application/json' },
+			body: JSON.stringify({ p_username: username })
+		});
+		const rows = r.ok ? ((await r.json()) as unknown[]) : [];
+		if (Array.isArray(rows) && rows.length > 0) {
+			res.statusCode = 409;
+			res.end(JSON.stringify({ error: 'username taken' }));
+			return;
+		}
+	} catch {
+		res.statusCode = 503;
+		res.end(JSON.stringify({ error: 'upstream auth service unavailable' }));
+		return;
+	}
+
+	// Create the GoTrue account with a transient random address.
+	let signup: Response;
+	try {
+		signup = await fetch('http://localhost:9999/signup', {
+			method: 'POST',
+			headers: { 'content-type': 'application/json' },
+			body: JSON.stringify({ email: `${randomUUID()}@cairn.internal`, password })
+		});
+	} catch {
+		res.statusCode = 503;
+		res.end(JSON.stringify({ error: 'upstream auth service unavailable' }));
+		return;
+	}
+	if (signup.status !== 200 && signup.status !== 201) {
+		// 4xx → signups disabled (operator switch); 5xx → transient.
+		res.statusCode = signup.status >= 500 ? 503 : 403;
+		res.end(
+			JSON.stringify({
+				error: signup.status >= 500 ? 'upstream auth service unavailable' : 'registration closed'
+			})
+		);
+		return;
+	}
+	const created = (await signup.json()) as {
+		access_token?: string;
+		refresh_token?: string;
+		user?: { id?: string };
+	};
+	if (
+		typeof created.access_token !== 'string' ||
+		typeof created.refresh_token !== 'string' ||
+		typeof created.user?.id !== 'string'
+	) {
+		res.statusCode = 503;
+		res.end(JSON.stringify({ error: 'upstream auth service unavailable' }));
+		return;
+	}
+	const bearer = {
+		'content-type': 'application/json',
+		Authorization: `Bearer ${created.access_token}`
+	};
+
+	// Adopt the stable identity, then set the chosen username — both as the new
+	// account's bearer. Any failure leaves a sessionless orphan; never plant.
+	const adopt = await fetch(`${POSTGREST_DEV_URL}/rpc/adopt_stable_identity`, {
+		method: 'POST',
+		headers: bearer,
+		body: '{}'
+	});
+	if (!adopt.ok) {
+		res.statusCode = 500;
+		res.end(JSON.stringify({ error: 'registration failed' }));
+		return;
+	}
+	const named = await fetch(`${POSTGREST_DEV_URL}/rpc/set_username`, {
+		method: 'POST',
+		headers: bearer,
+		body: JSON.stringify({ p_username: username })
+	});
+	if (!named.ok) {
+		const code = (await named.json().catch(() => ({}) as { code?: string })).code;
+		res.statusCode = code === '23505' ? 409 : 500;
+		res.end(JSON.stringify({ error: code === '23505' ? 'username taken' : 'registration failed' }));
+		return;
+	}
+
+	res.setHeader('Set-Cookie', [
+		sessionCookie(COOKIE_NAME, created.refresh_token),
+		sessionCookie(ACCESS_COOKIE_NAME, created.access_token)
+	]);
+	res.setHeader('content-type', 'application/json');
+	res.statusCode = 200;
+	res.end(JSON.stringify({ user: { id: created.user.id, username } }));
 }
 
 export default defineConfig({
@@ -209,13 +457,12 @@ export default defineConfig({
 					}
 					void handleDevRefresh(req, res);
 				});
-				// Cairn-shaped credential skeletons — dev mirror of the prod
-				// /auth/signin + /auth/register handlers (auth-proxy/src/index.ts).
-				// They reply HTTP 501 (Not Implemented) for now, sitting behind the
-				// CSRF gate so dev exercises the same routes + guard as prod; the
-				// username+password logic lands with the credential work. GoTrue:9999
+				// Cairn-shaped credential endpoints — dev mirror of the prod
+				// /auth/signin + /auth/register handlers (auth-proxy/src/index.ts),
+				// both now the real username+password flows. They sit behind the CSRF
+				// gate so dev exercises the same routes + guard as prod. GoTrue:9999
 				// has no such routes, so these can't be a plain proxy. (The prod
-				// rate-limiter is BFF-only — a deliberate dev-parity exception.)
+				// rate-limiter is BFF-only — a dev-parity exception.)
 				server.middlewares.use((req, res, next) => {
 					const path = req.url?.split('?')[0];
 					if ((path !== '/auth/signin' && path !== '/auth/register') || req.method !== 'POST') {
@@ -227,8 +474,28 @@ export default defineConfig({
 						res.end(JSON.stringify({ error: 'missing csrf header' }));
 						return;
 					}
-					res.statusCode = 501;
-					res.end(JSON.stringify({ error: 'not implemented' }));
+					if (path === '/auth/signin') {
+						void handleDevSignin(req, res);
+						return;
+					}
+					void handleDevRegister(req, res);
+				});
+				// R6 lockdown (dev parity): the public GoTrue password grant must be
+				// unreachable; the only password-grant path is /auth/signin above.
+				// The legacy magic-link refresh-token grant still proxies through, so
+				// reject only grant_type=password (read from the query string).
+				server.middlewares.use((req, res, next) => {
+					if (req.url?.split('?')[0] !== '/auth/token' || req.method !== 'POST') {
+						next();
+						return;
+					}
+					const grantType = new URLSearchParams(req.url.split('?')[1] ?? '').get('grant_type');
+					if (grantType === 'password') {
+						res.statusCode = 403;
+						res.end(JSON.stringify({ error: 'use /auth/signin' }));
+						return;
+					}
+					next();
 				});
 			}
 		},
@@ -237,7 +504,7 @@ export default defineConfig({
 	server: {
 		proxy: {
 			'/api': {
-				target: 'http://localhost:3000',
+				target: POSTGREST_DEV_URL,
 				changeOrigin: false,
 				rewrite: (p) => p.replace(/^\/api/, ''),
 				configure: (proxy) => {
@@ -289,7 +556,10 @@ export default defineConfig({
 					proxy.on('proxyRes', (proxyRes, req: IncomingMessage, res: ServerResponse) => {
 						const chunks: Buffer[] = [];
 						proxyRes.on('data', (c: Buffer) => chunks.push(c));
-						proxyRes.on('end', () => {
+						// async so the cookie-plant branch can enrich the user with the
+						// username (a PostgREST lookup) before forwarding; http-proxy
+						// ignores the returned promise and `res.end(body)` still runs last.
+						proxyRes.on('end', async () => {
 							let body = Buffer.concat(chunks);
 							for (const [k, v] of Object.entries(proxyRes.headers)) {
 								if (v === undefined) continue;
@@ -321,6 +591,10 @@ export default defineConfig({
 											'set-cookie',
 											sessionCookie(ACCESS_COOKIE_NAME, json.access_token)
 										);
+										// Enrich the forwarded user with the username (Task 3.4),
+										// using the freshly planted access token, before tokens
+										// are stripped below.
+										json.user = await enrichDevUser(json.user, json.access_token);
 									}
 									// strip tokens unconditionally — JS has no use for them; cookie is the source of truth (docs/architecture.md:145, :233)
 									if (

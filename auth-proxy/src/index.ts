@@ -1,3 +1,5 @@
+import { randomUUID } from 'node:crypto';
+
 import express from 'express';
 import type { Request, Response } from 'express';
 
@@ -8,9 +10,21 @@ import {
 	isSegmentMatch
 } from './lib/auth-paths.js';
 import { plantSession, clearSession, readAccessCookie, readSessionCookie } from './lib/cookies.js';
-import { refresh, logout, type LogoutScope } from './lib/session.js';
+import { refresh, logout, passwordGrant, signup, type LogoutScope } from './lib/session.js';
+import {
+	resolveUsername,
+	adoptStableIdentity,
+	setUsername,
+	usernameForUid
+} from './lib/profiles.js';
 import { requireCsrf } from './lib/csrf.js';
-import { RateLimiter, rateLimitConfigFromEnv, signinRateLimit } from './lib/rate-limit.js';
+import {
+	RateLimiter,
+	rateLimitConfigFromEnv,
+	signinRateLimit,
+	clientIp,
+	constantShapeFailure
+} from './lib/rate-limit.js';
 
 // Production auth BFF (Cairn-shaped). This is the prod analogue of the dev
 // Vite proxy in web/vite.config.ts (~lines 30–185): it owns the dual-cookie
@@ -27,11 +41,13 @@ import { RateLimiter, rateLimitConfigFromEnv, signinRateLimit } from './lib/rate
 //   POST /auth/signin    — username + password sign-in
 //   POST /auth/signout    — revoke server-side + clear cookies (?scope=global)
 //   POST /auth/refresh   — rotate the durable refresh token, re-mint the access
-// /auth/signin and /auth/register are route skeletons for now: they reply HTTP
-// 501 (Not Implemented) until the username+password credential work lands. All
-// four are state-changing and require the CSRF header (csrf.ts). The magic-link
-// GoTrue pass-throughs (/auth/token, /auth/verify, /auth/magiclink, /auth/user)
-// keep GoTrue's own wire protocol so magic-link sign-in still works.
+// /auth/signin is the real username+password sign-in and /auth/register is the
+// real open account-creation flow. All four are state-changing and require the
+// CSRF header (csrf.ts). The magic-link GoTrue
+// pass-throughs (/auth/token, /auth/verify, /auth/magiclink, /auth/user) keep
+// GoTrue's own wire protocol so magic-link sign-in still works — except the
+// public password grant on /auth/token, which is locked down (the only
+// password-grant path is the rate-limited /auth/signin).
 
 // The Cairn-shaped refresh endpoint — not a GoTrue passthrough, so it's handled
 // before the generic fetch-to-GoTrue path below.
@@ -46,10 +62,22 @@ const REFRESH_PATH = '/auth/refresh';
 const SIGNIN_PATH = '/auth/signin';
 const REGISTER_PATH = '/auth/register';
 
+// Username format + minimum password length, enforced at the BFF before any
+// account is created. The username rule mirrors set_username's CHECK
+// (`^[A-Za-z0-9]{3,30}$`) so a register that passes here can't fail the DB guard.
+const USERNAME_RE = /^[A-Za-z0-9]{3,30}$/;
+const MIN_PASSWORD_LENGTH = 8;
+
+// The GoTrue token endpoint, kept as a pass-through for the legacy magic-link
+// refresh-token grant. The public password grant against it is locked down (the
+// only password-grant path is the rate-limited /auth/signin) — see authHandler.
+const TOKEN_PATH = '/auth/token';
+
 // Sign-in is rate-limited (per-IP block + per-account escalating delay) — the
-// limiter is a single long-lived in-memory instance for this process. Register
-// is not a credential guess, so it's not throttled. The skeleton 501 reports no
-// outcome to the limiter, so nothing increments until the credential check lands.
+// limiter is a single long-lived in-memory instance for this process. The
+// signin handler reports each outcome to it (recordFailure on a credential miss,
+// recordSuccess on a valid sign-in). Register (Task 3.3) will reuse this same
+// instance's per-IP leg so the two share one mass-signup/brute-force bound.
 const signinLimiter = new RateLimiter(rateLimitConfigFromEnv());
 const signinGuard = signinRateLimit(signinLimiter);
 
@@ -71,6 +99,15 @@ function logoutScope(originalUrl: string): LogoutScope {
 	return new URLSearchParams(originalUrl.slice(qIdx + 1)).get('scope') === 'global'
 		? 'global'
 		: 'local';
+}
+
+// GoTrue carries the grant kind in the query string (`/auth/token?grant_type=…`),
+// not the body, so the lockdown reads it from there. `isSegmentMatch` discards
+// the query to compare the path, so it can't be used to inspect the grant type.
+function grantTypeOf(originalUrl: string): string | null {
+	const qIdx = originalUrl.indexOf('?');
+	if (qIdx === -1) return null;
+	return new URLSearchParams(originalUrl.slice(qIdx + 1)).get('grant_type');
 }
 
 // Request headers we never forward upstream: a client-supplied Authorization
@@ -126,23 +163,32 @@ async function authHandler(req: Request, res: Response): Promise<void> {
 		return;
 	}
 
-	// Cairn-shaped credential surface — skeletons. They sit behind the CSRF gate
-	// above so the guard is exercised against a real route; the credential work
-	// replaces the HTTP 501 with the username+password logic. No GoTrue call and
-	// no cookie change here.
-	//
-	// Sign-in additionally passes the rate-limit guard (per-IP block →
-	// constant-shape 429, per-account escalating delay) before the skeleton
-	// answers. The 501 sender is the guard's `next`; the credential check that
-	// lands later takes its place and reports the outcome to the limiter.
+	// Sign-in: behind the CSRF gate above and the rate-limit guard (per-IP block →
+	// 429, per-account escalating delay). The guard's `next` is the credential
+	// handler, which resolves the username, runs the password grant, and reports
+	// the outcome to the limiter (recordSuccess / recordFailure).
 	if (req.method === 'POST' && isSegmentMatch(originalUrl, [SIGNIN_PATH])) {
 		signinGuard(req, res, () => {
-			res.status(501).json({ error: 'not implemented' });
+			void signinHandler(req, res);
 		});
 		return;
 	}
+	// Register: open account creation behind the CSRF gate above and a per-IP
+	// throttle (shared with sign-in) so an open endpoint can't be hammered into
+	// mass signup. The handler creates the GoTrue account, adopts the stable
+	// identity, and sets the chosen username.
 	if (req.method === 'POST' && isSegmentMatch(originalUrl, [REGISTER_PATH])) {
-		res.status(501).json({ error: 'not implemented' });
+		await registerHandler(req, res);
+		return;
+	}
+
+	// R6 lockdown: the public GoTrue password grant must be unreachable, since
+	// anyone can compute `<uid>@cairn.internal` from the public resolver. The only
+	// password-grant path is the rate-limited /auth/signin above. The legacy
+	// magic-link refresh-token grant still flows through /auth/token, so reject
+	// only grant_type=password (read from the query string) and never forward it.
+	if (isSegmentMatch(originalUrl, [TOKEN_PATH]) && grantTypeOf(originalUrl) === 'password') {
+		res.status(403).json({ error: 'use /auth/signin' });
 		return;
 	}
 
@@ -217,6 +263,7 @@ async function authHandler(req: Request, res: Response): Promise<void> {
 				access_token?: unknown;
 				refresh_token?: unknown;
 				expires_in?: unknown;
+				user?: unknown;
 			};
 			// Cookie-plant is narrowed to the deliberate-login endpoints
 			// (COOKIE_PLANT_PATHS = /auth/verify, /auth/token) — a 2xx from
@@ -236,6 +283,10 @@ async function authHandler(req: Request, res: Response): Promise<void> {
 					refreshToken: json.refresh_token,
 					expiresIn
 				});
+				// Enrich the forwarded user with the username (Task 3.4), using the
+				// freshly planted access token, so a legacy magic-link sign-in adopts
+				// the same AuthUser shape as /auth/signin and /auth/refresh.
+				json.user = await enrichUser(json.user, json.access_token);
 			}
 			// Strip tokens unconditionally — page JS has no use for them; the
 			// cookie is the source of truth.
@@ -251,6 +302,22 @@ async function authHandler(req: Request, res: Response): Promise<void> {
 	}
 
 	res.end(buf);
+}
+
+// Build the client-facing user from a GoTrue user + the freshly minted access
+// token: `{ id, username }` when the profile lookup finds a username, else
+// `{ id }`. GoTrue's user object has no username, so every session-returning path
+// (refresh, the magic-link cookie-plant) routes through here so the client adopts
+// an identically-shaped AuthUser. A profile-lookup *error* degrades the same way
+// as an empty result (bare `{ id }`) rather than signing the session out — the
+// degraded shape is effectively unreachable, since every account gets a profile
+// (with a provisional username) at signup. Returns the user unchanged when it
+// carries no string id (shouldn't happen for a valid session).
+async function enrichUser(user: unknown, accessToken: string): Promise<unknown> {
+	const id = (user as { id?: unknown } | null | undefined)?.id;
+	if (typeof id !== 'string') return user;
+	const username = await usernameForUid(id, accessToken);
+	return username !== null ? { id, username } : { id };
 }
 
 // POST /auth/refresh: read the durable refresh cookie, exchange it at GoTrue,
@@ -284,7 +351,154 @@ async function refreshHandler(req: Request, res: Response): Promise<void> {
 		refreshToken: result.refreshToken,
 		expiresIn: result.expiresIn
 	});
-	res.status(200).json({ user: result.user });
+	// Enrich the bare GoTrue user with the username before returning it to the
+	// web boot (Task 3.4) — this couples session restore to PostgREST, so a
+	// PostgREST outage degrades the user to `{ id }` rather than 401-ing it out.
+	res.status(200).json({ user: await enrichUser(result.user, result.accessToken) });
+}
+
+// POST /auth/signin: resolve the typed username → uid (anon PostgREST), then run
+// the GoTrue password grant against the stable `<uid>@cairn.internal` identity.
+// On success, plant both cookies and return a tokenless `{ user: { id, username } }`
+// (canonical casing from the resolver, no second lookup). The unknown-username
+// and wrong-password branches return a byte-identical constant-shape 401 so a
+// caller can't tell which factor failed. Every credential failure is reported to
+// the limiter (recordFailure); a success clears the caller's buckets
+// (recordSuccess). Never logs the username, e-mail, password, or token.
+async function signinHandler(req: Request, res: Response): Promise<void> {
+	const ip = clientIp(req);
+
+	// express.raw gives a Buffer; parse the credentials ourselves.
+	let creds: { username?: unknown; password?: unknown };
+	try {
+		if (!Buffer.isBuffer(req.body) || req.body.length === 0) throw new Error('empty body');
+		creds = JSON.parse(req.body.toString('utf8')) as typeof creds;
+	} catch {
+		res.status(400).json({ error: 'invalid request' });
+		return;
+	}
+	const username = typeof creds.username === 'string' ? creds.username : '';
+	const password = typeof creds.password === 'string' ? creds.password : '';
+	if (!username || !password) {
+		res.status(400).json({ error: 'invalid request' });
+		return;
+	}
+
+	const resolved = await resolveUsername(username);
+	if (!resolved) {
+		// Unknown username — a credential failure; answer constant-shape.
+		signinLimiter.recordFailure(ip, username);
+		constantShapeFailure(res);
+		return;
+	}
+
+	const grant = await passwordGrant(`${resolved.id}@cairn.internal`, password);
+	if (grant.status === 'unavailable') {
+		// Transient upstream blip — not a credential verdict, don't record it.
+		res.status(503).json({ error: 'upstream auth service unavailable' });
+		return;
+	}
+	if (grant.status === 'invalid') {
+		signinLimiter.recordFailure(ip, username);
+		constantShapeFailure(res);
+		return;
+	}
+
+	signinLimiter.recordSuccess(ip, username);
+	plantSession(res, {
+		accessToken: grant.accessToken,
+		refreshToken: grant.refreshToken,
+		expiresIn: grant.expiresIn
+	});
+	res.status(200).json({ user: { id: resolved.id, username: resolved.username } });
+}
+
+// POST /auth/register: open account creation. Behind a per-IP throttle (the
+// sign-in limiter's per-IP leg, keyed on IP with no username so register and
+// sign-in share one mass-signup/brute-force bound from a given source). The flow:
+// validate format + password length → availability pre-check → GoTrue signup with
+// a transient `<random>@cairn.internal` address → adopt the stable identity → set
+// the chosen username → plant the session and return a tokenless user.
+//
+// On any post-signup step failure (the set_username 23505 race, or an
+// adopt/set_username error), no session is planted: the half-registered account
+// is a sessionless, unreachable orphan (its transient identity and provisional
+// username are unguessable), which the alpha accepts. Never logs the username,
+// e-mail, password, or token.
+async function registerHandler(req: Request, res: Response): Promise<void> {
+	const ip = clientIp(req);
+	// Per-IP throttle: a blocked IP is refused before any work. Every attempt
+	// counts toward the window (recordFailure, no username); register never calls
+	// recordSuccess, so a successful mass-signup run stays bounded.
+	if (signinLimiter.check(ip).blocked) {
+		res.status(429).json({ error: 'too many requests' });
+		return;
+	}
+	signinLimiter.recordFailure(ip);
+
+	// express.raw gives a Buffer; parse the body ourselves.
+	let creds: { username?: unknown; password?: unknown };
+	try {
+		if (!Buffer.isBuffer(req.body) || req.body.length === 0) throw new Error('empty body');
+		creds = JSON.parse(req.body.toString('utf8')) as typeof creds;
+	} catch {
+		res.status(400).json({ error: 'invalid request' });
+		return;
+	}
+	const username = typeof creds.username === 'string' ? creds.username : '';
+	const password = typeof creds.password === 'string' ? creds.password : '';
+	if (!USERNAME_RE.test(username)) {
+		res.status(400).json({ error: 'invalid username' });
+		return;
+	}
+	if (password.length < MIN_PASSWORD_LENGTH) {
+		res.status(400).json({ error: 'password too short' });
+		return;
+	}
+
+	// Availability pre-check — refuse a taken handle without creating an account.
+	if (await resolveUsername(username)) {
+		res.status(409).json({ error: 'username taken' });
+		return;
+	}
+
+	// Create the GoTrue account with a transient random address (never the
+	// username, so concurrent same-username signups can't collide at GoTrue's
+	// email-unique index).
+	const created = await signup(`${randomUUID()}@cairn.internal`, password);
+	if (created.status === 'disabled') {
+		res.status(403).json({ error: 'registration closed' });
+		return;
+	}
+	if (created.status !== 'ok') {
+		res.status(503).json({ error: 'upstream auth service unavailable' });
+		return;
+	}
+
+	// Post-signup, under the new account's bearer: adopt the stable identity, then
+	// set the chosen username. Any failure here leaves a sessionless orphan.
+	const adopted = await adoptStableIdentity(created.accessToken);
+	if (!adopted.ok) {
+		res.status(500).json({ error: 'registration failed' });
+		return;
+	}
+	const named = await setUsername(username, created.accessToken);
+	if (!named.ok) {
+		// 23505: the case-fold uniqueness lost a race past the pre-check.
+		if (named.code === '23505') {
+			res.status(409).json({ error: 'username taken' });
+			return;
+		}
+		res.status(500).json({ error: 'registration failed' });
+		return;
+	}
+
+	plantSession(res, {
+		accessToken: created.accessToken,
+		refreshToken: created.refreshToken,
+		expiresIn: created.expiresIn
+	});
+	res.status(200).json({ user: { id: created.userId, username } });
 }
 
 const app = express();

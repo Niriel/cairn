@@ -1,6 +1,6 @@
 <script lang="ts">
 	import Button from '$lib/basic/components/Button.svelte';
-	import { devPasswordSignIn, HttpError } from '$lib/auth/model/auth-client';
+	import { signIn, HttpError } from '$lib/auth/model/auth-client';
 	import { setSignedIn } from '$lib/shared/state/session.svelte';
 
 	type Props = {
@@ -12,21 +12,24 @@
 
 	const { sending, setSending, onInlineError, onServerError }: Props = $props();
 
+	// The dev-login shortcut now goes through the real /auth/signin path
+	// (the public password grant is locked to the BFF, see the R6 lockdown).
+	// The seed gives these accounts the matching fixed usernames.
 	const DEV_USERS = [
-		{ name: 'alice', email: 'alice@example.test' },
-		{ name: 'bob', email: 'bob@example.test' },
-		{ name: 'carol', email: 'carol@example.test' }
+		{ name: 'alice', username: 'alice' },
+		{ name: 'bob', username: 'bob' },
+		{ name: 'carol', username: 'carol' }
 	] as const;
 
 	function isHttpError400(err: unknown): err is HttpError {
 		return err instanceof HttpError && err.status >= 400 && err.status < 500;
 	}
 
-	async function onDevLogin(devEmail: string) {
+	async function onDevLogin(username: string) {
 		if (sending) return;
 		setSending(true);
 		try {
-			const { user } = await devPasswordSignIn(devEmail, import.meta.env.VITE_DEV_LOGIN_PASSWORD);
+			const { user } = await signIn(username, import.meta.env.VITE_DEV_LOGIN_PASSWORD);
 			setSignedIn(user);
 		} catch (err) {
 			if (isHttpError400(err)) {
@@ -47,7 +50,7 @@
 			tone="ink"
 			disabled={sending}
 			data-test={`dev-login-${user.name}`}
-			onclick={() => onDevLogin(user.email)}
+			onclick={() => onDevLogin(user.username)}
 		>
 			Sign in as {user.name}
 		</Button>

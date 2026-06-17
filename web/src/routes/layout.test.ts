@@ -12,7 +12,7 @@ vi.mock('$app/state', async () => await import('$lib/test/app-state-mock.svelte'
 vi.mock('$app/navigation', () => ({ goto: vi.fn() }));
 vi.mock('$lib/shared/state/session.svelte');
 
-const SEED_USER = { id: '11111111-1111-1111-1111-111111111111', email: 'dev@example.test' };
+const SEED_USER = { id: '11111111-1111-1111-1111-111111111111', username: 'dev' };
 
 // Stub child snippet so tests can assert whether the layout rendered
 // `{@render children()}` by querying for `data-test="layout-children"`.
@@ -62,16 +62,16 @@ describe('+layout.svelte (auth guard)', () => {
 		expect(vi.mocked(goto)).not.toHaveBeenCalled();
 	});
 
-	test('(d) signed-out on a private path: redirects to /auth/login and hides children', async () => {
+	test('(d) signed-out on a private path: redirects to /auth/signin and hides children', async () => {
 		session.current = { status: 'signed-out' };
 		setUrl('/');
 		const { queryByDataTest } = render(Layout, { children: childStub });
 		await tick();
-		expect(vi.mocked(goto)).toHaveBeenCalledWith('/auth/login', { replaceState: true });
+		expect(vi.mocked(goto)).toHaveBeenCalledWith('/auth/signin', { replaceState: true });
 		expect(queryByDataTest('layout-children')).toBeNull();
 	});
 
-	test.each(['/auth/login', '/auth/check', '/auth/callback'])(
+	test.each(['/auth/signin', '/auth/register', '/auth/login', '/auth/check', '/auth/callback'])(
 		'(e) signed-out on public path %s: children render, no redirect, no boot screen',
 		async (path) => {
 			session.current = { status: 'signed-out' };
@@ -104,15 +104,15 @@ describe('+layout.svelte (auth guard)', () => {
 		expect(vi.mocked(goto)).not.toHaveBeenCalled();
 	});
 
-	test('(f) signed-out on /auth/loginx (sibling-prefix): redirects (segment-anchored predicate)', async () => {
+	test('(f) signed-out on /auth/signinx (sibling-prefix): redirects (segment-anchored predicate)', async () => {
 		session.current = { status: 'signed-out' };
-		setUrl('/auth/loginx');
+		setUrl('/auth/signinx');
 		render(Layout, { children: childStub });
 		await tick();
-		expect(vi.mocked(goto)).toHaveBeenCalledWith('/auth/login', { replaceState: true });
+		expect(vi.mocked(goto)).toHaveBeenCalledWith('/auth/signin', { replaceState: true });
 	});
 
-	test.each(['/auth/login', '/auth/check'])(
+	test.each(['/auth/signin', '/auth/register', '/auth/login', '/auth/check'])(
 		'(g) signed-in on %s redirects to / with replaceState',
 		async (path) => {
 			session.current = { status: 'signed-in', user: SEED_USER };
@@ -123,7 +123,7 @@ describe('+layout.svelte (auth guard)', () => {
 		}
 	);
 
-	test.each(['/auth/login', '/auth/check'])(
+	test.each(['/auth/signin', '/auth/register', '/auth/login', '/auth/check'])(
 		'(h) signed-in on %s shows boot screen, hides children before redirect lands',
 		(path) => {
 			session.current = { status: 'signed-in', user: SEED_USER };
@@ -162,6 +162,6 @@ describe('+layout.svelte (auth guard)', () => {
 
 		setUrl('/private');
 		await tick();
-		expect(vi.mocked(goto)).toHaveBeenCalledWith('/auth/login', { replaceState: true });
+		expect(vi.mocked(goto)).toHaveBeenCalledWith('/auth/signin', { replaceState: true });
 	});
 });

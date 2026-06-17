@@ -58,10 +58,12 @@ services:
     build: ./auth-proxy
     environment:
       GOTRUE_URL: http://gotrue:9999
+      POSTGREST_URL: http://postgrest:3000
       PORT: "3002"
       COOKIE_SECURE: "true"
     depends_on:
       - gotrue
+      - postgrest
     healthcheck:
       test: ["CMD", "node", "-e", "require('http').get('http://localhost:3002/healthz', r => process.exit(r.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))"]
       interval: 5s

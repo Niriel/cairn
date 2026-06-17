@@ -23,7 +23,7 @@ afterAll(() => {
 let mod: typeof import('./postgrest');
 let session: typeof import('$lib/shared/state/session.svelte');
 
-const USER = { id: 'u1', email: 'alice@example.test' };
+const USER = { id: 'u1', username: 'alice' };
 
 beforeEach(async () => {
 	vi.resetModules();

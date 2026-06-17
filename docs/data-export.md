@@ -6,17 +6,17 @@ The headline rule: **a personal archive, not a backup.** Export gives the user a
 
 ## What's included
 
-| Data                                    | Source                                           | Notes                                                                                           |
-| --------------------------------------- | ------------------------------------------------ | ----------------------------------------------------------------------------------------------- |
-| Your profile                            | `profiles` (yours), `auth.users` (id + email)    | Display name, email, signup date. Avatar file embedded as `avatar.webp` if you have one.        |
-| Your settings                           | `user_settings` (yours)                          | Invite policy. (Theme and font size are device-local — `localStorage` — and not in the export.) |
-| Lists you're a member of                | `lists` joined via `list_members`                | Live and trashed lists alike.                                                                   |
-| Items on those lists                    | `items` (live and soft-deleted)                  | Including notes, attribution, timestamps.                                                       |
-| Your own votes                          | `votes` where `user_id = you`                    | One row per (item, you, value).                                                                 |
-| Other people's votes on items you added | `votes` joined to items where `created_by = you` | See "Vote scope" below — included (Option B).                                                   |
-| Members of each of your lists           | `list_members` for each list                     | Display names only — no emails.                                                                 |
-| Your invitations sent and received      | `invitations` where you're sender or recipient   | Pending state at export time.                                                                   |
-| Your circle and blocklist               | `relationships` (your rows)                      | Status (`circle` or `blocked`), other user's display name.                                      |
+| Data                                    | Source                                                | Notes                                                                                           |
+| --------------------------------------- | ----------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| Your profile                            | `profiles` (yours, incl. username), `auth.users` (id) | Display name, username, signup date. Avatar file embedded as `avatar.webp` if you have one.     |
+| Your settings                           | `user_settings` (yours)                               | Invite policy. (Theme and font size are device-local — `localStorage` — and not in the export.) |
+| Lists you're a member of                | `lists` joined via `list_members`                     | Live and trashed lists alike.                                                                   |
+| Items on those lists                    | `items` (live and soft-deleted)                       | Including notes, attribution, timestamps.                                                       |
+| Your own votes                          | `votes` where `user_id = you`                         | One row per (item, you, value).                                                                 |
+| Other people's votes on items you added | `votes` joined to items where `created_by = you`      | See "Vote scope" below — included (Option B).                                                   |
+| Members of each of your lists           | `list_members` for each list                          | Display names only — no emails.                                                                 |
+| Your invitations sent and received      | `invitations` where you're sender or recipient        | Pending state at export time.                                                                   |
+| Your circle and blocklist               | `relationships` (your rows)                           | Status (`circle` or `blocked`), other user's display name.                                      |
 
 ## What's not included
 
@@ -53,7 +53,7 @@ The HTML rendering links its references back to specific JSON paths so a curious
 	"schema_version": 1,
 	"user": {
 		"id": "…uuid…",
-		"email": "alice@example.com",
+		"username": "alice",
 		"display_name": "Alice",
 		"signed_up_at": "2025-11-03T09:14:22Z",
 		"invite_policy": "circle",

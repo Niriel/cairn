@@ -161,9 +161,9 @@ describe('LoginRequest', () => {
 
 	test('(j) dev-shortcut click is disabled in flight — gates other dev buttons and submit too', async () => {
 		vi.mocked(isDevLoginShortcutEnabled).mockReturnValue(true);
-		const { devPasswordSignIn } = await import('$lib/auth/model/auth-client');
-		let resolveSignin!: (v: { user: { id: string; email: string } }) => void;
-		vi.mocked(devPasswordSignIn).mockImplementationOnce(
+		const { signIn } = await import('$lib/auth/model/auth-client');
+		let resolveSignin!: (v: { user: { id: string; username: string } }) => void;
+		vi.mocked(signIn).mockImplementationOnce(
 			() =>
 				new Promise((r) => {
 					resolveSignin = r;
@@ -187,10 +187,10 @@ describe('LoginRequest', () => {
 
 		await fireEvent.click(alice);
 		await tick();
-		expect(vi.mocked(devPasswordSignIn)).toHaveBeenCalledTimes(1);
+		expect(vi.mocked(signIn)).toHaveBeenCalledTimes(1);
 
 		resolveSignin({
-			user: { id: '11111111-1111-1111-1111-111111111111', email: 'alice@example.test' }
+			user: { id: '11111111-1111-1111-1111-111111111111', username: 'alice' }
 		});
 		await tick();
 		await tick();

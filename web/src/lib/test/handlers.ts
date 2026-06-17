@@ -25,14 +25,14 @@ export const handlers: RequestHandler[] = [
 		HttpResponse.json({
 			token_type: 'bearer',
 			expires_in: 604800,
-			user: { id: '11111111-1111-1111-1111-111111111111', email: 'dev@example.test' }
+			user: { id: '11111111-1111-1111-1111-111111111111', username: 'dev' }
 		})
 	),
 	http.post('*/auth/token', () =>
 		HttpResponse.json({
 			token_type: 'bearer',
 			expires_in: 604800,
-			user: { id: '11111111-1111-1111-1111-111111111111', email: 'dev@example.test' }
+			user: { id: '11111111-1111-1111-1111-111111111111', username: 'dev' }
 		})
 	),
 	http.post('*/auth/signout', () => new HttpResponse(null, { status: 204 })),

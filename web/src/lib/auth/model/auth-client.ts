@@ -64,10 +64,31 @@ function assertAuthUser(value: unknown): asserts value is AuthUser {
 		value === null ||
 		typeof value !== 'object' ||
 		typeof (value as { id?: unknown }).id !== 'string' ||
-		typeof (value as { email?: unknown }).email !== 'string'
+		typeof (value as { username?: unknown }).username !== 'string'
 	) {
-		throw new Error('Malformed auth response: missing user.id or user.email');
+		throw new Error('Malformed auth response: missing user.id or user.username');
 	}
+}
+
+// Cairn-shaped sign-in: POST /auth/signin { username, password }. The BFF
+// resolves the username to the stable identity, runs the password grant,
+// plants the dual session cookies, and returns a tokenless `{ user }`. A
+// non-2xx (401 invalid credentials, 400 malformed) throws `HttpError` so the
+// sign-in screen can map status → copy.
+export async function signIn(username: string, password: string): Promise<{ user: AuthUser }> {
+	const payload = await postJson<{ user?: unknown }>('/signin', { username, password });
+	assertAuthUser(payload?.user);
+	return { user: payload.user };
+}
+
+// Cairn-shaped registration: POST /auth/register { username, password }. The
+// BFF signs up, adopts the stable identity, sets the chosen username, and
+// plants the session. A non-2xx (409 taken, 400 invalid, 403 closed) throws
+// `HttpError`.
+export async function register(username: string, password: string): Promise<{ user: AuthUser }> {
+	const payload = await postJson<{ user?: unknown }>('/register', { username, password });
+	assertAuthUser(payload?.user);
+	return { user: payload.user };
 }
 
 export async function sendMagicLink(email: string): Promise<void> {
@@ -83,18 +104,6 @@ export async function sendMagicLink(email: string): Promise<void> {
 export async function exchangeRefreshToken(refreshToken: string): Promise<{ user: AuthUser }> {
 	const payload = await postJson<{ user?: unknown }>('/token?grant_type=refresh_token', {
 		refresh_token: refreshToken
-	});
-	assertAuthUser(payload?.user);
-	return { user: payload.user };
-}
-
-export async function devPasswordSignIn(
-	email: string,
-	password: string
-): Promise<{ user: AuthUser }> {
-	const payload = await postJson<{ user?: unknown }>('/token?grant_type=password', {
-		email,
-		password
 	});
 	assertAuthUser(payload?.user);
 	return { user: payload.user };

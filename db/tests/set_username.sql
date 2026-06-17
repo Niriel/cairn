@@ -1,28 +1,32 @@
--- set_username.sql — locks in the public.set_username(text) RPC added by
--- migration 0019: it rewrites the caller's username AND the synthetic
--- GoTrue e-mail derived from it, atomically, and rejects taken/invalid
--- names with separable errors and unauth/tombstone callers with 28000.
+-- set_username.sql — locks in the public.set_username(text) RPC: it
+-- rewrites the caller's profiles.username ONLY — case-preserving, with
+-- separable taken/invalid errors and unauth/tombstone callers rejected
+-- with 28000.
 --
--- The synthetic e-mail (lower(username) || '@users.cairn.invalid') *is*
--- the GoTrue identity, so set_username must move auth.users.email in
--- lockstep with profiles.username or the next sign-in (computed from the
--- new username) would fail.
+-- Under the stable identity the GoTrue login handle is the uid-derived
+-- <uid>@cairn.internal, set once at account creation and never rewritten
+-- on rename — so set_username must leave auth.users.email untouched. A
+-- rename can therefore never break the credential; the profiles
+-- lower(username) unique index is the sole uniqueness guarantee.
 --
--- NOTE on the taken-error path: the harness auth.users (test-bootstrap.sql)
--- has NO unique index on email — only prod GoTrue does — so the
--- auth.users-side unique_violation cannot fire here. The load-bearing
--- guarantee is the profiles lower(username) unique index plus the in-RPC
--- availability check; the taken assertion below exercises that path.
+-- NOTE on the taken-error path: the load-bearing uniqueness guarantee is
+-- the profiles lower(username) unique index plus the in-RPC availability
+-- check; the taken assertion below exercises that path.
 
 BEGIN;
 
-SELECT plan(10);
+SELECT plan(9);
 
 \i /db/tests/fixtures/users_alice_bob_carol.sql
 
 -- Bob holds 'LaraCroft' — the anchor for the case-fold taken check.
 UPDATE public.profiles SET username = 'LaraCroft'
 WHERE id = 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb';
+
+-- Alice carries a known auth.users.email; set_username must leave it
+-- untouched (the stable GoTrue identity is set at creation, not on rename).
+UPDATE auth.users SET email = 'alice-known@example.test'
+WHERE id = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
 
 -- Act as Alice.
 SELECT set_config(
@@ -43,30 +47,22 @@ SELECT is(
   'set_username updates profiles.username (case preserved)'
 );
 
--- (b) + (c) read auth.users as the superuser owner (authenticated has no
--- grant on the auth schema). The JWT-claims GUC stays set, so a later
--- re-switch to authenticated still resolves uid() to Alice.
+-- (b) reads auth.users as the superuser owner (authenticated has no grant
+-- on the auth schema). The JWT-claims GUC stays set, so a later re-switch
+-- to authenticated still resolves uid() to Alice.
 RESET ROLE;
 
--- (b) the caller's synthetic e-mail is rewritten from the new username.
+-- (b) set_username does NOT touch auth.users.email — the GoTrue identity is
+-- the stable <uid>@cairn.internal set at account creation, not derived from
+-- the handle. Alice's known e-mail (set above) survives the rename, so a
+-- rename can never break the credential.
 SELECT is(
   (
     SELECT email FROM auth.users
     WHERE id = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'
   ),
-  'newname@users.cairn.invalid',
-  'set_username rewrites auth.users.email to the synthetic address'
-);
-
--- (c) auth.users.id is untouched — the new synthetic e-mail sits on the
--- caller's original row (sessions/attribution/membership hang off the id).
-SELECT is(
-  (
-    SELECT id FROM auth.users
-    WHERE email = 'newname@users.cairn.invalid'
-  ),
-  'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'::uuid,
-  'set_username leaves auth.users.id unchanged'
+  'alice-known@example.test',
+  'set_username leaves auth.users.email unchanged'
 );
 
 -- Re-establish Alice as an authenticated caller for the remaining cases.

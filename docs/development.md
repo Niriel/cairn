@@ -250,7 +250,7 @@ This is fast — the whole rebuild takes a few seconds. Don't be precious about 
 
 We deliberately don't `INSERT` directly into `auth.users` — GoTrue's schema has version-dependent NOT NULL columns that a bare insert can't satisfy reliably, and any row we hand-craft would be one GoTrue refuses to authenticate against. The signup-then-UPDATE shape lets each side do what it's good at.
 
-**Forward-note for step 13 (production rollout).** The dev password `cairn-dev` is committed in `db/seed/dev_seed.sql` and `scripts/seed.sh`, and `POST /auth/signup` is open in dev (`GOTRUE_DISABLE_SIGNUP="false"`, `GOTRUE_MAILER_AUTOCONFIRM="true"`). Both are intentional and contained to localhost. When the production GoTrue compose file lands in step 13, it MUST set `GOTRUE_MAILER_AUTOCONFIRM=false` and `GOTRUE_DISABLE_SIGNUP=true` so the committed dev password cannot be used against a prod instance and so `POST /auth/signup` (which the Vite proxy exposes locally as part of the same `/auth/*` surface) cannot be used to create unsolicited accounts in production. The dev exposure is contained because no production rollout path runs `./scripts/seed.sh`; the production gap is closed structurally by `GOTRUE_DISABLE_SIGNUP=true`, not by any code in the web app. Cairn is invite-only per `docs/invites.md`, so signup-disabled in prod is already the right default.
+**Production posture (step 13, `1500_production_rollout` — now shipped).** The dev password `cairn-dev` is committed in `db/seed/dev_seed.sql` and `scripts/seed.sh`, and `POST /auth/signup` is open in dev (`GOTRUE_DISABLE_SIGNUP="false"`, `GOTRUE_MAILER_AUTOCONFIRM="true"`). Both are intentional and contained to localhost: no production rollout path runs `./scripts/seed.sh`, so the committed credential never reaches a prod instance. Production runs **open** signup as a deliberate alpha posture: the prod `.env` sets `DISABLE_SIGNUP=false` (so GoTrue's `GOTRUE_DISABLE_SIGNUP` resolves to `false`) and `GOTRUE_MAILER_AUTOCONFIRM=true`, which the auth-proxy's `/auth/register` flow needs to obtain an immediately-usable token set. `GOTRUE_DISABLE_SIGNUP` remains the operator's hard switch, and the per-IP register throttle bounds mass signup from a single source. The raw GoTrue password grant is reachable only through the rate-limited BFF (see `docs/deployment.md` → "Auth surface: pre-deploy checklist"), so an open signup endpoint is not an open credential-stuffing surface. `docs/invites.md` governs invite _acceptance_, not signup-openness — it is not the basis for an invite-only signup gate.
 
 Step 13 must _also_ run the production web build with `VITE_DEV_LOGIN_PASSWORD` unset (no entry in the prod `.env`, no CI export). Vite statically replaces `import.meta.env.VITE_*` at build time before Rollup tree-shakes the dev-shortcut call site, so a stray prod-env entry would inline the `cairn-dev` literal into the JS source even when `isDevLoginShortcutEnabled()` constant-folds to `false`. The dev-shortcut is dev-only by belt-and-braces (`import.meta.env.DEV === false` in prod also tree-shakes the branch), but the env-var-unset rule is the load-bearing guarantee that no plaintext credential ships.
 
@@ -278,7 +278,7 @@ VITE_AUTH_BASE=/auth
 
 `VITE_API_BASE` and `VITE_AUTH_BASE` are paths, not full URLs — same in dev and prod, because Caddy and Vite both serve the API at `/api` and the auth service at `/auth` on the same origin as the app.
 
-`VITE_DEV_LOGIN_SHORTCUT=true` (the default in `web/.env.example`) enables three secondary buttons — _Alice_, _Bob_, _Carol_ — under the email field on `/auth/login`. Each calls GoTrue's `POST /token?grant_type=password` with the corresponding seeded email and the dev password `cairn-dev`, the same cookie-plant shim that handles the magic-link callback sets the `cairn_session` cookie, and you land on `/` signed in. The shortcut is dev-only by belt-and-braces: in a production build `import.meta.env.DEV` is `false` regardless of which env vars are set, and Vite tree-shakes the dead branch out of the bundle. To disable locally without losing the dev build mode, unset the env var.
+`VITE_DEV_LOGIN_SHORTCUT=true` (the default in `web/.env.example`) enables three secondary buttons — _Alice_, _Bob_, _Carol_ — under the email field on `/auth/login`. Each calls `POST /auth/signin` with the corresponding seed username (`alice` / `bob` / `carol`) and the dev password `cairn-dev` — the same path the sign-in screen uses, since the public password grant is now locked to the BFF. The BFF resolves the username, runs the grant against the account's stable `<uid>@cairn.internal` identity, plants the session cookies, and you land on `/` signed in. The shortcut is dev-only by belt-and-braces: in a production build `import.meta.env.DEV` is `false` regardless of which env vars are set, and Vite tree-shakes the dead branch out of the bundle. To disable locally without losing the dev build mode, unset the env var.
 
 ### Building for production locally
 
@@ -373,12 +373,17 @@ docker compose exec postgres psql -U cairn -d cairn
 
 — or connect with a GUI client (TablePlus, DBeaver, Postico) to `localhost:5432` with the credentials in `.env`.
 
-**Hit the API directly.** PostgREST is plain HTTP+JSON. You need a JWT for anything beyond the OpenAPI doc — grab one from GoTrue's password grant using a seed user:
+**Hit the API directly.** PostgREST is plain HTTP+JSON. You need a JWT for anything beyond the OpenAPI doc — grab one from GoTrue's password grant using a seed user. The seed accounts authenticate under the stable identity `<uid>@cairn.internal` (`alice@example.test` no longer exists at GoTrue once the seed has adopted it), so resolve the username to its uid first (`resolve_username` is anon-callable):
 
 ```bash
+curl -s -X POST 'http://localhost:3000/rpc/resolve_username' \
+  -H 'Content-Type: application/json' \
+  -d '{"p_username":"alice"}'
+# → [{"id":"<uid>","username":"alice"}]
+
 curl -X POST 'http://localhost:9999/token?grant_type=password' \
   -H 'Content-Type: application/json' \
-  -d '{"email":"alice@example.test","password":"cairn-dev"}'
+  -d '{"email":"<uid>@cairn.internal","password":"cairn-dev"}'
 ```
 
 The `access_token` in the response body is the JWT. Pass it as `Authorization: Bearer <jwt>` to PostgREST:

@@ -9,7 +9,7 @@ function makeDoc(overrides: Partial<ExportDocument> = {}): ExportDocument {
 		schema_version: 1,
 		user: {
 			id: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
-			email: 'alice@test',
+			username: 'alice',
 			display_name: 'Alice',
 			signed_up_at: '2025-11-03T09:14:22Z',
 			invite_policy: 'circle',
@@ -80,7 +80,7 @@ describe('renderDataHtml', () => {
 			makeDoc({
 				user: {
 					id: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
-					email: 'alice@test',
+					username: 'alice',
 					display_name: 'Alice <b>injected</b>',
 					signed_up_at: '2025-11-03T09:14:22Z',
 					invite_policy: 'circle',
@@ -95,6 +95,13 @@ describe('renderDataHtml', () => {
 	test('(d) cites the JSON path so HTML rows correlate to data.json', () => {
 		const html = renderDataHtml(makeDoc());
 		expect(html).toContain('lists[0].items[0]');
+	});
+
+	test('(d2) renders the username as @handle and never the synthetic e-mail', () => {
+		const html = renderDataHtml(makeDoc());
+		expect(html).toContain('@alice');
+		expect(html).not.toContain('@cairn.internal');
+		expect(html).not.toContain('E-mail:');
 	});
 });
 
@@ -111,7 +118,7 @@ describe('renderReadmeHtml', () => {
 			makeDoc({
 				user: {
 					id: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
-					email: 'alice@test',
+					username: 'alice',
 					display_name: '<b>x</b>',
 					signed_up_at: '2025-11-03T09:14:22Z',
 					invite_policy: 'circle',
