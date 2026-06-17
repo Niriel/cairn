@@ -322,6 +322,8 @@ Two things still must be confirmed before opening Cairn to public traffic:
 
 3. **The revocable-session config must be in force.** GoTrue refresh-token rotation enabled with a reuse interval that safely covers multi-tab boot skew; `GOTRUE_JWT_EXP` lowered to the short access TTL (single-digit minutes); both session cookies `__Host-`-prefixed (forcing `Secure` + `Path=/` + no `Domain`); the CSRF header enforced on the Cairn-shaped state-changing `/auth/*` endpoints; and Caddy setting `X-Real-IP` on the `@gotrue` upstream so the sign-in rate-limiter's per-IP key is the real client, not Caddy's container. Confirm these before opening public traffic — a deploy with rotation off or the JWT TTL still long silently loses the revocability and reuse-detection guarantees.
 
+4. **The signup switch lives in the prod `.env`, and its compose default is restrictive.** `docker-compose.prod.yml` sets `GOTRUE_DISABLE_SIGNUP: "${DISABLE_SIGNUP:-true}"` — so registration is **closed** unless the prod `.env` overrides it. Cairn runs open registration (`/auth/register` via the auth-proxy), so confirm `DISABLE_SIGNUP=false` is present in the prod `.env`; flip it to `true` (or drop the override) to close signups. The per-IP register throttle bounds mass signup from one source. `docs/invites.md` governs invite _acceptance_, not signup-openness.
+
 ### Forced re-auth on the revocable-session deploy
 
 Deploying the revocable session **signs every existing user out once**, by design — they land on the sign-in screen on their next visit and re-authenticate via magic link. No session purge, cache flush, or operator action is needed; the sign-out is structural:

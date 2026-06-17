@@ -79,10 +79,26 @@ by `set_username`", which is `data-model.md`'s framing) and the
 
 **Verify:** `cd web && pnpm exec prettier --check ../docs/architecture.md` (doc-only; no functional tests apply — say so in the report).
 
-### [ ] 0.2 Reconcile the registration-posture docs to the open-alpha (R5, R9)
+### [x] 0.2 Reconcile the registration-posture docs to the open-alpha (R5, R9)
 
 **Created:** 2026-06-17T11:40:00Z
-**Completed:**
+**Completed:** 2026-06-17T10:51:44Z
+
+**Notes:** The `docs/development.md` paragraph corrected was a stale "forward-note
+for step 13" that asserted prod MUST set both `GOTRUE_DISABLE_SIGNUP=true` **and**
+`GOTRUE_MAILER_AUTOCONFIRM=false`. Both are now false against the live config
+(`docker-compose.prod.yml` sets `GOTRUE_MAILER_AUTOCONFIRM: "true"` and
+`GOTRUE_DISABLE_SIGNUP: "${DISABLE_SIGNUP:-true}"` with the prod `.env` overriding
+to `false`). Since the autoconfirm claim sat in the same sentence as the
+signup-disabled claim and is now equally wrong (the `/auth/register` flow needs the
+autoconfirmed token set), I corrected it alongside rather than leave a contradiction
+I'd just walked past — it's the same alpha-posture reconciliation, not new scope.
+
+Left untouched (flagged, not fixed): the magic-link enumeration-oracle paragraph
+(`docs/development.md` ≈ line 257) describes behaviour *conditional* on
+`GOTRUE_DISABLE_SIGNUP=true`; it does not assert that prod's default is disabled, so
+it isn't a registration-posture contradiction. It's legacy magic-link territory
+retiring in 2006 — out of scope here.
 
 **Why:** R5 makes `/auth/register` an **open**, primary surface, and the live box
 already runs `DISABLE_SIGNUP=false` (confirmed) so it works in prod today — but the
