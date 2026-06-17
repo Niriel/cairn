@@ -7,9 +7,20 @@
 // change that propagates to every call site, instead of drive-by edits that
 // can silently drift.
 
-export const PUBLIC_AUTH_PATHS = ['/auth/login', '/auth/check', '/auth/callback'] as const;
+export const PUBLIC_AUTH_PATHS = [
+	'/auth/signin',
+	'/auth/register',
+	'/auth/login',
+	'/auth/check',
+	'/auth/callback'
+] as const;
 
-export const SIGNED_IN_REDIRECT_PATHS = ['/auth/login', '/auth/check'] as const;
+export const SIGNED_IN_REDIRECT_PATHS = [
+	'/auth/signin',
+	'/auth/register',
+	'/auth/login',
+	'/auth/check'
+] as const;
 
 export const BEARER_AUTH_PATHS = ['/auth/user'] as const;
 

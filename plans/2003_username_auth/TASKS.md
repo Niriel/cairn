@@ -1236,10 +1236,28 @@ to method-gate).
 
 **Verify:** `cd web && pnpm lint && pnpm check && pnpm test`
 
-### [ ] 4.3 Re-point the route guard; make the new routes public (R8)
+### [x] 4.3 Re-point the route guard; make the new routes public (R8)
 
 **Created:** 2026-06-17T08:42:42Z
-**Completed:**
+**Completed:** 2026-06-17T13:25:02Z
+
+**Notes:** Went as planned.
+
+- **Dev GET-serving (Step 3) verified by inspection, not against a live stack** —
+  the dev stack wasn't brought up here. `vite.config.ts`'s proxy `bypass` is
+  `isSegmentMatch(req.url, PUBLIC_AUTH_PATHS) ? req.url : undefined`, so adding
+  `/auth/signin` + `/auth/register` to `PUBLIC_AUTH_PATHS` is exactly what makes a
+  GET short-circuit to the SvelteKit page instead of proxying to GoTrue. Confirmed
+  the path lists + bypass line; could not exercise an actual browser GET.
+
+- **Updated two stale comments in `+layout.svelte`** (the "bounced to /auth/login"
+  and the case-3 "redirect to / … stale login screen" narration) to name
+  `/auth/signin` and the full `SIGNED_IN_REDIRECT_PATHS` set, so the comments don't
+  contradict the re-pointed redirect. Not strictly required, but leaving them would
+  have been a doc-vs-code divergence in the same file.
+
+- Both `auth-paths.ts` copies edited identically; the drift guard
+  (`auth-proxy/test/auth-paths-drift.test.ts`) stayed green under `./scripts/check.sh`.
 
 **Why:** Make sign-in/register the primary surface: a signed-out user lands on
 `/auth/signin`, both routes are signed-out-viewable, and a signed-in user is

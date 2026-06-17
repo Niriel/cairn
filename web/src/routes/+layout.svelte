@@ -25,7 +25,7 @@
 	let { children }: { children: Snippet } = $props();
 
 	// Paths a signed-out visitor may view without being bounced to
-	// /auth/login: the auth-flow pages plus the static public content
+	// /auth/signin: the auth-flow pages plus the static public content
 	// pages (imprint/legal). Kept as two lists because auth-paths.ts is
 	// mirrored in the auth-proxy; see public-paths.ts.
 	const signedOutMayView = (pathname: string) =>
@@ -38,11 +38,12 @@
 	//   1. status === 'unknown' — bootSession() is still in flight; we
 	//      don't yet know which side of the gate the user is on.
 	//   2. signed-out on a non-public path — about to redirect to
-	//      /auth/login; without this branch the private route's
+	//      /auth/signin; without this branch the private route's
 	//      children paint once before the redirect.
-	//   3. signed-in on /auth/login or /auth/check — about to redirect
-	//      to /; without this branch the user briefly sees a stale
-	//      login screen after setSignedIn flipped the state.
+	//   3. signed-in on a SIGNED_IN_REDIRECT_PATHS page (signin,
+	//      register, login, check) — about to redirect to /; without
+	//      this branch the user briefly sees a stale auth screen after
+	//      setSignedIn flipped the state.
 	// /auth/callback is intentionally absent from case 3: the callback
 	// page owns its own goto('/'), and letting it render unimpeded
 	// keeps the two redirects from racing.
@@ -60,7 +61,7 @@
 	$effect(() => {
 		if (session.current.status === 'signed-out') {
 			if (signedOutMayView(page.url.pathname)) return;
-			void goto(resolve('/auth/login'), { replaceState: true });
+			void goto(resolve('/auth/signin'), { replaceState: true });
 			return;
 		}
 		if (session.current.status === 'signed-in') {
