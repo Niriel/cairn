@@ -36,6 +36,13 @@ declare module 'node:http' {
 const COOKIE_NAME = 'cairn_session';
 const ACCESS_COOKIE_NAME = 'cairn_access';
 
+// PostgREST base for the dev BFF handlers. In prod the auth-proxy reads
+// POSTGREST_URL (http://postgrest:3000); in dev the `/api` proxy already
+// targets PostgREST here, so the credential handlers (sign-in/register,
+// Tasks 3.2/3.3) reuse the same base to resolve usernames via the
+// resolve_username RPC. Mirrors postgrestUrl() in auth-proxy/src/lib/profiles.ts.
+const POSTGREST_DEV_URL = 'http://localhost:3000';
+
 // ~30-day idle horizon for both cookies — mirrors IDLE_HORIZON_SECONDS in
 // auth-proxy/src/lib/cookies.ts (the prod sibling). The access cookie outlives
 // its own JWT deliberately; see that file for why.
@@ -237,7 +244,7 @@ export default defineConfig({
 	server: {
 		proxy: {
 			'/api': {
-				target: 'http://localhost:3000',
+				target: POSTGREST_DEV_URL,
 				changeOrigin: false,
 				rewrite: (p) => p.replace(/^\/api/, ''),
 				configure: (proxy) => {

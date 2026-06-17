@@ -525,10 +525,24 @@ revise-forward); `docs/testing.md` (pgTAP); `web/src/lib/export/model/archive.ts
 
 ## Phase 3 — BFF endpoints + resolver wiring (R2, R4, R5, R6, R7)
 
-### [ ] 3.1 Wire the BFF to PostgREST: `resolveUsername` + `usernameForUid` helpers
+### [x] 3.1 Wire the BFF to PostgREST: `resolveUsername` + `usernameForUid` helpers
 
 **Created:** 2026-06-17T08:42:42Z
-**Completed:**
+**Completed:** 2026-06-17T11:44:50Z
+
+**Notes:** Put both helpers in a new sibling `auth-proxy/src/lib/profiles.ts`
+(cleaner than `session.ts`, which is GoTrue-only — these are PostgREST calls),
+following `session.ts`'s per-request `postgrestUrl()` config pattern.
+
+- **`web/vite.config.ts` (dev-base) deviation:** the task's Files line says
+  "make the PostgREST base available to dev handlers", but the dev sign-in/register
+  handlers don't exist yet (they land in 3.2/3.3), and the dev GoTrue URL is an
+  inline `http://localhost:9999` literal, not a constant. Adding an unused
+  `POSTGREST_URL` constant would trip ESLint `no-unused-vars` (and the no-disable
+  rule forbids silencing it). So I named the existing `/api` proxy target as a
+  `POSTGREST_DEV_URL` constant and pointed the `/api` proxy at it — the constant is
+  genuinely used today, the base is now named for the 3.2/3.3 dev handlers to reuse,
+  and lint stays clean. No behavioural change to the dev proxy.
 
 **Why:** The BFF only talks to GoTrue today. Sign-in needs to resolve a username →
 user id (Task 2.3), and every user-returning response needs the username looked up
