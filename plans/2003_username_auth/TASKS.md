@@ -977,10 +977,36 @@ extend).
 
 ## Phase 4 — client + screens (R7, R8)
 
-### [ ] 4.1 `auth-client` register/signIn + `AuthUser` carries username
+### [x] 4.1 `auth-client` register/signIn + `AuthUser` carries username
 
 **Created:** 2026-06-17T08:42:42Z
-**Completed:**
+**Completed:** 2026-06-17T13:00:00Z
+
+**Notes:** Went as planned. Worth recording:
+
+- **`src/lib/test/handlers.ts` swept too (not in the enumerated list).** The
+  default MSW `/auth/verify` and `/auth/token` handlers build an `AuthUser`-shaped
+  `user` consumed by the real `assertAuthUser` runtime guard, which now requires
+  `username`. Left as `email`, any test exercising those defaults would fail the
+  guard, so I switched both to `username: 'dev'`. The Step 3 grep (`--include=*.ts`)
+  catches it; flagging because the file wasn't in the task's explicit fixture list.
+
+- **`docs/data-export.md` line 23 left as-is (flagged, not changed).** The task
+  listed three doc edits (table line 11, data.json shape line 56, privacy note
+  line 23). Lines 11 and 56 are about *your* identity → switched to username. But
+  the line-23 privacy note ("Other users' emails. Email is private…") is about
+  *co-members'* emails, which are still excluded and still private (invites). It
+  doesn't contradict the migration, so changing it to "username" would be wrong.
+  Same for lines 115-117 (invite `target_email`) and 205 ("Cairn doesn't email
+  anyone") — all about other parties, untouched.
+
+- **`DevShortcuts.svelte:50` `user.email` left as-is.** It reads from a local
+  `DEV_USERS` literal (dev-login emails), not an `AuthUser`, so it type-checks
+  fine; Task 4.5 migrates the dev shortcut off the password grant.
+
+- Prettier re-aligned the "What's included" table in `data-export.md` (column
+  widths shifted when "email"→"username, incl. username"); 12-line alignment churn,
+  formatter doing its job.
 
 **Why:** The client needs Cairn-shaped `register`/`signIn` calls and a session
 identity built on the username, not the (now-meaningless) GoTrue e-mail.

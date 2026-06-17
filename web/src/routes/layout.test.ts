@@ -12,7 +12,7 @@ vi.mock('$app/state', async () => await import('$lib/test/app-state-mock.svelte'
 vi.mock('$app/navigation', () => ({ goto: vi.fn() }));
 vi.mock('$lib/shared/state/session.svelte');
 
-const SEED_USER = { id: '11111111-1111-1111-1111-111111111111', email: 'dev@example.test' };
+const SEED_USER = { id: '11111111-1111-1111-1111-111111111111', username: 'dev' };
 
 // Stub child snippet so tests can assert whether the layout rendered
 // `{@render children()}` by querying for `data-test="layout-children"`.

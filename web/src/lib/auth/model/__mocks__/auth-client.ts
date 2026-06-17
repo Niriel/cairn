@@ -14,10 +14,20 @@ import type { AuthUser } from '$lib/shared/state/session.svelte';
 
 const SEED_USER: AuthUser = {
 	id: '11111111-1111-1111-1111-111111111111',
-	email: 'dev@example.test'
+	username: 'dev'
 };
 
 export const sendMagicLink = vi.fn((_email: string): Promise<void> => Promise.resolve());
+
+export const signIn = vi.fn(
+	(_username: string, _password: string): Promise<{ user: AuthUser }> =>
+		Promise.resolve({ user: SEED_USER })
+);
+
+export const register = vi.fn(
+	(_username: string, _password: string): Promise<{ user: AuthUser }> =>
+		Promise.resolve({ user: SEED_USER })
+);
 
 export const exchangeRefreshToken = vi.fn(
 	(_refreshToken: string): Promise<{ user: AuthUser }> => Promise.resolve({ user: SEED_USER })

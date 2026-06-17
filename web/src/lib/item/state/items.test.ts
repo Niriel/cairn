@@ -51,7 +51,7 @@ beforeEach(async () => {
 	vi.resetModules();
 	sessionMod = await import('$lib/shared/state/session.svelte');
 	itemsMod = await import('./items.svelte');
-	sessionMod.setSignedIn({ id: TEST_UID, email: 'test@test.com' });
+	sessionMod.setSignedIn({ id: TEST_UID, username: 'tester' });
 });
 
 describe('loadItems', () => {

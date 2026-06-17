@@ -27,7 +27,7 @@ afterEach(() => {
 	vi.restoreAllMocks();
 });
 
-const SEED_USER = { id: '11111111-1111-1111-1111-111111111111', email: 'dev@example.test' };
+const SEED_USER = { id: '11111111-1111-1111-1111-111111111111', username: 'dev' };
 
 describe('sendMagicLink', () => {
 	test('POSTs `${VITE_AUTH_BASE}/magiclink?redirect_to=…` with {email}', async () => {
@@ -90,7 +90,7 @@ describe('exchangeRefreshToken', () => {
 		expect(result).toEqual({ user: SEED_USER });
 	});
 
-	test('throws when the 200 body is missing user.id/user.email', async () => {
+	test('throws when the 200 body is missing user.id/user.username', async () => {
 		server.use(http.post('*/auth/token', () => HttpResponse.json({ access_token: 'x' })));
 		await expect(mod.exchangeRefreshToken('rt-abc')).rejects.toBeInstanceOf(Error);
 	});
@@ -131,7 +131,7 @@ describe('devPasswordSignIn', () => {
 		expect(result).toEqual({ user: SEED_USER });
 	});
 
-	test('throws when the 200 body is missing user.id/user.email', async () => {
+	test('throws when the 200 body is missing user.id/user.username', async () => {
 		server.use(http.post('*/auth/token', () => HttpResponse.json({ access_token: 'x' })));
 		await expect(mod.devPasswordSignIn('alice@example.test', 'cairn-dev')).rejects.toBeInstanceOf(
 			Error
@@ -146,6 +146,80 @@ describe('devPasswordSignIn', () => {
 		await rejection.toBeInstanceOf(Error);
 		await rejection.toBeInstanceOf(mod.HttpError);
 		await rejection.toMatchObject({ name: 'HttpError', status: 400 });
+	});
+});
+
+describe('signIn', () => {
+	test('POSTs `${VITE_AUTH_BASE}/signin` with {username,password} + the CSRF header and returns { user }', async () => {
+		let seenPath: string | null = null;
+		let seenCsrf: string | null = null;
+		let seenBody: unknown = null;
+		server.use(
+			http.post('*/auth/signin', async ({ request }) => {
+				seenPath = new URL(request.url).pathname;
+				seenCsrf = request.headers.get(CSRF_HEADER);
+				seenBody = await request.json();
+				return HttpResponse.json({ user: SEED_USER });
+			})
+		);
+		const result = await mod.signIn('dev', 'cairn-dev');
+		expect(seenPath).toBe('/auth/signin');
+		expect(seenCsrf).not.toBeNull();
+		expect(seenBody).toEqual({ username: 'dev', password: 'cairn-dev' });
+		expect(result).toEqual({ user: SEED_USER });
+	});
+
+	test('throws when the 200 body is missing user.id/user.username', async () => {
+		server.use(http.post('*/auth/signin', () => HttpResponse.json({ ok: true })));
+		await expect(mod.signIn('dev', 'cairn-dev')).rejects.toBeInstanceOf(Error);
+	});
+
+	test('throws HttpError on a 401 (invalid credentials)', async () => {
+		server.use(
+			http.post('*/auth/signin', () =>
+				HttpResponse.json({ error: 'invalid credentials' }, { status: 401 })
+			)
+		);
+		const rejection = expect(mod.signIn('dev', 'wrong')).rejects;
+		await rejection.toBeInstanceOf(mod.HttpError);
+		await rejection.toMatchObject({ name: 'HttpError', status: 401 });
+	});
+});
+
+describe('register', () => {
+	test('POSTs `${VITE_AUTH_BASE}/register` with {username,password} + the CSRF header and returns { user }', async () => {
+		let seenPath: string | null = null;
+		let seenCsrf: string | null = null;
+		let seenBody: unknown = null;
+		server.use(
+			http.post('*/auth/register', async ({ request }) => {
+				seenPath = new URL(request.url).pathname;
+				seenCsrf = request.headers.get(CSRF_HEADER);
+				seenBody = await request.json();
+				return HttpResponse.json({ user: SEED_USER });
+			})
+		);
+		const result = await mod.register('dev', 'cairn-dev');
+		expect(seenPath).toBe('/auth/register');
+		expect(seenCsrf).not.toBeNull();
+		expect(seenBody).toEqual({ username: 'dev', password: 'cairn-dev' });
+		expect(result).toEqual({ user: SEED_USER });
+	});
+
+	test('throws when the 200 body is missing user.id/user.username', async () => {
+		server.use(http.post('*/auth/register', () => HttpResponse.json({ ok: true })));
+		await expect(mod.register('dev', 'cairn-dev')).rejects.toBeInstanceOf(Error);
+	});
+
+	test('throws HttpError on a 409 (username taken)', async () => {
+		server.use(
+			http.post('*/auth/register', () =>
+				HttpResponse.json({ error: 'username taken' }, { status: 409 })
+			)
+		);
+		const rejection = expect(mod.register('dev', 'cairn-dev')).rejects;
+		await rejection.toBeInstanceOf(mod.HttpError);
+		await rejection.toMatchObject({ name: 'HttpError', status: 409 });
 	});
 });
 
@@ -178,7 +252,7 @@ describe('verifyOtp', () => {
 		expect(result).toEqual({ user: SEED_USER });
 	});
 
-	test('throws when the 200 body is missing user.id/user.email', async () => {
+	test('throws when the 200 body is missing user.id/user.username', async () => {
 		server.use(http.post('*/auth/verify', () => HttpResponse.json({ access_token: 'x' })));
 		await expect(mod.verifyOtp('alice@example.test', '123456')).rejects.toBeInstanceOf(Error);
 	});

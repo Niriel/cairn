@@ -19,7 +19,7 @@ const FIXTURE: ExportDocument = {
 	schema_version: 1,
 	user: {
 		id: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
-		email: 'alice@test',
+		username: 'alice',
 		display_name: 'Alice',
 		signed_up_at: '2025-11-03T09:14:22Z',
 		invite_policy: 'circle',

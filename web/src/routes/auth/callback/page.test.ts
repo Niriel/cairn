@@ -31,7 +31,7 @@ afterEach(() => {
 	vi.clearAllMocks();
 });
 
-const SEED_USER = { id: '11111111-1111-1111-1111-111111111111', email: 'dev@example.test' };
+const SEED_USER = { id: '11111111-1111-1111-1111-111111111111', username: 'dev' };
 
 function setCallbackHash(hash: string) {
 	history.replaceState({}, '', `/auth/callback${hash}`);

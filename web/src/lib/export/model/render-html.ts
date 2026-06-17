@@ -94,7 +94,7 @@ export function renderDataHtml(doc: ExportDocument): string {
 
 <h2>Profile</h2>
 <p class="meta">Display name: ${escapeHtml(u.display_name)}</p>
-<p class="meta">E-mail: ${escapeHtml(u.email)}</p>
+<p class="meta">Username: @${escapeHtml(u.username)}</p>
 <p class="meta">Signed up: ${escapeHtml(u.signed_up_at)}</p>
 <p class="meta">Invite policy: ${escapeHtml(u.invite_policy)}</p>
 <p class="meta">Profile picture: ${u.has_avatar ? 'yes' : 'none'}</p>
