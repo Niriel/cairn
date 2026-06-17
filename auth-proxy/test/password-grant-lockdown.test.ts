@@ -10,6 +10,7 @@ import { app } from '../src/index.js';
 // only grant_type=password and leaves grant_type=refresh_token forwarding.
 let gotrueReqs: { method: string; url: string }[];
 let gotrue: http.Server;
+let postgrest: http.Server;
 
 beforeAll(async () => {
 	gotrue = http.createServer((req, res) => {
@@ -22,13 +23,26 @@ beforeAll(async () => {
 			res.end(JSON.stringify({ access_token: 'a', refresh_token: 'r', user: { id: 'u1' } }));
 		});
 	});
+	// The /auth/token forward is a cookie-plant path, so its token-returning 200
+	// is enriched with the username (a PostgREST lookup by uid). Stub PostgREST so
+	// the refresh_token forward completes rather than hanging on the prod host.
+	postgrest = http.createServer((_req, res) => {
+		res.statusCode = 200;
+		res.setHeader('content-type', 'application/json');
+		res.end(JSON.stringify([{ username: 'Grace' }]));
+	});
 	await new Promise<void>((resolve) => gotrue.listen(0, '127.0.0.1', resolve));
+	await new Promise<void>((resolve) => postgrest.listen(0, '127.0.0.1', resolve));
 	process.env.GOTRUE_URL = `http://127.0.0.1:${(gotrue.address() as AddressInfo).port}`;
+	process.env.POSTGREST_URL = `http://127.0.0.1:${(postgrest.address() as AddressInfo).port}`;
 });
 
 afterAll(async () => {
 	await new Promise<void>((resolve, reject) =>
 		gotrue.close((err) => (err ? reject(err) : resolve()))
+	);
+	await new Promise<void>((resolve, reject) =>
+		postgrest.close((err) => (err ? reject(err) : resolve()))
 	);
 });
 
