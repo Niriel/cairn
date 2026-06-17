@@ -20,9 +20,46 @@ async function cookieNamed(context: BrowserContext, name: string) {
 	return (await context.cookies()).find((c) => c.name === name);
 }
 
-// Drive the magic-link sign-in end to end and land on /lists.
+// A username that satisfies the `^[A-Za-z0-9]{3,30}$` rule and is unique per
+// run, so repeated runs against the shared dev DB never collide on the
+// case-fold uniqueness index.
+function uniqueUsername(prefix = 'e2e'): string {
+	return `${prefix}${Date.now().toString(36)}${Math.floor(Math.random() * 1e6).toString(36)}`;
+}
+
+// Register a fresh account through the real /auth/register flow and land
+// signed-in on /lists.
+async function register(page: Page, username: string, password: string): Promise<void> {
+	await page.goto('/auth/register');
+	await page.locator('[data-test="register-username"]').fill(username);
+	await page.locator('[data-test="register-password"]').fill(password);
+	await page.locator('[data-test="register-submit"]').click();
+	await expect(page).toHaveURL(/\/lists$/);
+}
+
+// Sign in through the real /auth/signin flow and land signed-in on /lists.
+async function signInWithPassword(page: Page, username: string, password: string): Promise<void> {
+	await page.goto('/auth/signin');
+	await page.locator('[data-test="signin-username"]').fill(username);
+	await page.locator('[data-test="signin-password"]').fill(password);
+	await page.locator('[data-test="signin-submit"]').click();
+	await expect(page).toHaveURL(/\/lists$/);
+}
+
+// Sign out via the settings screen and land on the signed-out surface
+// (the guard now bounces signed-out visitors to /auth/signin).
+async function signOut(page: Page): Promise<void> {
+	await page.goto('/settings');
+	await page.locator('[data-test="signout"]').click();
+	await expect(page).toHaveURL(/\/auth\/signin$/);
+}
+
+// Drive the magic-link sign-in end to end and land on /lists. The magic-link
+// login screen lives at /auth/login (still public until 2006); a signed-out
+// visit to `/` now lands on /auth/signin, so reach the magic-link screen
+// directly rather than via the guard bounce.
 async function signInViaMagicLink(page: Page, email: string): Promise<void> {
-	await page.goto('/');
+	await page.goto('/auth/login');
 	await expect(page).toHaveURL(/\/auth\/login$/);
 	await page.locator('[data-test="login-email"]').fill(email);
 	await page.locator('[data-test="login-submit"]').click();
@@ -56,7 +93,7 @@ function expiredAccessJwt(): string {
 test('magic-link happy path and sign-out', async ({ page, context }) => {
 	const email = `alice+${test.info().testId}@example.test`;
 
-	await page.goto('/');
+	await page.goto('/auth/login');
 	await expect(page).toHaveURL(/\/auth\/login$/);
 
 	await page.locator('[data-test="login-email"]').fill(email);
@@ -95,16 +132,16 @@ test('magic-link happy path and sign-out', async ({ page, context }) => {
 	// (c) Sign-out clears BOTH cookies (server-side revoke + cookie clear)...
 	await page.goto('/settings');
 	await page.locator('[data-test="signout"]').click();
-	await expect(page).toHaveURL(/\/auth\/login$/);
+	await expect(page).toHaveURL(/\/auth\/signin$/);
 	expect(await cookieNamed(context, DURABLE_COOKIE)).toBeUndefined();
 	expect(await cookieNamed(context, ACCESS_COOKIE)).toBeUndefined();
 
 	// ...and the session is genuinely gone: a fresh visit to a protected route
-	// boots with no cookies, /auth/refresh 401s, and the guard bounces to login
-	// (the data plane now runs as anon). Proves sign-out de-authorises /api, not
-	// just the local UI state.
+	// boots with no cookies, /auth/refresh 401s, and the guard bounces to
+	// sign-in (the data plane now runs as anon). Proves sign-out de-authorises
+	// /api, not just the local UI state.
 	await page.goto('/lists');
-	await expect(page).toHaveURL(/\/auth\/login$/);
+	await expect(page).toHaveURL(/\/auth\/signin$/);
 });
 
 test('code-entry happy path: typing the e-mailed code signs in', async ({ page, context }) => {
@@ -113,7 +150,7 @@ test('code-entry happy path: typing the e-mailed code signs in', async ({ page, 
 	// Reach /auth/check through the request flow, never a direct visit:
 	// pendingLogin is a module-scoped singleton wiped on hard reload, and
 	// /auth/check redirects to /auth/login when it's empty. Stay in the SPA.
-	await page.goto('/');
+	await page.goto('/auth/login');
 	await expect(page).toHaveURL(/\/auth\/login$/);
 
 	await page.locator('[data-test="login-email"]').fill(email);
@@ -145,7 +182,7 @@ test('magic-link non-2xx still lands on /auth/check (anti-enumeration)', async (
 		route.fulfill({ status: 429, contentType: 'application/json', body: '{}' })
 	);
 
-	await page.goto('/');
+	await page.goto('/auth/login');
 	await expect(page).toHaveURL(/\/auth\/login$/);
 
 	await page.locator('[data-test="login-email"]').fill(email);
@@ -203,35 +240,25 @@ test.describe('revocable session', () => {
 	// (d) Sign-out-everywhere from one context revokes a *second* signed-in
 	// session of the same user: that second context's next refresh 401s. Two
 	// genuinely distinct sessions are required (one shared/cloned session can't
-	// distinguish global from local revoke), and GoTrue throttles a repeat
-	// magic-link to the same e-mail (429), so this uses the dev-login password
-	// grant for a seed user. That fixes the e-mail to alice@example.test, which is
-	// shared across Playwright projects — a concurrent global revoke from another
-	// project would interfere — so the scenario runs on a single project. The
-	// revoke is backend-side and browser-independent (GoTrue invalidating refresh
-	// tokens), so one browser proves it; firefox is the chosen one (Cairn's users
-	// are on firefox).
+	// distinguish global from local revoke). This registers a fresh
+	// username+password account per run and signs in twice (once per context),
+	// so it needs no shared seed user and no cross-project skip — the unique
+	// username keeps concurrent Playwright projects from interfering. The revoke
+	// is backend-side and browser-independent (GoTrue invalidating refresh
+	// tokens).
 	test('sign-out-everywhere revokes a second session', async ({ page, browser }) => {
-		test.skip(
-			browser.browserType().name() !== 'firefox',
-			'uses the shared seed user alice@example.test; run once to avoid cross-project revoke interference'
-		);
+		const username = uniqueUsername('revoke');
+		const password = 'cairn-e2e-pw';
 
-		// Context A — first session for alice.
-		await page.goto('/');
-		await expect(page).toHaveURL(/\/auth\/login$/);
-		await page.locator('[data-test="dev-login-alice"]').click();
-		await expect(page).toHaveURL(/\/lists$/);
+		// Context A — register, creating the account and the first session.
+		await register(page, username, password);
 
-		// Context B — a second, independent session for the same user.
+		// Context B — a second, independent session for the same user via sign-in.
 		const contextB = await browser.newContext();
 		const pageB = await contextB.newPage();
-		await pageB.goto('/');
-		await expect(pageB).toHaveURL(/\/auth\/login$/);
-		await pageB.locator('[data-test="dev-login-alice"]').click();
-		await expect(pageB).toHaveURL(/\/lists$/);
+		await signInWithPassword(pageB, username, password);
 
-		// From context A, sign out everywhere (revokes ALL of alice's sessions).
+		// From context A, sign out everywhere (revokes ALL of the user's sessions).
 		// There is no sign-out-everywhere UI yet, so drive the BFF endpoint
 		// directly from A's page (carrying A's cookies + the required CSRF header).
 		const status = await page.evaluate(async (header) => {
@@ -246,9 +273,9 @@ test.describe('revocable session', () => {
 
 		// Context B's session is now revoked server-side: a fresh boot refreshes
 		// the durable cookie, /auth/refresh 401s (revoked family), and the guard
-		// bounces B to login.
+		// bounces B to sign-in.
 		await pageB.goto('/lists');
-		await expect(pageB).toHaveURL(/\/auth\/login$/);
+		await expect(pageB).toHaveURL(/\/auth\/signin$/);
 
 		await contextB.close();
 	});
@@ -271,6 +298,99 @@ test.describe('revocable session', () => {
 		]);
 
 		await page.goto('/lists');
-		await expect(page).toHaveURL(/\/auth\/login$/);
+		await expect(page).toHaveURL(/\/auth\/signin$/);
+	});
+});
+
+// Username + password sign-in, end to end against the real stack (the BFF
+// resolve_username → password-grant-against-<uid>@cairn.internal → dual-cookie
+// plant). The load-bearing property is (c): a username change does NOT break
+// sign-in, because the GoTrue login handle is the stable uid identity, not the
+// username.
+test.describe('username + password credential', () => {
+	const PASSWORD = 'cairn-e2e-pw';
+
+	// (a) Register happy path: a fresh username+password lands signed-in with
+	// both dual-session cookies planted (HttpOnly, SameSite=Lax).
+	test('register signs in and plants both cookies', async ({ page, context }) => {
+		const username = uniqueUsername('reg');
+		await register(page, username, PASSWORD);
+
+		const durable = await cookieNamed(context, DURABLE_COOKIE);
+		expect(durable).toBeDefined();
+		expect(durable?.httpOnly).toBe(true);
+		expect(durable?.sameSite).toBe('Lax');
+		const access = await cookieNamed(context, ACCESS_COOKIE);
+		expect(access).toBeDefined();
+		expect(access?.httpOnly).toBe(true);
+		expect(access?.sameSite).toBe('Lax');
+	});
+
+	// (b) Sign-in happy path: register, sign out, then sign in again with the
+	// same credentials.
+	test('sign-in after sign-out signs back in', async ({ page }) => {
+		const username = uniqueUsername('signin');
+		await register(page, username, PASSWORD);
+		await signOut(page);
+		await signInWithPassword(page, username, PASSWORD);
+	});
+
+	// (c) Rename-then-sign-in: while signed in, change the username, sign out,
+	// and sign in with the NEW username + the same password. This is the whole
+	// point of the stable identity — the credential survives the rename.
+	// There is no rename UI yet, so the rename is driven through the
+	// authenticated set_username RPC directly (the same "no UI yet, hit the
+	// endpoint" approach the sign-out-everywhere test uses for the BFF).
+	test('a username change does not break sign-in', async ({ page }) => {
+		const username = uniqueUsername('old');
+		const renamed = uniqueUsername('new');
+		await register(page, username, PASSWORD);
+
+		// /api is the data plane (cookie→bearer translation, no CSRF header).
+		const status = await page.evaluate(async (newName) => {
+			const res = await fetch('/api/rpc/set_username', {
+				method: 'POST',
+				credentials: 'same-origin',
+				headers: { 'content-type': 'application/json' },
+				body: JSON.stringify({ p_username: newName })
+			});
+			return res.status;
+		}, renamed);
+		expect(status).toBeGreaterThanOrEqual(200);
+		expect(status).toBeLessThan(300);
+
+		await signOut(page);
+
+		// The OLD username no longer resolves; the NEW one signs in.
+		await signInWithPassword(page, renamed, PASSWORD);
+	});
+
+	// (d) Constant-shape failure: a wrong password and an unknown username both
+	// show the same inline error and do not sign in.
+	test('wrong password and unknown username fail identically', async ({ page }) => {
+		const username = uniqueUsername('shape');
+		await register(page, username, PASSWORD);
+		await signOut(page);
+
+		// Wrong password for a real account.
+		await page.goto('/auth/signin');
+		await page.locator('[data-test="signin-username"]').fill(username);
+		await page.locator('[data-test="signin-password"]').fill('definitely-wrong');
+		await page.locator('[data-test="signin-submit"]').click();
+		await expect(page.locator('[data-test="signin-error"]')).toBeVisible();
+		const wrongPwError = await page.locator('[data-test="signin-error"]').textContent();
+		await expect(page).toHaveURL(/\/auth\/signin$/);
+
+		// Unknown username — same inline error, still no sign-in.
+		await page.goto('/auth/signin');
+		await page.locator('[data-test="signin-username"]').fill(uniqueUsername('nobody'));
+		await page.locator('[data-test="signin-password"]').fill(PASSWORD);
+		await page.locator('[data-test="signin-submit"]').click();
+		await expect(page.locator('[data-test="signin-error"]')).toBeVisible();
+		const unknownUserError = await page.locator('[data-test="signin-error"]').textContent();
+		await expect(page).toHaveURL(/\/auth\/signin$/);
+
+		// Constant-shape: the two failures are indistinguishable to the caller.
+		expect(unknownUserError).toBe(wrongPwError);
 	});
 });

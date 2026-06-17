@@ -1314,10 +1314,52 @@ toolchain-coupling note — the routes must exist before `resolve()`);
 
 **Verify:** `./scripts/check.sh` (covers the web tests **and** the auth-proxy drift test)
 
-### [ ] 4.4 Playwright e2e: register → sign-in → rename-then-sign-in
+### [x] 4.4 Playwright e2e: register → sign-in → rename-then-sign-in
 
 **Created:** 2026-06-17T08:42:42Z
-**Completed:**
+**Completed:** 2026-06-17T13:47:38Z
+
+**Notes:** All 10 specs in `e2e/auth.spec.ts` pass on firefox against the live
+dev stack. Several things were needed beyond just adding the four specs:
+
+- **Task 4.3 had broken every existing auth e2e** (not run by `check.sh`). The
+  guard now bounces signed-out visitors to `/auth/signin`, but the magic-link
+  specs did `goto('/')` expecting `/auth/login`, and post-signout / protected-route
+  assertions expected `/auth/login`. Fixed: the magic-link specs now `goto('/auth/login')`
+  directly (still public until 2006); signout/bounce assertions now expect
+  `/auth/signin`. This was fallout from 4.3 that 4.4's e2e run surfaced.
+
+- **Rewrote `sign-out-everywhere` onto the new password flow.** It used the
+  dev-login shortcut → `devPasswordSignIn` → `grant_type=password`, which Task 3.2
+  locked and whose seed isn't adopted (4.5's domain). Rather than leave it red or
+  skipped, it now registers a fresh unique username and signs in twice (one per
+  context). This removed its dependency on the locked grant **and** its firefox-only
+  cross-project skip (unique username per run, no shared seed). It no longer needs
+  4.5.
+
+- **Spec (c) rename driven via the `set_username` RPC directly**, not a UI — there
+  is **no username-rename UI** in the app yet (the task assumed "the existing
+  settings `set_username` path"; it doesn't exist). Mirrors the same "no UI yet,
+  hit the authenticated endpoint" approach the sign-out-everywhere test uses for the
+  BFF. User confirmed this approach is acceptable.
+
+- **Dev DB was missing `resolve_username`** (Task 2.3). The `_migrations` ledger
+  showed `0020` applied at 11:25 — between 2.2 and 2.3 — so the running dev DB ran
+  an earlier `0020` without `resolve_username` (2.3) or the username export switch
+  (2.4). `migrate.sh` is filename-idempotent so it won't re-apply an edited `0020`.
+  Applied the `resolve_username` function block surgically via `psql` + a PostgREST
+  schema reload (avoided `reset-db.sh --full`, which would wipe the user's dev
+  data). **Flag for the user:** the dev DB's `0020` is still missing Task 2.4's
+  `export_my_data` username switch; a `./scripts/reset-db.sh --full && ./scripts/migrate.sh
+  && ./scripts/seed.sh` would fully resync it (not required for this task — the
+  export RPC isn't on the auth path). Production applies migrations from the file,
+  so prod is unaffected.
+
+- **Magic-link e2e is flaky under rapid repeated local runs** — GoTrue returns
+  `429: you can only request this after 34 seconds` (per-actor magic-link send
+  cooldown). The authoritative all-green run was taken after the cooldown elapsed
+  with a cleared Mailpit. Not a code defect; the password specs are unaffected (no
+  e-mail).
 
 **Why:** Prove the new credential end-to-end against the real stack, including the
 property that makes the stable identity matter — a username change does not break
@@ -1386,6 +1428,25 @@ lives in `web/src/lib/auth/components/DevShortcuts.svelte`; its tests are
 `VITE_DEV_LOGIN_PASSWORD`; the seed password is `DEV_PASSWORD` (`scripts/seed.sh`).
 The dev-shortcut gating (`import.meta.env.DEV` dynamic import, `0301_gate_dev_login`)
 is unchanged — only the call it makes changes.
+
+**Heads-up carried over from Task 4.4 (read before starting):**
+- **The new sign-in does a real password grant**, so `VITE_DEV_LOGIN_PASSWORD`
+  (what the shortcut sends) **must equal** `DEV_PASSWORD` (what the seed signs up
+  with). A mismatch was invisible under the old dev-only grant but now fails the
+  grant. Verify they match (or reconcile them) as part of this task.
+- **Resync the dev DB before the step-4 smoke test.** The running dev DB applied an
+  earlier build of `0020_username_auth.sql` (before `resolve_username` (2.3) and the
+  `export_my_data` username switch (2.4)); `migrate.sh` is filename-idempotent so it
+  will **not** re-apply the edited `0020`. Task 4.4 patched `resolve_username` in by
+  hand, but the clean, complete fix — which also re-seeds under this task's new
+  `seed.sh` — is to run `./scripts/reset-db.sh --full && ./scripts/migrate.sh &&
+  ./scripts/seed.sh` (dev-only; wipes dev data). Do this **after** editing `seed.sh`
+  in step 2 so the reseed exercises the new seed logic. Production is unaffected (it
+  migrates from the file).
+- The one e2e that depended on the dev-login grant (`sign-out-everywhere` in
+  `e2e/auth.spec.ts`) was already migrated off it in Task 4.4, so it is **not** part
+  of this task's scope — only the Vitest tests and the `seed.sh` / `DevShortcuts`
+  changes listed below remain.
 
 **Decisions:**
 - `DevShortcuts.svelte` calls `signIn(username, VITE_DEV_LOGIN_PASSWORD)` with the
