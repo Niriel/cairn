@@ -32,15 +32,16 @@ somewhere to land. This task builds the sheet in isolation; Task 1.2 wires it in
 `ListOverflowSheet.test.ts`.
 
 **Decisions:**
+
 - The sheet is a thin menu only — it holds no edit/delete business logic. It
   emits callbacks the parent handles; the parent keeps owning `AddEditItemSheet`,
   `DeleteItemSheet`, and the undo state. Props:
   ```ts
   type Props = {
-    itemName: string;
-    onedit: () => void;
-    ondelete: () => void;
-    onclose: () => void;
+  	itemName: string;
+  	onedit: () => void;
+  	ondelete: () => void;
+  	onclose: () => void;
   };
   ```
 - Structure mirrors `ListOverflowSheet`: `<Sheet open={true} {onclose}>`, a
@@ -62,10 +63,12 @@ and `ListOverflowSheet.test.ts` (test shape). `docs/ui.md` for menu-row styling
 and destructive-action colour.
 
 **Files:**
+
 - `web/src/lib/item/components/ItemOverflowSheet.svelte` (create)
 - `web/src/lib/item/components/ItemOverflowSheet.test.ts` (create)
 
 **Steps:**
+
 1. RED — Create `ItemOverflowSheet.test.ts`: (a) renders the item name in the
    header; (b) renders an Edit row (`item-overflow-edit`) and a Delete row
    (`item-overflow-delete`); (c) clicking Edit fires `onedit`; (d) clicking
@@ -91,7 +94,7 @@ implemented most of the screen wiring, the mock, the unit/e2e tests, and the
   (invalid CSS — silently falls back to `stretch`); its own comment described
   `flex-start`. Restored to `flex-start`.
 - **Real back-stack regression (the big one).** The overflow→Edit/Delete swap
-  set the target sheet and nulled `overflowItem` in the *same tick*, so the
+  set the target sheet and nulled `overflowItem` in the _same tick_, so the
   overflow guard's programmatic `history.back()` raced a `pushState` for the
   target. `back-stack.svelte.ts` tracks self-induced popstates with a single
   boolean, so the guard stack desynced from real browser history and the app
@@ -101,12 +104,12 @@ implemented most of the screen wiring, the mock, the unit/e2e tests, and the
   downstream e2e `(g)`/`(h)` too. Confirmed a regression by stashing the 1.2
   working changes and running the committed baseline (inline buttons) → 18/18
   green. **This contradicts the task's Decisions**, which said to leave `openId`
-  set and *not* use the await-popstate sequencing pattern, claiming the swap was
+  set and _not_ use the await-popstate sequencing pattern, claiming the swap was
   a "proven one-back-one-push shape." It is not, once a second guard (the open
   row) is on the stack.
   - **Fix (local, no shared-primitive change):** added `closeOverlayAndSettle()`
     in `ItemsScreen.svelte` — close the overlay, await its `history.back()`
-    popstate, *then* push the next guard — so only one back is ever in flight
+    popstate, _then_ push the next guard — so only one back is ever in flight
     (mirrors the existing `onviewtrash` handler). Applied to the Edit and Delete
     swaps. Also null `openId` when an item is actually deleted (the row behind
     the sheet is stale), sequenced after the delete sheet's teardown, so no row
@@ -134,9 +137,10 @@ already owns `editSheetItem` / `deleteSheetItem` state and the
 `AddEditItemSheet` / `DeleteItemSheet` / undo-snackbar render blocks.
 
 **Decisions:**
+
 - **Remove** the entire `<div class="extra-actions">…</div>` block (the inline
   Delete + Edit `Button`s, ~lines 214-239) and its `.extra-actions` CSS
-  (~lines 447-451). `Button` is used *only* in that block, so also delete the
+  (~lines 447-451). `Button` is used _only_ in that block, so also delete the
   now-unused `import Button from '$lib/basic/components/Button.svelte';`
   (line 19) — otherwise svelte-check / `@typescript-eslint/no-unused-vars` fails
   `pnpm check` / `pnpm lint`.
@@ -171,7 +175,7 @@ already owns `editSheetItem` / `deleteSheetItem` state and the
   buttons.
 - **Import** `ItemOverflowSheet` from `./ItemOverflowSheet.svelte`.
 - **Test stub for `ItemOverflowSheet`.** `ItemsScreen.test.ts` mocks the sheet
-  (as it already mocks `ListOverflowSheet`), but unlike the *static*
+  (as it already mocks `ListOverflowSheet`), but unlike the _static_
   `__mocks__/ListOverflowSheet.svelte` div, this mock must forward the callbacks
   so the wiring can be asserted. Create
   `web/src/lib/item/components/__mocks__/ItemOverflowSheet.svelte` rendering an
@@ -206,6 +210,7 @@ already owns `editSheetItem` / `deleteSheetItem` state and the
 placement/CSS; `docs/ui.md` for the extra-panel spec being edited.
 
 **Files:**
+
 - `web/src/lib/item/components/ItemsScreen.svelte` (modify)
 - `web/src/lib/item/components/ItemsScreen.test.ts` (modify)
 - `web/src/lib/item/components/__mocks__/ItemOverflowSheet.svelte` (create)
@@ -213,6 +218,7 @@ placement/CSS; `docs/ui.md` for the extra-panel spec being edited.
 - `docs/ui.md` (modify)
 
 **Steps:**
+
 1. RED — In `ItemsScreen.test.ts`, **add** new assertions (the file has no
    `extra-edit` / `extra-delete` assertions today — those live only in the e2e
    spec, so there is nothing to replace here). Mock `ItemOverflowSheet` (see

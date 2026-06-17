@@ -22,7 +22,7 @@ which reads as plain text rather than a "go here" affordance.
 
 Adjacent list rows are separated only by the global `.rows .row { border-bottom }`
 rule in `web/src/lib/shared/styles/surfaces.css`; the dashed line is a
-*within-row* separator on `.row-top`.
+_within-row_ separator on `.row-top`.
 
 The shared `NavRow` (`web/src/lib/shared/components/NavRow.svelte`) is the
 project's standard navigation row: a `.nav-row` div wrapping a full-width
@@ -34,15 +34,15 @@ optional sub) → optional `trailing()` → always a `chevron-right` icon. Today
 **Relationship to the design mockup.** The design canvas
 (`design/cairn-screens.jsx:404-446`, ListsScreen) shows each list as a single
 flex row — leading icon · text column (name / description / meta) · one trailing
-chevron centred against the *whole* column — with **no per-list ⋮ button** and
+chevron centred against the _whole_ column — with **no per-list ⋮ button** and
 **no dashed within-row rule**. This plan deliberately departs from that mockup
 on three counts, and the departures are driven by `docs/ui.md` and the existing
 implementation rather than the JSX:
 
 - The chevron sits beside the **title only** (inside the title `NavRow`), not
   against the whole row, because `docs/ui.md` ("Lists screen") splits the row
-  into two tap targets — *tap the name → navigate*, *tap the description →
-  expand* — so the name and the description cannot share one button. The title
+  into two tap targets — _tap the name → navigate_, _tap the description →
+  expand_ — so the name and the description cannot share one button. The title
   becomes the nav-row; the description stays a sibling toggle below it.
 - The per-list **⋮ "More" button** (R4) and the **dashed in-row rule** (R5)
   exist in the current implementation (and the ⋮ is mandated by `docs/ui.md`
@@ -74,7 +74,7 @@ More button sit in a sibling `.extra` block beneath it.
 plain string, so the globe can't sit mid-title. The `trailing` snippet renders
 it just before the chevron (R3). This is a minor visual shift (globe near the
 chevron rather than hugging the name) and is consistent with how `SettingsScreen`
-uses `trailing` for badges. Reworking `NavRow` to take a title *snippet* was
+uses `trailing` for badges. Reworking `NavRow` to take a title _snippet_ was
 considered and rejected as out of scope.
 
 **Reconcile nav-row padding by zeroing `.row` padding.** `NavRow`'s inner
@@ -91,7 +91,7 @@ and metadata align under the title and the inter-row rhythm is preserved (R1).
 at the top-right without reserving a flex column that would squeeze the
 description and metadata. `.extra` gets enough `padding-right` that the
 ellipsizing description never runs under the button (R4). The trade-off: that
-right inset also gutters the metadata line and every line of an *expanded*
+right inset also gutters the metadata line and every line of an _expanded_
 (multi-line) description, not just the first line under the button — accepted,
 confirmed in the visual verify.
 

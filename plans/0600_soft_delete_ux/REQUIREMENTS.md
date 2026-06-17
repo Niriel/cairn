@@ -55,7 +55,7 @@ screen. A snackbar appears at the bottom of the Lists screen for **6 seconds**. 
 spec (matching `design/cairn-screens.jsx` `ItemsScreenWithUndo`, screen 15):
 `background: var(--ink); color: var(--paper); border-radius: 12px; padding:
 12px 14px; font-size: 13.5px`. Leading `trash-2` icon (16 px, `var(--paper)`).
-Message text (flex: 1): *"Deleted '<list name>'"* with the name in weight 600.
+Message text (flex: 1): _"Deleted '<list name>'"_ with the name in weight 600.
 Trailing **UNDO** label: uppercase, weight 700, 12 px, `color: var(--sage)`,
 `padding: 4px 8px`. The snackbar is a shared `<UndoSnackbar>` component
 (see Architecture in `PLAN.md`) reused by both item and list delete; 0601
@@ -72,16 +72,17 @@ A screen at `/(app)/lists/[list_id]/trash/` shows the soft-deleted items for
 one list, fetched from
 `GET /items_deleted?list_id=eq.<uuid>&order=deleted_at.desc`. Each row (visual
 spec: `design/cairn-screens.jsx` → `TrashScreen`, screen 14):
+
 - Leading `rotate-ccw` icon in `var(--stone-lt)`.
 - Item name in `var(--stone)` with `text-decoration: line-through;
-  text-decoration-color: var(--stone-lt); text-decoration-thickness: 1px`.
+text-decoration-color: var(--stone-lt); text-decoration-thickness: 1px`.
 - Attribution: `deleted by <display_name> · <date>` in 11.5 px `var(--stone-lt)`.
   `<date>` uses `timeAgo` (relative for < 30 days, absolute `"1 May 2026"` for
   ≥ 30 days) per `docs/ui.md` → "Dates".
 - Trailing **Restore** pill button (outlined, `var(--ink)` border and text).
 
-A description line directly below the TopBar: *"Items you delete from this list
-land here. Tap Restore to bring one back."* — `font-size: 12.5px; color:
+A description line directly below the TopBar: _"Items you delete from this list
+land here. Tap Restore to bring one back."_ — `font-size: 12.5px; color:
 var(--stone); line-height: 1.5; padding: 14px 18px 6px`.
 
 TopBar: title "Trash", `sub` prop = list name. Back arrow navigates back to the
@@ -116,6 +117,7 @@ list reappears on the Lists screen on next load. No snackbar.
 
 The Settings screen gains a **Recovery** section between the Appearance section
 and the Sign Out section:
+
 - Section header "Recovery" in the same uppercase small-caps style as other
   section headers.
 - Nav row: icon `trash-2`, title "Deleted lists", subtitle "Restore lists

@@ -46,7 +46,7 @@ freely import without dragging the reactivity system in").
 
 **Branch order in `Avatar.svelte`: tombstone first.** Currently
 `Avatar.svelte` branches `photo (avatarVersion > 0 && uid.length > 0)`
-→ `initials`. Adding tombstone as the *first* branch (`uid ===
+→ `initials`. Adding tombstone as the _first_ branch (`uid ===
 TOMBSTONE_UID`) means a caller can't accidentally render a tombstone
 photo by passing a positive `avatarVersion` together with the
 tombstone UUID. The tombstone row in `profiles` has
@@ -82,7 +82,7 @@ accordion. The trash screens render the literal `display_name`
 (`"Deleted user"` for the tombstone) in the standard
 `var(--stone-lt)` colour — same as any other name. Holding the line
 here keeps the visual contract simple: italic-serif means "this user
-no longer exists" *in the Items accordion specifically* — the
+no longer exists" _in the Items accordion specifically_ — the
 recovery surfaces themselves carry no such per-row affordance.
 
 **E2E deferred to parent Phase 4.** `tg_set_attribution_items`
@@ -119,9 +119,9 @@ italic-class toggling, and the Recovery row's `goto` wiring.
   `goto` with the resolved path.
 - **`web/src/lib/item/components/ItemsScreen.svelte`** — import
   `TOMBSTONE_UID`; add `class:tombstone={item.created_by ===
-  TOMBSTONE_UID}` to the existing `<strong>{item.created_by_name}</strong>`,
+TOMBSTONE_UID}` to the existing `<strong>{item.created_by_name}</strong>`,
   same for `modified_by`/`modified_by_name`. Add a `.attribution
-  strong.tombstone` CSS rule. No script changes beyond the import.
+strong.tombstone` CSS rule. No script changes beyond the import.
 - **`web/src/lib/item/components/ItemsScreen.test.ts`** — add two
   new tests: (a) tombstone `created_by` triggers italic styling on
   the creator name, (b) live creator + tombstone editor triggers

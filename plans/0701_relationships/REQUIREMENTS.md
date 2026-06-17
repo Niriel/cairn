@@ -8,6 +8,7 @@ four RLS policies, the two circle RPCs (`add_circle_by_email` and
 ## R1. `relationships` table
 
 Create `public.relationships` with:
+
 - `user_id` uuid NOT NULL FK to `auth.users(id)` ON DELETE CASCADE
 - `other_user_id` uuid NOT NULL FK to `auth.users(id)` ON DELETE CASCADE
 - `status` text NOT NULL CHECK in `('circle', 'blocked')`
@@ -16,7 +17,7 @@ Create `public.relationships` with:
 - PRIMARY KEY `(user_id, other_user_id)`
 - CHECK `user_id <> other_user_id`
 
-Enable RLS. The table is directional: *"user_id's view of other_user_id."*
+Enable RLS. The table is directional: _"user_id's view of other_user_id."_
 
 Bind `tg_set_timestamps` (`BEFORE INSERT OR UPDATE`) with trigger name
 `t05_set_timestamps`. Bind `tg_set_modified_at`

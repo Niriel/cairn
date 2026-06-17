@@ -8,6 +8,7 @@ into `0400_mvp_product` before the step is merged to `main`.
 ## Context
 
 Steps 1–3 are merged. The stack has:
+
 - **DB:** `lists`, `items`, `votes`, `items_ranked`, `items_deleted`,
   `lists_deleted`, full RLS, `public.uid()`, `public.is_list_member()`.
 - **Frontend primitives:** `Button`, `ButtonPair`, `Sheet`, `Fab`, `TopBar`,

@@ -11,7 +11,7 @@ its phases create and execute six sub-plans, each on its own branch cut from
 > **This plan was revised after 2001 shipped.** The original decomposition
 > leaned on a synthetic-e-mail GoTrue mechanism and an unchanged "dumb shim"
 > session model; that has been superseded by the **session-security + auth-BFF**
-> design recorded under "Design revision" below. 2001 is revised *forward*, not
+> design recorded under "Design revision" below. 2001 is revised _forward_, not
 > reverted. Read the Design-revision section before the Decisions above it — the
 > Decisions section keeps the cross-cutting choices that still hold, and the
 > Design-revision section records what changed and why.
@@ -25,10 +25,10 @@ plus the six-digit OTP that `plans/1700_email_otp` added; the session
 (`send_invitation(p_email)`, `add_circle_by_email`), looking the address up in
 `auth.users`. `docs/architecture.md` stated the auth model as "**email magic
 links only** … No passwords are ever stored or transmitted by us," and listed
-passwords-avoided as a *benefit* under "Considered and rejected".
+passwords-avoided as a _benefit_ under "Considered and rejected".
 
 That model has two problems the user wants gone. First, e-mail is both the
-private contact field *and* the public add-key, which is the source of the
+private contact field _and_ the public add-key, which is the source of the
 "add by e-mail is confusing" complaint and a privacy smell. Second, it forces
 every user to provide an e-mail address Cairn doesn't actually want. The fix is
 a public, unique, user-chosen **username** as the identity and add-key, a
@@ -105,7 +105,7 @@ decisions, the design revision, and the merge/verification checklist.
 
 After 2001 merged, examining "what's actually in the cookie" reframed the
 security priority of step 20. The change of credential (e-mail → password) is
-the *visible* part; the larger security issue is the **session model the
+the _visible_ part; the larger security issue is the **session model the
 credential rides on**, which predates this step and is wrong for a password.
 
 **The gap (verified in code).** `cairn_session` **is** the GoTrue access JWT,
@@ -115,7 +115,7 @@ nowhere (`auth-proxy/src/index.ts:154-157`). So the cookie is a bearer valid for
 its full lifetime to anyone who captures it, and there is **no server-side
 session record** — "sign out everywhere", killing sessions on compromise, and
 forcing re-auth after a password change are all impossible. The existing
-HttpOnly + token-stripping stance is a *good* XSS defence and is kept; the gap is
+HttpOnly + token-stripping stance is a _good_ XSS defence and is kept; the gap is
 narrowly the long-lived, non-revocable cookie value.
 
 **The decision (approved by the user).** Go **full** rather than patch:
@@ -123,8 +123,8 @@ narrowly the long-lived, non-revocable cookie value.
 - **Revocable, rotating session (R14).** The cookie carries a rotating
   refresh/session token, not a long-lived access JWT; access tokens become
   short-lived and server-held, minted on demand; refresh uses rotation with
-  reuse detection. *This single change is the largest security delta in the
-  step.*
+  reuse detection. _This single change is the largest security delta in the
+  step._
 - **The `auth-proxy` becomes a Cairn-shaped BFF (R15).** It exposes
   `/auth/register|signin|signout|refresh` in Cairn's own shapes and owns all
   GoTrue translation; the browser never sees a token, a `grant_type`, or a
@@ -141,9 +141,9 @@ narrowly the long-lived, non-revocable cookie value.
 
 **Why full, not the middle path.** The `auth-proxy` has to grow regardless: doing
 revocable refresh server-side (R14) — store the refresh token, detect access
-expiry, call GoTrue's refresh endpoint, rotate, re-plant — *cannot* live in a
+expiry, call GoTrue's refresh endpoint, rotate, re-plant — _cannot_ live in a
 static SPA, so the "keep it a dumb shim" stance is no longer on the table. Once
-the BFF exists, the stable-identity + resolver design (R16) is *cheaper* than
+the BFF exists, the stable-identity + resolver design (R16) is _cheaper_ than
 keeping 2001's synthetic e-mail: the BFF already has to map the typed username to
 something to authenticate, so the resolver **is** the work, not extra work — and
 in exchange we delete fragility (the `auth.users.email` rewrite in
@@ -151,7 +151,7 @@ in exchange we delete fragility (the `auth.users.email` rewrite in
 guard). Keeping the synthetic e-mail would carry that fragility for no benefit
 once the BFF is doing the lookup anyway.
 
-**What this supersedes.** Two 2001-era choices are reversed (revised *forward*,
+**What this supersedes.** Two 2001-era choices are reversed (revised _forward_,
 not reverted — 2001's column, uniqueness, `recovery_email`, and `set_username`
 signature/guards all survive):
 
@@ -205,7 +205,7 @@ cross-cutting touch-points each sub-plan will work against:
 - **`web/src/lib/auth/`** — `auth-client.ts` (Cairn-shaped calls to the BFF, no
   GoTrue protocol), new register/sign-in/recovery screens, `session.svelte.ts`
   (`AuthUser` gains `username`, loses the e-mail-as-identity assumption — note
-  `assertAuthUser` currently *requires* `email`).
+  `assertAuthUser` currently _requires_ `email`).
 - **`web/src/lib/invite/` and `web/src/lib/privacy/`** — `InvitePickerSheet`
   and `CircleScreen` swap e-mail fields for username fields; profile sheet,
   members screen, and vote attribution render `@username`.

@@ -41,10 +41,11 @@ on. Write "None" for the first task. Reference earlier task numbers
 when applicable: "Task 1.1 (`uid()` helper exists)".
 
 **Decisions:**
+
 - Key design choices that affect implementation.
 - Inline the relevant detail from `PLAN.md` — don't say "see
   PLAN.md".
-- Only include what's relevant to *this* task.
+- Only include what's relevant to _this_ task.
 
 **Reference:** <Optional. When a task involves patterns governed by a
 specific skill or doc, point to it with a one-line note. The
@@ -52,11 +53,13 @@ top-level "Reference skills and docs" section covers cross-cutting
 references; this line is for task-specific ones.>
 
 **Files:**
+
 - `path/to/file.ext` (create | modify)
 - ...
 
 **Steps:**
-1. RED   — <write failing test>
+
+1. RED — <write failing test>
 2. GREEN — <implement to make test pass>
 3. ...
 
@@ -77,6 +80,7 @@ After a task is completed, append:
 
 ```markdown
 **Notes:**
+
 - <One or two bullets on what was learned, surprises, deviations
   from the plan, etc.>
 ```
@@ -120,7 +124,7 @@ room cold.
   GREEN steps. **The RED and GREEN steps for a given piece of logic
   must live in the same task.** A task is a commit boundary — a
   commit that ends with failing tests is broken code. Writing tests
-  is the *first half* of the task, not a separate prior task.
+  is the _first half_ of the task, not a separate prior task.
 - **Right-sized.** A task is a meaningful chunk of work — typically
   one commit's worth — not a single-line checkbox. Multiple steps
   per task is normal. If a task has only one step, it probably
@@ -154,6 +158,7 @@ GoTrue upgrade can't clobber it.
 `auth.users` so tests can `SET LOCAL request.jwt.claims`).
 
 **Decisions:**
+
 - Function body is `language sql stable`, reads
   `request.jwt.claims` (the modern PostgREST v10+ JSON GUC), and
   extracts `sub` as a `uuid`.
@@ -167,15 +172,17 @@ GoTrue upgrade can't clobber it.
 canonical body and the rationale for living in `public`.
 
 **Files:**
+
 - `db/migrations/0004_domain_schema.sql` (modify)
 - `db/tests/0040_uid_helper.sql` (create)
 
 **Steps:**
-1. RED   — Create `db/tests/0040_uid_helper.sql` with `plan(3)`:
+
+1. RED — Create `db/tests/0040_uid_helper.sql` with `plan(3)`:
    (a) `public.uid()` returns the UUID set in
    `request.jwt.claims.sub`; (b) returns `NULL` when the GUC is
    empty; (c) raises when the `sub` value is not a valid UUID.
-2. RED   — Run `./scripts/test-db.sh` and confirm the new file
+2. RED — Run `./scripts/test-db.sh` and confirm the new file
    reports red (function doesn't exist yet).
 3. GREEN — In `db/migrations/0004_domain_schema.sql`, add the
    `CREATE FUNCTION public.uid()` block per Decisions, immediately
@@ -193,11 +200,11 @@ canonical body and the rationale for living in `public`.
   affected:
   - DB-only changes → `./scripts/test-db.sh`
   - Web-only changes → `pnpm lint` · `pnpm check` · `pnpm test`
-  - Touching schema/RLS *and* web code → `./scripts/check.sh`
+  - Touching schema/RLS _and_ web code → `./scripts/check.sh`
 - **TDD is mandatory for testable logic.** RED steps before GREEN
   steps. For DB work specifically: every change to schema, RLS,
   trigger, or view ships with a pgTAP test in `db/tests/`, with
-  positive *and* negative cases for any new policy. RLS is the
+  positive _and_ negative cases for any new policy. RLS is the
   security boundary; an untested policy is an unverified claim.
 - **Phase 0 — reconcile docs.** When `PLAN.md`'s Phase structure
   starts with a doc-reconciliation phase, mirror it as Phase 0 in
@@ -217,7 +224,7 @@ canonical body and the rationale for living in `public`.
   explicitly — don't let it slip in as an unannounced side change.
 - **Watch for cross-task toolchain coupling.** When a task
   navigates with `goto('/foo')`, imports a symbol, or otherwise
-  references something a *later* task creates, the type checker
+  references something a _later_ task creates, the type checker
   or linter will balk even when the runtime works fine. SvelteKit's
   `resolve()` rejects unknown route IDs; `svelte-check` rejects
   unknown env-var reads; `svelte/no-navigation-without-resolve`
@@ -233,7 +240,7 @@ canonical body and the rationale for living in `public`.
 - **Route-level test filenames drop the `+`.** When a task's Files
   list names a colocated test next to a SvelteKit route file
   (`+page.svelte`, `+layout.svelte`, `+error.svelte`), the test
-  must be named *without* the `+` prefix — `page.test.ts`,
+  must be named _without_ the `+` prefix — `page.test.ts`,
   `layout.test.ts`, `error.test.ts`. A `+page.test.ts` fails
   `svelte-kit sync` (SvelteKit's manifest scanner only allows the
   recognized `+`-prefixed route kinds), and `pnpm check` therefore

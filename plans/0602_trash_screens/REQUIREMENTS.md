@@ -38,7 +38,7 @@ default `TopBar` back-button — i.e. `history.back()` — landing the user on
 the Items screen they came from.
 
 Below the TopBar, a description line:
-*"Items you delete from this list land here. Tap Restore to bring one back."*
+_"Items you delete from this list land here. Tap Restore to bring one back."_
 with `font-size: 12.5px; color: var(--stone); line-height: 1.5; padding:
 14px 18px 6px` (lifted from `design/cairn-screens.jsx` `TrashScreen` lines
 1274–1278).
@@ -64,14 +64,14 @@ Each row in the item trash screen (visual spec from
 - Leading `rotate-ccw` icon, 16 px, `var(--stone-lt)`.
 - Item name: 14.5 px, `font-weight: 600`, `color: var(--stone)`,
   `text-decoration: line-through; text-decoration-color: var(--stone-lt);
-  text-decoration-thickness: 1px`.
+text-decoration-thickness: 1px`.
 - Attribution line below the name: `"deleted by <display_name> · <when>"`,
   11.5 px, `var(--stone-lt)`, `margin-top: 2px`. `<when>` is formatted
   by `timeAgo(deleted_at)` per `docs/ui.md` → "Dates" (relative until
   30 days, absolute "1 May 2026" beyond).
 - Trailing **Restore** button: outlined pill, `padding: 7px 12px; border:
-  1px solid var(--ink); border-radius: 999px; background: transparent;
-  color: var(--ink); font-size: 12.5px; font-weight: 600`.
+1px solid var(--ink); border-radius: 999px; background: transparent;
+color: var(--ink); font-size: 12.5px; font-weight: 600`.
 - Row: `display: flex; align-items: center; gap: 12px; padding: 14px 18px`;
   bottom border `1px solid var(--rule)` on every row; top border on the
   first row only.
@@ -79,7 +79,7 @@ Each row in the item trash screen (visual spec from
 Tapping **Restore** sends `PATCH /items?id=eq.<uuid>` with
 `{deleted_at: null}` and on 2xx removes the row from local state (the row
 disappears in place — no animation required by step 6). On failure, surface
-a generic error message (text: *"Couldn't restore — try again."*) in an
+a generic error message (text: _"Couldn't restore — try again."_) in an
 error region at the bottom of the screen for ~4 seconds, mirroring the
 shape of `items.error` handling in `items.svelte.ts`. No success snackbar
 on restore — the disappearing row is the success signal.
@@ -132,14 +132,14 @@ re-fetches, which is fine for this volume.
 
 Item trash empty state (no soft-deleted items in this list): a centred
 block under the description line containing `<Icon name="trash-2" size=44
-color="var(--stone-lt)" />` and the text *"Nothing in the trash."* styled
+color="var(--stone-lt)" />` and the text _"Nothing in the trash."_ styled
 to match the existing `.empty-heading` rule in `ItemsScreen.svelte`
 (Newsreader serif, 22 px, `font-weight: 500`, `color: var(--ink)`). The
 copy is one line — no secondary body text and no CTA.
 
-Deleted-lists empty state: same shape, text *"No deleted lists."*.
+Deleted-lists empty state: same shape, text _"No deleted lists."_.
 
-Loading state: a centred *"Loading…"* in `var(--stone)` (matching the
+Loading state: a centred _"Loading…"_ in `var(--stone)` (matching the
 existing `data-test="lists-loading"` pattern in `ListsScreen.svelte`).
 Each screen exposes `data-test="trash-loading"` and
 `data-test="deleted-lists-loading"` for its respective loading slot, and
@@ -166,7 +166,7 @@ assertions.
   sub-plan creates the destination route only.
 - **Tombstone Avatar branch and tombstone attribution italic styling.**
   That belongs to 0603 (R10–R11 of the parent plan). Trash rows do
-  *not* render avatars; the deleted-by attribution is plain text only.
+  _not_ render avatars; the deleted-by attribution is plain text only.
 - **Adding a `profiles` FK for `deleted_by`.** Adding a migration to
   mirror 0006 for `deleted_by` would unlock PostgREST embedding here.
   Out of scope: the batch-lookup approach is task-2.1-decided in the

@@ -5,7 +5,7 @@ The database foundation and specification reconciliation for step 20
 column with case-insensitive uniqueness, the `set_username` RPC, and the
 recovery-e-mail storage location; settles how username + password rides
 GoTrue (the mechanism spike); and reconciles the specification docs that
-the e-mail-as-identity reversal makes stale, *before* any of the later
+the e-mail-as-identity reversal makes stale, _before_ any of the later
 sub-steps (2002–2005) reference them. No web code and no live-data
 migration ship here — those are 2002–2005. Requirement numbers below are
 local to this sub-plan; the parenthetical traces back to the step-20
@@ -44,7 +44,7 @@ Two paths satisfy this:
   deterministically uid-derived username that is guaranteed valid under
   R1 and collides under R2 only with negligible probability (the seed is
   `substr('u' || uid-hex, 1, 30)` — `u` + the first 29 of 32 hex digits;
-  see PLAN/TASKS — so it is *not* provably collision-free, just
+  see PLAN/TASKS — so it is _not_ provably collision-free, just
   overwhelmingly unlikely to collide; a collision would fail that one
   signup at the unique index). This keeps every signup path — the legacy
   magic-link flow and the dev shortcut, both still live until 2005 —
@@ -104,7 +104,7 @@ Consequences this sub-step must satisfy:
   RFC 6761 reserved TLD, so it can never collide with a real address.
 - The cookie/JWT shim (`auth-proxy` in prod, the Vite proxy in dev) is
   **unchanged**: the password grant (`POST /auth/token?grant_type=
-  password`) and its cookie-plant path are already wired and identity-
+password`) and its cookie-plant path are already wired and identity-
   agnostic. No `auth-proxy`, Caddyfile, or `auth-paths.ts` change is
   required by the mechanism.
 
@@ -137,7 +137,7 @@ sub-plan's Phase 0 (narrative claims) and folded into the schema tasks
   is reframed honestly (GoTrue now stores a hash); the OTP paragraph is
   marked superseded as a sign-in surface; the "Considered and rejected"
   OAuth entry's "we can do ourselves with magic links" rationale is
-  corrected, and a new entry records *why* the project moved off
+  corrected, and a new entry records _why_ the project moved off
   magic-link-only and chose the synthetic-e-mail mechanism over a
   resolver.
 - **`docs/data-model.md`** — the `profiles` and `user_settings` DDL gains
@@ -158,7 +158,7 @@ sub-plan's Phase 0 (narrative claims) and folded into the schema tasks
   recovery e-mail that forget their password → operator-reset, defer vs
   add) pointing at the reconciled `architecture.md` section.
 
-The retirement *mechanics* (the magic-link callback/hash flow, the shim
+The retirement _mechanics_ (the magic-link callback/hash flow, the shim
 narrowing prose) are **not** edited here — they are reconciled in 2005
 when their code is removed, to avoid the doc racing ahead of the code in
 a surface another sub-plan owns.

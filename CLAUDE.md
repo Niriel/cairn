@@ -96,7 +96,7 @@ that aren't repeated in every task.
   pronoun, including when referring to demo characters with gendered
   names like Bob or Carol. Gender-neutral by default — never assume.
   Proper nouns that contain a gendered pronoun (e.g. film titles like
-  *His Girl Friday*) stay as written. Same code/UI split as above:
+  _His Girl Friday_) stay as written. Same code/UI split as above:
   this rule is about rendered copy, not code.
 - E-mail addresses are private — never shown in the UI (see `docs/invites.md`).
 - Button pairs: right is forward/committal, left is backward/destructive

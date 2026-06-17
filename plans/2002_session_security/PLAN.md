@@ -3,7 +3,7 @@
 Sub-step 2002 of step 20 (`plans/2000_username_identity/`). Rebuild the session
 model the credential rides on — a revocable, rotating session behind a small
 Cairn-shaped auth BFF, replacing the long-lived non-revocable access JWT the
-cookie holds today — *before* the username sign-in surface (2003) is built on
+cookie holds today — _before_ the username sign-in surface (2003) is built on
 top. This is the single largest security delta in step 20, the gap exists in
 prod independent of usernames, and it is prod-facing.
 
@@ -25,7 +25,7 @@ password: the cookie is a bearer valid for its full lifetime to anyone who
 captures it, and there is **no server-side session record**, so "sign out
 everywhere", killing sessions on compromise, and forcing re-auth after a
 password change are all impossible. The HttpOnly + token-strip stance is a
-*good* XSS defence and is kept; the gap is narrowly the long-lived,
+_good_ XSS defence and is kept; the gap is narrowly the long-lived,
 non-revocable cookie value and the discarded refresh token.
 
 The fix has been approved at the step level (parent PLAN.md "Design revision"):
@@ -41,14 +41,14 @@ The favourable part of the existing design: the web app is `adapter-static`
 for `/api` is identity-agnostic. The BFF is the **only** place server-side auth
 logic can live, and it has to grow for revocable refresh regardless (storing the
 refresh token, detecting access expiry, calling GoTrue's refresh, rotating,
-re-planting *cannot* live in a static SPA) — so the Cairn-shaped surface rides
+re-planting _cannot_ live in a static SPA) — so the Cairn-shaped surface rides
 that growth at no extra structural cost.
 
 ## Decisions
 
 **Dual cookie: durable revocable refresh token + short-lived minted access
 token (R1, R2).** The crux is that the cookie can no longer be the bearer
-PostgREST validates, yet Caddy proxies `/api` *directly* to PostgREST and can
+PostgREST validates, yet Caddy proxies `/api` _directly_ to PostgREST and can
 only read a cookie — it cannot do a per-request session-store lookup at the
 edge. So we split the one cookie into two:
 
@@ -82,7 +82,7 @@ detection (`GOTRUE_SECURITY_REFRESH_TOKEN_ROTATION_ENABLED`,
 `..._REUSE_INTERVAL`), and revokes by scope (`POST /logout?scope=global|local`).
 That covers rotation, reuse-as-theft-signal, and "sign out everywhere" without
 a bespoke session table. A spike (Task 1.1) confirms these behaviours against
-the *installed* image before we build on them; a custom table is added only if
+the _installed_ image before we build on them; a custom table is added only if
 a gap is found. This is the parent PLAN.md default, settled here.
 
 **Short-lived access token via lowered `GOTRUE_JWT_EXP` + a client refresh-on-401
@@ -113,7 +113,7 @@ plain-HTTP localhost. So prod uses `__Host-cairn_session` / `__Host-cairn_access
 and dev uses `cairn_session` / `cairn_access`; both the BFF and the Vite proxy
 derive the name from the same `COOKIE_SECURE` signal (the existing prod-only
 `Secure` toggle), so the two stay in lockstep with one branch, not two
-hand-maintained name lists. The cookie *name* is not in `auth-paths.ts` (it's a
+hand-maintained name lists. The cookie _name_ is not in `auth-paths.ts` (it's a
 per-shim constant), so this divergence doesn't touch the drift-guarded lists.
 
 **CSRF via a required custom header, not double-submit (R7).** For a

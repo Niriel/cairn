@@ -25,13 +25,14 @@ bundle … grep the prod bundle for `alice@example.test` to see it") and
 name the structural fix as future. Once this plan lands, that prose
 contradicts reality. Cairn is pre-alpha; living docs that diverge from
 shipped behaviour are a known trap (see CLAUDE.md → "Where we are in
-the build"). Landing this doc edit *before* the code change is fine —
+the build"). Landing this doc edit _before_ the code change is fine —
 the doc-edit-first ordering means the doc is consistent with the code
 at every commit.
 
 **Prerequisites:** None.
 
 **Decisions:**
+
 - Rewrite the leak paragraph (currently "**However, the underlying
   code still ships in the prod client JS bundle.** …") in past tense:
   the previous behaviour, why it was decorative-not-exploitable, and
@@ -43,7 +44,7 @@ at every commit.
   — unchanged; this is a GoTrue config concern independent of the
   client bundle.
 - Keep item 2 (`VITE_DEV_LOGIN_PASSWORD` inlining) — Vite inlines
-  `VITE_*` references as string literals at build time *before* DCE
+  `VITE_*` references as string literals at build time _before_ DCE
   runs; if the child module were ever statically imported again, or if
   another caller of the env var were added, the value would re-leak.
   Worth keeping as a watch item, but tighten the wording to reflect
@@ -59,9 +60,11 @@ gating pattern this plan implements; the deployment doc's structural-
 fix paragraph should point readers here.
 
 **Files:**
+
 - `docs/deployment.md` (modify lines ~429–441)
 
 **Steps:**
+
 1. DOC — rewrite the section per Decisions above. Keep line count
    roughly the same; the section is part of the deployment checklist
    and should stay scannable.
@@ -90,13 +93,14 @@ with controlled props and spied callbacks.
 for what behaviour must be preserved.
 
 **Decisions:**
+
 - The child component's props contract is:
   ```ts
   type Props = {
-    sending: boolean;
-    setSending: (v: boolean) => void;
-    onInlineError: (message: string) => void;
-    onServerError: () => void;
+  	sending: boolean;
+  	setSending: (v: boolean) => void;
+  	onInlineError: (message: string) => void;
+  	onServerError: () => void;
   };
   ```
 - The test mocks `$lib/auth/model/auth-client` (for
@@ -135,9 +139,11 @@ behavioural reference. `web/src/lib/test/render.ts` exposes the
 `render` helper plus `getByDataTest` / `queryByDataTest`.
 
 **Files:**
+
 - `web/src/lib/auth/components/DevShortcuts.test.ts` (create)
 
 **Steps:**
+
 1. RED — create the test file with the seven tests above. Mock
    `$lib/auth/model/auth-client` and
    `$lib/shared/state/session.svelte`. Stub
@@ -164,6 +170,7 @@ tests green.
 **Prerequisites:** Task 1.1 (DevShortcuts.test.ts exists and is red).
 
 **Decisions:**
+
 - Component file at
   `web/src/lib/auth/components/DevShortcuts.svelte`, alongside its
   parent (per `docs/frontend-layout.md` — auth-domain UI lives in
@@ -198,9 +205,11 @@ moving here — keep the markup, the `data-test` attributes, and the
 error wording identical so the test ports are mechanical.
 
 **Files:**
+
 - `web/src/lib/auth/components/DevShortcuts.svelte` (create)
 
 **Steps:**
+
 1. GREEN — create the file with `$props()` typed per Decisions, the
    `DEV_USERS` constant, the `isHttpError400` helper, the
    `onDevLogin` closure rewired against the prop callbacks, the
@@ -221,6 +230,7 @@ error wording identical so the test ports are mechanical.
 **Completed:** 2026-05-21T12:33:54Z
 
 **Notes:**
+
 - Task predicted `(b)` and `(j)` would fail in PREP because the parent
   still inlines the dev buttons synchronously. They don't — when the
   buttons are already in the DOM, `vi.waitFor` resolves on the first
@@ -236,7 +246,7 @@ error wording identical so the test ports are mechanical.
 behaviour directly. Now that the child component owns that behaviour
 (verified in Task 1.1), the parent suite shrinks to non-dev cases
 plus two cross-component integration tests that prove the parent's
-in-flight `sending` state still gates the *other* component's
+in-flight `sending` state still gates the _other_ component's
 buttons, plus the runtime-gate negative case `(h)`. The dynamic
 import is async, so those tests need to await the mount.
 
@@ -248,6 +258,7 @@ This task prepares the test shape; 2.2 is the colour shift.
 **Prerequisites:** Task 1.2 (`DevShortcuts.svelte` exists).
 
 **Decisions:**
+
 - Tests to delete (now owned by `DevShortcuts.test.ts`):
   `(g)`, `(i)`, `(k)`, `(l)`, `(m)`.
 - Tests to keep verbatim: `(a)`, `(c)`, `(d)`, `(e)`, `(f)`,
@@ -267,15 +278,15 @@ This task prepares the test shape; 2.2 is the colour shift.
     `dev-login-bob`, `dev-login-carol`.
   - `(j)`: a dev-login click disables the magic-link submit and the
     other two dev buttons.
-  Both need `await vi.waitFor(() => getByDataTest('dev-login-alice'))`
-  before referencing the dev buttons, because the dynamic import
-  resolves on a microtask. Vitest runs with `import.meta.env.DEV`
-  true, so the import does fire.
+    Both need `await vi.waitFor(() => getByDataTest('dev-login-alice'))`
+    before referencing the dev buttons, because the dynamic import
+    resolves on a microtask. Vitest runs with `import.meta.env.DEV`
+    true, so the import does fire.
 - Drop the `vi.stubEnv('VITE_DEV_LOGIN_PASSWORD', ...)` block (it
   moved to the child test). The parent no longer reads that env
   var directly.
 - Keep the `vi.mock('$lib/auth/model/dev-shortcut', () => ({
-  isDevLoginShortcutEnabled: vi.fn(() => false) }))` mock — the
+isDevLoginShortcutEnabled: vi.fn(() => false) }))` mock — the
   runtime gate still lives in the parent, and most tests need it
   off. Tests `(b)` and `(j)` continue to flip it on with
   `vi.mocked(isDevLoginShortcutEnabled).mockReturnValue(true)`.
@@ -292,17 +303,19 @@ This task prepares the test shape; 2.2 is the colour shift.
 test file should pass both `pnpm test` and `pnpm check`.
 
 **Files:**
+
 - `web/src/lib/auth/components/LoginRequest.test.ts` (modify)
 
 **Steps:**
+
 1. PREP — delete tests `(g)`, `(i)`, `(k)`, `(l)`, `(m)`. Keep
    `(h)` and add a `vi.waitFor` / microtask flush before the
    absence assertions so the dynamic import has had a chance to
    resolve.
 2. PREP — update tests `(b)` and `(j)`: insert `await vi.waitFor(()
-   => getByDataTest('dev-login-alice'))` immediately after `render`,
+=> getByDataTest('dev-login-alice'))` immediately after `render`,
    and **move the existing `const alice = getByDataTest('dev-login-
-   alice') as HTMLButtonElement` / `bob` / `carol` captures to *after*
+alice') as HTMLButtonElement` / `bob` / `carol` captures to _after_
    the `vi.waitFor`** so the synchronous lookups run once the child
    has mounted. Keep all other assertions identical.
 3. PREP — remove the now-unused imports (`devPasswordSignIn`
@@ -334,6 +347,7 @@ plus everything it transitively imports (the `DEV_USERS` constant,
 expect async mount).
 
 **Decisions:**
+
 - Replace the imports
   `devPasswordSignIn` and `setSignedIn` in
   `LoginRequest.svelte:6,11` with nothing — they're owned by the
@@ -375,6 +389,7 @@ expect async mount).
     />
   {/if}
   ```
+
 - Keep `isDevLoginShortcutEnabled` and its import — it's the
   runtime opt-in (`VITE_DEV_LOGIN_SHORTCUT`), still meaningful
   inside dev mode.
@@ -387,9 +402,11 @@ verbatim. `docs/quality.md` typing notes if `Component<...>` typing
 trips svelte-check.
 
 **Files:**
+
 - `web/src/lib/auth/components/LoginRequest.svelte` (modify)
 
 **Steps:**
+
 1. GREEN — apply the imports/state/template edits above.
 2. GREEN — run `cd web && pnpm test src/lib/auth/components/LoginRequest.test.ts`;
    confirm all parent tests pass (including the now-async `(b)` and
@@ -406,6 +423,7 @@ trips svelte-check.
 **Completed:** 2026-05-21T12:47:14Z
 
 **Notes:**
+
 - All four forbidden strings (`alice@example.test`, `Sign in as`,
   `grant_type=password`, `cairn-dev`) absent from
   `web/build/_app/immutable/` after `pnpm build`. R1 acceptance met.
@@ -414,8 +432,8 @@ trips svelte-check.
 - `./scripts/check.sh --e2e` fails on the existing
   `e2e/auth.spec.ts:28` assertion — the callback page does not strip
   the hash fragment and navigate to `/`. Verified by checking out
-  `main`'s files: the same failure reproduces, so it is *pre-existing
-  breakage* in the magic-link callback flow added by commit `8ba30d0`
+  `main`'s files: the same failure reproduces, so it is _pre-existing
+  breakage_ in the magic-link callback flow added by commit `8ba30d0`
   / `f6c06c2`, not a regression introduced by this plan. Flagging for
   the user — likely a fix for a future task or its own follow-up
   plan. The webkit row of the same suite separately fails with a
@@ -431,6 +449,7 @@ Vitest / Playwright.
 **Prerequisites:** Task 2.2 (parent is rewired).
 
 **Decisions:**
+
 - The forbidden strings (per `docs/deployment.md` line 431 plus
   the env-var leak called out in item 2):
   - `alice@example.test`
@@ -455,12 +474,14 @@ grep strings and the rationale. `scripts/check.sh --e2e` for the
 full layer pass.
 
 **Files:**
+
 - `plans/0000_implementation_order.md` (modify — tick `0301`)
 - `plans/0301_gate_dev_login/TASKS.md` (modify — tick this task's
   checkbox, fill `Completed:` timestamps across all six tasks as
   each lands)
 
 **Steps:**
+
 1. GREEN — `cd web && pnpm build`.
 2. GREEN — run each grep; confirm zero matches:
    ```bash

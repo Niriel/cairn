@@ -70,7 +70,7 @@ A `<UndoSnackbar>` appears at the bottom of the Lists screen for **6 seconds**.
 Snackbar visual spec (from `design/cairn-screens.jsx` screen 15):
 `background: var(--ink); color: var(--paper); border-radius: 12px; padding:
 12px 14px; font-size: 13.5px`. Leading `trash-2` icon (16 px, `var(--paper)`).
-Message text (flex: 1): *"Deleted '<list name>'"* with the name in weight 600.
+Message text (flex: 1): _"Deleted '<list name>'"_ with the name in weight 600.
 Trailing **UNDO** label: uppercase, weight 700, 12 px, `color: var(--sage)`,
 `padding: 4px 8px`. The FAB is hidden while the snackbar is visible.
 

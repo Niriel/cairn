@@ -8,7 +8,7 @@
 - **`docs/data-model.md`** — schema, the `items_deleted`/`lists_deleted` views,
   `is_list_member`.
 - **`docs/testing.md`** — pgTAP is the security-boundary test layer; positive
-  *and* negative cases for every grant/policy.
+  _and_ negative cases for every grant/policy.
 - **`docs/quality.md`** — SQLFluff (uppercase keywords, lowercase identifiers,
   2-space) for SQL; ShellCheck + shfmt (`-i 2 -ci -bn`) for the CLI.
 - **`db/migrations/0014_delete_account.sql`** — verbatim source for `delete_account_as`.
@@ -47,6 +47,7 @@ the `effective` value, and the `cairn_admin_owner` BYPASSRLS + public-table
 grants. Verify the four match the Decisions below; apply the remaining three.
 
 **Decisions:**
+
 - **CLI → bash.** The VPS has no Python; a Python CLI would force a runtime onto
   the production box for one script. Bash matches every other operator script
   and rides the existing ShellCheck/shfmt gauntlet.
@@ -68,7 +69,7 @@ grants. Verify the four match the Decisions below; apply the remaining three.
   columns are excluded by default (R7).
 - **`delete_account_as` list-deletion form.** The doc's body scoped the
   sole-member delete with `EXISTS (target is a member) AND NOT EXISTS (other
-  live member)`, which diverges from `public.delete_account()`'s bare
+live member)`, which diverges from `public.delete_account()`'s bare
   `NOT EXISTS (other live member)` on orphaned (zero-live-member) lists. For the
   "identical end-state" guarantee (R5) the body uses `delete_account()`'s exact
   `NOT EXISTS` form with `p_target` substituted.
@@ -83,14 +84,16 @@ grants. Verify the four match the Decisions below; apply the remaining three.
   set `deleted_by = '0000…'` in the `UPDATE`, but the `BEFORE UPDATE`
   attribution trigger overwrites it with `public.uid()` (NULL in an admin RPC).
   The body instead does `perform set_config('request.jwt.claims',
-  jsonb_build_object('sub','0000…')::text, true)` before the `UPDATE` and drops
+jsonb_build_object('sub','0000…')::text, true)` before the `UPDATE` and drops
   the `deleted_by =` clause, so the trigger stamps the tombstone (R5).
 
 **Files:**
+
 - `docs/admin.md` (modify)
 - `plans/0000_implementation_order.md` (modify)
 
 **Steps:**
+
 1. In `docs/admin.md` § "The `cairn-admin` CLI", change "A small Python script"
    to "A small bash script" and drop/adjust Python-specific phrasing (argparse
    → arg parsing); add one sentence noting the no-Python-on-the-VPS rationale so
@@ -115,12 +118,12 @@ grants. Verify the four match the Decisions below; apply the remaining three.
    the identical form is what makes the end-states match.
 6. In `docs/admin.md` § "The `admin.actions` audit table" (already applied —
    verify), remove the `alter table admin.actions enable row level security;`
-   line and its "No policies" comment; the comment now states RLS is *not*
+   line and its "No policies" comment; the comment now states RLS is _not_
    enabled (it would default-deny `cairn_readonly`'s `SELECT` to zero rows) and
    that the `SELECT`-only grant + no `UPDATE`/`DELETE` is the boundary.
 7. In `docs/admin.md` § `admin.moderate_item` (already applied — verify), the
    body sets `request.jwt.claims` to the tombstone `sub` via `set_config(…,
-   true)` before the `UPDATE` and drops the `deleted_by = '0000…'` clause; add
+true)` before the `UPDATE` and drops the `deleted_by = '0000…'` clause; add
    the matching note to the `moderate_list`/`purge_list` prose.
 8. In `plans/0000_implementation_order.md` step 11: change `0006_admin.sql` to
    `0017_admin.sql` and "(Python; SET ROLE discipline; …)" to "(bash; SET ROLE
@@ -144,6 +147,7 @@ master plan calls out.
 **Prerequisites:** Task 0.1 (doc reconciled).
 
 **Decisions:**
+
 - Highest existing migration is `0016`; this is **`0017_admin.sql`**, one
   `BEGIN; … COMMIT;`, header comment in the `0014_delete_account.sql:1-32` style.
 - Roles created idempotently with `DO $$ … pg_roles …$$` blocks (per
@@ -156,15 +160,15 @@ master plan calls out.
   it a standalone `cairn_readonly` operator cannot reach `inspect_user` or
   `admin.actions` (schema `USAGE` gates every object privilege inside). R2.
 - Owner grants: `GRANT SELECT, UPDATE (banned_until), DELETE ON auth.users TO
-  cairn_admin_owner;` `GRANT SELECT, UPDATE, DELETE ON public.items, public.lists
-  TO cairn_admin_owner;` `GRANT SELECT ON public.list_members, public.profiles,
-  public.user_settings, public.votes TO cairn_admin_owner;`
+cairn_admin_owner;` `GRANT SELECT, UPDATE, DELETE ON public.items, public.lists
+TO cairn_admin_owner;` `GRANT SELECT ON public.list_members, public.profiles,
+public.user_settings, public.votes TO cairn_admin_owner;`
 - `admin.actions` columns exactly per `docs/admin.md` § audit table (`reason
-  text NOT NULL CHECK (length(reason) BETWEEN 1 AND 2000)`, `created_at … DEFAULT
-  clock_timestamp()`). After `CREATE TABLE`, `ALTER TABLE admin.actions OWNER TO
-  cairn_admin_owner;` (so the definer RPCs can INSERT), `GRANT SELECT ON
-  admin.actions TO cairn_readonly;` `REVOKE ALL ON admin.actions FROM
-  authenticated, anon, public;` **Do NOT `ENABLE ROW LEVEL SECURITY`:** with no
+text NOT NULL CHECK (length(reason) BETWEEN 1 AND 2000)`, `created_at … DEFAULT
+clock_timestamp()`). After `CREATE TABLE`, `ALTER TABLE admin.actions OWNER TO
+cairn_admin_owner;` (so the definer RPCs can INSERT), `GRANT SELECT ON
+admin.actions TO cairn_readonly;` `REVOKE ALL ON admin.actions FROM
+authenticated, anon, public;` **Do NOT `ENABLE ROW LEVEL SECURITY`:** with no
   policy it default-denies, so `cairn_readonly`'s `SELECT` would return zero
   rows (breaking `cairn-admin log` in prod, where the operator is a non-superuser
   role — dev/test masks it via the `cairn` superuser). Reads are restricted by
@@ -182,12 +186,14 @@ master plan calls out.
 `admin.actions` audit table" for the canonical SQL (reformat to uppercase).
 
 **Files:**
+
 - `db/test-bootstrap.sql` (modify)
 - `db/migrations/0017_admin.sql` (create)
 - `db/tests/admin_grants.sql` (create)
 - `db/tests/admin_actions_audit.sql` (create)
 
 **Steps:**
+
 1. GREEN — In `db/test-bootstrap.sql`, add `banned_until timestamptz`,
    `email_confirmed_at timestamptz`, `last_sign_in_at timestamptz`, and the
    credential/token columns `encrypted_password`, `recovery_token`,
@@ -208,7 +214,7 @@ master plan calls out.
    accepted (`lives_ok`); `admin.actions` is owned by `cairn_admin_owner`
    (`pg_tables`/`to_regclass` owner check). **Read-visibility (R3):** after
    inserting at least one row (as the test superuser), `SET LOCAL ROLE
-   cairn_readonly` and assert `SELECT count(*) FROM admin.actions` is `>= 1` —
+cairn_readonly` and assert `SELECT count(*) FROM admin.actions` is `>= 1` —
    this is the assertion that fails if RLS is ever enabled (it would
    default-deny `cairn_readonly` to zero rows); `RESET ROLE` afterwards. Also
    assert `cairn_readonly` has **no** `UPDATE`/`DELETE` on `admin.actions`
@@ -228,14 +234,15 @@ master plan calls out.
 **Completed:** 2026-06-12T09:03:07Z
 
 **Notes:**
+
 - **Missing prerequisite / doc divergence (fixed here).** `docs/admin.md`
   § "auth.users access" and the 1.1 migration listed only the `UPDATE
-  (banned_until)` and `DELETE` grants on `auth.users`. Two more are
+(banned_until)` and `DELETE` grants on `auth.users`. Two more are
   required for the RPC bodies to work and were missing: `GRANT USAGE ON
-  SCHEMA auth TO cairn_admin_owner` (schema usage gates every object
+SCHEMA auth TO cairn_admin_owner` (schema usage gates every object
   privilege inside — without it the table grants are unreachable and the
   body fails with "permission denied for schema auth") and `GRANT SELECT
-  ON auth.users` (the bodies read before they write — ban snapshots the
+ON auth.users` (the bodies read before they write — ban snapshots the
   prior `banned_until`, inspect/delete read columns). `delete_account()`
   never hit this because its definer is the privileged migration-runner
   role, not the deliberately-limited `cairn_admin_owner`. Added both to
@@ -251,25 +258,28 @@ every later RPC reuses.
 stub).
 
 **Decisions:**
+
 - Both `language plpgsql security definer set search_path = admin, public, auth`.
   Bodies per `docs/admin.md` § `ban_user`/`unban_user` (reformat to uppercase).
 - Guard order (load-bearing for R4/R6): reject tombstone target ('cannot ban the
   tombstone user'); `SELECT banned_until … IF NOT FOUND` → 'no such user';
   **then** `INSERT INTO admin.actions (…, payload =
-  jsonb_build_object('banned_until', prev))`; **then** the `UPDATE`. So a
+jsonb_build_object('banned_until', prev))`; **then** the `UPDATE`. So a
   rejected target writes no audit row.
 - `ban_user` sets `banned_until = 'infinity'`; `unban_user` sets `NULL`.
 - For each: `ALTER FUNCTION admin.<fn>(uuid, text) OWNER TO cairn_admin_owner;
-  REVOKE ALL … FROM public; GRANT EXECUTE … TO cairn_admin;`
+REVOKE ALL … FROM public; GRANT EXECUTE … TO cairn_admin;`
 - In tests, act with `SET LOCAL ROLE cairn_admin`; read true state with `RESET
-  ROLE`. `actor` records the connection role (`cairn` in test), `effective`
+ROLE`. `actor` records the connection role (`cairn` in test), `effective`
   records `cairn_admin_owner`.
 
 **Files:**
+
 - `db/migrations/0017_admin.sql` (modify — append both functions + grants)
 - `db/tests/admin_ban.sql` (create)
 
 **Steps:**
+
 1. RED — Create `db/tests/admin_ban.sql` with `plan(N)`, `\i` the users fixture.
    As `cairn_admin`: `ban_user(bob, 'reason ≥8')` sets Bob's `banned_until` to
    `'infinity'`; exactly one `admin.actions` row with `action='ban_user'`,
@@ -280,7 +290,7 @@ stub).
    `42501` and writes no audit row. **Grant matrix (R2):** assert
    `has_function_privilege` EXECUTE is **true** for `cairn_admin` and **false**
    for `authenticated`, `anon`, **and `cairn_readonly`** on
-   `admin.ban_user(uuid, text)` *and* `admin.unban_user(uuid, text)` — the
+   `admin.ban_user(uuid, text)` _and_ `admin.unban_user(uuid, text)` — the
    negatives must cover `unban_user`, not just `ban_user`. The `cairn_readonly`
    negative is load-bearing: it proves the read-only role cannot escalate to a
    write RPC (its only EXECUTE grant is `inspect_user`).
@@ -296,8 +306,9 @@ stub).
 **Completed:** 2026-06-12T09:07:54Z
 
 **Notes:**
+
 - The seven secret-absence assertions use `NOT jsonb_exists(j -> 'auth',
-  '<col>')` rather than `NOT (j -> 'auth' ? '<col>')`: SQLFluff's parser
+'<col>')` rather than `NOT (j -> 'auth' ? '<col>')`: SQLFluff's parser
   misreads `NOT (` as a function call and trips CP03/LT01/LT06.
   `jsonb_exists` keeps the exact key-presence semantics and lints clean.
 
@@ -308,29 +319,32 @@ unlogged, writes always logged) is the protection.
 **Prerequisites:** Task 1.1.
 
 **Decisions:**
+
 - `language plpgsql security definer stable set search_path = admin, public,
-  auth`. Body per `docs/admin.md` § `inspect_user` (now corrected by Task 0.1):
+auth`. Body per `docs/admin.md` § `inspect_user` (now corrected by Task 0.1):
   one `jsonb_build_object` whose `auth` key is built from an **allowlist**
   `jsonb_build_object` over the safe columns (`id`, `email`,
   `email_confirmed_at`, `last_sign_in_at`, `banned_until`, `created_at`) — **not**
   a `to_jsonb(u)` minus named secrets — plus `profile`, `user_settings`,
   `memberships` (live), `item_count` (live, `created_by`), `vote_count`.
 - `ALTER FUNCTION admin.inspect_user(uuid) OWNER TO cairn_admin_owner; REVOKE ALL
-  … FROM public; GRANT EXECUTE … TO cairn_readonly;` (readonly, not admin —
+… FROM public; GRANT EXECUTE … TO cairn_readonly;` (readonly, not admin —
   `cairn_admin` reaches it via inheritance).
 - **Non-vacuous secret test.** Task 1.1 widens the bootstrap stub to include the
   credential/token columns. Seed Alice's `auth.users` row with sentinel values
   in those columns (e.g. `encrypted_password = 'SENTINEL'`), then assert each is
-  **absent** from `inspect_user(alice)->'auth'` *and* that an allowed column
+  **absent** from `inspect_user(alice)->'auth'` _and_ that an allowed column
   (`auth->>'email'`) **is present and correct** — so the test fails if the
   allowlist ever regresses (a denylist-style body would let an unlisted secret
   through).
 
 **Files:**
+
 - `db/migrations/0017_admin.sql` (modify — append function + grants)
 - `db/tests/admin_inspect.sql` (create)
 
 **Steps:**
+
 1. RED — Create `db/tests/admin_inspect.sql` with `plan(N)`, `\i` users +
    `list_shared_alice_bob` fixtures. Seed Alice's `auth.users` row with sentinel
    values in the credential/token columns. As `cairn_admin` (inherits readonly):
@@ -364,30 +378,33 @@ two paths can't diverge.
 **Prerequisites:** Task 1.1; mirrors `db/migrations/0014_delete_account.sql:36-72`.
 
 **Decisions:**
+
 - Body copies `delete_account()` verbatim except: target is `p_target` (not
   `public.uid()`); guards raise 'cannot delete the tombstone user' and 'no such
   user' (the latter via `SELECT email INTO email_at_time … IF NOT FOUND`); the
   audit insert (`payload = jsonb_build_object('email_at_time', email_at_time)`)
   goes **before** the deletes.
-- **Order is load-bearing:** compute the sole-member list hard-delete *before*
+- **Order is load-bearing:** compute the sole-member list hard-delete _before_
   `DELETE FROM auth.users` — the auth delete cascades the `list_members` rows the
   query reads. Use `delete_account()`'s **exact** `NOT EXISTS (live member <>
-  p_target)` form (`0014_delete_account.sql:55-62`), **not** the doc's original
+p_target)` form (`0014_delete_account.sql:55-62`), **not** the doc's original
   `EXISTS (member = p_target) AND NOT EXISTS (other)` variant: the two diverge on
   orphaned (zero-live-member) lists, and only the verbatim form makes the
   "identical end-state" claim (R5) literally true. (Task 0.1 has already
   corrected the doc's body to match.)
 - `language plpgsql security definer set search_path = admin, public, auth`;
   `ALTER … OWNER TO cairn_admin_owner; REVOKE … FROM public; GRANT EXECUTE … TO
-  cairn_admin;`
+cairn_admin;`
 - `payload` deliberately records only `email_at_time` — the audit log is not a
   recovery channel for just-erased personal data.
 
 **Files:**
+
 - `db/migrations/0017_admin.sql` (modify — append function + grants)
 - `db/tests/admin_delete_account_as.sql` (create)
 
 **Steps:**
+
 1. RED — Create `db/tests/admin_delete_account_as.sql` with `plan(N)`. Build two
    parallel worlds in the same test. **World A (admin path):** give Bob a solo
    list and a shared (Alice+Bob) list, each with an item + a vote (reuse/adapt
@@ -400,7 +417,7 @@ two paths can't diverge.
    (`SET LOCAL ROLE authenticated` + her JWT claim), `public.delete_account()`,
    and assert the same shape. The two end-states match.
    **Orphaned-list case (load-bearing for the verbatim `NOT EXISTS` form):** add
-   a list that is *orphaned* for the target — its only member soft-deleted their
+   a list that is _orphaned_ for the target — its only member soft-deleted their
    `list_members` row (zero live members) — in both worlds, and assert **both**
    paths hard-delete it. This is the one scenario the doc's old
    `EXISTS … AND NOT EXISTS …` variant would have diverged on; without it the
@@ -422,11 +439,12 @@ two paths can't diverge.
 **Completed:** 2026-06-12T09:30:32Z
 
 **Notes:**
+
 - **Missing prerequisite / doc divergence (fixed here).** The
   `moderate_*` claim-to-tombstone step makes the `BEFORE UPDATE`
   attribution trigger call `public.uid()`, which runs with the definer
   owner's privileges — so `cairn_admin_owner` needs `EXECUTE ON FUNCTION
-  public.uid()`. Without it the soft-delete fails "permission denied for
+public.uid()`. Without it the soft-delete fails "permission denied for
   function uid". The 1.1 grants and `docs/admin.md`'s public-side
   paragraph hadn't listed it (the earlier RPCs never call `uid()`:
   `delete_account_as`'s cascades don't hit the `deleted_at`-transition
@@ -440,14 +458,15 @@ pre-state snapshot.
 the tombstone semantics from `docs/data-model.md`.
 
 **Decisions:**
+
 - Four `language plpgsql security definer set search_path = admin, public`
   functions; bodies per `docs/admin.md` § moderate/purge (reformat uppercase).
 - `moderate_*`: snapshot `to_jsonb(row) INTO snap`; `IF snap IS NULL THEN RAISE
-  'no such item'/'no such list'`; insert audit with `payload = snap`; **then set
+'no such item'/'no such list'`; insert audit with `payload = snap`; **then set
   the request claim to the tombstone** (`PERFORM set_config('request.jwt.claims',
-  jsonb_build_object('sub','00000000-0000-0000-0000-000000000000')::text,
-  TRUE)`) **and** `UPDATE … SET deleted_at = clock_timestamp() WHERE id =
-  p_target AND deleted_at IS NULL`. **Do NOT set `deleted_by` in the UPDATE:**
+jsonb_build_object('sub','00000000-0000-0000-0000-000000000000')::text,
+TRUE)`) **and** `UPDATE … SET deleted_at = clock_timestamp() WHERE id =
+p_target AND deleted_at IS NULL`. **Do NOT set `deleted_by` in the UPDATE:**
   the `BEFORE UPDATE` attribution trigger (`tg_set_attribution_items`/`_lists`,
   `0004_domain_schema.sql:369-370`) derives `deleted_by` from `public.uid()` on
   the live→deleted transition and would overwrite a directly-set value with NULL
@@ -455,17 +474,19 @@ the tombstone semantics from `docs/data-model.md`.
   tombstone, so the trigger stamps `deleted_by = tombstone` (R5). `purge_*` does
   a plain `DELETE` and needs no claim step.
 - `purge_*`: same snapshot + audit, then `DELETE FROM public.items/lists WHERE id
-  = p_target` (votes/items/list_members/invitations cascade per the FKs).
+= p_target` (votes/items/list_members/invitations cascade per the FKs).
 - Each: `ALTER … OWNER TO cairn_admin_owner; REVOKE … FROM public; GRANT EXECUTE
-  … TO cairn_admin;`
+… TO cairn_admin;`
 - The `reason` CHECK is enforced by `admin.actions` (R3); each function inserts
   before mutating, so an empty reason aborts the whole action.
 
 **Files:**
+
 - `db/migrations/0017_admin.sql` (modify — append four functions + grants)
 - `db/tests/admin_moderate_purge.sql` (create)
 
 **Steps:**
+
 1. RED — Create `db/tests/admin_moderate_purge.sql` with `plan(N)`, `\i` users +
    `list_shared_alice_bob`. **Note: that fixture seeds only the list and two
    memberships — no items.** Seed the item(s) and a vote directly in the test
@@ -473,7 +494,7 @@ the tombstone semantics from `docs/data-model.md`.
    list, with a vote, so the purge-cascade assertion has something to cascade.
    As `cairn_admin`: `moderate_item(item, 'reason ≥8')` sets `deleted_at`
    non-null and `deleted_by = tombstone`; a member (Alice, via `SET LOCAL ROLE
-   authenticated` + her JWT) still sees it through `public.items_deleted`; audit
+authenticated` + her JWT) still sees it through `public.items_deleted`; audit
    `payload` holds the pre-state row. `purge_item` hard-deletes the row and its
    votes (count 0). `moderate_list` soft-deletes the list (visible via
    `lists_deleted` to a member); `purge_list` hard-deletes it and cascades
@@ -498,6 +519,7 @@ the tombstone semantics from `docs/data-model.md`.
 **Completed:** 2026-06-12T09:42:53Z
 
 **Notes:**
+
 - **Bug found via live exercise.** psql interpolates `:'var'` from `-v`
   only via stdin/a file, **not** in a `-c` command string — so the first
   draft of `resolve_email` (which used `-c "... :'email'"`) hit "syntax
@@ -519,19 +541,21 @@ the tombstone semantics from `docs/data-model.md`.
 
 **Why:** The operator-facing ergonomics layer over the RPCs — resolves emails,
 enforces `--reason`, requires self-target confirmation, and shows pre/post state
-+ the audit id. It adds no security on its own (the DB grants + CHECK do); it
-stops 2-AM typos.
+
+- the audit id. It adds no security on its own (the DB grants + CHECK do); it
+  stops 2-AM typos.
 
 **Prerequisites:** Phases 1–3 (all RPCs + `admin.actions` exist).
 
 **Decisions:**
+
 - Bash, `#!/usr/bin/env bash`, `set -euo pipefail`, header block like
   `scripts/list-users.sh`. No `.sh` extension (installed/run as `cairn-admin`).
 - Sources `~/.cairn-admin.env` for libpq `PG*` connection vars + `CAIRN_ADMIN_EMAIL`.
   `case`-based dispatch: `inspect|ban|unban|delete|item|list|log`; `item`/`list`
   take a `moderate|purge` sub-verb + UUID; `log` takes `--actor/--since/--target`.
 - Email→UUID: `psql -tA -v email="$E" -c "SELECT id FROM auth.users WHERE
-  lower(email) = lower(:'email')"`. Validate UUID-shaped args for item/list.
+lower(email) = lower(:'email')"`. Validate UUID-shaped args for item/list.
 - Destructive subcommands: require `--reason`; refuse a reason `< 8` chars (fast
   pre-check; the DB CHECK is the wall). Pass `reason`/`target` as `psql -v` vars
   and reference `:'reason'`/`:'target'` in SQL (libpq quoting — no injection).
@@ -549,9 +573,9 @@ stops 2-AM typos.
 - **Lint coverage (R10), per tool:**
   - `scripts/check.sh` **shellcheck** (`shellcheck scripts/*.sh`) is a literal
     glob that misses `cairn-admin` — add the path: `shellcheck scripts/*.sh
-    scripts/cairn-admin`.
+scripts/cairn-admin`.
   - `scripts/check.sh` **shfmt** (`shfmt -d -i 2 -ci -bn scripts/`) is a
-    *directory* walk that shfmt already resolves by shebang, so it **already
+    _directory_ walk that shfmt already resolves by shebang, so it **already
     covers** the extension-less `cairn-admin` — no change strictly required
     (verified); leave it or add the path redundantly, your call.
   - `lefthook.yml` **shellcheck** and **shfmt** both use
@@ -564,11 +588,13 @@ stops 2-AM typos.
 for the exact command surface and printed-output shape.
 
 **Files:**
+
 - `scripts/cairn-admin` (create)
 - `scripts/check.sh` (modify — lint `scripts/cairn-admin`)
 - `lefthook.yml` (modify — pre-commit shellcheck/shfmt for `scripts/cairn-admin`)
 
 **Steps:**
+
 1. GREEN — Write `scripts/cairn-admin` per Decisions; `chmod +x`.
 2. GREEN — Wire lint coverage of `scripts/cairn-admin`: add the path to
    `scripts/check.sh`'s `shellcheck scripts/*.sh` line (the `shfmt … scripts/`

@@ -137,7 +137,7 @@ is not a domain — it is the toolkit the test files use.
   that doesn't start with `+`, so `page.test.ts` next to `+page.svelte`
   is invisible to the route manifest while Vitest still picks it up
   via its `src/**/*.test.ts` glob. The collision risk — a `page.svelte`
-  *and* a `+page.svelte` in the same folder — is real but vanishingly
+  _and_ a `+page.svelte` in the same folder — is real but vanishingly
   rare; one route component per folder is the convention.
 - **Mocks** — under `__mocks__/` next to the source, with the exact
   source filename: `__mocks__/Button.svelte`,
@@ -151,7 +151,7 @@ We use the Vitest automock convention. When a test calls
 
 ```ts
 // In a test file:
-vi.mock('$lib/basic/components/Icon.svelte');
+vi.mock("$lib/basic/components/Icon.svelte");
 // Vitest loads web/src/lib/basic/components/__mocks__/Icon.svelte
 ```
 
@@ -179,9 +179,9 @@ Use `SvelteSet` and `SvelteMap` (from `svelte/reactivity`) instead of plain `Set
 const expandedIds = new SvelteSet<string>(); // ✓ const, not $state(new SvelteSet())
 
 $effect(() => {
-  void someReactiveDep; // read a reactive value to subscribe; use void to suppress no-unused-vars
-  expandedIds.clear();
-  for (const id of computeIds()) expandedIds.add(id);
+	void someReactiveDep; // read a reactive value to subscribe; use void to suppress no-unused-vars
+	expandedIds.clear();
+	for (const id of computeIds()) expandedIds.add(id);
 });
 ```
 

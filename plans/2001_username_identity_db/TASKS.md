@@ -11,7 +11,7 @@ and no live-data migration ship here (those are 2002–2005).
 - **`.claude/skills/writing-tasks.md`** — Phase-0 doc-reconciliation
   convention; doc-edit-rides-with-code; RED-before-GREEN in one commit.
 - **`docs/testing.md`** — pgTAP is the security boundary; every new
-  constraint/RPC ships positive *and* negative cases; the fixture +
+  constraint/RPC ships positive _and_ negative cases; the fixture +
   `request.jwt.claims` harness.
 - **`docs/data-model.md`** — the `profiles`/`user_settings` split, the
   `lower()`-expression unique-index idiom, the `tg_profile_on_signup`
@@ -36,9 +36,10 @@ first.
 **Prerequisites:** None.
 
 **Decisions:**
+
 - Reconcile only the **narrative identity claims** here. The
   `data-model.md` schema DDL rides with the migration (Tasks 1.1–1.3),
-  not this task. The retirement *mechanics* (the magic-link callback/hash
+  not this task. The retirement _mechanics_ (the magic-link callback/hash
   flow in `architecture.md`'s "JWT storage" / "Security trade-off"
   sections; the shim-narrowing prose) are **left untouched** — they
   describe code that 2005 removes, and editing them now puts the doc
@@ -65,12 +66,14 @@ entry, ≈ line 321). `docs/invites.md` §"The profile screen" (the
 guides — locate by heading/quote, they may have drifted.
 
 **Files:**
+
 - `docs/architecture.md` (modify)
 - `docs/invites.md` (modify)
 - `docs/circles.md` (modify)
 - `docs/open-questions.md` (modify)
 
 **Steps:**
+
 1. `docs/architecture.md` §Authentication: retitle the section away from
    "email magic links" to username + password (e.g. "Authentication:
    GoTrue + username and password"). Rewrite the body: the user signs in
@@ -83,23 +86,23 @@ guides — locate by heading/quote, they may have drifted.
    now stores a password hash; state the trade accepted (a public
    identity + a credential the user controls, no forced e-mail) rather
    than claiming a benefit that no longer holds. Mark the six-digit-OTP
-   paragraph as superseded as a *sign-in* surface (its removal is 2005);
+   paragraph as superseded as a _sign-in_ surface (its removal is 2005);
    keep the e-mail-provider paragraph but reframe it as recovery /
    verification mail (2003). Because the magic-link "Authentication flow"
    walkthrough further down (the numbered click-the-link / OTP steps,
    ≈ line 252) is deliberately **left intact** for 2005, add a one-line
    forward-pointer in the rewritten Authentication section noting that
-   that walkthrough is the *legacy* magic-link sign-in path pending removal
+   that walkthrough is the _legacy_ magic-link sign-in path pending removal
    in 2005 — so the two sections don't silently contradict each other
    between 2001 and 2005.
 2. `docs/architecture.md` §"Considered and rejected": correct the
    "Self-host Sign in with Google / Apple" entry's rationale — it
    currently says "something we can do ourselves with magic links";
    change to "with username + password" (OAuth stays rejected). Add a new
-   entry recording the reversal itself: *why* the project moved off
+   entry recording the reversal itself: _why_ the project moved off
    magic-link-only to username + password (e-mail doubling as private
    contact and public add-key was confusing and forced an unwanted
-   address), and *why* the synthetic-e-mail mechanism was chosen over a
+   address), and _why_ the synthetic-e-mail mechanism was chosen over a
    server-side username→identity resolver in `auth-proxy` (keeps the
    proxy a dumb identity-agnostic cookie shim; recovery is a custom flow
    either way).
@@ -118,9 +121,9 @@ guides — locate by heading/quote, they may have drifted.
    not delete the unregistered/e-mail semantics.
 5. `docs/open-questions.md`: no stale identity entry exists to clear. Add
    one bullet under a suitable heading (e.g. a new "## Identity" or under
-   "Admin") for the genuinely-open thread: *accounts with no recovery
+   "Admin") for the genuinely-open thread: _accounts with no recovery
    e-mail that forget their password have no self-serve path (by design);
-   operator reset via an admin RPC is the default — add now or defer?*
+   operator reset via an admin RPC is the default — add now or defer?_
    Point it at the reconciled `architecture.md` §Authentication. Follow
    the file's own "Opening a question" convention (context in the
    underlying doc, pointer here).
@@ -152,10 +155,11 @@ use the `users_alice_bob_carol.sql` fixture and set
 then `SET LOCAL ROLE authenticated|anon` (see any file in `db/tests/`).
 
 **Decisions:**
+
 - Column: `username text`, constrained `CHECK (username ~ '^[A-Za-z0-9]{3,30}$')`
   — ASCII letters/digits only, length 3–30. Case-preserving storage.
 - Uniqueness: `CREATE UNIQUE INDEX profiles_username_lower_uniq ON
-  public.profiles (lower(username));` — non-partial (`username` is
+public.profiles (lower(username));` — non-partial (`username` is
   `NOT NULL`), mirroring the `lower()`-index idiom from
   `invitations_target_email_uniq`. `citext` is **not** introduced.
 - Provisional seed (used by both the trigger and the migration backfill):
@@ -174,12 +178,12 @@ then `SET LOCAL ROLE authenticated|anon` (see any file in `db/tests/`).
 - A `username` change should bump `profiles.modified_at`, consistent with
   `display_name` and `avatar_version`. The profiles `t20_set_modified_at`
   trigger currently fires only `BEFORE UPDATE OF display_name,
-  avatar_version` (`db/migrations/0007_avatars.sql:70`), and
+avatar_version` (`db/migrations/0007_avatars.sql:70`), and
   `t05_set_timestamps` freezes `modified_at` on every UPDATE — so without a
   rebind a `username` UPDATE would leave `modified_at` stale. Rebind it:
   `ALTER TRIGGER` cannot change the OF column list, so DROP + CREATE the
   profiles `t20_set_modified_at` with `BEFORE UPDATE OF display_name,
-  avatar_version, username` (exactly the DROP+CREATE pattern 0007 used to
+avatar_version, username` (exactly the DROP+CREATE pattern 0007 used to
   add `avatar_version`).
 - Test-harness interaction (RED step): `tg_profile_on_signup` creates a
   `profiles` row — with a provisional `username` — for **every**
@@ -189,7 +193,7 @@ then `SET LOCAL ROLE authenticated|anon` (see any file in `db/tests/`).
   trigger-created row (insert into `auth.users`, then update its
   `profiles.username`), not by a second INSERT.
 - Folded shape-lock edit (rides in this commit): add `has_column('public',
-  'profiles', 'username', …)` to `db/tests/schema_shape.sql` and bump its
+'profiles', 'username', …)` to `db/tests/schema_shape.sql` and bump its
   `plan(N)` by one — the repo keeps `schema_shape.sql` current across
   migrations (it already pins `avatar_version`/`set_display_name` from
   0007, `relationships` from 0008, etc.). `set_username` and
@@ -218,6 +222,7 @@ then `SET LOCAL ROLE authenticated|anon` (see any file in `db/tests/`).
 `docs/testing.md` for the pgTAP harness and positive+negative rule.
 
 **Files:**
+
 - `db/migrations/0019_username_identity.sql` (create)
 - `db/tests/username_constraints.sql` (create)
 - `db/tests/triggers_profile_on_signup.sql` (modify — assertion 4 omits
@@ -227,6 +232,7 @@ then `SET LOCAL ROLE authenticated|anon` (see any file in `db/tests/`).
 - `docs/data-model.md` (modify)
 
 **Steps:**
+
 1. RED — Create `db/tests/username_constraints.sql` with a `plan(N)`
    asserting: (a) a row with a valid `username` inserts; (b) an invalid
    `username` is rejected — test a space (`'la ra'`), punctuation
@@ -244,20 +250,20 @@ then `SET LOCAL ROLE authenticated|anon` (see any file in `db/tests/`).
    `modified_at`, update `username`, assert it advanced.
 2. RED — In `db/tests/triggers_profile_on_signup.sql`: supply a `username`
    in assertion 4's `INSERT INTO public.profiles (… ) ON CONFLICT … DO
-   NOTHING` (it currently omits it; once `username` is `NOT NULL` the
-   NOT-NULL check fires *before* the conflict skip, so the bare INSERT
+NOTHING` (it currently omits it; once `username` is `NOT NULL` the
+   NOT-NULL check fires _before_ the conflict skip, so the bare INSERT
    would raise and the `lives_ok` would fail), and add an assertion that
    the freshly-signed-up `Dave` row's `username` matches the CHECK regex
    (bump its `plan(N)`).
 3. RED — In `db/tests/schema_shape.sql`: add `has_column('public',
-   'profiles', 'username', …)` and bump `plan(N)` by one.
+'profiles', 'username', …)` and bump `plan(N)` by one.
 4. RED — Run `./scripts/test-db.sh` and confirm the new/edited assertions
    report `not ok` (column/index/trigger don't exist yet).
 5. GREEN — Create `db/migrations/0019_username_identity.sql` performing
    the ordered steps in Decisions: add the column, backfill the
    provisional into existing rows, `SET NOT NULL`, add the CHECK, create
    the `lower()` unique index, `CREATE OR REPLACE FUNCTION
-   public.tg_profile_on_signup()` to seed the provisional `username` on
+public.tg_profile_on_signup()` to seed the provisional `username` on
    insert (preserving the tombstone-skip and `user_settings` insert), and
    DROP + CREATE the profiles `t20_set_modified_at` trigger with `username`
    added to its `OF` list (per Decisions).
@@ -268,13 +274,14 @@ then `SET LOCAL ROLE authenticated|anon` (see any file in `db/tests/`).
 **Verify:** `./scripts/test-db.sh` · `./scripts/check.sh`
 
 **Notes:**
+
 - **Side work (not in the task's Files list):** `db/tests/triggers_set_timestamps.sql`
   does a direct `INSERT INTO public.profiles (id, display_name, created_at,
-  modified_at)` for "Eve" (it deletes the trigger-seeded row first to test
+modified_at)` for "Eve" (it deletes the trigger-seeded row first to test
   the timestamp-override path). Once `username` became `NOT NULL` this INSERT
   raised `23502` and red the suite. Fixed by adding `username = 'EveHandle'`
   to that INSERT. The task anticipated the trigger/PK-collision interaction
-  for the *new* test but not this pre-existing direct insert.
+  for the _new_ test but not this pre-existing direct insert.
 - **User decision captured mid-task:** e-mail is **not** unique across
   accounts — a user may run two accounts on one e-mail to follow different
   lists. The synthetic-e-mail mechanism already satisfies this (real e-mail
@@ -288,7 +295,7 @@ then `SET LOCAL ROLE authenticated|anon` (see any file in `db/tests/`).
 **Completed:** 2026-06-15T13:43:17Z
 
 **Why:** A user must be able to change their username at any time (step-20
-R5). Because the synthetic e-mail derived from the username *is* the
+R5). Because the synthetic e-mail derived from the username _is_ the
 GoTrue identity, the change must rewrite `auth.users.email` atomically
 with `profiles.username`, or the next sign-in (computed from the new
 username) fails. The RPC must reject taken/invalid names with errors the
@@ -299,6 +306,7 @@ index exist; the migration file `0019_username_identity.sql` exists and
 this task appends to it).
 
 **Decisions:**
+
 - Signature: `public.set_username(p_username text) RETURNS void`,
   `LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, auth` —
   matching the shape of `public.set_display_name`
@@ -315,7 +323,7 @@ this task appends to it).
   error (`RAISE EXCEPTION 'username taken'`). The **testable** guarantee
   is the `profiles` `lower(username)` unique index plus this in-RPC
   SELECT. As defence-in-depth, wrap the writes in a `BEGIN … EXCEPTION
-  WHEN unique_violation` that maps the `auth.users.email` / `profiles`
+WHEN unique_violation` that maps the `auth.users.email` / `profiles`
   unique collision to the same `'username taken'` error, so a TOCTOU race
   surfaces the same way. **Caveat:** the test-harness `auth.users`
   (`db/test-bootstrap.sql`) has **no** unique index on `email` — only
@@ -327,7 +335,7 @@ this task appends to it).
   unique index on the stub `email` — but the `profiles` index is the
   load-bearing guarantee either way.)
 - Synthetic e-mail: `UPDATE auth.users SET email = lower(p_username) ||
-  '@users.cairn.invalid' WHERE id = public.uid();` — the pinned canonical
+'@users.cairn.invalid' WHERE id = public.uid();` — the pinned canonical
   domain. Write `auth.users.email` directly (precedent:
   `admin.ban_user` writes `auth.users.banned_until`); do **not** route
   through GoTrue's e-mail-change confirmation API. Update
@@ -351,12 +359,14 @@ unauth/tombstone guard pattern); `db/migrations/0017_admin.sql`
 `docs/testing.md`.
 
 **Files:**
+
 - `db/migrations/0019_username_identity.sql` (modify — append the RPC)
 - `db/tests/set_username.sql` (create)
 - `db/tests/schema_shape.sql` (modify — add the `set_username` shape-lock)
 - `docs/data-model.md` (modify)
 
 **Steps:**
+
 1. RED — Create `db/tests/set_username.sql` with a `plan(N)` asserting,
    as an authenticated caller via `request.jwt.claims`: (a) `set_username('NewName')`
    changes `profiles.username` to `'NewName'` (mutability, case
@@ -367,7 +377,7 @@ unauth/tombstone guard pattern); `db/migrations/0017_admin.sql`
    **taken** error, distinguishable from (e) calling with an invalid
    value (`'a@b'`, `'ab'`, a 31-char string) which raises the **invalid**
    error — assert the two are separable (different message or SQLSTATE);
-   (f) re-setting to the caller's *own* current value (case-variant of
+   (f) re-setting to the caller's _own_ current value (case-variant of
    it) succeeds (self is excluded from the taken check); (g) an
    unauthenticated caller (no `sub`) raises `28000`; (h) the tombstone
    caller raises `28000`.
@@ -375,7 +385,7 @@ unauth/tombstone guard pattern); `db/migrations/0017_admin.sql`
    `not ok` (function doesn't exist). Also confirm here that the harness
    `auth.users` exposes the `email` column the RPC writes.
 3. RED — In `db/tests/schema_shape.sql`: add `has_function('public',
-   'set_username', ARRAY['text'], …)` and bump `plan(N)` by one.
+'set_username', ARRAY['text'], …)` and bump `plan(N)` by one.
 4. GREEN — Append `CREATE OR REPLACE FUNCTION public.set_username(...)`
    to `db/migrations/0019_username_identity.sql` per Decisions, plus the
    `GRANT EXECUTE` that the sibling RPCs use (match `set_display_name`'s
@@ -402,6 +412,7 @@ exists and this task appends to it). `public.user_settings`
 (`user_settings_select`/`_update USING (id = public.uid())`).
 
 **Decisions:**
+
 - Column: `recovery_email text` on `public.user_settings`, nullable,
   default `NULL`. No new RLS policy — the table's existing owner-only
   policies make it structurally private (never returned to another user,
@@ -423,6 +434,7 @@ structural-privacy rationale); `docs/invites.md` (e-mail is private,
 never shown).
 
 **Files:**
+
 - `db/migrations/0019_username_identity.sql` (modify — append the column)
 - `db/tests/recovery_email.sql` (create)
 - `db/tests/schema_shape.sql` (modify — add the `recovery_email`
@@ -430,19 +442,20 @@ never shown).
 - `docs/data-model.md` (modify)
 
 **Steps:**
+
 1. RED — Create `db/tests/recovery_email.sql` with a `plan(N)` asserting:
    (a) `recovery_email` defaults `NULL` on a freshly seeded settings row;
    (b) the owner (`request.jwt.claims.sub` = the row's `id`) can
    `UPDATE … SET recovery_email = 'me@example.test'` and read it back;
-   (c) a *different* authenticated user cannot read the owner's
+   (c) a _different_ authenticated user cannot read the owner's
    `recovery_email` (the row is not visible under `user_settings_select`
    — assert the select returns no row), the privacy negative case.
 2. RED — Run `./scripts/test-db.sh`; confirm `recovery_email.sql` reports
    `not ok` (column doesn't exist).
 3. RED — In `db/tests/schema_shape.sql`: add `has_column('public',
-   'user_settings', 'recovery_email', …)` and bump `plan(N)` by one.
+'user_settings', 'recovery_email', …)` and bump `plan(N)` by one.
 4. GREEN — Append `ALTER TABLE public.user_settings ADD COLUMN IF NOT
-   EXISTS recovery_email text;` to `db/migrations/0019_username_identity.sql`.
+EXISTS recovery_email text;` to `db/migrations/0019_username_identity.sql`.
 5. GREEN — Re-run `./scripts/test-db.sh`; confirm `recovery_email.sql` and
    `schema_shape.sql` are green.
 6. Update `docs/data-model.md` per the folded doc edit in Decisions.

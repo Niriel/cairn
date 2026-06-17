@@ -88,7 +88,7 @@ Check sequence — execute in this order:
    (the self / existing-membership / block / policy checks are all
    keyed on a resolved `target` uuid and have nothing to compare
    against when `target IS NULL`); step 5 (existing-invite check)
-   *still* runs, against the `lower(target_email)` partial-unique
+   _still_ runs, against the `lower(target_email)` partial-unique
    index, so a repeated send to the same unregistered address is the
    canonical idempotency point rather than relying on the
    EXCEPTION-with-SELECT branch alone.
@@ -102,7 +102,7 @@ Check sequence — execute in this order:
    `(p_list_id, lower(target_email))` (when email-keyed): return the
    existing id (idempotent no-op; the caller sees "sent").
 6. **Block check.** If `relationships` has a row with `user_id =
-   target`, `other_user_id = inviter`, `status = 'blocked'`: return
+target`, `other_user_id = inviter`, `status = 'blocked'`: return
    null (silent fail).
 7. **Policy check.** Read `user_settings.invite_policy` for `target`.
    `'nobody'` → return null. `'circle'` → check whether `inviter` is
@@ -110,7 +110,7 @@ Check sequence — execute in this order:
    `other_user_id = inviter`, `status = 'circle'`); absent → return
    null. `'everybody'` → fall through.
 8. **Insert.** `INSERT INTO public.invitations (list_id, created_by,
-   target_user_id, target_email)` with `target_user_id = target` when
+target_user_id, target_email)` with `target_user_id = target` when
    resolved, else `target_email = p_email`. Return the new `id`.
 
 The INSERT in step 8 must handle a concurrent-duplicate
@@ -138,11 +138,11 @@ uuid) returns void`.
    Using `IS DISTINCT FROM` (not `<>`) is required: `NULL <> value`
    evaluates to NULL (treated as false in a PL/pgSQL `if`) and would
    silently pass for email-keyed invitations where `target_user_id IS
-   NULL`. `IS DISTINCT FROM` treats NULL correctly and raises in that
+NULL`. `IS DISTINCT FROM` treats NULL correctly and raises in that
    case.
 3. `INSERT INTO public.list_members (list_id, user_id) VALUES (inv.list_id,
-   public.uid()) ON CONFLICT (list_id, user_id) DO UPDATE SET deleted_at
-   = null, deleted_by = null`. `ON CONFLICT DO UPDATE` restores a
+public.uid()) ON CONFLICT (list_id, user_id) DO UPDATE SET deleted_at
+= null, deleted_by = null`. `ON CONFLICT DO UPDATE` restores a
    previously-removed (soft-deleted) member and also handles a
    concurrent-accept race; `DO NOTHING` would leave the soft-deleted
    row unrestored.
@@ -156,6 +156,7 @@ uuid) returns void`.
    user before they were soft-removed). Audit semantic: "the
    membership's `created_by` is whoever first put the user on the list,
    not whoever most recently re-accepted."
+
 4. `DELETE FROM public.invitations WHERE id = p_invitation_id` (hard
    delete).
 
@@ -242,7 +243,7 @@ Create a new pgTAP test file `db/tests/invitations.sql` covering:
     exercised by a single-session pgTAP test (step 5's SELECT
     short-circuits before step 8 ever runs); the branch's correctness
     rests on code review of the `BEGIN … EXCEPTION WHEN
-    unique_violation` block, which mirrors the step-5 retrieval
+unique_violation` block, which mirrors the step-5 retrieval
     predicate exactly. Don't pretend a unit test covers this — call
     the scenario "step-5 idempotency under pre-existing invitation"
     and leave the EXCEPTION arm to review.
@@ -285,7 +286,7 @@ Update `db/tests/schema_shape.sql` with:
   `created_by`, `target_user_id`, `target_email`, `created_at`,
   `modified_at`)
 - `has_function` for the three RPC signatures (`send_invitation(uuid,
-  text, uuid)`, `accept_invitation(uuid)`, `decline_invitation(uuid)`)
+text, uuid)`, `accept_invitation(uuid)`, `decline_invitation(uuid)`)
 
 Update `db/tests/grants.sql` with:
 
@@ -331,7 +332,7 @@ isn't worth tracking in this spec.
   it was in the trash.
 - **Guard on sending an invitation targeting the tombstone UUID** —
   `send_invitation` permits `p_user_id =
-  '00000000-0000-0000-0000-000000000000'`. The resulting row is inert
+'00000000-0000-0000-0000-000000000000'`. The resulting row is inert
   (the tombstone has no auth identity and can never accept), and the
   privacy surface is nil (the tombstone UUID is a documented
   constant, not a leakable user identity). Adding a guard would cost

@@ -4,13 +4,13 @@ Cairn lets a signed-in user permanently delete their own account from
 Settings. This exists because account deletion is a right, not a feature
 (GDPR erasure): the user's personal data (e-mail, profile, votes, settings,
 memberships) is hard-deleted, while items and lists they contributed to
-*shared* workspaces stay — with their attribution repointed to the tombstone
+_shared_ workspaces stay — with their attribution repointed to the tombstone
 "Deleted user" so co-members aren't robbed of their working material. The
-model is *anonymize, don't cascade*, specified in `docs/account-deletion.md`.
+model is _anonymize, don't cascade_, specified in `docs/account-deletion.md`.
 
 Most of the supporting schema already shipped in step 1 (the tombstone user,
 the `ON DELETE SET DEFAULT` attribution FKs, the `ON DELETE CASCADE` personal
-FKs) and the tombstone *display* already works in the UI (`Avatar.svelte`,
+FKs) and the tombstone _display_ already works in the UI (`Avatar.svelte`,
 `ItemsScreen.svelte`). This plan adds the deletion path itself: the RPC and
 its test, and the Settings flow that calls it.
 
@@ -38,7 +38,7 @@ WHERE NOT EXISTS (
 DELETE FROM auth.users WHERE id = uid;
 ```
 
-Step order is load-bearing: the sole-member-list delete must run *before*
+Step order is load-bearing: the sole-member-list delete must run _before_
 the `auth.users` delete, because the membership cascade clears the rows the
 `NOT EXISTS` check reads.
 
@@ -47,9 +47,9 @@ the `auth.users` delete, because the membership cascade clears the rows the
 Before doing any work, `delete_account()` guards:
 
 - If `public.uid()` IS NULL → `RAISE EXCEPTION 'not authenticated' USING
-  errcode = '28000'`.
+errcode = '28000'`.
 - If `public.uid() = '00000000-0000-0000-0000-000000000000'` → `RAISE
-  EXCEPTION 'cannot delete the tombstone user' USING errcode = '28000'`.
+EXCEPTION 'cannot delete the tombstone user' USING errcode = '28000'`.
 
 The `28000` errcode matches the idiom already used by `public.create_list()`
 in `0004_domain_schema.sql` (the doc's snippet omits an errcode; we set it
@@ -61,13 +61,13 @@ for consistency).
 EXECUTE ON FUNCTION public.delete_account() TO authenticated;`. The `anon`
 role must be denied at the GRANT layer (PostgREST surfaces this as `42501`).
 There is no RLS or `DELETE` grant on `auth.users` for end users — the
-function is the *only* sanctioned deletion path, and its `SECURITY DEFINER`
+function is the _only_ sanctioned deletion path, and its `SECURITY DEFINER`
 elevation is scoped to a body that targets only `public.uid()`.
 
 ## R4. Deletion anonymizes shared content and cascades personal data
 
 After a successful `delete_account()` by user U (verified by pgTAP, positive
-*and* negative):
+_and_ negative):
 
 - A list where U was the only remaining live member is **gone**, along with
   its items and votes.
@@ -75,7 +75,7 @@ After a successful `delete_account()` by user U (verified by pgTAP, positive
   `list_members` row for it is gone (cascade), U's votes on its items are
   gone (cascade), and any `created_by`/`modified_by`/`deleted_by` on
   surviving rows that pointed at U now point at the tombstone UUID.
-- An attribution column pointing at a *different, non-deleted* user is
+- An attribution column pointing at a _different, non-deleted_ user is
   **unchanged** (the cascade only repoints FKs that referenced U — this
   guards against an order-dependent regression).
 - U's `profiles` and `user_settings` rows are gone (cascade).

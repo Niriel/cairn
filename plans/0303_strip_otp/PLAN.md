@@ -68,7 +68,7 @@ control the template.
 1. **Phase 1 — template file and stack wiring.** Create
    `gotrue/templates/magic_link.html` and update `docker-compose.yml`. No test
    changes in this phase — the stack works correctly after `docker compose up
-   --force-recreate gotrue`, but the machine-verifiable OTP assertion is not
+--force-recreate gotrue`, but the machine-verifiable OTP assertion is not
    written until Phase 2.
 
 2. **Phase 2 — Playwright assertion (RED → GREEN).** Extend the Mailpit helper

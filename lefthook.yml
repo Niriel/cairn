@@ -9,53 +9,53 @@ pre-commit:
   parallel: true
   commands:
     eslint:
-      root: 'web/'
-      glob: 'web/**/*.{ts,js,svelte}'
+      root: "web/"
+      glob: "web/**/*.{ts,js,svelte}"
       # --no-error-on-unmatched-pattern: don't fail when a staged file
       # matches an ignore pattern in eslint.config.js — just skip it.
       run: pnpm exec eslint --no-error-on-unmatched-pattern {staged_files}
     prettier:
-      root: 'web/'
-      glob: 'web/**/*.{ts,js,svelte,css,json,md,yaml,yml}'
+      root: "web/"
+      glob: "web/**/*.{ts,js,svelte,css,json,md,yaml,yml}"
       # --ignore-unknown skips files Prettier doesn't know how to format
       # or that are listed in .prettierignore.
       run: pnpm exec prettier --check --ignore-unknown {staged_files}
     svelte-check:
-      root: 'web/'
-      glob: 'web/**/*.{ts,svelte}'
+      root: "web/"
+      glob: "web/**/*.{ts,svelte}"
       run: pnpm check
     eslint-sidecar:
-      root: 'sidecar/'
-      glob: 'sidecar/**/*.{ts,js}'
+      root: "sidecar/"
+      glob: "sidecar/**/*.{ts,js}"
       run: pnpm exec eslint --no-error-on-unmatched-pattern {staged_files}
     prettier-sidecar:
-      root: 'sidecar/'
-      glob: 'sidecar/**/*.{ts,js,json,yaml,yml}'
+      root: "sidecar/"
+      glob: "sidecar/**/*.{ts,js,json,yaml,yml}"
       run: pnpm exec prettier --check --ignore-unknown {staged_files}
     eslint-auth-proxy:
-      root: 'auth-proxy/'
-      glob: 'auth-proxy/**/*.{ts,js}'
+      root: "auth-proxy/"
+      glob: "auth-proxy/**/*.{ts,js}"
       run: pnpm exec eslint --no-error-on-unmatched-pattern {staged_files}
     prettier-auth-proxy:
-      root: 'auth-proxy/'
-      glob: 'auth-proxy/**/*.{ts,js,json,yaml,yml}'
+      root: "auth-proxy/"
+      glob: "auth-proxy/**/*.{ts,js,json,yaml,yml}"
       run: pnpm exec prettier --check --ignore-unknown {staged_files}
     sqlfluff:
-      glob: '{db,scripts}/**/*.sql'
+      glob: "{db,scripts}/**/*.sql"
       run: sqlfluff lint {staged_files}
     shellcheck:
-      glob: 'scripts/**/*.sh'
+      glob: "scripts/**/*.sh"
       run: shellcheck {staged_files}
     shfmt:
-      glob: 'scripts/**/*.sh'
+      glob: "scripts/**/*.sh"
       run: shfmt -d -i 2 -ci -bn {staged_files}
     # The *.sh globs above miss the extension-less cairn-admin CLI; cover
     # it with dedicated commands so it lints on commit like every other script.
     shellcheck-cairn-admin:
-      glob: 'scripts/cairn-admin'
+      glob: "scripts/cairn-admin"
       run: shellcheck {staged_files}
     shfmt-cairn-admin:
-      glob: 'scripts/cairn-admin'
+      glob: "scripts/cairn-admin"
       run: shfmt -d -i 2 -ci -bn {staged_files}
 
 pre-push:
@@ -64,8 +64,8 @@ pre-push:
     test-db:
       run: ./scripts/test-db.sh
     vitest:
-      root: 'web/'
+      root: "web/"
       run: pnpm test
     vitest-auth-proxy:
-      root: 'auth-proxy/'
+      root: "auth-proxy/"
       run: pnpm test

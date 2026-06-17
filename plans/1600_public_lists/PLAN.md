@@ -21,7 +21,7 @@ the only question is what the database lets `anon` do.
 The feature adds a per-list `is_public` flag (R1), an anonymous read-only view
 reached at `/p/<list_id>` (R6), a clear in-app "this list is public" marker for
 members (R7), and a copy-link affordance (R8). Members keep editing exactly as
-now — public is purely an *additional read path* layered on top; it does not
+now — public is purely an _additional read path_ layered on top; it does not
 touch the membership model (R2).
 
 The signed-out route guard lives client-side in `web/src/routes/+layout.svelte`
@@ -41,7 +41,7 @@ The list-detail screen is `ItemsScreen.svelte`; its overflow menu is
 **One `SECURITY DEFINER` RPC, not direct `anon` table grants (R3, R4).** The
 obvious approach — `GRANT SELECT … TO anon` plus a `TO anon` policy — does not
 work cleanly. `items_ranked` is declared `WITH (security_invoker = TRUE)`
-(`db/migrations/0004_domain_schema.sql:782`), so it inherits the *caller's*
+(`db/migrations/0004_domain_schema.sql:782`), so it inherits the _caller's_
 RLS; for `anon` that yields nothing, and flipping it to a definer view would
 leak **every** list's scores. Ranking is the whole point of the list, so it
 can't be dropped. Embedding (`select=*,list_members(...)`) and base columns
@@ -49,7 +49,7 @@ can't be dropped. Embedding (`select=*,list_members(...)`) and base columns
 members/attribution". A single `SECURITY DEFINER` function returning a curated
 JSON payload collapses all of that into **one** auditable surface: `anon`'s
 entire footprint becomes one function, members/votes/attribution are excluded
-*by construction*, and the view-RLS/embedding traps disappear. This mirrors the
+_by construction_, and the view-RLS/embedding traps disappear. This mirrors the
 existing RPC-mediated `create_list` pattern
 (`db/migrations/0004_domain_schema.sql:586`), which is already idiomatic in
 Cairn.
@@ -75,7 +75,7 @@ omitted on `/p/` where being public is self-evident. Per project convention
 container.
 
 **Read-only page is a thin, separate route (R6).** `/p/<list_id>` sits
-*outside* the `(app)` group so it doesn't inherit the signed-in shell, and `/p`
+_outside_ the `(app)` group so it doesn't inherit the signed-in shell, and `/p`
 is allowlisted in `public-paths.ts`. It fetches via `pgPost('/rpc/public_list_view', …)`;
 a cookieless request runs as `anon`, a signed-in one as `authenticated` — both
 granted, both get the same curated payload. Item presentation is reused in a
@@ -99,7 +99,7 @@ read-only mode (no vote controls, FAB, overflow, avatars, or attribution).
 ### Modified files
 
 - **`db/tests/grants.sql`** — extend the `anon` negatives: still no table/view
-  SELECT, no other RPC; new positive that `anon` *can* execute
+  SELECT, no other RPC; new positive that `anon` _can_ execute
   `public_list_view`.
 - **`db/tests/fixtures/`** — add a public list and a private list fixture.
 - **`web/src/lib/list/model/list.ts`** — add `is_public` to the `List` type.
@@ -141,12 +141,12 @@ doc reconciliation before code so downstream steps reference the updated spec.
    table" line (≈ `data-model.md:371`) to note `anon` still touches **no**
    table/view but gains exactly one `SECURITY DEFINER` RPC; add the `is_public`
    column + the `public_list_view` RPC as the sole anon path. In
-   `docs/architecture.md`, *add* a one-line note to the request-flow/`anon`
+   `docs/architecture.md`, _add_ a one-line note to the request-flow/`anon`
    description (it has no blanket "no access" statement today — only auth-proxy
    text): one read-only RPC for `anon`, everything else closed, no infra change.
    In `docs/ui.md`, define the public marker (globe), the publish/copy-link
    affordance (including the "Copied" feedback — Cairn's first clipboard action,
-   so this *establishes* the convention) and its position above destructive
+   so this _establishes_ the convention) and its position above destructive
    actions, and the read-only `/p/` screen. `docs/open-questions.md` has **no**
    public-lists entry to resolve; add a brief decided note only if it fits, else
    skip.

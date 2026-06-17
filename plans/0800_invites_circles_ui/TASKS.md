@@ -35,15 +35,15 @@
 **Why:** Four step-8 design choices are at odds with the current
 docs: (a) the R12 FIFO cap deliberately exempts `target_email`-only
 invitations, but `docs/invites.md` § "Pending-invite cap" doesn't
-record the carve-out; (b) the profile-sheet *Cancel pending invite*
+record the carve-out; (b) the profile-sheet _Cancel pending invite_
 action is a direct `DELETE /invitations?…` (gated by the new
 `invitations_delete` policy that 0802 ships), but `docs/invites.md`
-§ "RLS and stored procedures" currently asserts that *all* deletes on
+§ "RLS and stored procedures" currently asserts that _all_ deletes on
 `invitations` go through RPCs; (c) two pieces of `docs/ui.md` block
 / circle copy still use gendered "Bob" / "He" pronouns, which
 CLAUDE.md "User-facing text uses they / them / their" forbids; (d)
 `docs/ui.md` § "Circle screen" specifies a confirmation prompt on
-the *Remove* action that contradicts both the design canvas (no
+the _Remove_ action that contradicts both the design canvas (no
 confirm shown) and the plan's R2 (no confirm specified) — the
 intended posture is quiet for both add and remove, with confirmation
 only on block/unblock. Landing the doc edits on
@@ -55,6 +55,7 @@ plan assumes, and the pgTAP tests in 0802 have a doc to point to.
 operates only on prose.
 
 **Decisions:**
+
 - The migration that creates `invitations_delete` and its pgTAP land
   in 0802, not here. Phase 0 is doc-only.
 - All three edits cite the rationale already worked out in PLAN.md
@@ -62,14 +63,16 @@ operates only on prose.
   doc reads as a coherent paragraph, not as a graft.
 
 **Files:**
+
 - `docs/invites.md` (modify — two paragraphs)
 - `docs/data-model.md` (modify — one bullet under "What the app sees")
 - `docs/ui.md` (modify — two copy strings)
 
 **Steps:**
+
 1. In `docs/invites.md` § "Pending-invite cap", append a sentence to
-   the paragraph that ends *"20 is tunable; the right number is
-   'high enough that no normal user ever notices.'"*:
+   the paragraph that ends _"20 is tunable; the right number is
+   'high enough that no normal user ever notices.'"_:
    > The cap applies to `target_user_id`-keyed pending invitations
    > only; `target_email`-only rows (addressed to not-yet-registered
    > users) are uncapped and convert to user-keyed rows at sign-up.
@@ -77,8 +80,8 @@ operates only on prose.
    > an e-mail address evict that address's already-pending sign-up
    > nudges by flooding adjacent typos.
 2. In `docs/invites.md` § "RLS and stored procedures", append to the
-   paragraph that starts *"Insert and delete on `invitations`, …"*:
-   > The one exception is the inviter's own *cancel pending invite*
+   paragraph that starts _"Insert and delete on `invitations`, …"_:
+   > The one exception is the inviter's own _cancel pending invite_
    > action, which is a direct `DELETE /invitations?id=eq.<uuid>`
    > gated by the `invitations_delete` policy
    > (`USING (created_by = public.uid())`); accept and decline by
@@ -89,20 +92,20 @@ operates only on prose.
    > - `DELETE /invitations?id=eq.<uuid>` — cancel a pending invite
    >   you created (inviter only; the `invitations_delete` RLS policy
    >   scopes the delete to your own rows). Lands alongside the
-   >   profile-sheet *Cancel pending invite* action in step 8.
+   >   profile-sheet _Cancel pending invite_ action in step 8.
 4. In `docs/ui.md` § "Circle screen", drop the
-   *"(with confirmation: 'Stop accepting invites from Bob?')"*
+   _"(with confirmation: 'Stop accepting invites from Bob?')"_
    parenthetical from the Remove action description so the line
-   reads *"Each row: avatar, display name, a small action affordance
-   to remove."* The intended posture mirrors *Add to circle* (also
+   reads _"Each row: avatar, display name, a small action affordance
+   to remove."_ The intended posture mirrors _Add to circle_ (also
    quiet) — block / unblock remain the only confirm-prompted
    actions on the circle / blocked surface.
 5. In `docs/ui.md` § "Profile screen (sheet)", rewrite the
    confirmation example to use they/them and a placeholder rather
-   than the gendered *"Block Bob? He won't be able to invite you to
-   any list."* Replacement:
-   > Block and Unblock prompt for confirmation (*"Block {Name}?
-   > They won't be able to invite you to any list."*).
+   than the gendered _"Block Bob? He won't be able to invite you to
+   any list."_ Replacement:
+   > Block and Unblock prompt for confirmation (_"Block {Name}?
+   > They won't be able to invite you to any list."_).
 6. Commit: `docs(invites): record email-cap carve-out, inviter-self DELETE, and circle UX reconciliation`.
 
 **Verify:** `git diff main -- docs/` shows only the five paragraph
@@ -138,6 +141,7 @@ piecemeal.
 RPCs are callable.
 
 **Decisions:**
+
 - Sub-branch is cut from `0800_invites_circles_ui`, not from `main`.
 - Scope (from REQUIREMENTS.md):
   - R1: Privacy screen at `/settings/privacy` — segmented control
@@ -151,10 +155,10 @@ RPCs are callable.
     error copy on `'no such user'` raise.
   - R3: Blocked screen at `/settings/blocked` — description, list with
     Unblock per row (delete the row outright; prior 'circle' state is
-    not restored), empty-state dashed card with the literal *"You
-    haven't blocked anyone."*
-  - R4: Circle explainer sheet — bottom sheet with title *"What is a
-    circle?"*, four explainer points (verbatim copy from
+    not restored), empty-state dashed card with the literal _"You
+    haven't blocked anyone."_
+  - R4: Circle explainer sheet — bottom sheet with title _"What is a
+    circle?"_, four explainer points (verbatim copy from
     `CircleExplainerSheet` in `design/cairn-invite-screens.jsx`), a
     privacy footer, and a **Got it** dismiss button. Reachable from
     both Privacy (when `circle` selected) and Circle screens.
@@ -164,17 +168,17 @@ RPCs are callable.
     no-op (does not resurrect).
   - R12: 20-invite FIFO cap trigger on `invitations` — per-target,
     not global.
-  - R14 (partial): SettingsScreen *People* section — adds the
+  - R14 (partial): SettingsScreen _People_ section — adds the
     **Privacy** NavRow (live, navigates to `/settings/privacy`). Also
     scaffolds the **Invites** row as a **non-interactive `<div>`**
     (no `<button>`/`<a>`, no `onclick`, `cursor: default`) styled to
-    match the live NavRow, with the placeholder sub-line *"No pending
-    invites"* and no badge. The non-interactive shape avoids a
+    match the live NavRow, with the placeholder sub-line _"No pending
+    invites"_ and no badge. The non-interactive shape avoids a
     `svelte-check` failure: rendering it as a real NavRow with
     `href="/settings/invites"` would fail typed-routes validation
     until 0803 creates that route. 0803's R14-completion task swaps
     the `<div>` for `<NavRow href="/settings/invites">` in the same
-    commit that ships the route file. The *People* section sits
+    commit that ships the route file. The _People_ section sits
     **above** Appearance, matching `design/cairn-screens.jsx:1135-1143`
     and R14.
   - R15 (relationships half): the
@@ -185,27 +189,24 @@ RPCs are callable.
   - Trigger function `tg_apply_invite_policy_cascade` —
     `LANGUAGE plpgsql SECURITY DEFINER SET search_path = public`,
     fires `AFTER UPDATE OF invite_policy ON user_settings FOR EACH
-    ROW WHEN (new.invite_policy IS DISTINCT FROM old.invite_policy)`.
-    Body branches on `new.invite_policy`:
-    - `'nobody'` → `DELETE FROM invitations WHERE target_user_id =
-      new.id`
-    - `'circle'` → `DELETE FROM invitations WHERE target_user_id =
-      new.id AND NOT EXISTS (SELECT 1 FROM relationships WHERE
-      user_id = new.id AND other_user_id = invitations.created_by
-      AND status = 'circle')`
-    - `'everybody'` → no-op (explicit `RETURN NEW;`)
+ROW WHEN (new.invite_policy IS DISTINCT FROM old.invite_policy)`.
+    Body branches on `new.invite_policy`: - `'nobody'` → `DELETE FROM invitations WHERE target_user_id =
+new.id` - `'circle'` → `DELETE FROM invitations WHERE target_user_id =
+new.id AND NOT EXISTS (SELECT 1 FROM relationships WHERE
+user_id = new.id AND other_user_id = invitations.created_by
+AND status = 'circle')` - `'everybody'` → no-op (explicit `RETURN NEW;`)
   - Trigger function `tg_enforce_fifo_cap_invitations` —
     `LANGUAGE plpgsql SECURITY DEFINER SET search_path = public`,
     fires `BEFORE INSERT ON invitations FOR EACH ROW WHEN
-    (new.target_user_id IS NOT NULL)`. Body: if **20 or more
+(new.target_user_id IS NOT NULL)`. Body: if **20 or more
     pending rows already exist** for the same `target_user_id`
-    *before* this insert (i.e. the new row would be the 21st),
+    _before_ this insert (i.e. the new row would be the 21st),
     delete the oldest by `created_at` so the insert lands at a
     steady-state count of 20. Concretely:
     `IF (SELECT count(*) FROM invitations WHERE target_user_id =
-    new.target_user_id) >= 20 THEN DELETE FROM invitations WHERE
-    id = (SELECT id FROM invitations WHERE target_user_id =
-    new.target_user_id ORDER BY created_at LIMIT 1); END IF`.
+new.target_user_id) >= 20 THEN DELETE FROM invitations WHERE
+id = (SELECT id FROM invitations WHERE target_user_id =
+new.target_user_id ORDER BY created_at LIMIT 1); END IF`.
     The 20th insert is therefore **uncapped** (count goes
     19 → 20, no eviction); the 21st insert evicts the oldest.
     The `WHEN` gate deliberately exempts `target_email`-only rows;
@@ -238,13 +239,13 @@ RPCs are callable.
     capped — asserts the email-keyed carve-out.
   - Both triggers update `schema_shape.sql` counts.
 - The Privacy screen (R1) renders the **cascade-feedback note**
-  *"{N} pending invites have been declined to match your new
-  setting."* (singular form when `N == 1`) inline below the
+  _"{N} pending invites have been declined to match your new
+  setting."_ (singular form when `N == 1`) inline below the
   segmented control after a successful PATCH that tightens the
   policy. The screen reads `prevCount` from
   `invitations.svelte.ts.inbox.length` before the PATCH, calls
   `loadInbox()` after, and computes `removed = prevCount -
-  newCount`. The note is suppressed when `removed == 0`. Mirrors
+newCount`. The note is suppressed when `removed == 0`. Mirrors
   `docs/ui.md` § "Privacy screen" line 251 and gives the R11
   server-side cascade trigger a visible footprint. The Vitest test
   asserts the note appears with the correct count and singular/plural
@@ -253,16 +254,16 @@ RPCs are callable.
   behaviour (selection of the segmented control updates `invite_policy`;
   add-by-email shows the helpful error on `'no such user'`; unblock
   removes the row from the list).
-- Settings *People* section scaffolding lands here so 0803 only has
+- Settings _People_ section scaffolding lands here so 0803 only has
   to wire the live count badge on the Invites row. The Invites row
   is rendered as a **non-interactive `<div>`** (not a `NavRow`)
   until 0803 ships the `/settings/invites` route — rendering it as
   a NavRow with `href="/settings/invites"` would fail
-  `svelte-check`'s typed-routes pass. The *People* section sits
+  `svelte-check`'s typed-routes pass. The _People_ section sits
   **above** Appearance (between the profile chip and Appearance) —
   matching `design/cairn-screens.jsx:1135-1143`.
 - **`SettingsScreen.test.ts` must be updated in the same task** that
-  adds the *People* section. The existing test asserts the screen's
+  adds the _People_ section. The existing test asserts the screen's
   current layout (profile chip → Appearance → Text size → Recovery
   → Account); adding a new section between profile chip and
   Appearance changes the section order and adds two new NavRows
@@ -273,6 +274,7 @@ RPCs are callable.
   update ship together.
 
 **Steps:**
+
 1. `git checkout -b 0801_privacy_circle_blocked 0800_invites_circles_ui`
 2. Invoke `/write-plan` to create `plans/0801_privacy_circle_blocked/`
    with its three files. The plan must include: (a) a phase for the
@@ -280,12 +282,12 @@ RPCs are callable.
    `relationships.svelte.ts` + its Vitest tests, (c) a phase per
    screen (Privacy, Circle, Blocked, ExplainerSheet) each with
    component + Vitest test in the same task, (d) a phase for the
-   Settings *People* section scaffolding.
+   Settings _People_ section scaffolding.
 3. Implement the sub-plan task by task.
 4. Run `./scripts/check.sh` — must be green (no `--e2e` here; 0803
    adds the Playwright specs).
 5. `git checkout 0800_invites_circles_ui && git merge --no-ff
-   0801_privacy_circle_blocked`
+0801_privacy_circle_blocked`
 
 **Verify:** `./scripts/check.sh` green on `0800_invites_circles_ui`
 after merge. `\df tg_apply_invite_policy_cascade` and
@@ -296,7 +298,7 @@ binding.
 Manual walkthrough: sign in as `alice@example.test`, navigate to
 Settings → Privacy, switch policy through all three values, navigate
 to Circle, add a seed user by e-mail, remove them, navigate to
-Blocked (empty), tap the *What's a circle?* link from Privacy and
+Blocked (empty), tap the _What's a circle?_ link from Privacy and
 from Circle (both open the same sheet).
 
 ---
@@ -315,7 +317,7 @@ rows (0803). Landing it as a stand-alone deliverable means 0803's
 flow surfaces can drop it in without bundling component design and
 flow wiring together. The same sub-plan also adds the small
 `invitations_delete` RLS policy + DELETE grant that the sheet's
-*Cancel pending invite* action depends on; flagged by step 7 as
+_Cancel pending invite_ action depends on; flagged by step 7 as
 "step 8 will add it."
 
 **Prerequisites:** Task 1.1 merged — `0800_invites_circles_ui`
@@ -324,6 +326,7 @@ sheet uses to compute its in-circle / blocked badge and to call
 add/remove/block/unblock.
 
 **Decisions:**
+
 - Sub-branch is cut from the updated `0800_invites_circles_ui`
   (post-0801 merge).
 - Scope (from REQUIREMENTS.md):
@@ -333,25 +336,25 @@ add/remove/block/unblock.
     (optional, when the caller has a pending invite to this user
     on a list they share), `onclose`. Renders the avatar (68px),
     display name (no e-mail, no shared-lists list), a state badge
-    (sage *"IN YOUR CIRCLE"* / ember *"BLOCKED"* / no badge), and
+    (sage _"IN YOUR CIRCLE"_ / ember _"BLOCKED"_ / no badge), and
     the action rows per state.
   - Tap on the caller's own avatar bounces to `/settings` (per
     `docs/invites.md:62` and `docs/ui.md:296` — the profile sheet is
-    for looking at *others*; the user's own hub is Settings, from
+    for looking at _others_; the user's own hub is Settings, from
     which Edit profile is one tap away). Short-circuit on `userId ===
-    profile.uid` in the tap handler before opening the sheet.
+profile.uid` in the tap handler before opening the sheet.
   - Block path opens a confirmation prompt before writing. Unblock,
     Add to circle, Remove from circle are quiet (no confirm). Cancel
     pending invite is quiet.
   - Block uses an upsert — `pgPost('/relationships', {user_id: me,
-    other_user_id: them, status: 'blocked'}, {headers: {Prefer:
-    'resolution=merge-duplicates'}})` if the exploration phase
+other_user_id: them, status: 'blocked'}, {headers: {Prefer:
+'resolution=merge-duplicates'}})` if the exploration phase
     confirms PostgREST merge-duplicates fires the `relationships_update`
     policy correctly; otherwise fall back to a check-then-PATCH from
     `relationships.svelte.ts`. Record the choice in the sub-plan's
     Decisions.
   - Extend `invitations.svelte.ts` (started in R15) with the **sent
-    invitations** channel that the *Cancel pending invite* row
+    invitations** channel that the _Cancel pending invite_ row
     needs — a `sent` reactive collection + `loadSent()` method
     (`GET /invitations?created_by=eq.<my-uid>`) and a derived
     helper `pendingInviteFor(listId, userId): string | null` that
@@ -379,7 +382,7 @@ add/remove/block/unblock.
   live mount point.
 - DB migration `db/migrations/0011_invitations_delete.sql`:
   - `CREATE POLICY invitations_delete ON public.invitations FOR
-    DELETE USING (created_by = public.uid())`
+DELETE USING (created_by = public.uid())`
   - `GRANT DELETE ON public.invitations TO authenticated`
   - pgTAP positive (inviter can delete own row) + negative (invitee
     cannot delete; outsider cannot select-and-delete).
@@ -396,6 +399,7 @@ add/remove/block/unblock.
   grant) plan counts.
 
 **Steps:**
+
 1. `git checkout -b 0802_profile_sheet 0800_invites_circles_ui`
 2. Invoke `/write-plan` to create `plans/0802_profile_sheet/` with
    its three files. The plan must include: (a) the
@@ -411,7 +415,7 @@ add/remove/block/unblock.
 3. Implement the sub-plan task by task.
 4. Run `./scripts/check.sh` — must be green.
 5. `git checkout 0800_invites_circles_ui && git merge --no-ff
-   0802_profile_sheet`
+0802_profile_sheet`
 
 **Verify:** `./scripts/check.sh` green on `0800_invites_circles_ui`
 after merge. `\dp invitations` in psql shows the new `DELETE` grant.
@@ -441,7 +445,6 @@ with `:not([disabled])` instead of a `hasNot` filter. Webkit e2e
 failures on this machine are environmental (missing system libs); the
 chromium and firefox runs are clean.
 
-
 **Why:** Completes the step-8 UI loop — sending invites, receiving
 them, accepting/declining, and the affordances around list membership
 (Members screen, Manage members + Leave list overflow rows). These
@@ -452,10 +455,11 @@ button to invite from. End-to-end Playwright coverage lands here.
 
 **Prerequisites:** Tasks 1.1 and 2.1 merged — `0800_invites_circles_ui`
 contains the `relationships.svelte.ts` state module (the picker's
-*Your circle* section needs it) and the `<ProfileSheet>` component
+_Your circle_ section needs it) and the `<ProfileSheet>` component
 (the inbox-row inviter, picker rows, and members rows all open it).
 
 **Decisions:**
+
 - Sub-branch is cut from the updated `0800_invites_circles_ui`
   (post-0802 merge).
 - Scope (from REQUIREMENTS.md):
@@ -464,11 +468,11 @@ contains the `relationships.svelte.ts` state module (the picker's
     not rendered (0), single-invite row (1, inline Decline / Accept),
     multi-invite row (2+, chevron, taps to `/settings/invites`).
   - R7: `/settings/invites` route + `<InvitesInboxScreen>`. Header
-    *"Invites"* with subtitle *"{N} pending"*; row layout per
+    _"Invites"_ with subtitle _"{N} pending"_; row layout per
     `design/cairn-invite-screens.jsx` `InvitesInboxScreen`. Accept
     navigates to the list and shows the **post-accept circle
-    prompt** *"You accepted {Inviter}'s invite. Add {Inviter} to
-    your circle?"* with `[Not now] [Add to circle]`. Prompt is
+    prompt** _"You accepted {Inviter}'s invite. Add {Inviter} to
+    your circle?"_ with `[Not now] [Add to circle]`. Prompt is
     session-scoped (in-memory SvelteSet of inviter UIDs).
   - **Inviter capture before `accept_invitation`.** The RPC
     hard-deletes the `invitations` row inside the same transaction
@@ -478,7 +482,7 @@ contains the `relationships.svelte.ts` state module (the picker's
     `{inviterUid, inviterName}` from the inbox entry **before**
     invoking the RPC, holds the pair in the SvelteSet payload, and
     uses it both to render the prompt copy and to call
-    `add_circle_by_id(inviterUid)` if the user taps *Add to circle*.
+    `add_circle_by_id(inviterUid)` if the user taps _Add to circle_.
     The banner's single-pending Accept path (R6) follows the same
     capture-then-call sequence — drive both surfaces through the
     same `acceptInvitation` action so the inviter capture lives in
@@ -487,13 +491,13 @@ contains the `relationships.svelte.ts` state module (the picker's
     by-e-mail). Tap-to-invite calls
     `send_invitation(p_list_id, p_user_id := …)`. E-mail submit
     calls `send_invitation(p_list_id, p_email := …)`. **Every
-    `null` return surfaces the literal toast *"Couldn't send
-    invite"*** — block, policy reject, unregistered, unknown user.
+    `null` return surfaces the literal toast _"Couldn't send
+    invite"_** — block, policy reject, unregistered, unknown user.
     The typed e-mail is never echoed back. Success shows a per-row
-    check mark plus a *"Invite sent"* toast.
+    check mark plus a _"Invite sent"_ toast.
   - R9: `/lists/[list_id]/members` route + `<MembersScreen>`. Header
-    *"Members"* with list name as subtitle. Section label *"{N}
-    people on this list"*. Member rows: avatar + name + sub-line.
+    _"Members"_ with list name as subtitle. Section label _"{N}
+    people on this list"_. Member rows: avatar + name + sub-line.
     The discriminator for the sub-line is the **`lists.created_by`**
     column (the user who created the list itself), **not**
     `list_members.created_by` — the attribution trigger stamps
@@ -504,25 +508,25 @@ contains the `relationships.svelte.ts` state module (the picker's
     via PostgREST's embedded select:
     `GET /list_members?list_id=eq.<id>&deleted_at=is.null&select=*,lists(created_by),profiles(display_name,avatar_version)`.
     Sub-line copy:
-    - *"You · created the list"* — caller's own row when
+    - _"You · created the list"_ — caller's own row when
       `lists.created_by = uid()`.
-    - *"Created the list"* — any non-caller row whose
+    - _"Created the list"_ — any non-caller row whose
       `lists.created_by = list_members.user_id`.
-    - *"Joined {timeAgo(list_member.created_at)}"* (using
+    - _"Joined {timeAgo(list_member.created_at)}"_ (using
       `$lib/shared/model/time-ago`) — everyone else, including the
       caller's own row when they joined via accept rather than
       create.
-    **The sub-line does not name an inviter** — the schema doesn't
-    preserve that link (see REQUIREMENTS R9 for the full rationale
-    and the Non-requirement that records why widening
-    `accept_invitation` is out of scope). The design canvas's *"Added
-    by Alice"* copy at `design/cairn-screens.jsx:1039-1040` is
-    superseded by this rule. Tapping non-self row opens
-    `<ProfileSheet>` (with `pendingInvitationId` populated from
-    `invitations.svelte.ts.pendingInviteFor(listId, member.user_id)`
-    so the *Cancel pending invite* row shows iff the caller has a
-    pending invite outstanding to that member on this list). Bottom
-    button *"Add member"* opens `<InvitePickerSheet>`.
+      **The sub-line does not name an inviter** — the schema doesn't
+      preserve that link (see REQUIREMENTS R9 for the full rationale
+      and the Non-requirement that records why widening
+      `accept_invitation` is out of scope). The design canvas's _"Added
+      by Alice"_ copy at `design/cairn-screens.jsx:1039-1040` is
+      superseded by this rule. Tapping non-self row opens
+      `<ProfileSheet>` (with `pendingInvitationId` populated from
+      `invitations.svelte.ts.pendingInviteFor(listId, member.user_id)`
+      so the _Cancel pending invite_ row shows iff the caller has a
+      pending invite outstanding to that member on this list). Bottom
+      button _"Add member"_ opens `<InvitePickerSheet>`.
   - R10: `ListOverflowSheet.svelte` extensions — new **Manage
     members** row (navigates to `/lists/[list_id]/members`) and new
     **Leave list** row (confirmation prompt → PATCH the caller's own
@@ -533,23 +537,23 @@ contains the `relationships.svelte.ts` state module (the picker's
     `deleted_by` — then navigate `/lists`). Six rows total in the
     documented order.
   - R13 (anti-enumeration): every `send_invitation` failure surfaces
-    *"Couldn't send invite"* except for two clear-error carve-outs.
-    Self-invite (RPC raises `'self-invite'`) surfaces *"You can't
-    invite yourself."* Already-a-member (RPC raises
+    _"Couldn't send invite"_ except for two clear-error carve-outs.
+    Self-invite (RPC raises `'self-invite'`) surfaces _"You can't
+    invite yourself."_ Already-a-member (RPC raises
     `'already a member'`, see
     `db/migrations/0009_invitations.sql:131-138`) surfaces
-    *"They're already on this list."* No e-mail is echoed in any
+    _"They're already on this list."_ No e-mail is echoed in any
     error string. `invitations.svelte.ts.sendInvitation` maps the
     two `PostgrestError.message` strings to the carve-out toasts
     and everything else to the generic one.
   - R14 (Invites NavRow live badge + activation): SettingsScreen's
-    *People* section Invites row, which 0801 scaffolded as a
+    _People_ section Invites row, which 0801 scaffolded as a
     non-interactive `<div>`, is swapped to a real `<NavRow
-    href="/settings/invites">` in the same commit that ships the
+href="/settings/invites">` in the same commit that ships the
     `/settings/invites/+page.svelte` route file — so `svelte-check`
-    only ever sees a valid combination. The row now shows *"{N}
-    pending"* sub-line when non-zero (with a count badge) and *"No
-    pending invites"* when zero.
+    only ever sees a valid combination. The row now shows _"{N}
+    pending"_ sub-line when non-zero (with a count badge) and _"No
+    pending invites"_ when zero.
   - R15 (invitations half): `invitations.svelte.ts` state module —
     `inbox`, `loadInbox`, `sendInvitation`, `acceptInvitation`,
     `declineInvitation`, `cancelInvitation`, plus the session-scoped
@@ -566,7 +570,7 @@ contains the `relationships.svelte.ts` state module (the picker's
   `/list_members?...&deleted_at=is.null` query, deduplicated and
   excluding circle members + current-list members. No new DB views.
 - Leave-list PATCH is a direct `pgPatch('/list_members?list_id=eq.{id}&user_id=eq.{me}',
-  {deleted_at: 'now()', deleted_by: '{me}'})` per
+{deleted_at: 'now()', deleted_by: '{me}'})` per
   `docs/data-model.md` line 655. Step 1's RLS already permits
   self-soft-delete.
 - Update the `plans/0000_implementation_order.md` parenthetical for
@@ -583,12 +587,12 @@ contains the `relationships.svelte.ts` state module (the picker's
   - `ListOverflowSheet.test.ts` — when the two new rows ship: assert
     the six rows render in the documented order (Rename, Edit
     description, Manage members, View bin, Leave list, Delete list),
-    that *Manage members* navigates to `/lists/[list_id]/members`,
-    and that *Leave list* opens a confirm prompt before issuing the
+    that _Manage members_ navigates to `/lists/[list_id]/members`,
+    and that _Leave list_ opens a confirm prompt before issuing the
     PATCH.
   - `SettingsScreen.test.ts` — when the Invites NavRow is swapped
     from the non-interactive `<div>` to a real `<NavRow
-    href="/settings/invites">`: assert the row now navigates and
+href="/settings/invites">`: assert the row now navigates and
     that the count badge renders the inbox count from the
     `invitations.svelte.ts` module.
 - Playwright e2e under `web/e2e/`:
@@ -597,37 +601,38 @@ contains the `relationships.svelte.ts` state module (the picker's
     prompt offers to add Alice to circle.
   - `block.spec.ts` — Alice blocks Bob from his profile sheet
     (reached from Members screen); Bob's subsequent invite back to
-    Alice surfaces the generic *"Couldn't send invite"*.
+    Alice surfaces the generic _"Couldn't send invite"_.
   - `privacy.spec.ts` — Alice changes policy to `nobody`; her inbox
     empties immediately (the 0801 cascade trigger fires); banner
     disappears.
 
 **Steps:**
+
 1. `git checkout -b 0803_invite_flow 0800_invites_circles_ui`
 2. Invoke `/write-plan` to create `plans/0803_invite_flow/` with its
    three files. The plan must include phases for: (a)
    `invitations.svelte.ts` + Vitest, (b) `<InvitesBanner>` + Vitest
-   + wired into `ListsScreen.svelte`, (c) `/settings/invites` route +
-   `<InvitesInboxScreen>` + Vitest, including the post-accept circle
-   prompt and the SettingsScreen Invites count badge, (d)
-   `<InvitePickerSheet>` + Vitest, (e) `/lists/[list_id]/members` +
-   `<MembersScreen>` + Vitest, (f) `ListOverflowSheet` extensions +
-   Vitest, (g) Playwright `invites.spec.ts`, `block.spec.ts`,
-   `privacy.spec.ts`, (h) the
-   `plans/0000_implementation_order.md` parenthetical update.
+   - wired into `ListsScreen.svelte`, (c) `/settings/invites` route +
+     `<InvitesInboxScreen>` + Vitest, including the post-accept circle
+     prompt and the SettingsScreen Invites count badge, (d)
+     `<InvitePickerSheet>` + Vitest, (e) `/lists/[list_id]/members` +
+     `<MembersScreen>` + Vitest, (f) `ListOverflowSheet` extensions +
+     Vitest, (g) Playwright `invites.spec.ts`, `block.spec.ts`,
+     `privacy.spec.ts`, (h) the
+     `plans/0000_implementation_order.md` parenthetical update.
 3. Implement the sub-plan task by task.
 4. Run `./scripts/check.sh --e2e` — must be green (e2e specs land in
    this sub-plan).
 5. `git checkout 0800_invites_circles_ui && git merge --no-ff
-   0803_invite_flow`
+0803_invite_flow`
 
 **Verify:** `./scripts/check.sh --e2e` green on
 `0800_invites_circles_ui` after merge. Manual walkthrough:
 sign in as `alice@example.test`, navigate to a list → Manage members
-→ Add member → picker shows Bob in *People you share other lists
-with* (or in *Your circle* if you've added him via 0801); tap Invite;
-sign in as Bob; see banner *"Alice invited you to {List}"*; tap
-Accept; post-accept prompt offers *"Add Alice to your circle?"*;
+→ Add member → picker shows Bob in _People you share other lists
+with_ (or in _Your circle_ if you've added him via 0801); tap Invite;
+sign in as Bob; see banner _"Alice invited you to {List}"_; tap
+Accept; post-accept prompt offers _"Add Alice to your circle?"_;
 back to Alice; Settings → Privacy → switch to `nobody`; verify
 Alice's banner disappears (cascade fired).
 
@@ -648,6 +653,7 @@ implementation-order box tickable — before it lands on `main`.
 `0800_invites_circles_ui`.
 
 **Decisions:**
+
 - Run `./scripts/check.sh --e2e` to exercise both the unit / type-check
   layers and the Playwright invite/block/privacy flows. Step 8 ships
   the first e2e specs for invites; this is the verification gate.
@@ -660,9 +666,11 @@ implementation-order box tickable — before it lands on `main`.
   commit.
 
 **Files:**
+
 - `plans/0000_implementation_order.md` (modify)
 
 **Steps:**
+
 1. On `0800_invites_circles_ui`, run `./scripts/check.sh --e2e` —
    must be green.
 2. Edit `plans/0000_implementation_order.md`: change `8. [ ]` to

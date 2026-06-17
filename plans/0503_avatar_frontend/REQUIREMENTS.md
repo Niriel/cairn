@@ -7,8 +7,9 @@ Sub-plan of `0500_avatars`. Covers R7–R12 (UI half). R1–R4 are in
 
 `Avatar.svelte` gains two optional props: `uid?: string` and `avatarVersion?:
 number` (defaults: `''` and `0`). Branching logic:
+
 - `avatarVersion > 0` and `uid` is non-empty → render `<img
-  src="/avatars/{uid}.webp?v={avatarVersion}" alt="">`.
+src="/avatars/{uid}.webp?v={avatarVersion}" alt="">`.
 - Otherwise → render the coloured initials disc (existing behaviour, unchanged).
 
 The Profile store fetches `avatar_version` alongside `display_name`, and
@@ -21,6 +22,7 @@ can pass it.
 
 A route at `/profile`, navigable from the Settings profile chip (which must be
 made tappable). The screen shows:
+
 - A 112 px avatar (photo or initials disc) at the top.
 - A **Change picture** / **Add a picture** pill button below.
 - A **Remove** pill button (visible only when `avatar_version > 0`).
@@ -44,6 +46,7 @@ initiates upload. Back arrow returns to edit view without uploading.
 **Upload states** — five full-screen in-page view states, each with a centred
 icon in a tinted disc, a title, a subtitle, and an action button. The
 `viewState` machine in the profile route drives them:
+
 - `uploading` — spinner icon, back arrow disabled, "Cancel" button.
 - `success` — check icon, "Done" navigates back to edit.
 - `too-big` — × icon, "Choose another" opens source sheet.

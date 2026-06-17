@@ -29,7 +29,7 @@ encode the username, and the BFF **resolves a typed username to its user id** vi
 the `lower(username)` unique index on every sign-in. `set_username` then touches
 only `profiles.username`. This deletes 2001's fragility (the `auth.users.email`
 rewrite, the synthetic-e-mail invariant, the SQL↔client domain-drift guard) — the
-BFF has to map the typed username to *something* to authenticate, so the resolver
+BFF has to map the typed username to _something_ to authenticate, so the resolver
 **is** the work, not extra work.
 
 Two facts from the as-built stack shape the mechanism. First, the BFF holds **no
@@ -103,18 +103,18 @@ of which path restored the session. The data export switches from e-mail to
 meaningless `<uid>@cairn.internal` leaks into the canonical `data.json`.
 
 **Registration is open; no invite gate.** The parent Open question ("does
-registration stay invite-only?") resolves to *open*, matching the live-alpha
+registration stay invite-only?") resolves to _open_, matching the live-alpha
 posture (`DISABLE_SIGNUP=false`, intentional) — the BFF just performs the signup
 and GoTrue's `GOTRUE_DISABLE_SIGNUP` stays the operator's switch. No
 invite-acceptance-creates-account flow is built; that contract is unchanged.
 **This is already live but the docs lag**, which is the catch: the live box runs
 `DISABLE_SIGNUP=false` (confirmed), so open registration works in prod today — but
-the parent *leaned* invite-only, `docker-compose.prod.yml` still defaults
+the parent _leaned_ invite-only, `docker-compose.prod.yml` still defaults
 `DISABLE_SIGNUP` to `true` (the prod `.env` overrides it), and
 `docs/development.md` still states prod is signup-disabled / invite-only. So
 "open" is a real posture that Phase 0 must teach the docs (Task 0.2) so the spec
 matches the running box. `docs/invites.md` does **not** speak to signup-openness
-(it governs invite *acceptance*), so it is not the citation for this — that
+(it governs invite _acceptance_), so it is not the citation for this — that
 earlier reference is corrected.
 
 **New screens are additive, not a removal.** 2003 adds `/auth/register` and
@@ -176,7 +176,7 @@ against the real stack.
   enrichment) so dev parity holds; add a PostgREST base for the dev resolver.
   This re-implements a large slice of the BFF in a second place with no shared
   code and no unit test on the dev copy, so it carries a real **drift risk** —
-  keep the dev mirror to the *functional contract* the screens/e2e exercise
+  keep the dev mirror to the _functional contract_ the screens/e2e exercise
   (resolve → grant → plant → tokenless `{user}`; the `409`/`401`/`400` shapes;
   enrichment) and deliberately **skip** the security throttles that only matter
   in prod (the per-account/per-IP rate-limiter is auth-proxy-tested, not
@@ -289,7 +289,7 @@ greens them, within each task (a task is a commit unit).
   `profiles`/`user_settings` shape; corrected in Phase 0 + Phase 2.
 - **`docs/deployment.md`** — the auth pre-deploy checklist (the password-grant
   item reframed by R6); prod vs dev compose and the `auth-proxy` service.
-- **`docs/invites.md`** — the invite-*acceptance* policy (`invite_policy`). Note
+- **`docs/invites.md`** — the invite-_acceptance_ policy (`invite_policy`). Note
   it does **not** speak to signup-openness; the open-signup posture (R5) is set by
   this plan's Phase 0 against `docs/development.md` / `docs/deployment.md`, not
   confirmed by `invites.md`.
@@ -312,7 +312,7 @@ greens them, within each task (a task is a commit unit).
   transient value (it should not, with autoconfirm).
 - **Register-race orphans.** If two callers race for one handle, the loser's
   signup + `adopt_stable_identity` have already run when `set_username` raises
-  23505, so a GoTrue account exists with the stable identity and a *provisional*
+  23505, so a GoTrue account exists with the stable identity and a _provisional_
   username. Default: the handler raises **before** `plantSession`, so it returns
   `409` with **no** cookies planted and the register screen shows "username
   taken" and stays put (consistent with the screen's `409` handling — planting a

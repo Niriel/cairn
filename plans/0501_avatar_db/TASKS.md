@@ -25,16 +25,20 @@ added the `set_display_name` paragraph, and updated `docs/data-model.md`'s
 on disk.)
 
 **Files:**
+
 - `docs/avatars.md` (modify)
 
 **Steps:**
+
 1. In `docs/avatars.md`'s **Build order** section (near line 168), update
    bullet 1 from:
+
    > `0005_avatars.sql` migration: the column + the two RPCs + pgTAP coverage
    > on the column default, the `bump_avatar_version` increment, and the
    > `clear_avatar` reset.
 
    to:
+
    > `0007_avatars.sql` migration: the column + three RPCs
    > (`bump_avatar_version`, `clear_avatar`, `set_display_name`) + pgTAP
    > coverage on the column default, the increment, the reset, display-name
@@ -60,6 +64,7 @@ fire on `avatar_version` changes so `modified_at` stays accurate.
 `0500_avatars`). Migrations `0001`–`0006` are the existing baseline.
 
 **Decisions:**
+
 - Migration file is `db/migrations/0007_avatars.sql` — single file for all five
   changes (column, three RPCs, trigger rebind). They form one logical unit;
   splitting them adds deploy complexity for no benefit.
@@ -72,11 +77,11 @@ fire on `avatar_version` changes so `modified_at` stays accurate.
   frontend can't distinguish "nothing updated" from a network failure.
 - All three functions: `SECURITY DEFINER`, `SET search_path = public`,
   `WHERE id = public.uid()`, `REVOKE ALL … FROM public`, `GRANT EXECUTE … TO
-  authenticated`.
+authenticated`.
 - Trigger rebind: `DROP TRIGGER t20_set_modified_at ON public.profiles` then
   `CREATE TRIGGER t20_set_modified_at BEFORE UPDATE OF display_name,
-  avatar_version ON public.profiles FOR EACH ROW EXECUTE FUNCTION
-  public.tg_set_modified_at()`. `ALTER TRIGGER` cannot change the `OF` column
+avatar_version ON public.profiles FOR EACH ROW EXECUTE FUNCTION
+public.tg_set_modified_at()`. `ALTER TRIGGER` cannot change the `OF` column
   list so DROP + CREATE is required.
 - pgTAP cross-user tests use the `users_alice_bob_carol` fixture; set JWT claims
   to Alice's UID, call the RPC, then verify Bob's row is unchanged.
@@ -89,6 +94,7 @@ fire on `avatar_version` changes so `modified_at` stays accurate.
 (fixture load → set JWT claims → call RPC → assert results → defence layer).
 
 **Files:**
+
 - `db/migrations/0007_avatars.sql` (create)
 - `db/tests/avatars.sql` (create)
 - `db/tests/schema_shape.sql` (modify)
@@ -96,6 +102,7 @@ fire on `avatar_version` changes so `modified_at` stays accurate.
 - `db/tests/triggers_modified_at.sql` (modify)
 
 **Steps:**
+
 1. RED — Create `db/tests/avatars.sql`. Load the `users_alice_bob_carol`
    fixture. Write a `plan(17)` test plan covering all cases listed below. Do not
    run yet — the migration doesn't exist so the column and functions are absent.
@@ -110,45 +117,48 @@ fire on `avatar_version` changes so `modified_at` stays accurate.
 
    Test cases (in order):
    a. Column default: INSERT a profile row without specifying `avatar_version`
-      → `is((SELECT avatar_version FROM public.profiles WHERE id = alice_id), 0, ...)`
+   → `is((SELECT avatar_version FROM public.profiles WHERE id = alice_id), 0, ...)`
    b. `bump_avatar_version()` first call: set claims to Alice, call the RPC,
-      assert return value `= 1`; assert Alice's row has `avatar_version = 1`.
+   assert return value `= 1`; assert Alice's row has `avatar_version = 1`.
    c. `bump_avatar_version()` idempotency: call it a second time, assert return
-      value `= 2`; assert row has `avatar_version = 2`.
+   value `= 2`; assert row has `avatar_version = 2`.
    d. `clear_avatar()`: call it, assert Alice's row has `avatar_version = 0`.
    e. `modified_at` advances on bump: capture `modified_at`, `pg_sleep(0.001)`,
-      call `bump_avatar_version()`, assert new `modified_at > captured`.
+   call `bump_avatar_version()`, assert new `modified_at > captured`.
    f. `modified_at` advances on clear: capture `modified_at`, `pg_sleep(0.001)`,
-      call `clear_avatar()` (Alice's version is 1 from the bump in step e;
-      no additional bump needed), assert new `modified_at > captured`.
+   call `clear_avatar()` (Alice's version is 1 from the bump in step e;
+   no additional bump needed), assert new `modified_at > captured`.
    g. `set_display_name()` updates and trims: call with `'  Alice New  '`,
-      assert `display_name = 'Alice New'`.
+   assert `display_name = 'Alice New'`.
    h. `set_display_name()` rejects empty: `throws_ok` with `'23514'` for `''`.
    i. `set_display_name()` rejects whitespace-only: `throws_ok` with `'23514'`
-      for `'   '`.
+   for `'   '`.
    j. `set_display_name()` rejects > 100 chars: `throws_ok` with `'23514'`.
    k. CHECK constraint: `throws_ok` when attempting `UPDATE profiles SET
-      avatar_version = -1 WHERE id = alice_id` (as superuser or bypassing RLS
-      — use `SET LOCAL ROLE postgres` for this assertion).
+avatar_version = -1 WHERE id = alice_id` (as superuser or bypassing RLS
+   — use `SET LOCAL ROLE postgres` for this assertion).
    l. Cross-user bump: `RESET ROLE; SET LOCAL ROLE authenticated;` then set
-      claims to Alice, call `bump_avatar_version()`, assert Bob's
-      `avatar_version` is still `0`.
+   claims to Alice, call `bump_avatar_version()`, assert Bob's
+   `avatar_version` is still `0`.
    m. Cross-user clear: set claims to Alice (after bumping), call
-      `clear_avatar()`, assert Bob's `avatar_version` unchanged.
+   `clear_avatar()`, assert Bob's `avatar_version` unchanged.
    n. Cross-user set_display_name: set claims to Alice, call
-      `set_display_name('Hacker')`, assert Bob's `display_name` is unchanged.
+   `set_display_name('Hacker')`, assert Bob's `display_name` is unchanged.
    o. `set_display_name()` uid-null guard: `SELECT set_config('request.jwt.claims', '', TRUE)`,
-      call `set_display_name('x')` as authenticated, expect `throws_ok` with
-      `'28000'` and message `'not authenticated'`.
+   call `set_display_name('x')` as authenticated, expect `throws_ok` with
+   `'28000'` and message `'not authenticated'`.
 
 2. RED — In `db/tests/schema_shape.sql`, add after the existing
    `profiles` column assertions:
+
    ```sql
    SELECT has_column('public', 'profiles', 'avatar_version',
      'profiles has avatar_version column');
    ```
+
    Also add three `has_function` assertions alongside the existing four-function
    block (near line 190) — parallel to how uid/is_list_member/etc. are asserted:
+
    ```sql
    SELECT has_function(
      'public', 'bump_avatar_version', ARRAY[]::text[],
@@ -163,10 +173,12 @@ fire on `avatar_version` changes so `modified_at` stays accurate.
      'public.set_display_name(text) exists'
    );
    ```
+
    Update `SELECT plan(52)` to `SELECT plan(56)` (1 column + 3 functions added).
 
 3. RED — In `db/tests/grants.sql`, add to Section A (positive authenticated
    grants):
+
    ```sql
    SELECT ok(
      has_function_privilege('authenticated',
@@ -181,7 +193,9 @@ fire on `avatar_version` changes so `modified_at` stays accurate.
        'public.set_display_name(text)', 'EXECUTE'),
      'authenticated has EXECUTE on public.set_display_name(text)');
    ```
+
    Add to Section D (negative anon denials):
+
    ```sql
    SELECT ok(
      NOT has_function_privilege('anon',
@@ -196,6 +210,7 @@ fire on `avatar_version` changes so `modified_at` stays accurate.
        'public.set_display_name(text)', 'EXECUTE'),
      'anon has no EXECUTE on public.set_display_name(text)');
    ```
+
    Update `SELECT plan(54)` to `SELECT plan(60)` (6 assertions added). Also
    update the header comment: section B becomes `(3+7)` (four existing + three
    new authenticated EXECUTE), section D becomes `(31)` (28 existing + three
@@ -203,7 +218,7 @@ fire on `avatar_version` changes so `modified_at` stays accurate.
 
 4. RED — In `db/tests/triggers_modified_at.sql`, insert a new assertion
    immediately after assertion 6 (the `votes.value` test, ending at the
-   `cmp_ok` call), *before* the `-- 7–9: cascade-skip` comment block.
+   `cmp_ok` call), _before_ the `-- 7–9: cascade-skip` comment block.
    The cascade block deletes Alice from `auth.users`, which cascades to
    `profiles`; any assertion placed after it will find no profile row and
    `bump_avatar_version()` will no-op, causing the `cmp_ok` to fail. The
@@ -232,6 +247,7 @@ fire on `avatar_version` changes so `modified_at` stays accurate.
      'profiles: UPDATE avatar_version via bump_avatar_version() bumps modified_at'
    );
    ```
+
    Update `SELECT plan(10)` to `SELECT plan(11)` (1 assertion added).
    Also update the file's opening comment block: change "10 assertions"
    to "11 assertions" and the range descriptions from "1–6: bump ...,

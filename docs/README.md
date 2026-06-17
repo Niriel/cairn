@@ -57,4 +57,4 @@ Pre-v1. The architecture and data model are designed; implementation is in progr
 
 ## Name
 
-A cairn is a small stack of stones that hikers leave on trails to mark the way for the people coming behind them. Friends leaving recommendations for each other has the same shape: *here's the way, you'll like this*.
+A cairn is a small stack of stones that hikers leave on trails to mark the way for the people coming behind them. Friends leaving recommendations for each other has the same shape: _here's the way, you'll like this_.

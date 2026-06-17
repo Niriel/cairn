@@ -10,7 +10,7 @@ Extend `web/src/lib/invite/state/invitations.svelte.ts` (which already carries `
 - `invitations.inbox: InboxEntry[]` — reactive array of pending invitations targeting the current user.
 - `loadInbox(): Promise<void>` — fetches `GET /invitations?target_user_id=eq.<me>&select=id,list_id,created_by,created_at,lists(name),profiles!created_by(display_name,avatar_version)` and maps the rows into `InboxEntry` objects.
 
-The module already exists; this task *adds* to it without touching the `sent` surface.
+The module already exists; this task _adds_ to it without touching the `sent` surface.
 
 ## R2. Invitations state module — send/accept/decline/prompt
 
@@ -20,9 +20,9 @@ Add the remaining actions to `invitations.svelte.ts`:
   - `err.code === 'P0001' && err.message === 'self-invite'` → rethrows `Error("You can't invite yourself.")`.
   - `err.code === 'P0001' && err.message === 'already a member'` → rethrows `Error("They're already on this list.")`.
   - Any other error, or a `null` return from the RPC (the documented silent-decline signal — see `docs/invites.md` `send_invitation` sketch) → rethrows `Error("Couldn't send invite")`.
-  The typed e-mail is never included in any error string.
+    The typed e-mail is never included in any error string.
 
-- `acceptInvitation(id: string): Promise<{ inviterUid: string; inviterName: string; listId: string }>` — reads the inbox entry *before* calling the RPC (so the inviter identity and list ID are available after the hard-delete), calls `POST /rpc/accept_invitation { p_invitation_id: id }`, removes the entry from `invitations.inbox`, adds `{ inviterUid, inviterName }` to `invitations.postAcceptPrompts`, and returns `{ inviterUid, inviterName, listId }` so the caller can navigate to the list and the layout can show the post-accept prompt.
+- `acceptInvitation(id: string): Promise<{ inviterUid: string; inviterName: string; listId: string }>` — reads the inbox entry _before_ calling the RPC (so the inviter identity and list ID are available after the hard-delete), calls `POST /rpc/accept_invitation { p_invitation_id: id }`, removes the entry from `invitations.inbox`, adds `{ inviterUid, inviterName }` to `invitations.postAcceptPrompts`, and returns `{ inviterUid, inviterName, listId }` so the caller can navigate to the list and the layout can show the post-accept prompt.
 
 - `declineInvitation(id: string): Promise<void>` — calls `POST /rpc/decline_invitation { p_invitation_id: id }` and removes the entry from `invitations.inbox`.
 
@@ -35,7 +35,7 @@ The mock at `web/src/lib/invite/state/__mocks__/invitations.svelte.ts` is update
 `web/src/lib/invite/components/InvitesBanner.svelte` — three states driven by `invitations.inbox.length`:
 
 - **0 pending:** component renders nothing (no DOM output).
-- **1 pending:** card with avatar (28 px), "*{InviterName}* invited you to *{ListName}*" copy, and a pill-button pair — "Decline" (left, stone border) and "Accept" (right, sage fill). Decline calls `declineInvitation(id)`. Accept calls `acceptInvitation(id)` then navigates to the list. Inviter identity is captured inside `acceptInvitation` before the RPC (R2); the banner's Accept handler uses the returned `{ inviterUid, inviterName }` only to navigate (`goto(resolve('/lists/<listId>'))`) — post-accept prompt display is handled by the layout (R5).
+- **1 pending:** card with avatar (28 px), "_{InviterName}_ invited you to _{ListName}_" copy, and a pill-button pair — "Decline" (left, stone border) and "Accept" (right, sage fill). Decline calls `declineInvitation(id)`. Accept calls `acceptInvitation(id)` then navigates to the list. Inviter identity is captured inside `acceptInvitation` before the RPC (R2); the banner's Accept handler uses the returned `{ inviterUid, inviterName }` only to navigate (`goto(resolve('/lists/<listId>'))`) — post-accept prompt display is handled by the layout (R5).
 - **2+ pending:** collapsed row with a filled ink-bg count badge, "{N} pending invites", and a chevron-right; tapping navigates to `/settings/invites`.
 
 Design reference: `design/cairn-invite-screens.jsx` `InboxBanner`. A `__mocks__/InvitesBanner.svelte` stub lives at the same level.
@@ -46,7 +46,7 @@ Design reference: `design/cairn-invite-screens.jsx` `InboxBanner`. A `__mocks__/
 
 ## R5. Post-accept circle prompt overlay
 
-`web/src/lib/invite/components/PostAcceptPromptSheet.svelte` — bottom sheet rendered by `web/src/routes/(app)/+layout.svelte` whenever `invitations.postAcceptPrompts.size > 0`. Shows the first prompt in the set: copy *"You accepted {Name}'s invite. Add {Name} to your circle?"*, left button "Not now", right button "Add to circle". "Not now" removes the entry from the set. "Add to circle" calls `addCircleById(inviterUid)` then removes the entry. After removal the layout re-checks the set — if another prompt is waiting it shows immediately; if the set is empty the sheet unmounts.
+`web/src/lib/invite/components/PostAcceptPromptSheet.svelte` — bottom sheet rendered by `web/src/routes/(app)/+layout.svelte` whenever `invitations.postAcceptPrompts.size > 0`. Shows the first prompt in the set: copy _"You accepted {Name}'s invite. Add {Name} to your circle?"_, left button "Not now", right button "Add to circle". "Not now" removes the entry from the set. "Add to circle" calls `addCircleById(inviterUid)` then removes the entry. After removal the layout re-checks the set — if another prompt is waiting it shows immediately; if the set is empty the sheet unmounts.
 
 A `__mocks__/PostAcceptPromptSheet.svelte` stub is added alongside. The `(app)/+layout.svelte` test at `web/src/routes/(app)/layout.test.ts` asserts: prompt is not rendered when `postAcceptPrompts` is empty; prompt renders with correct copy when one entry is in the set; "Not now" removes the entry; "Add to circle" calls `addCircleById` and removes the entry.
 
@@ -54,7 +54,7 @@ A `__mocks__/PostAcceptPromptSheet.svelte` stub is added alongside. The `(app)/+
 
 Route at `web/src/routes/(app)/settings/invites/+page.svelte` mounts `<InvitesInboxScreen>`.
 
-`web/src/lib/invite/components/InvitesInboxScreen.svelte` — TopBar title "Invites" with subtitle "{N} pending". Intro paragraph: *"People who've invited you to their lists. Accept to join, or decline to clear."* Per-row layout: avatar (36 px), inviter name + "invited you to" grey label, list name bold below, timestamp (monospace, `timeAgo`), Decline / Accept pill buttons. Accept follows the same inviter-capture sequence as the banner (R3); navigates to the list after accepting. Decline calls `declineInvitation`.
+`web/src/lib/invite/components/InvitesInboxScreen.svelte` — TopBar title "Invites" with subtitle "{N} pending". Intro paragraph: _"People who've invited you to their lists. Accept to join, or decline to clear."_ Per-row layout: avatar (36 px), inviter name + "invited you to" grey label, list name bold below, timestamp (monospace, `timeAgo`), Decline / Accept pill buttons. Accept follows the same inviter-capture sequence as the banner (R3); navigates to the list after accepting. Decline calls `declineInvitation`.
 
 Design reference: `design/cairn-invite-screens.jsx` `InvitesInboxScreen`. A `__mocks__/InvitesInboxScreen.svelte` stub is added.
 
@@ -64,14 +64,15 @@ Vitest asserts: intro paragraph text; per-row inviter name and list name; Declin
 
 The non-interactive `<div data-test="settings-invites">` scaffolded by 0801 is replaced with a real `<button class="nav-row">` (styled identically) **in the same commit** that ships the `/settings/invites/+page.svelte` route, so `svelte-check`'s typed-routes pass never sees an invalid `href`. The row now shows:
 
-- Sub-line: *"{N} pending"* when `invitations.inbox.length > 0`; *"No pending invites"* when zero.
+- Sub-line: _"{N} pending"_ when `invitations.inbox.length > 0`; _"No pending invites"_ when zero.
 - A count badge (a small number to the right of the nav-row-text, monospace) when inbox is non-zero. Design reference: `design/cairn-screens.jsx` `SettingsScreen` (canonical, line 1084+) — note that `SettingsScreenV2_LEGACY` in `cairn-invite-screens.jsx` is deprecated.
 - Clicking navigates to `/settings/invites`.
 
 `SettingsScreen.test.ts` is updated in the same commit: replace tests `(j-4)` ("Invites row is a `<div>`") and `(j-5)` ("no chevron-right") with:
+
 - `(j-4)` Invites row is a `<button>` navigating to `/settings/invites` when inbox is non-empty.
-- `(j-5)` Invites row shows *"{N} pending"* sub-line when `invitations.inbox.length` is non-zero.
-- `(j-6′)` Invites row shows *"No pending invites"* sub-line when inbox is empty.
+- `(j-5)` Invites row shows _"{N} pending"_ sub-line when `invitations.inbox.length` is non-zero.
+- `(j-6′)` Invites row shows _"No pending invites"_ sub-line when inbox is empty.
 
 The existing tests `(j-1)` through `(j-3)` and `(j-6)` onwards that remain valid stay unchanged; only the tag-type and chevron assertions flip to the new shape.
 
@@ -81,7 +82,7 @@ The existing tests `(j-1)` through `(j-3)` and `(j-6)` onwards that remain valid
 
 Sections (in order):
 
-1. **Your circle** — members from `relationships.circle` who are not already on this list. Each row: 32 px avatar, display name, "In your circle" sub-line, "Invite" button. Tapping calls `sendInvitation(listId, { userId: m.otherUserId })`. On success: per-row check mark + *"Invite sent"* toast. On error: toast with `err.message` (which is one of the three carve-out strings from R2, or "Couldn't send invite").
+1. **Your circle** — members from `relationships.circle` who are not already on this list. Each row: 32 px avatar, display name, "In your circle" sub-line, "Invite" button. Tapping calls `sendInvitation(listId, { userId: m.otherUserId })`. On success: per-row check mark + _"Invite sent"_ toast. On error: toast with `err.message` (which is one of the three carve-out strings from R2, or "Couldn't send invite").
 2. **People you share other lists with** — co-members computed client-side from `lists.items` (deduplicated union of all `list_members.user_id` across all lists), excluding: current user, circle members, and already-members of the target list. "On {N} of your other lists" sub-line. Same invite/success/error behaviour.
 3. **By e-mail** (sticky bottom panel) — mail icon, italic placeholder, "Send" button. On submit: calls `sendInvitation(listId, { email: typedEmail })`, never echoes the typed address in any error, clears the field on success.
 
@@ -102,14 +103,14 @@ GET /list_members?list_id=eq.{listId}&deleted_at=is.null
   &select=user_id,created_at,lists(created_by,name),profiles!user_id(display_name,avatar_version)
 ```
 
-Section label: *"{N} people on this list"*. Per-member row: 32 px avatar, display name, sub-line determined by `lists.created_by`:
+Section label: _"{N} people on this list"_. Per-member row: 32 px avatar, display name, sub-line determined by `lists.created_by`:
 
-- `lists.created_by === profile.uid && member.user_id === profile.uid` → *"You · created the list"*
-- `lists.created_by !== profile.uid && member.user_id === profile.uid` → *"Joined {timeAgo(created_at)}"*
-- `lists.created_by === member.user_id` → *"Created the list"*
-- everyone else → *"Joined {timeAgo(created_at)}"*
+- `lists.created_by === profile.uid && member.user_id === profile.uid` → _"You · created the list"_
+- `lists.created_by !== profile.uid && member.user_id === profile.uid` → _"Joined {timeAgo(created_at)}"_
+- `lists.created_by === member.user_id` → _"Created the list"_
+- everyone else → _"Joined {timeAgo(created_at)}"_
 
-Tapping a non-self row opens `<ProfileSheet>` with `pendingInvitationId={pendingInviteFor(listId, member.user_id)}`. Bottom button *"Add member"* opens `<InvitePickerSheet listId={listId}>`.
+Tapping a non-self row opens `<ProfileSheet>` with `pendingInvitationId={pendingInviteFor(listId, member.user_id)}`. Bottom button _"Add member"_ opens `<InvitePickerSheet listId={listId}>`.
 
 The `lists.created_by` discriminator (not `list_members.created_by`) is the canonical rule — `list_members.created_by` is always the attribution-trigger value (the inviter), never the member. A mock stub at `__mocks__/MembersScreen.svelte` is added.
 
@@ -123,7 +124,7 @@ Vitest: section label shows count; sub-line "You · created the list" for the cr
 2. Edit description (existing)
 3. **Manage members** (new) — `data-test="list-overflow-manage-members"`, navigates to `/lists/{listId}/members` via `goto(resolve('/lists/<listId>/members'))`.
 4. View bin (existing)
-5. **Leave list** (new) — `data-test="list-overflow-leave"`, opens an inline confirmation block ("Leave *{listName}*? You'll have to be re-invited to rejoin." — left "Cancel", right "Leave"). On confirm: `PATCH /list_members?list_id=eq.{listId}&user_id=eq.{me}` with body `{ deleted_at: new Date().toISOString() }` (the trigger `tg_set_attribution_list_members` stamps `deleted_by` automatically; the client does not send it), then `goto(resolve('/lists'))` and `onclose()`.
+5. **Leave list** (new) — `data-test="list-overflow-leave"`, opens an inline confirmation block ("Leave _{listName}_? You'll have to be re-invited to rejoin." — left "Cancel", right "Leave"). On confirm: `PATCH /list_members?list_id=eq.{listId}&user_id=eq.{me}` with body `{ deleted_at: new Date().toISOString() }` (the trigger `tg_set_attribution_list_members` stamps `deleted_by` automatically; the client does not send it), then `goto(resolve('/lists'))` and `onclose()`.
 6. Delete list (existing)
 
 `ListOverflowSheet.test.ts` is updated in the same commit: replace the existing row-count assertion with six rows in the documented order; add assertions for Manage members navigating and Leave list confirmation flow.

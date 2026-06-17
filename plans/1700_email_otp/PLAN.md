@@ -16,7 +16,7 @@ Plan 0303 deliberately stripped the six-digit OTP (`{{ .Token }}`) from the
 e-mail template and added a Playwright guard (`\b\d{6}\b` must be absent) because
 the code was unusable UI and a social-engineering surface.
 
-The friction 0303 didn't anticipate: the e-mail is usually read on a *different*
+The friction 0303 didn't anticipate: the e-mail is usually read on a _different_
 device than the one the user started on. A code the user can type closes that
 gap. GoTrue already mints the OTP — it is the same value as the link's `token`
 param — so this is wiring, not new auth machinery.
@@ -85,7 +85,7 @@ bespoke component would duplicate it.
 - **`web/src/lib/auth/model/auth-client.ts`** — add `verifyOtp(email, token)`.
 - **`web/src/lib/basic/components/TextInput.svelte`** — add `maxlength` prop.
 - **`web/src/lib/auth/components/LoginCheck.svelte`** — code field + auto-submit
-  + verify wiring + error handling.
+  - verify wiring + error handling.
 - **`web/src/lib/auth/components/LoginRequest.svelte`** — button copy.
 - **`web/e2e/helpers/mailpit.ts`** — return the extracted six-digit code.
 - **`web/e2e/auth.spec.ts`** — invert the OTP-absence assertion; add code-entry
@@ -116,7 +116,7 @@ TDD throughout: RED (failing test / inverted assertion) before GREEN.
    phases don't reference a stale, strip-mandating spec.
 
 1. **Phase 1 — e-mail template + OTP length (R1, R6, R7-partial).** Invert the
-   Playwright OTP guard (RED: assert the code is *present* against the
+   Playwright OTP guard (RED: assert the code is _present_ against the
    still-stripping template → fails) and extend the Mailpit helper to return the
    code; then add `{{ .Token }}` + the anti-phishing line to the template and pin
    `GOTRUE_MAILER_OTP_LENGTH` (GREEN). The magic-link-click happy path stays green.
@@ -139,7 +139,7 @@ TDD throughout: RED (failing test / inverted assertion) before GREEN.
 - **`docs/email-html.md`** — table-only, email-safe HTML the template must keep.
 - **`docs/architecture.md`** — auth flow (`/auth/magiclink`, `/auth/verify`,
   cookie-plant, JWT storage); the `/otp` alias note at ~line 242.
-- **`docs/admin.md`** — why the *send* step is anti-enumeration (errors swallowed).
+- **`docs/admin.md`** — why the _send_ step is anti-enumeration (errors swallowed).
 - **`docs/testing.md`** — three layers: Vitest for `verifyOtp`/components,
   Playwright for the end-to-end code-entry path.
 - **`plans/0303_strip_otp/`** — the plan this reverses; reuse its email-safe-HTML

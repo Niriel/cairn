@@ -24,7 +24,7 @@ screen.** The governing rule now lives in `docs/ui.md`:
 
 Tasks 1.1 (typography lift) and 2.1 (`<EmptyState>` extraction) shipped under
 the original framing and are compatible; they remain as Phases 1–2. The new
-work is Phases 3 onward. Phase 3 *re-opens* `typography.css` (1.1 wrote px
+work is Phases 3 onward. Phase 3 _re-opens_ `typography.css` (1.1 wrote px
 values; they convert to rem and the role set expands) — this supersedes 1.1's
 output rather than editing the completed task.
 
@@ -61,23 +61,23 @@ only for hairlines/shadows/fixed measures. px→rem at base 16: 11.5→0.72,
 One rule per role; no component re-declares type. Mapping of current selectors
 onto roles:
 
-| Role | Value | Absorbs (current → converged) |
-|------|-------|-------------------------------|
-| `h1` | serif 1.375rem/500/−0.01em/`--ink` | TopBar `.centre` |
-| `h2` | serif 1.125rem/500/`--ink-soft`/**normal case**/margin 0 | all `.section-label`, CircleScreen `.section-header` (0.75rem→1.125rem, **drops uppercase**). **Not** Settings `.preview-label` (that's a form sub-label → `<Label>`, not h2). |
-| `h3` (also `.row-title` class) | 1rem/600/`--ink`/margin 0 | `.name` at 14/15/15.5px, `.display-name`, `.nav-row-title`, `.list-name` (inbox), `.item-name` (15.5→15), Trash `.name` (weight 500→600). Use the `<h3>` tag for names **not** inside a control; the `.row-title` **class** (same rule) for names inside a tap-target button. |
-| `.t-hero` | serif 1.5rem/500/−0.01em/`--ink` | `.empty-heading` (×4, 22–24→24), CircleExplainer `h2` (25.6→24) |
-| `.t-sheet` | section `h2` + `--ink` (colour-only override; inherits serif 1.125rem/500) | InvitePicker `.title` (17 sans→serif), ListOverflow `.list-name` (18), AvatarSource `.title` (18), AddEditItem `.title` (19) |
-| `.list-title` | serif 1.0625rem/600/−0.005em/`--ink`/lh 1.3 | ListsScreen `.name` |
-| `.identity-name` | 1.125rem/600/`--ink` | ProfileSheet `.name` |
-| `.body` | 1rem/`--ink-soft`/lh 1.5 | `.empty-body`, ListsScreen `.desc`, Items `.notes`(*serif italic kept via extra scoped rule*), various 13.5–14px body |
-| `.caption` | 1rem/`--stone`/lh 1.5 (set apart by colour, not size) | `.sub`, `.subtitle`, `.row-inviter`, `.nav-row-sub`, `.option-sub`, `.cascade-note`, ListOverflow `.meta`, etc. |
-| `.fine` | 0.8rem/`--stone`/lh 1.5 (the one tier below the 1rem floor) | Items `.attribution` + `.member-vote`, ListsScreen `.meta` line, timestamps (`.when`). Genuinely-secondary metadata that reads fine small. |
-| `.mono` | JetBrains Mono | **numerics only** — vote values, the score `<Badge>`, counts. **Not** dates: `.when` / circle-blocked `.sub` drop mono (R14). |
+| Role                           | Value                                                                      | Absorbs (current → converged)                                                                                                                                                                                                                                                 |
+| ------------------------------ | -------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `h1`                           | serif 1.375rem/500/−0.01em/`--ink`                                         | TopBar `.centre`                                                                                                                                                                                                                                                              |
+| `h2`                           | serif 1.125rem/500/`--ink-soft`/**normal case**/margin 0                   | all `.section-label`, CircleScreen `.section-header` (0.75rem→1.125rem, **drops uppercase**). **Not** Settings `.preview-label` (that's a form sub-label → `<Label>`, not h2).                                                                                                |
+| `h3` (also `.row-title` class) | 1rem/600/`--ink`/margin 0                                                  | `.name` at 14/15/15.5px, `.display-name`, `.nav-row-title`, `.list-name` (inbox), `.item-name` (15.5→15), Trash `.name` (weight 500→600). Use the `<h3>` tag for names **not** inside a control; the `.row-title` **class** (same rule) for names inside a tap-target button. |
+| `.t-hero`                      | serif 1.5rem/500/−0.01em/`--ink`                                           | `.empty-heading` (×4, 22–24→24), CircleExplainer `h2` (25.6→24)                                                                                                                                                                                                               |
+| `.t-sheet`                     | section `h2` + `--ink` (colour-only override; inherits serif 1.125rem/500) | InvitePicker `.title` (17 sans→serif), ListOverflow `.list-name` (18), AvatarSource `.title` (18), AddEditItem `.title` (19)                                                                                                                                                  |
+| `.list-title`                  | serif 1.0625rem/600/−0.005em/`--ink`/lh 1.3                                | ListsScreen `.name`                                                                                                                                                                                                                                                           |
+| `.identity-name`               | 1.125rem/600/`--ink`                                                       | ProfileSheet `.name`                                                                                                                                                                                                                                                          |
+| `.body`                        | 1rem/`--ink-soft`/lh 1.5                                                   | `.empty-body`, ListsScreen `.desc`, Items `.notes`(_serif italic kept via extra scoped rule_), various 13.5–14px body                                                                                                                                                         |
+| `.caption`                     | 1rem/`--stone`/lh 1.5 (set apart by colour, not size)                      | `.sub`, `.subtitle`, `.row-inviter`, `.nav-row-sub`, `.option-sub`, `.cascade-note`, ListOverflow `.meta`, etc.                                                                                                                                                               |
+| `.fine`                        | 0.8rem/`--stone`/lh 1.5 (the one tier below the 1rem floor)                | Items `.attribution` + `.member-vote`, ListsScreen `.meta` line, timestamps (`.when`). Genuinely-secondary metadata that reads fine small.                                                                                                                                    |
+| `.mono`                        | JetBrains Mono                                                             | **numerics only** — vote values, the score `<Badge>`, counts. **Not** dates: `.when` / circle-blocked `.sub` drop mono (R14).                                                                                                                                                 |
 
 **Uppercase belongs to form labels, not section titles.** The upper-cased,
-`0.06em`-tracked, small-stone look is the *form-label* treatment (the `<Label>`
-primitive — "NAME", "NOTES", "E-MAIL ADDRESS"). It bled onto section *titles*
+`0.06em`-tracked, small-stone look is the _form-label_ treatment (the `<Label>`
+primitive — "NAME", "NOTES", "E-MAIL ADDRESS"). It bled onto section _titles_
 because both were called "labels" and the global `h2` copied the look. This
 plan separates them: `<Label>` keeps uppercase; the section-title `h2` becomes
 a normal-case serif heading (1.125rem/500/`--ink-soft`, margin 0). This is a
@@ -90,7 +90,7 @@ Judgement calls flagged for review: collapsing the whole 11–12 px secondary
 cluster onto one `.caption` (0.75 rem); making all sheet titles serif;
 `.notes` (item notes) keeps a scoped `font-family: serif; font-style: italic`
 on top of `.body` because the serif-italic is an intentional editorial look,
-not drift — that scoped rule is an allowed exception (it is a *type* rule, but
+not drift — that scoped rule is an allowed exception (it is a _type_ rule, but
 a deliberate one with no global role; alternatively add a `.prose` role —
 decide in review).
 
@@ -104,7 +104,7 @@ single rule covers them all. This supersedes the parent plan's "convert
 (`plans/0900_refactor_css_components/PLAN.md`): that predates the `<ul>`/`<li>`
 migration, and `<hr>` is invalid as a direct child of `<ul>`, so a border on
 each `<li class="row">` is the correct idiom for data rows. `<hr>` is kept only
-for ListOverflowSheet's *action menu* (wrapped in `<li role="separator">`), not
+for ListOverflowSheet's _action menu_ (wrapped in `<li role="separator">`), not
 for data lists. `.card` / `.card-alt` / `.card-dashed` (radius converges to
 0.75 rem). `.surface-alt` for raised backgrounds. `.sheet-handle` for the three
 sheet handles (width converges 36/40 px → 2.25 rem).
@@ -120,7 +120,7 @@ buttons in InvitesInboxScreen / InvitesBanner are replaced by
 globalised. `<Button>`'s tones today
 (`primary | ink | destructive`) cannot render the design's **filled sage**
 Accept button, so `<Button>` gains one minimal new tone — `sage` — that renders
-*filled* in the pill variant (sage background, paper text); all other pill
+_filled_ in the pill variant (sage background, paper text); all other pill
 tones stay outlined. Accept → `tone="sage"` (filled), Decline → `tone="ink"`
 (outlined; its muted-stone outline converges onto ink, a deliberate change).
 This extends the existing primitive rather than minting a new component
@@ -129,7 +129,7 @@ demands the filled affirmative shape).
 
 ### Single-instance chrome
 
-The rule's enemy is duplication/drift, so *repeated* visual patterns are
+The rule's enemy is duplication/drift, so _repeated_ visual patterns are
 mandatory-global. Genuinely single-instance chrome that is visual but unique
 (TopBar's `background`/`border-bottom`; the Sheet backdrop) may stay scoped —
 but its **type** still moves out (TopBar's title → global `h1`). The sheet
@@ -138,7 +138,7 @@ handle repeats three times, so it goes global.
 ### Semantic HTML + EmptyState (R5, R6)
 
 The sweep goes further than the original header/h2/ul/li/h3/p mapping: a
-"section label" is the *title of a content group*, so each labelled group
+"section label" is the _title of a content group_, so each labelled group
 becomes a `<section>` with that title as its `<h2>`. The structure is
 deliberately minimal — a lone title stays a bare `<h2>` (no `<header>` wrapper
 around a single heading); a `<header>` appears only where the intro carries more
@@ -148,7 +148,7 @@ unlabelled list is not sectioned (a `<section>` should have a heading). The
 InvitePicker "By e-mail" caption is both the e-mail section's intro and the
 label for its one input, so it reuses the 0901 `<Label>` primitive (which
 renders the upper-cased form-label look as a real `<label>` — correct here,
-since the caption *is* the input's label) — this dissolves the "floating
+since the caption _is_ the input's label) — this dissolves the "floating
 section-label class" problem without minting a global `.section-label` class. The cross-screen `<section>`/`<header>`/`<footer>` convention is recorded
 in `docs/ui.md` by Phase 0 so later screens inherit it. Empty states migrate to
 the shared `<EmptyState>`, which is the legitimate home for the empty-state
@@ -272,7 +272,7 @@ threads, all on-theme for "kill the copy-paste, one home per pattern":
   `docs/ui.md` are reconciled to record this (Phase 7's first, doc task — the
   Phase 0 pattern applied to appended work).
 
-- **`.media` / `.field` (R10).** R7 made scoped CSS layout-only, but two *layout*
+- **`.media` / `.field` (R10).** R7 made scoped CSS layout-only, but two _layout_
   blocks are still copy-pasted across many files. The horizontal flex line is a
   media object (Sullivan, 2010); `class="row"` conflates it with the list-item /
   divider unit — they coincide in simple rows but split apart in expandable ones
@@ -286,7 +286,7 @@ threads, all on-theme for "kill the copy-paste, one home per pattern":
   outer wrappers and break them).
 
 - **`<NavRow>` (R11).** 0902 deliberately deferred this ("separate plan") and
-  only globalised the nav-row *visual* CSS, leaving the nav-row *structure*
+  only globalised the nav-row _visual_ CSS, leaving the nav-row _structure_
   duplicated across Settings/Privacy (InvitesInbox renders data rows, not
   nav-rows — it is not a consumer). We now pull the extraction
   in: a `shared/` `<NavRow>` wrapping the existing `<Button>`, owning the
@@ -308,8 +308,8 @@ don't read the stale `<hr>` prescription.
 Appended after Phase 7 — three more dedup/homogenise threads the original plan
 deferred or missed:
 
-- **`<Badge>` (R12).** R4 globalised the badge *CSS* but listed a `<Badge>`
-  *component* as a Non-requirement. Pulled in now: a `basic/` `<Badge>` (tones
+- **`<Badge>` (R12).** R4 globalised the badge _CSS_ but listed a `<Badge>`
+  _component_ as a Non-requirement. Pulled in now: a `basic/` `<Badge>` (tones
   `ink` / `soft` / `score`±) wrapping the existing `.badge*` classes, adopted at
   all four badge sites — and the SettingsScreen invites count, today plain mono
   text, is promoted to an `ink` badge. Tone semantics: `ink` = attention /

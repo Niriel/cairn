@@ -5,8 +5,8 @@ next to `REQUIREMENTS.md` and `TASKS.md`.
 
 ## Purpose
 
-`PLAN.md` is the design document a reviewer reads to understand *why*
-the implementation is shaped the way it is and *how* the pieces fit
+`PLAN.md` is the design document a reviewer reads to understand _why_
+the implementation is shaped the way it is and _how_ the pieces fit
 together. It's prose, not a checklist. A future maintainer picking
 up the PR — or future-you six months later — should be able to
 reconstruct the design rationale from this file without rerunning
@@ -22,8 +22,8 @@ audits.
 ```markdown
 # Plan: <feature name>
 
-<One- or two-sentence summary, including a brief *why now* / *why this
-work exists* sentence — same hook as REQUIREMENTS.md but framed for
+<One- or two-sentence summary, including a brief _why now_ / _why this
+work exists_ sentence — same hook as REQUIREMENTS.md but framed for
 design context rather than contractual statements.>
 
 ## Context
@@ -36,7 +36,7 @@ existing code by path.>
 
 <Key design choices and their trade-offs. Each decision is a short
 named subsection or a bolded label followed by a paragraph. Explain
-the *why* — what alternatives were considered and rejected, what
+the _why_ — what alternatives were considered and rejected, what
 constraint this satisfies. References to requirement numbers (R3, R7)
 are useful here.>
 
@@ -106,14 +106,14 @@ work isn't blocked. Delete the section if there are none.>
 
 ## What goes where
 
-| Content type                     | Home                        |
-|----------------------------------|-----------------------------|
-| "Must satisfy" contracts         | `REQUIREMENTS.md`           |
-| Why a design choice was made     | `PLAN.md` → Decisions       |
-| New/modified file inventory      | `PLAN.md` → Architecture    |
-| Step-by-step "do this then that" | `TASKS.md`                  |
-| RED/GREEN test ordering          | `TASKS.md` → per-task Steps |
-| Verify commands                  | `TASKS.md` → per-task Verify|
+| Content type                     | Home                         |
+| -------------------------------- | ---------------------------- |
+| "Must satisfy" contracts         | `REQUIREMENTS.md`            |
+| Why a design choice was made     | `PLAN.md` → Decisions        |
+| New/modified file inventory      | `PLAN.md` → Architecture     |
+| Step-by-step "do this then that" | `TASKS.md`                   |
+| RED/GREEN test ordering          | `TASKS.md` → per-task Steps  |
+| Verify commands                  | `TASKS.md` → per-task Verify |
 
 ## Examples
 
@@ -141,7 +141,7 @@ because we run vanilla self-hosted GoTrue (see
 `docs/architecture.md` "Considered and rejected").
 ```
 
-The reader learns *why* the rejected alternative was rejected, not
+The reader learns _why_ the rejected alternative was rejected, not
 just which one was picked.
 
 ### Bad — restates the requirement
@@ -163,7 +163,7 @@ requirement carries the load alone.
 - **Living docs.** Cairn is pre-alpha. When a plan finds a better
   design than `docs/*.md` describes, prefer **editing the doc** over
   wedging a contradiction into the plan. If the doc edit must land
-  *before* the plan's other phases (e.g. because tests reference
+  _before_ the plan's other phases (e.g. because tests reference
   the doc), add a **Phase 0 — reconcile docs** at the top of the
   Phase structure section listing the exact `file:line` edits.
 - **TDD ordering is non-negotiable.** When the plan involves
@@ -175,23 +175,23 @@ requirement carries the load alone.
 - **pgTAP is load-bearing.** RLS is the security boundary; an
   untested policy is an unverified claim. Any plan touching schema,
   RLS, triggers, or views must have a phase (or sub-phase) that
-  ships pgTAP tests with both positive *and* negative cases. See
+  ships pgTAP tests with both positive _and_ negative cases. See
   `docs/testing.md`.
 - **Three test layers.** When a plan crosses layers (DB + JS + UI),
   `PLAN.md`'s Architecture section should call out which layer each
   test type lives in: `db/tests/` for pgTAP, `web/src/**/*.test.ts`
   for Vitest, `web/e2e/` for Playwright. See `docs/testing.md`.
 - **Toolchain coupling drives phase order, not just runtime
-  dependency.** A task that *navigates to*, *imports from*, or
-  *type-references* a destination created by a later task will
+  dependency.** A task that _navigates to_, _imports from_, or
+  _type-references_ a destination created by a later task will
   fight the type checker / linter even when runtime behaviour is
   fine. SvelteKit's `resolve()` only accepts route IDs that exist
   in `web/src/routes/`; `svelte-check`'s strict typing rejects
   symbols a downstream task will create; ESLint's typed rules
   reject `import.meta.env.VITE_*` reads when the var isn't yet
   declared in `web/src/vite-env.d.ts`. Before locking in phase
-  order, scan the Architecture section's *consumer → producer*
-  edges (which file *uses* what, not just which file *imports*
+  order, scan the Architecture section's _consumer → producer_
+  edges (which file _uses_ what, not just which file _imports_
   what) and either reorder so producers land first, fold a
   producer stub into the earlier phase, or pre-decide where the
   per-line escape lands. The cost compounds: each chicken-and-egg

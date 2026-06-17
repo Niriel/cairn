@@ -8,7 +8,7 @@ service).
 This README is the **developer setup guide** — everything you need to install
 on a fresh machine before you can build, test, and run Cairn. For day-to-day
 workflow (migrations, seed data, debugging RLS, the dev-server proxy), see
-[`docs/development.md`](docs/development.md). For *what Cairn is*, start with
+[`docs/development.md`](docs/development.md). For _what Cairn is_, start with
 [`docs/README.md`](docs/README.md).
 
 > **Status:** The SvelteKit shell, Docker Compose stack, migration/seed
@@ -93,10 +93,10 @@ machine; the pre-commit hook expects them on `PATH`:
 - **[shfmt](https://github.com/mvdan/sh)** — shell-script formatter. Single static binary;
   install via your package manager (`apt install shfmt`, `brew install shfmt`,
   `scoop install shfmt`).
-[lefthook](https://github.com/evilmartians/lefthook), the Git hook manager
-that runs the lint/format/check gauntlet on staged files, ships as a
-`web/` devDependency — `pnpm install` registers the hooks automatically
-(see `web/package.json` → `prepare`). No host install required.
+  [lefthook](https://github.com/evilmartians/lefthook), the Git hook manager
+  that runs the lint/format/check gauntlet on staged files, ships as a
+  `web/` devDependency — `pnpm install` registers the hooks automatically
+  (see `web/package.json` → `prepare`). No host install required.
 
 The full toolchain — what each tool catches and how it's configured — is
 documented in [`docs/quality.md`](docs/quality.md).

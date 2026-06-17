@@ -1,7 +1,7 @@
 # Plan: honour the magic-link anti-enumeration contract in the sign-in UI
 
 Bring `LoginRequest.svelte`'s submit and `LoginCheck.svelte`'s
-*Send again* button under the structural anti-enumeration contract
+_Send again_ button under the structural anti-enumeration contract
 documented in `docs/admin.md` lines 159–185, and land the
 design-handoff copy fixes the screens have been drifting from.
 Must land before step 14's deploy so the contract is honoured on
@@ -12,19 +12,19 @@ day 1 of production.
 `docs/admin.md:159–185` establishes the contract: every outcome
 `POST /auth/magiclink` can produce — link sent, banned, unconfirmed,
 rate-limited, unknown email — must render the identical post-submit
-screen. *"The protection is structural, not rhetorical. The screen
-is identical in every case, and that's the entire mechanism"*
-(line 175). The design canvas captures this as the *"02b · One
-screen, five outcomes — anti-enumeration by structure"* artboard
+screen. _"The protection is structural, not rhetorical. The screen
+is identical in every case, and that's the entire mechanism"_
+(line 175). The design canvas captures this as the _"02b · One
+screen, five outcomes — anti-enumeration by structure"_ artboard
 (`design/cairn-screens.jsx:295`), which spells out the five outcomes,
-the three antipatterns *never* to render, and the operative rule:
-*"The web app treats every non-2xx response from POST /auth/magiclink
-as a success in the UI"* (`design/cairn-screens.jsx:364-370`).
+the three antipatterns _never_ to render, and the operative rule:
+_"The web app treats every non-2xx response from POST /auth/magiclink
+as a success in the UI"_ (`design/cairn-screens.jsx:364-370`).
 
 `LoginRequest.svelte` violates the contract today. Lines 87–89 render
-an inline error on 4xx (*"Please check the e-mail and try again."*);
-lines 118–123 flip a snackbar (*"Couldn't reach the server. Try
-again."*) on 5xx and network failure. Either is a one-shot
+an inline error on 4xx (_"Please check the e-mail and try again."_);
+lines 118–123 flip a snackbar (_"Couldn't reach the server. Try
+again."_) on 5xx and network failure. Either is a one-shot
 enumeration oracle: a probe with a banned email yields an inline
 error, a probe with a healthy unknown email might also, and the
 attacker learns the difference. The fix is to stop branching on the
@@ -34,8 +34,8 @@ error type and proceed to `/auth/check` on every path.
 Its `onSendAgain` (lines 12–26) awaits `sendMagicLink(email)` and
 sets `confirmation = true` only on success — on failure the button
 re-enables and nothing else happens. Same endpoint, same
-endpoint-level rule (`docs/admin.md:185`: *"the same button on every
-screen, with the same effect, is fine"*); current behaviour is *not*
+endpoint-level rule (`docs/admin.md:185`: _"the same button on every
+screen, with the same effect, is fine"_); current behaviour is _not_
 the same effect.
 
 Two design-handoff copy slips also need to land in the same pass:
@@ -43,16 +43,16 @@ the design canvas has the canonical wording (`design/cairn-screens.jsx:167`
 and `:207-208`), `docs/admin.md:165` quotes it verbatim, but the
 Svelte hasn't followed.
 
-- `LoginRequest.svelte:103` — *"a link that signs you in"* →
-  *"a link to continue"*.
-- `LoginCheck.svelte:37-38` — *"Tap it on this device to sign in"*
-  → *"Tap it on this device to continue"*.
+- `LoginRequest.svelte:103` — _"a link that signs you in"_ →
+  _"a link to continue"_.
+- `LoginCheck.svelte:37-38` — _"Tap it on this device to sign in"_
+  → _"Tap it on this device to continue"_.
 
 `docs/development.md:230` describes the current broken state as
-present tense (*"Step 3's `LoginRequest` screen surfaces the 4xx
-as an inline error, so the oracle is directly visible in the UI"*)
-and points at the fix as future (*"Step 13's auth-screen hardening
-MUST collapse known/unknown responses…"*). Once this plan lands,
+present tense (_"Step 3's `LoginRequest` screen surfaces the 4xx
+as an inline error, so the oracle is directly visible in the UI"_)
+and points at the fix as future (_"Step 13's auth-screen hardening
+MUST collapse known/unknown responses…"_). Once this plan lands,
 both halves of that prose contradict reality and Cairn's
 pre-alpha living-docs convention says we re-cast it in past tense
 (see Phase 0 below).
@@ -76,21 +76,21 @@ rejection on the `sendMagicLink` call itself:
 
 ```ts
 async function onSubmit(event: Event) {
-  event.preventDefault();
-  if (!emailValid || sending) return;
-  sending = true;
-  inlineError = null;
-  try {
-    // Anti-enumeration: any GoTrue outcome (link sent, banned,
-    // unconfirmed, rate-limited, unknown email) renders the same
-    // post-submit screen. See docs/admin.md → "What the web app
-    // shows when a banned user tries to sign in."
-    await sendMagicLink(email).catch(() => {});
-    setPendingLogin(email);
-    await goto(resolve('/auth/check')).catch(() => {});
-  } finally {
-    sending = false;
-  }
+	event.preventDefault();
+	if (!emailValid || sending) return;
+	sending = true;
+	inlineError = null;
+	try {
+		// Anti-enumeration: any GoTrue outcome (link sent, banned,
+		// unconfirmed, rate-limited, unknown email) renders the same
+		// post-submit screen. See docs/admin.md → "What the web app
+		// shows when a banned user tries to sign in."
+		await sendMagicLink(email).catch(() => {});
+		setPendingLogin(email);
+		await goto(resolve("/auth/check")).catch(() => {});
+	} finally {
+		sending = false;
+	}
 }
 ```
 
@@ -106,8 +106,8 @@ safety net the original outer `catch` provided around
 an unhandled promise rejection. The inline comment makes the
 intent legible to a future auditor — swallowing errors silently
 usually reads like a bug, and this is the unusual case where
-it's the contract. (CLAUDE.md: *"Only add one when the WHY is
-non-obvious"*.)
+it's the contract. (CLAUDE.md: _"Only add one when the WHY is
+non-obvious"_.)
 
 **Drop `HttpError` and `isHttpError400` from `LoginRequest.svelte`.**
 After the rewrite the parent no longer needs to distinguish 4xx
@@ -134,7 +134,7 @@ change at the body of the try: append `.catch(() => {})` to the
 timer arm on every path (R2). Same justification comment as the
 submit. `LoginCheck.svelte` has no `goto` to guard, so the resend
 needs only the single `.catch`. Considered and rejected: pre-arming
-the confirmation *before* the await (which would also remove the
+the confirmation _before_ the await (which would also remove the
 timing dependency on GoTrue's response). Rejected because it would
 let the confirmation appear visibly faster than the spinner
 finishes, diverging from the existing success behaviour and making
@@ -151,7 +151,7 @@ rate-limiting by hammering the resend button.
 
 **Phase 0 reconciles `docs/development.md:230`, not `docs/admin.md`.**
 `admin.md` is the spec and already describes the post-fix state.
-`development.md:230` describes the *current* state as broken and
+`development.md:230` describes the _current_ state as broken and
 the fix as future — both halves become wrong on merge. Phase 0
 rewrites the paragraph in past tense pointing at this plan
 directory; see `plans/0301_gate_dev_login/PLAN.md` § "Phase 0"
@@ -178,7 +178,7 @@ for the precedent shape.
   tense, pointing at `plans/0302_signin_anti_enumeration/` for the
   resolved-state record (Phase 0).
 - **`plans/0000_implementation_order.md:80`** — tick the `[ ]
-  0302` checkbox in the close-out commit.
+0302` checkbox in the close-out commit.
 
 ### New files
 
@@ -199,7 +199,7 @@ None.
   the user typed, not what GoTrue confirmed.
 - `web/src/lib/shared/components/Snackbar.svelte` — its caller
   changes; the primitive does not.
-- `docs/admin.md` — the doc *is* the spec; it already describes
+- `docs/admin.md` — the doc _is_ the spec; it already describes
   the post-fix state as the contract.
 
 ### Data flow after the change
@@ -261,13 +261,13 @@ RED-before-GREEN within each unit, matching the 0301 precedent.
 - **`docs/admin.md`** lines 159–189 — the anti-enumeration contract
   this plan implements. Line 165 has the canonical post-submit copy;
   lines 181–185 have the three rules the contract reduces to.
-- **`docs/development.md`** lines 226–235 — the *Forward-note for
-  step 13 (production rollout)* / oracle paragraph. Lines 230
+- **`docs/development.md`** lines 226–235 — the _Forward-note for
+  step 13 (production rollout)_ / oracle paragraph. Lines 230
   describes the leak this plan closes; Phase 0 re-casts it in past
   tense.
 - **`design/cairn-screens.jsx`** lines 167, 207–208 — the canonical
-  UI strings; lines 295–376 — the *02b · One screen, five outcomes*
-  artboard, including the *"What we deliberately never show"*
+  UI strings; lines 295–376 — the _02b · One screen, five outcomes_
+  artboard, including the _"What we deliberately never show"_
   antipattern list (lines 345–355) and the operative rule at
   364–370.
 - **`docs/testing.md`** — three-layer testing convention; this plan

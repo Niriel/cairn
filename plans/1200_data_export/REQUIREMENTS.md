@@ -52,14 +52,14 @@ predicates are the entire access control:
   caller is `created_by` / `target_user_id` respectively, reflecting
   pending state at export time. Each row is an **explicit allowlist**
   (never `to_jsonb(i)` / `jsonb_agg(i)`): the list it targets (by name,
-  and `list_id` for reference), `created_at`, and the *other*
+  and `list_id` for reference), `created_at`, and the _other_
   party rendered as a **display name** where one exists. There is **no
   `status` field** — the `invitations` table holds only outstanding
-  invites (accept/decline *delete* the row; see `0011_invitations_delete.sql`),
+  invites (accept/decline _delete_ the row; see `0011_invitations_delete.sql`),
   so every entry is pending by construction and the section's meaning
   ("pending at export time") makes a per-row status redundant. The
   `invitations.target_email` column (`0009_invitations.sql:24`) is
-  **deliberately excluded** — on an email-keyed invite the caller *sent*,
+  **deliberately excluded** — on an email-keyed invite the caller _sent_,
   `target_email` is the invitee's e-mail, not the caller's own, so
   emitting it would violate R4 and the `docs/invites.md` email-privacy
   contract. An email-keyed sent invite that has no claiming user yet
@@ -67,7 +67,7 @@ predicates are the entire access control:
 
 A user who is not a member of a list sees nothing of that list; a second
 user's votes on items the caller did not add never appear (except via
-R3's `all_votes` on items the caller *did* add).
+R3's `all_votes` on items the caller _did_ add).
 
 ## R3. Vote scope is Option B — all votes on items the caller added
 

@@ -26,16 +26,17 @@ causes a schema-cache "function not found" error at runtime.
 
 ```typescript
 export type List = {
-  id: string;
-  name: string;
-  description: string | null;
-  modified_at: string;
+	id: string;
+	name: string;
+	description: string | null;
+	modified_at: string;
 };
 ```
 
 ## R3. Reactive `lists` store
 
 `web/src/lib/list/state/lists.svelte.ts` exports:
+
 - `lists: { items: List[]; loading: boolean; error: string | null }` — module-level
   `$state` that auto-fetches `GET /lists?order=modified_at.desc` when the session
   becomes `signed-in` and resets to empty when `signed-out`.
@@ -45,6 +46,7 @@ export type List = {
 ## R4. Lists screen UI
 
 A `ListsScreen.svelte` component at `web/src/lib/list/components/` renders:
+
 - A `TopBar` with title "Lists" and no back arrow (`showBack={false}`).
 - When `lists.loading` is true: a loading skeleton or spinner (not specified in
   detail; a `data-test="lists-loading"` element is sufficient).
@@ -64,13 +66,14 @@ A `CreateListSheet.svelte` component at `web/src/lib/list/components/` wraps
 
 ```typescript
 type Props = {
-  open: boolean;
-  onclose: () => void;
-  oncreated: (list: List) => void;
+	open: boolean;
+	onclose: () => void;
+	oncreated: (list: List) => void;
 };
 ```
 
 The sheet body contains:
+
 - A required text input for the list name (`data-test="create-list-name"`).
 - An optional textarea for the description (`data-test="create-list-description"`).
 - A `ButtonPair`: left "Cancel" (`data-test="create-list-cancel"`) calls `onclose`;

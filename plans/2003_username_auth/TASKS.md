@@ -42,6 +42,7 @@ in Phase 2.
 BFF parts of `architecture.md`; this finishes the identity-mechanism half.
 
 **Decisions:**
+
 - The stable identity is `<uid>@cairn.internal` (uid = `auth.users.id` =
   `profiles.id`), set **once at account creation**, never rewritten on rename. The
   `.internal` TLD is non-resolvable — never deliverable, never an add-key.
@@ -51,7 +52,7 @@ BFF parts of `architecture.md`; this finishes the identity-mechanism half.
 - The synthetic-e-mail mechanism is **superseded, not reverted**: the
   `username` column, case-fold uniqueness, `recovery_email`, and `set_username`'s
   signature/guards all survive; only the e-mail-rewrite body and the
-  synthetic-e-mail invariant go. Record *why* the stable identity is cheaper
+  synthetic-e-mail invariant go. Record _why_ the stable identity is cheaper
   (the BFF must map username→something to authenticate regardless, so the
   resolver **is** the work) and what it removes (the atomic-rewrite hazard and
   the SQL↔client domain-drift guard).
@@ -60,13 +61,15 @@ BFF parts of `architecture.md`; this finishes the identity-mechanism half.
 e-mail is asserted there, ≈ line 124, as **client/RPC-computed** — not "rewritten
 by `set_username`", which is `data-model.md`'s framing) and the
 "Considered and rejected" synthetic-e-mail discussion, which is the
-*"Magic-link-only authentication"* entry at ≈ line 332 (not ≈ 327, which is the
+_"Magic-link-only authentication"_ entry at ≈ line 332 (not ≈ 327, which is the
 "Multiple subdomains" entry). Both mentions must be corrected.
 
 **Files:**
+
 - `docs/architecture.md` (modify)
 
 **Steps:**
+
 1. Update the identity-mechanism narrative in the "Authentication" section
    (≈ line 124): stop describing the synthetic e-mail as the GoTrue identity;
    describe `<uid>@cairn.internal` set once at creation + the BFF username→id
@@ -95,14 +98,14 @@ autoconfirmed token set), I corrected it alongside rather than leave a contradic
 I'd just walked past — it's the same alpha-posture reconciliation, not new scope.
 
 Left untouched (flagged, not fixed): the magic-link enumeration-oracle paragraph
-(`docs/development.md` ≈ line 257) describes behaviour *conditional* on
+(`docs/development.md` ≈ line 257) describes behaviour _conditional_ on
 `GOTRUE_DISABLE_SIGNUP=true`; it does not assert that prod's default is disabled, so
 it isn't a registration-posture contradiction. It's legacy magic-link territory
 retiring in 2006 — out of scope here.
 
 **Why:** R5 makes `/auth/register` an **open**, primary surface, and the live box
 already runs `DISABLE_SIGNUP=false` (confirmed) so it works in prod today — but the
-docs and the prod compose *default* still say the opposite:
+docs and the prod compose _default_ still say the opposite:
 `docker-compose.prod.yml` defaults `GOTRUE_DISABLE_SIGNUP: "${DISABLE_SIGNUP:-true}"`
 (the prod `.env` overrides it) and `docs/development.md` (≈ line 253) states prod
 is signup-disabled / invite-only ("Cairn is invite-only per `docs/invites.md`, so
@@ -115,13 +118,14 @@ CLAUDE.md "We are going live".
 intent for the alpha (`DISABLE_SIGNUP=false`); this task records it in the docs.
 
 **Decisions:**
+
 - The open-alpha posture is authoritative: prod runs the auth-proxy's open
   `/auth/register`, with GoTrue's `GOTRUE_DISABLE_SIGNUP` as the operator's hard
   switch and the per-IP register throttle (Task 3.3) as the mass-signup bound.
 - `docs/development.md` (≈ line 253): correct the "prod is `GOTRUE_DISABLE_SIGNUP=true`
   / invite-only / signup-disabled is the right default" claim to the open-alpha
   posture — prod sets `DISABLE_SIGNUP=false`, registration is open, and
-  `docs/invites.md` governs invite *acceptance*, not signup-openness (so it is
+  `docs/invites.md` governs invite _acceptance_, not signup-openness (so it is
   not the citation for an invite-only signup gate).
 - `docs/deployment.md` pre-deploy auth checklist: ensure the checklist reflects
   that prod intends open signup (`DISABLE_SIGNUP=false` in the prod `.env`) and
@@ -136,13 +140,15 @@ intent for the alpha (`DISABLE_SIGNUP=false`); this task records it in the docs.
 **Reference:** `docs/development.md` (≈ line 253, the prod signup posture);
 `docs/deployment.md` (the pre-deploy auth checklist); `docker-compose.prod.yml`
 (≈ line 35, the `DISABLE_SIGNUP:-true` default); `docs/invites.md` (invite
-*acceptance* policy — confirm it does not speak to signup-openness).
+_acceptance_ policy — confirm it does not speak to signup-openness).
 
 **Files:**
+
 - `docs/development.md` (modify)
 - `docs/deployment.md` (modify)
 
 **Steps:**
+
 1. Correct the `docs/development.md` prod signup-posture note (≈ line 253) to the
    open-alpha posture per Decisions; drop the implication that `docs/invites.md`
    makes signup invite-only.
@@ -174,7 +180,7 @@ intent for the alpha (`DISABLE_SIGNUP=false`); this task records it in the docs.
      → `UPDATE 1`; `email_confirmed_at` stayed set (the direct SQL UPDATE does not
      reset confirmation state).
   3. `POST /token?grant_type=password` with `{email: <uid>@cairn.internal,
-     password}` → **200 with an `access_token`** (the load-bearing check). The
+password}` → **200 with an `access_token`** (the load-bearing check). The
      returned `user.email` is the rewritten `<uid>@cairn.internal`.
   4. Complement check: the grant against the **old** transient address now returns
      **400 `invalid_grant` / "Invalid login credentials"** — confirming GoTrue
@@ -205,6 +211,7 @@ handlers get their own tests in later phases.
 reachable for `psql`.
 
 **Decisions:**
+
 - The proven account-creation path is the public `POST /signup` (see
   `scripts/seed.sh:39`); `GOTRUE_MAILER_AUTOCONFIRM=true` is set in every compose
   env, so the account is confirmed and the password grant is immediately usable
@@ -223,6 +230,7 @@ signup-then-UPDATE rationale); `scripts/seed.sh` (the signup shape);
 `docker-compose.*.yml` (`GOTRUE_*` config).
 
 **Steps:**
+
 1. `POST http://localhost:9999/signup` with `{"email":"<random-uuid>@cairn.internal","password":"<≥8 chars>"}`; capture `user.id` and confirm a token set is returned (autoconfirm).
 2. Rewrite the e-mail in SQL: `UPDATE auth.users SET email = id || '@cairn.internal' WHERE id = '<user.id>';` (simulating `adopt_stable_identity`).
 3. `POST http://localhost:9999/token?grant_type=password` with `{"email":"<user.id>@cairn.internal","password":"<same>"}`; **confirm a 200 with an `access_token`** — this is the load-bearing check.
@@ -263,9 +271,10 @@ never break the credential.
 pgTAP is `db/tests/set_username.sql`.
 
 **Decisions:**
+
 - New migration `db/migrations/0020_username_auth.sql` (this sub-step's single
   migration, built up across Tasks 2.1–2.3). `CREATE OR REPLACE FUNCTION
-  public.set_username` keeping the signature, `SECURITY DEFINER`, `search_path`,
+public.set_username` keeping the signature, `SECURITY DEFINER`, `search_path`,
   the `authenticated`-only grant, and **all** guards/checks: auth + tombstone
   (errcode `28000`), format `^[A-Za-z0-9]{3,30}$` (errcode `23514`), case-fold
   availability excluding self (errcode `23505`), and the `lower(username)`
@@ -282,7 +291,7 @@ pgTAP is `db/tests/set_username.sql`.
   currently asserts `auth.users.email` **is rewritten** — flip it to assert the
   e-mail is **unchanged** after `set_username` (set a known e-mail on the caller's
   `auth.users` row first, run `set_username`, assert the e-mail still equals the
-  known value). **Assertion (c) cannot stay as written**: it looks the row up *by*
+  known value). **Assertion (c) cannot stay as written**: it looks the row up _by_
   the synthetic e-mail (`db/tests/set_username.sql:63-70`,
   `WHERE email = 'newname@users.cairn.invalid'`), which no longer exists once the
   rewrite is gone, so the subquery returns NULL and (c) fails. (b) already proves
@@ -299,7 +308,7 @@ pgTAP is `db/tests/set_username.sql`.
   `@users.cairn.invalid` drift constant; (ii) the `recovery_email`-section
   parenthetical (≈ line 114) "the sign-in identifier is the synthetic
   `lower(username) || '@users.cairn.invalid'`"; (iii) the RPC-list bullet
-  (≈ line 708) "rewrites `profiles.username` *and* the synthetic GoTrue e-mail".
+  (≈ line 708) "rewrites `profiles.username` _and_ the synthetic GoTrue e-mail".
   Note the sign-in identity is the stable `<uid>@cairn.internal` set at creation,
   not rewritten on rename.
 
@@ -307,11 +316,13 @@ pgTAP is `db/tests/set_username.sql`.
 `db/migrations/0019_username_identity.sql:97-147` for the body to descope.
 
 **Files:**
+
 - `db/migrations/0020_username_auth.sql` (create)
 - `db/tests/set_username.sql` (modify)
 - `docs/data-model.md` (modify)
 
 **Steps:**
+
 1. RED — In `db/tests/set_username.sql`, flip assertion (b) to assert
    `auth.users.email` is **unchanged** after `set_username` (set a known e-mail,
    run `set_username`, assert the e-mail equals the known value), **remove the now
@@ -341,13 +352,14 @@ pointed at an arbitrary address.
 pattern mirrors 2001's `set_username` `SECURITY DEFINER` write to `auth.users`.
 
 **Decisions:**
+
 - `CREATE FUNCTION public.adopt_stable_identity() RETURNS void LANGUAGE plpgsql
-  SECURITY DEFINER SET search_path = public, auth`. Body: read `uid := public.uid()`;
+SECURITY DEFINER SET search_path = public, auth`. Body: read `uid := public.uid()`;
   reject `NULL` uid and the tombstone uuid with errcode `28000` (same guards as
   `set_username`); then `UPDATE auth.users SET email = uid || '@cairn.internal'
-  WHERE id = uid AND (email IS NULL OR email LIKE '%@cairn.internal');`.
+WHERE id = uid AND (email IS NULL OR email LIKE '%@cairn.internal');`.
 - **Guard the overwrite (security).** The `email IS NULL OR email LIKE
-  '%@cairn.internal'` predicate is load-bearing, not cosmetic. The function is
+'%@cairn.internal'` predicate is load-bearing, not cosmetic. The function is
   granted to `authenticated`, so it is reachable by **any** logged-in user via
   the public PostgREST surface (`POST /api/rpc/adopt_stable_identity`), not just
   the register handler. Without the predicate it would unconditionally overwrite
@@ -357,7 +369,7 @@ pattern mirrors 2001's `set_username` `SECURITY DEFINER` write to `auth.users`.
   the transient `<random>@cairn.internal` (register) and the already-stable
   `<uid>@cairn.internal` (idempotent re-call) shapes, and refuse to touch a real
   address. Damage is self-only (value derives from `public.uid()`), but
-  "calling twice is a no-op" is only true *because* of this guard. Idempotent —
+  "calling twice is a no-op" is only true _because_ of this guard. Idempotent —
   a second call re-writes the same value (still matching the predicate).
 - `REVOKE EXECUTE ON FUNCTION public.adopt_stable_identity() FROM public;` then
   `GRANT EXECUTE … TO authenticated;` — the explicit `REVOKE` is **load-bearing**:
@@ -377,11 +389,13 @@ pattern mirrors 2001's `set_username` `SECURITY DEFINER` write to `auth.users`.
 `public.uid()` guard idiom; `docs/data-model.md` RPC list for the doc shape.
 
 **Files:**
+
 - `db/migrations/0020_username_auth.sql` (modify — append)
 - `db/tests/adopt_stable_identity.sql` (create)
 - `docs/data-model.md` (modify)
 
 **Steps:**
+
 1. RED — Create `db/tests/adopt_stable_identity.sql` with `plan(N)`: (a) after a
    signed-in caller (whose `auth.users.email` is a transient
    `<random>@cairn.internal`) runs `adopt_stable_identity()`, their
@@ -416,10 +430,11 @@ granted to `anon`.
 `lower(username)` unique index `profiles_username_lower_uniq` exists from 2001.
 
 **Decisions:**
+
 - `CREATE FUNCTION public.resolve_username(p_username text) RETURNS TABLE(id uuid,
-  username text) LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public`.
+username text) LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public`.
   Body: `SELECT id, username FROM public.profiles WHERE lower(username) =
-  lower(p_username);`. Returns one row for a match, zero rows otherwise.
+lower(p_username);`. Returns one row for a match, zero rows otherwise.
   Returns both the stable user id (for the password grant) and the
   case-preserving stored handle (so the signed-in `AuthUser` shows canonical
   casing, not the typed casing).
@@ -448,11 +463,13 @@ granted to `anon`.
 2001's `profiles_username_lower_uniq` index in `0019`.
 
 **Files:**
+
 - `db/migrations/0020_username_auth.sql` (modify — append)
 - `db/tests/resolve_username.sql` (create)
 - `docs/data-model.md` (modify)
 
 **Steps:**
+
 1. RED — Create `db/tests/resolve_username.sql` with `plan(N)`: (a) returns the
    correct `(id, username)` for an exact handle; (b) resolves case-insensitively
    (`laracroft` finds stored `LaraCroft`) and returns the **stored** casing;
@@ -460,7 +477,7 @@ granted to `anon`.
    role (`SET ROLE anon; SELECT ... resolve_username(...)`). Run
    `./scripts/test-db.sh`; confirm red.
 2. GREEN — Append the `CREATE FUNCTION public.resolve_username` + `GRANT EXECUTE
-   … TO anon, authenticated` to `0020_username_auth.sql`. Re-run; green.
+… TO anon, authenticated` to `0020_username_auth.sql`. Re-run; green.
 3. Add the RPC to the `docs/data-model.md` RPC list.
 
 **Verify:** `./scripts/test-db.sh` · `cd web && pnpm exec prettier --check ../docs/data-model.md`
@@ -486,7 +503,7 @@ export**". The data export's user object is built by `export_my_data()`
 change `auth.users.email` becomes the meaningless `<uid>@cairn.internal`, so
 unless the RPC switches to the username, the internal handle leaks into every
 downloaded archive. Fixing only the HTML renderer (Task 4.1) would leave the JSON
-— the *canonical* record — leaking. This is the DB half of R7; the TS half
+— the _canonical_ record — leaking. This is the DB half of R7; the TS half
 (`ExportUser` type + the HTML renderer + their tests) is Task 4.1.
 
 **Prerequisites:** Task 2.1 (migration `0020_username_auth.sql` exists). The
@@ -494,6 +511,7 @@ export allowlist + its pgTAP are `db/migrations/0018_data_export.sql` and
 `db/tests/export_my_data.sql`.
 
 **Decisions:**
+
 - Append a `CREATE OR REPLACE FUNCTION public.export_my_data()` to
   `0020_username_auth.sql` that is byte-for-byte the 0018 body **except** the user
   block: replace `'email', u.email` with `'username', p.username` (the public
@@ -511,10 +529,12 @@ revise-forward); `docs/testing.md` (pgTAP); `web/src/lib/export/model/archive.ts
 (confirms the document is serialised whole into `data.json`).
 
 **Files:**
+
 - `db/migrations/0020_username_auth.sql` (modify — append the export RPC replace)
 - `db/tests/export_my_data.sql` (modify)
 
 **Steps:**
+
 1. RED — In `db/tests/export_my_data.sql`, change the user-object assertion to
    expect `username` (the stored handle) and the absence of an `email` key. Run
    `./scripts/test-db.sh`; confirm red (0018 still emits `email`).
@@ -555,6 +575,7 @@ unit-test pattern (`auth-proxy/test/*.test.ts`: an ephemeral `http.Server` stub
 injected via env) is the model — extend it with a stub PostgREST.
 
 **Decisions:**
+
 - Add `POSTGREST_URL` env to the BFF (`auth-proxy/src/lib/`), defaulting to the
   internal `http://postgrest:3000` in prod compose; mirror in dev
   (`web/vite.config.ts` already proxies `/api` to PostgREST — reuse that base for
@@ -564,8 +585,8 @@ injected via env) is the model — extend it with a stub PostgREST.
   header** (runs as `anon`). Returns the single row, or `null` when the RPC
   returns an empty array. Never logs the username (per `docs/logging.md`).
 - `usernameForUid(uid, accessToken): Promise<string | null>` — `GET
-  ${POSTGREST_URL}/profiles?id=eq.<uid>&select=username` with `Authorization:
-  Bearer <accessToken>` (authenticated; `profiles_select` permits reading any
+${POSTGREST_URL}/profiles?id=eq.<uid>&select=username` with `Authorization:
+Bearer <accessToken>` (authenticated; `profiles_select` permits reading any
   profile). Returns the `username`, or `null` if absent.
 - Add both to `auth-proxy/src/lib/session.ts` (or a sibling `lib/profiles.ts` if
   cleaner) alongside the existing `refresh`/`logout`.
@@ -587,12 +608,14 @@ pattern to mirror for a stub PostgREST); `docs/logging.md` (no usernames/tokens
 in logs).
 
 **Files:**
+
 - `auth-proxy/src/lib/session.ts` (modify) or `auth-proxy/src/lib/profiles.ts` (create)
 - `auth-proxy/test/profiles.test.ts` (create)
 - `docker-compose.prod.yml` (modify — `auth-proxy` service lives here, not the base)
 - `web/vite.config.ts` (modify — make the PostgREST base available to dev handlers)
 
 **Steps:**
+
 1. RED — Create `auth-proxy/test/profiles.test.ts` with a stub PostgREST server
    (ephemeral `http.Server`, `POSTGREST_URL` injected): (a) `resolveUsername`
    POSTs `/rpc/resolve_username` with `{p_username}` and returns the row;
@@ -642,7 +665,7 @@ in logs).
 
 - **`docs/deployment.md` pre-deploy item reframed, not dropped:** the old item
   said "the password grant must be unreachable for real accounts". It's now the
-  intended sign-in path, so the item is reframed to *who* may reach it — the BFF
+  intended sign-in path, so the item is reframed to _who_ may reach it — the BFF
   rejects a direct `grant_type=password` (403, no forward) and the only path is
   the rate-limited `/auth/signin`; the pre-deploy check becomes "GoTrue is not
   publicly reachable except via Caddy → BFF", since a caller hitting `:9999`
@@ -662,6 +685,7 @@ gate (`X-Cairn-Auth`, `auth-proxy/src/index.ts:101-108`) and the
 `auth-proxy/src/lib/rate-limit.ts`.
 
 **Decisions:**
+
 - **Body is a raw `Buffer`, not parsed JSON.** The auth-proxy mounts
   `express.raw({ type: () => true })` (`index.ts:300`), so `req.body` is a
   `Buffer` — the handler must `JSON.parse(req.body.toString('utf8'))` itself to
@@ -677,7 +701,7 @@ gate (`X-Cairn-Auth`, `auth-proxy/src/index.ts:101-108`) and the
   (tokenless; username from the resolver's canonical value — no extra lookup).
   On grant failure: `recordFailure`, return the same constant-shape 401.
 - Add a GoTrue password-grant helper to `session.ts` (`POST
-  ${gotrueUrl()}/token?grant_type=password`), distinct from the existing
+${gotrueUrl()}/token?grant_type=password`), distinct from the existing
   refresh-grant `refresh()`. Never log the username, e-mail, or token.
 - **R6 lockdown:** on the `/auth/token` pass-through (still needed for the legacy
   magic-link refresh-token grant until 2006), reject any request whose
@@ -687,13 +711,13 @@ gate (`X-Cairn-Auth`, `auth-proxy/src/index.ts:101-108`) and the
   the existing callers carry it as a query param. Parse the query of
   `req.originalUrl` explicitly (e.g. `new URL(req.originalUrl, 'http://x').searchParams.get('grant_type')`,
   or split on `?` and read the param). Note `isSegmentMatch` does **not** help
-  here: it splits on `?` only to *discard* the query and compare the path — it
+  here: it splits on `?` only to _discard_ the query and compare the path — it
   never reads `grant_type`. The BFF's own `/auth/signin` is the only
   password-grant path. Mirror the rejection in `web/vite.config.ts`.
 - **Doc reframe:** `docs/deployment.md`'s pre-deploy auth checklist item (≈ line
   319, "GoTrue password grant must be unreachable for real accounts") is reframed,
   not dropped (R6): the public `grant_type=password` is now rejected at the BFF,
-  and the *intended* sign-in path is `/auth/signin`, which is the only
+  and the _intended_ sign-in path is `/auth/signin`, which is the only
   rate-limited password-grant path. (The dev-login note at ≈ line 315 is
   reconciled in Task 4.5, where the shortcut moves off the grant.)
 - Constant-shape: the unknown-username and wrong-password branches must return
@@ -713,6 +737,7 @@ gate (`X-Cairn-Auth`, `auth-proxy/src/index.ts:101-108`) and the
 reframes); `docs/logging.md`.
 
 **Files:**
+
 - `auth-proxy/src/index.ts` (modify)
 - `auth-proxy/src/lib/session.ts` (modify — add password grant)
 - `auth-proxy/test/signin.test.ts` (create)
@@ -721,6 +746,7 @@ reframes); `docs/logging.md`.
 - `docs/deployment.md` (modify — reframe the pre-deploy password-grant item)
 
 **Steps:**
+
 1. RED — `auth-proxy/test/signin.test.ts` (stub GoTrue + stub PostgREST):
    (a) valid `{username,password}` → resolver hit → password grant → both cookies
    planted → `200 { user:{id,username} }`, no token in body; (b) unknown username
@@ -730,7 +756,7 @@ reframes); `docs/logging.md`.
    sign-in calls `recordSuccess`. `auth-proxy/test/password-grant-lockdown.test.ts`:
    `POST /auth/token?grant_type=password` is rejected without forwarding to
    GoTrue; `grant_type=refresh_token` still forwards. Run `cd auth-proxy && pnpm
-   test`; confirm red.
+test`; confirm red.
 2. GREEN — Implement the `/auth/signin` handler + the password-grant helper +
    the `/auth/token` `grant_type=password` rejection per Decisions. Re-run; green.
 3. Mirror the dev behaviour in `web/vite.config.ts` (real signin handler;
@@ -787,6 +813,7 @@ operator switch.
 `scripts/seed.sh:39`; `GOTRUE_MAILER_AUTOCONFIRM=true` everywhere.
 
 **Decisions:**
+
 - **Body is a raw `Buffer`** (`express.raw`, `index.ts:300`) — `JSON.parse`
   `req.body.toString('utf8')` to read `{ username, password }` and `400` on a
   malformed/empty body, exactly as Task 3.2's signin handler does.
@@ -795,11 +822,11 @@ operator switch.
   distinguishable code; pre-check availability via `resolveUsername` (if a row
   exists, return `409 { error: 'username taken' }` **without** creating a GoTrue
   user); `POST ${gotrueUrl()}/signup` with `{ email: <random-uuid>@cairn.internal,
-  password }` (autoconfirmed → tokens returned); from the signup response take the
+password }` (autoconfirmed → tokens returned); from the signup response take the
   `user.id` + `access_token`; call `adopt_stable_identity` and `set_username`
   (PostgREST `/rpc/...` with `Authorization: Bearer <access_token>`); then
   `plantSession` from the signup tokens and return `200 { user:{ id, username } }`
-  (username = the chosen value). 
+  (username = the chosen value).
 - **Race backstop:** if `set_username` returns the `23505` "username taken" error
   (two callers raced past the pre-check), surface `409 { error: 'username taken' }`.
   Because `set_username` runs **before** `plantSession`, the 23505 returns the
@@ -815,22 +842,22 @@ operator switch.
   GoTrue user + cascades two table inserts + two RPC writes per call cannot be
   hammered into mass signup from one source. **Pitfall — do not call `signinGuard`
   / `signinRateLimit` (the middleware) directly:** it calls `readSigninUsername(req.body)`
-  (`rate-limit.ts:154-206`), which reads the `username` field — and a *register*
-  body has one — so it would impose a per-account escalating *delay* keyed
+  (`rate-limit.ts:154-206`), which reads the `username` field — and a _register_
+  body has one — so it would impose a per-account escalating _delay_ keyed
   on the desired handle, which is not the intent. **Reuse the existing
   `signinLimiter` instance's per-IP leg** (R5 pins this: "the per-IP leg of the
   sign-in rate-limiter"): call `signinLimiter.check(ip)` and
   `signinLimiter.recordFailure(ip)` with **no** username, so register and sign-in
-  share **one** per-IP brute-force/mass-signup bound from a given IP. (A *separate*
+  share **one** per-IP brute-force/mass-signup bound from a given IP. (A _separate_
   `RateLimiter` instance would hand that IP two independent budgets — ≈2×`ipMax`
   across register + sign-in — which is **not** what R5 specifies; rejected.) Count
   **every** register attempt toward the per-IP window (call `recordFailure(ip)`
-  with no username on every attempt; do *not* `recordSuccess`, or a successful
+  with no username on every attempt; do _not_ `recordSuccess`, or a successful
   mass-signup run wouldn't be bounded); a blocked IP gets the same
   `429 { error: 'too many requests' }` as signin. `GOTRUE_DISABLE_SIGNUP` stays
   the operator's hard switch.
 - **Post-signup step failures (not just the race):** the `set_username` `23505`
-  race above is one way the flow can fail *after* `POST /signup` has already
+  race above is one way the flow can fail _after_ `POST /signup` has already
   created the GoTrue account; `adopt_stable_identity` or either PostgREST call
   failing (e.g. a transient PostgREST blip) is another. Treat them the same: on
   **any** post-signup step error, return `500` (or the upstream-shaped error)
@@ -850,12 +877,14 @@ operator switch.
 `docs/invites.md` (open-signup posture); `docs/logging.md`.
 
 **Files:**
+
 - `auth-proxy/src/index.ts` (modify)
 - `auth-proxy/src/lib/session.ts` (modify — add signup)
 - `auth-proxy/test/register.test.ts` (create)
 - `web/vite.config.ts` (modify — dev parity: real register handler)
 
 **Steps:**
+
 1. RED — `auth-proxy/test/register.test.ts` (stub GoTrue + stub PostgREST):
    (a) valid `{username,password}` → signup with a `@cairn.internal` random
    address → `adopt_stable_identity` + `set_username` called with the bearer →
@@ -895,7 +924,7 @@ the two paths can't drift; mirrored as `enrichDevUser` in `vite.config.ts`.
   the default `postgrest:3000` and **threw** (`ENOTFOUND`), which surfaced as a
   failed token-strip in `shim.test.ts` and 5s timeouts in `csrf.test.ts`. Wrapping
   the fetch in try/catch → `null` is both the correct production behaviour (the
-  Decisions require a lookup *error* to degrade to `{ id }`, not fail the request)
+  Decisions require a lookup _error_ to degrade to `{ id }`, not fail the request)
   and what makes those paths resilient. The `transient`/degraded boot trade-off
   the Decisions flag (refresh now depends on PostgREST) is realised by this.
 
@@ -923,8 +952,9 @@ user). The cookie-plant pass-throughs for `/auth/token` + `/auth/verify`
 (`auth-proxy/src/index.ts:228-239`) forward the GoTrue body with `user`.
 
 **Decisions:**
+
 - After a successful `/auth/refresh`, look up `usernameForUid(result.user.id,
-  result.accessToken)` and return `{ user: { id, username } }` instead of the raw
+result.accessToken)` and return `{ user: { id, username } }` instead of the raw
   GoTrue user. If the lookup returns a **definitive** empty result (200 with no
   matching profile row), return `{ user: { id } }`. Be accurate about what that
   does on the client: Task 4.1's `isAuthUser` requires `username`, so a payload
@@ -933,12 +963,12 @@ user). The cookie-plant pass-throughs for `/auth/token` + `/auth/verify`
   resolve to signed-in or signed-out. This is acceptable only because the path is
   effectively unreachable: `tg_profile_on_signup` creates a profile (with a
   provisional username) for every account at signup, so a valid session always has
-  a username. Do **not** treat a PostgREST *error/timeout* (as opposed to an empty
+  a username. Do **not** treat a PostgREST _error/timeout_ (as opposed to an empty
   result) as an empty profile — that would spuriously degrade a live session; on a
   lookup error, fall back to returning the bare `{ user: { id } }` (same unreachable
   degraded path) rather than 401-ing the session out.
 - **New availability coupling (call this out, don't discover it):** enriching
-  refresh means session *restore* now depends on PostgREST, which `/auth/refresh`
+  refresh means session _restore_ now depends on PostgREST, which `/auth/refresh`
   (GoTrue-only) did not before. While PostgREST is down, every boot of an
   otherwise-valid session resolves `transient` → boot stays `unknown` → the boot
   screen hangs until PostgREST recovers (it does **not** sign the user out — the
@@ -958,12 +988,14 @@ user). The cookie-plant pass-throughs for `/auth/token` + `/auth/verify`
 extend).
 
 **Files:**
+
 - `auth-proxy/src/index.ts` (modify)
 - `auth-proxy/test/refresh.test.ts` (modify — assert enrichment)
-- `auth-proxy/test/enrich.test.ts` (create — pass-through enrichment) *or extend existing*
+- `auth-proxy/test/enrich.test.ts` (create — pass-through enrichment) _or extend existing_
 - `web/vite.config.ts` (modify — dev parity)
 
 **Steps:**
+
 1. RED — Extend `auth-proxy/test/refresh.test.ts`: a successful refresh returns
    `{ user: { id, username } }` (stub PostgREST returns the username); when the
    profile lookup is empty, returns `{ user: { id } }`. Add a cookie-plant
@@ -993,9 +1025,9 @@ extend).
 
 - **`docs/data-export.md` line 23 left as-is (flagged, not changed).** The task
   listed three doc edits (table line 11, data.json shape line 56, privacy note
-  line 23). Lines 11 and 56 are about *your* identity → switched to username. But
+  line 23). Lines 11 and 56 are about _your_ identity → switched to username. But
   the line-23 privacy note ("Other users' emails. Email is private…") is about
-  *co-members'* emails, which are still excluded and still private (invites). It
+  _co-members'_ emails, which are still excluded and still private (invites). It
   doesn't contradict the migration, so changing it to "username" would be wrong.
   Same for lines 115-117 (invite `target_email`) and 205 ("Cairn doesn't email
   anyone") — all about other parties, untouched.
@@ -1021,6 +1053,7 @@ Task 2.4 has already switched the `export_my_data()` RPC to emit `username`, so 
 export payload carries the handle this task renders.
 
 **Decisions:**
+
 - Add `signIn(username, password): Promise<{ user: AuthUser }>` → `POST /auth/signin`
   `{ username, password }`; `register(username, password): Promise<{ user: AuthUser }>`
   → `POST /auth/register` `{ username, password }`. Both with the CSRF header and
@@ -1031,7 +1064,7 @@ export payload carries the handle this task renders.
   stays until 2006.
 - **Keep the manual mock in sync (cross-task).** Adding `signIn`/`register` to
   the real module means the manual mock `web/src/lib/auth/model/__mocks__/auth-client.ts`
-  must gain matching `vi.fn()` exports in *this* task. Cairn's auth component
+  must gain matching `vi.fn()` exports in _this_ task. Cairn's auth component
   tests mock the client with a bare `vi.mock('$lib/auth/model/auth-client')`
   (no factory), which resolves to that manual mock (see `LoginRequest.test.ts:13`,
   `DevShortcuts.test.ts:11`). Task 4.2's `SignIn.test.ts`/`Register.test.ts`
@@ -1065,6 +1098,7 @@ in `shared/state` and cannot import from `auth/model`, so the two guards stay
 separate); `auth-client.ts` + `session.svelte.ts` as cited above.
 
 **Files:**
+
 - `web/src/lib/auth/model/auth-client.ts` (modify)
 - `web/src/lib/auth/model/auth-client.test.ts` (modify)
 - `web/src/lib/auth/model/__mocks__/auth-client.ts` (modify — add `signIn`/`register`
@@ -1100,12 +1134,13 @@ separate); `auth-client.ts` + `session.svelte.ts` as cited above.
   call, not its own `pendingLogin.email` which is unrelated).
 
 **Steps:**
+
 1. RED — In `auth-client.test.ts`, assert `signIn`/`register` POST the right paths
    with `{username,password}` + the CSRF header and return `{ user }`; assert a
    non-2xx throws `HttpError`. In the session test, assert `isAuthUser` accepts
    `{id,username}` and rejects `{id,email}` / missing username. In the export
    test, assert the rendered HTML shows `@handle`, not an e-mail. Run `cd web &&
-   pnpm test`; confirm red.
+pnpm test`; confirm red.
 2. GREEN — Add `signIn`/`register`; change `AuthUser` to `{id,username}`; update
    both guards and the export renderer. Re-run `pnpm test`; green.
 3. Sweep every test fixture that builds an `AuthUser` / seed user with `email`
@@ -1142,7 +1177,7 @@ separate); `auth-client.ts` + `session.svelte.ts` as cited above.
   Removed `/auth/signin*` `/auth/register*` from the all-methods `@gotrue` matcher
   and added a new `@auth_credentials { method POST; path /auth/signin* /auth/register* }`
   handle that proxies to `auth-proxy:3002` with the same `header_up X-Real-IP
-  {remote_host}` (these are the rate-limited paths). A GET to either now falls
+{remote_host}` (these are the rate-limited paths). A GET to either now falls
   through to `web` (the SPA). Could not run `caddy validate` (binary absent on this
   box); verified the matcher/handle shape against the `@avatar_writes` precedent by
   inspection.
@@ -1166,6 +1201,7 @@ Caddyfile comments warn about).
 
 **Decisions (layout spec — no dedicated register/sign-in JSX exists in
 `design/cairn-screens.jsx`; mirror the `LoginRequest` structure):**
+
 - Top-to-bottom: brand glyph (centred) → "Cairn" wordmark → italic tagline →
   short blurb → form (labelled fields) → primary action button → imprint footer.
   Layout (padding, flex, gaps) is **local** scoped CSS; all colour/type is global
@@ -1199,7 +1235,7 @@ Caddyfile comments warn about).
   `/auth/signin*` + `/auth/register*` route to the proxy **only for `method POST`**
   (the precedent is the existing `@avatar_writes` `method POST DELETE` matcher);
   GET falls through to `web` (the SPA). Prod GET-serving depends on this Caddy gate,
-  *not* on `PUBLIC_AUTH_PATHS`, so it stays in this task. Flag it as **prod-facing**
+  _not_ on `PUBLIC_AUTH_PATHS`, so it stays in this task. Flag it as **prod-facing**
   per CLAUDE.md "We are going live" — it can't be exercised in dev/e2e, verify by
   inspection.
 
@@ -1210,6 +1246,7 @@ primitives, layout-local/visual-global); `web/src/lib/basic/components/` (`Label
 to method-gate).
 
 **Files:**
+
 - `web/src/lib/auth/components/SignIn.svelte` (create) + `SignIn.test.ts` (create)
 - `web/src/lib/auth/components/Register.svelte` (create) + `Register.test.ts` (create)
 - `web/src/routes/auth/signin/+page.svelte` (create)
@@ -1218,6 +1255,7 @@ to method-gate).
 - `caddy/Caddyfile.prod` (modify — method-gate signin/register; prod-facing)
 
 **Steps:**
+
 1. RED — `SignIn.test.ts`: renders username + password fields; submit calls
    `signIn(username,password)`; a thrown `HttpError` 401 renders the constant-shape
    inline error; submit disabled until both fields non-empty. `Register.test.ts`:
@@ -1271,6 +1309,7 @@ redirects signed-out users to `/auth/login` (line 63). Path lists live in
 `auth-proxy/test/auth-paths-drift.test.ts` — **both copies must change together**.
 
 **Decisions:**
+
 - Add `/auth/signin` and `/auth/register` to `PUBLIC_AUTH_PATHS` (signed-out may
   view) and `SIGNED_IN_REDIRECT_PATHS` (signed-in bounced to `/`). Keep the legacy
   `/auth/login`, `/auth/check`, `/auth/callback` in `PUBLIC_AUTH_PATHS` (still
@@ -1292,12 +1331,14 @@ toolchain-coupling note — the routes must exist before `resolve()`);
 `web/vite.config.ts:272` (the `PUBLIC_AUTH_PATHS` bypass that serves the dev page).
 
 **Files:**
+
 - `web/src/lib/shared/model/auth-paths.ts` (modify)
 - `auth-proxy/src/lib/auth-paths.ts` (modify — identical edit)
 - `web/src/routes/+layout.svelte` (modify)
 - `web/src/routes/+layout.svelte.test.ts` / route guard test (modify, if present)
 
 **Steps:**
+
 1. RED — In the route-guard / layout test, assert a signed-out user on a private
    path is redirected to `/auth/signin` (not `/auth/login`), and that a signed-out
    user may view `/auth/signin` + `/auth/register` without redirect, and a
@@ -1351,7 +1392,7 @@ dev stack. Several things were needed beyond just adding the four specs:
   schema reload (avoided `reset-db.sh --full`, which would wipe the user's dev
   data). **Flag for the user:** the dev DB's `0020` is still missing Task 2.4's
   `export_my_data` username switch; a `./scripts/reset-db.sh --full && ./scripts/migrate.sh
-  && ./scripts/seed.sh` would fully resync it (not required for this task — the
+&& ./scripts/seed.sh` would fully resync it (not required for this task — the
   export RPC isn't on the auth path). Production applies migrations from the file,
   so prod is unaffected.
 
@@ -1372,6 +1413,7 @@ Per project convention, pin single-project runs to **firefox** (WebKit can't
 launch on this box; chromium also available).
 
 **Decisions:**
+
 - Add specs to `web/e2e/auth.spec.ts` (or a sibling `auth-password.spec.ts`):
   (a) **register happy path** — visit `/auth/register`, submit a fresh
   `username` + password, land signed-in (redirected to `/lists`), both
@@ -1390,9 +1432,11 @@ launch on this box; chromium also available).
 mirror); `docs/testing.md` (Playwright layer); the firefox-default convention.
 
 **Files:**
+
 - `web/e2e/auth.spec.ts` (modify) or `web/e2e/auth-password.spec.ts` (create)
 
 **Steps:**
+
 1. RED — Write the four specs per Decisions. Run
    `cd web && pnpm exec playwright test e2e/auth.spec.ts --project=firefox` (stack
    up); confirm the new specs fail (screens/endpoints not yet wired in this branch
@@ -1418,7 +1462,7 @@ mirror); `docs/testing.md` (Playwright layer); the firefox-default convention.
   rewrite as the very last write. Idempotent: a re-run finds the e-mail already
   rewritten and every UPDATE is a no-op (confirmed: re-run is all `UPDATE 0`).
 - **Smoke test against the running stack** (after `reset-db --full && migrate &&
-  seed`): `resolve_username('alice')` → `(uid, "alice")`; password grant against
+seed`): `resolve_username('alice')` → `(uid, "alice")`; password grant against
   `<uid>@cairn.internal` → **200**; grant against the old `alice@example.test` →
   **400** (transient identity genuinely gone). The dev-shortcut path
   (`resolveUsername` → grant against the stable identity) works end-to-end.
@@ -1447,6 +1491,7 @@ The dev-shortcut gating (`import.meta.env.DEV` dynamic import, `0301_gate_dev_lo
 is unchanged — only the call it makes changes.
 
 **Heads-up carried over from Task 4.4 (read before starting):**
+
 - **The new sign-in does a real password grant**, so `VITE_DEV_LOGIN_PASSWORD`
   (what the shortcut sends) **must equal** `DEV_PASSWORD` (what the seed signs up
   with). A mismatch was invisible under the old dev-only grant but now fails the
@@ -1457,7 +1502,7 @@ is unchanged — only the call it makes changes.
   will **not** re-apply the edited `0020`. Task 4.4 patched `resolve_username` in by
   hand, but the clean, complete fix — which also re-seeds under this task's new
   `seed.sh` — is to run `./scripts/reset-db.sh --full && ./scripts/migrate.sh &&
-  ./scripts/seed.sh` (dev-only; wipes dev data). Do this **after** editing `seed.sh`
+./scripts/seed.sh` (dev-only; wipes dev data). Do this **after** editing `seed.sh`
   in step 2 so the reseed exercises the new seed logic. Production is unaffected (it
   migrates from the file).
 - The one e2e that depended on the dev-login grant (`sign-out-everywhere` in
@@ -1466,6 +1511,7 @@ is unchanged — only the call it makes changes.
   changes listed below remain.
 
 **Decisions:**
+
 - `DevShortcuts.svelte` calls `signIn(username, VITE_DEV_LOGIN_PASSWORD)` with the
   seed users' **usernames** (`alice` / `bob` / `carol`), not `devPasswordSignIn`
   with their e-mails. `DEV_USERS` carries `{ name, username }` (drop `email`).
@@ -1500,6 +1546,7 @@ is unchanged — only the call it makes changes.
 pre-deploy checklist.
 
 **Files:**
+
 - `web/src/lib/auth/components/DevShortcuts.svelte` (modify)
 - `web/src/lib/auth/components/DevShortcuts.test.ts` (modify)
 - `web/src/lib/auth/components/LoginRequest.test.ts` (modify — `devPasswordSignIn` refs)
@@ -1511,6 +1558,7 @@ pre-deploy checklist.
 - `docs/deployment.md` (modify)
 
 **Steps:**
+
 1. RED — Update `DevShortcuts.test.ts` to expect `signIn('alice', <devpass>)` (not
    `devPasswordSignIn('alice@example.test', …)`), and drop the `devPasswordSignIn`
    block from `auth-client.test.ts` / fix `LoginRequest.test.ts`. Run

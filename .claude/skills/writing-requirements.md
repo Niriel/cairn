@@ -7,8 +7,8 @@ during audits, but **not** by the executor — the executor reads
 
 ## Purpose
 
-`REQUIREMENTS.md` is a numbered list of *what the implementation must
-satisfy*, plus a short *why* on top. It pins down behaviour and
+`REQUIREMENTS.md` is a numbered list of _what the implementation must
+satisfy_, plus a short _why_ on top. It pins down behaviour and
 contracts independently of how they get implemented. When a reviewer
 later asks "did we ship X?", they should be able to answer it from
 this file alone.
@@ -45,7 +45,7 @@ they pin down a type signature, SQL shape, or API contract.>
 ## Format rules
 
 - **Header:** `# Requirements: <feature name>` followed immediately
-  by a one- or two-sentence description that includes the *why*.
+  by a one- or two-sentence description that includes the _why_.
   No separate "Why" heading — the prose under the H1 carries it.
 - **Numbered requirements:** `## R1.`, `## R2.`, `## R3.`, …
   Numbers are stable: never renumber after the file lands, because
@@ -82,7 +82,7 @@ file is for.
 
 ### Good — pins down a contract
 
-```markdown
+````markdown
 ## R6. `public.uid()` reads the `sub` claim from request GUC
 
 A `language sql stable` function `public.uid()` returns the
@@ -102,7 +102,9 @@ AS $$
   )::uuid;
 $$;
 ```
-```
+````
+
+````
 
 ### Good — small, behavioural, self-contained
 
@@ -112,7 +114,7 @@ $$;
 `lists_select` RLS policy returns only rows where `deleted_at IS NULL`.
 Soft-deleted rows remain readable through the `lists_deleted` view
 (see R8) so the trash UI can surface them.
-```
+````
 
 ### Bad — describes implementation
 
@@ -123,8 +125,8 @@ In the migration, add `CHECK (value BETWEEN -3 AND 3 AND value <> 0)`
 to the `votes` table.
 ```
 
-The requirement is *what* (vote values are bounded and non-zero), not
-*where the CHECK clause lives*. The migration detail belongs in
+The requirement is _what_ (vote values are bounded and non-zero), not
+_where the CHECK clause lives_. The migration detail belongs in
 `PLAN.md` or `TASKS.md`. Rewrite as:
 
 ```markdown
@@ -141,8 +143,8 @@ Inserts and updates outside this range are rejected at the database.
   doc currently says, note it explicitly — the doc edit may need to
   land as part of the same plan (often as a Phase 0 in `PLAN.md`).
 - **RLS is the security boundary.** Any requirement that touches
-  authorization must call out *both* the positive case (allowed users
-  can do X) *and* the negative case (others cannot). pgTAP tests
+  authorization must call out _both_ the positive case (allowed users
+  can do X) _and_ the negative case (others cannot). pgTAP tests
   follow the same rule (see `docs/testing.md`); the requirement
   drives the test.
 - **Privacy contract.** `docs/invites.md`, `docs/circles.md`, and

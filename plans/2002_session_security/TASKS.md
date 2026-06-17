@@ -719,7 +719,7 @@ plain-HTTP localhost keeps the unprefixed names (R6).
   (not only on `/auth/refresh|signout`). Cairn is same-origin behind Caddy, so
   no `/auth` endpoint legitimately needs CORS; stripping globally is strictly
   more defensive and also closes the OPTIONS-preflight leak (an `OPTIONS
-  /auth/refresh` falls through to the GoTrue pass-through, where the strip now
+/auth/refresh` falls through to the GoTrue pass-through, where the strip now
   applies). The test asserts on the load-bearing Cairn-shaped endpoints plus the
   `/auth/user` pass-through.
 - **CSRF gate is presence-only** (`req.get(CSRF_HEADER) !== undefined`), per the
@@ -938,7 +938,7 @@ proven against a real route.
 - **No Vite dev mirror** (deliberate dev-parity exception, per the Decisions): the
   rate-limiter is BFF-only and fully unit-tested. Dev `/auth/signin` keeps the
   route + CSRF gate from Task 3.1 but no throttle.
-- **Middleware idiom:** `signinRateLimit` returns a *sync* express handler wrapping
+- **Middleware idiom:** `signinRateLimit` returns a _sync_ express handler wrapping
   a `void`-discarded async IIFE, matching the existing `void authHandler(req, res)`
   pattern in `index.ts`. A directly-`async` handler tripped
   `@typescript-eslint/no-misused-promises` (the installed `RequestHandler` return
@@ -946,7 +946,7 @@ proven against a real route.
   fires after any imposed delay; the credential check that lands later takes its
   place and is what calls `recordFailure`/`recordSuccess`.
 - **Recording is the handler's job, not the middleware's** — the middleware only
-  *checks* (block/delay). The skeleton 501 records nothing, so the live endpoint
+  _checks_ (block/delay). The skeleton 501 records nothing, so the live endpoint
   never increments a bucket in this sub-step; the unit tests drive a stub handler
   that reports success/credential-failure to exercise the throttle.
 
@@ -1209,7 +1209,7 @@ header name).
   called N times. The two tests that previously asserted on the `onUnauthorized`
   spy now assert observable session state (`signed-in` / `signed-out`) instead.
 - **`refresh` added to the manual session mock** (`__mocks__/session.svelte.ts`),
-  defaulting to `{ status: 'transient' }`, so any *other* test that mocks the
+  defaulting to `{ status: 'transient' }`, so any _other_ test that mocks the
   session module and transits the new 401-refresh path doesn't silently retry
   unless it opts in.
 - **The bearer-write helper is a pure transport helper — it does NOT flip the
@@ -1221,7 +1221,7 @@ header name).
   an authoritative 401 — per the task's "if refresh fails, fall through to
   `onUnauthorized()`". The `/api` request already failed and can't recover, so
   signed-out is the honest outcome; the transient-stays-`unknown` nuance is a
-  *boot* concern (Task 4.1), not a mid-session `/api` concern.
+  _boot_ concern (Task 4.1), not a mid-session `/api` concern.
 - **Out-of-scope avatar fetch left alone:** `export/state/export.svelte.ts`'s
   `GET /avatars/{uid}.webp` is a static read served by Caddy (no bearer), not a
   bearer write — correctly not routed through the helper.
@@ -1309,7 +1309,7 @@ parity).
   `libjpeg-turbo8`, `gstreamer1.0-libav`) and `playwright install-deps` needs
   root. Not a test defect; flagged per the testing rules.
 - **Scenarios (a) and (c) were folded into the existing `magic-link happy path
-  and sign-out` test** rather than added as standalone tests — that test already
+and sign-out` test** rather than added as standalone tests — that test already
   signs in via magic-link and signs out, so adding the `cairn_access` cookie
   assertions (a) and the dual-cookie-clear + protected-route-bounce (c) there
   avoids a redundant second magic-link sign-in (and a needless second hit on
@@ -1317,7 +1317,7 @@ parity).
   describe block.
 - **Scenario (d) uses the dev-login password grant for two same-user sessions,
   chromium-only — a deliberate deviation from "two magic-link sign-ins".** Two
-  *distinct* sessions are required (a single cloned session can't distinguish a
+  _distinct_ sessions are required (a single cloned session can't distinguish a
   global revoke from a local one), but GoTrue throttles a repeat magic-link to
   the same e-mail — **confirmed empirically: 2nd `POST /magiclink` within 60 s →
   429**. The password grant has no such throttle. That fixes the e-mail to the
@@ -1329,7 +1329,7 @@ parity).
   UI yet, so context A drives `POST /auth/signout?scope=global` directly via
   `page.evaluate` (carrying A's cookies + the CSRF header).
 - **Scenario (b) overwrites `cairn_access` with an expired-but-bogus-signature
-  JWT** (not a validly-signed one — PostgREST 401s on expired *or* bad-sig
+  JWT** (not a validly-signed one — PostgREST 401s on expired _or_ bad-sig
   either way, and the load-bearing property is only "present bearer → 401, not
   anon `200 []`"). It uses a unique per-run e-mail (`Date.now().toString(36)`,
   the `runId` pattern from `avatar`/`privacy` specs) so a rapid re-run doesn't
@@ -1415,12 +1415,12 @@ assertions to extend); `docs/testing.md` (Playwright layer; machine-conditional)
   (2) added `header_up X-Real-IP {remote_host}` to the `@gotrue` handle block in
   `caddy/Caddyfile.prod` (the limiter's `clientIp()` reads only `x-real-ip`).
 - **Confirmed coherent, no edit needed:** GoTrue rotation + `GOTRUE_JWT_EXP=300`
-  + reuse interval live in the **base** `docker-compose.yml` (apply to prod);
-  the access-cookie `__Host-cairn_access` Caddy regex matches `cookies.ts`; the
-  `@gotrue` allow-list already covers `/auth/refresh* /auth/signout* /auth/signin*
-  /auth/register*` and the dead `/auth/session*` was already dropped (1.4); the
-  rate-limit tunables have prod-safe defaults via `intFromEnv` (no prod env
-  required); the CSRF header name is a code constant (`auth-paths.ts`), not env.
+  - reuse interval live in the **base** `docker-compose.yml` (apply to prod);
+    the access-cookie `__Host-cairn_access` Caddy regex matches `cookies.ts`; the
+    `@gotrue` allow-list already covers `/auth/refresh* /auth/signout* /auth/signin*
+/auth/register*` and the dead `/auth/session*` was already dropped (1.4); the
+    rate-limit tunables have prod-safe defaults via `intFromEnv` (no prod env
+    required); the CSRF header name is a code constant (`auth-paths.ts`), not env.
 - **Doc edits to `docs/deployment.md`:** tidied the Caddyfile-section bullets that
   still said "lands with Task 1.2 / once 2003 lands" to the shipped state (access
   cookie regex shipped; signin/register are 501 skeletons), documented the

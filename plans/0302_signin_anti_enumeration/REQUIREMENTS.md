@@ -6,7 +6,7 @@ outcome `POST /auth/magiclink` can produce (link sent, banned,
 unconfirmed, rate-limited, unknown email) must render the identical
 post-submit screen. The current `LoginRequest.svelte` violates that
 contract by rendering an inline error on 4xx and flipping a snackbar
-on 5xx / network failure, and `LoginCheck.svelte`'s *Send again*
+on 5xx / network failure, and `LoginCheck.svelte`'s _Send again_
 button quietly hides its "Sent again." confirmation on failure —
 both expose the underlying outcome to anyone probing emails. This
 plan brings both surfaces under the contract and lands the
@@ -16,7 +16,7 @@ of production.
 
 ## R1. The magic-link submit path renders the same post-submit screen for every GoTrue outcome
 
-After the user clicks *Send me a magic link* on `LoginRequest.svelte`
+After the user clicks _Send me a magic link_ on `LoginRequest.svelte`
 with a syntactically valid email:
 
 - The browser navigates to `/auth/check` regardless of GoTrue's HTTP
@@ -38,7 +38,7 @@ layer chooses to discard those throws.
 
 ## R2. The "Send again" button on `/auth/check` honours the same contract
 
-After the user clicks *Send again* on `LoginCheck.svelte`:
+After the user clicks _Send again_ on `LoginCheck.svelte`:
 
 - The button disables, awaits a single `sendMagicLink(email)` call,
   re-enables.
@@ -65,10 +65,10 @@ that.
 
 Both strings are mirrored from the design canvas
 (`design/cairn-screens.jsx:167` and `:207-208`) and from the canonical
-copy quoted in `docs/admin.md:165`. *"Continue"* over *"sign in"* is
+copy quoted in `docs/admin.md:165`. _"Continue"_ over _"sign in"_ is
 load-bearing — it reads naturally for both first-time signups (whose
 email becomes a new account on click of the link) and returning
-users; *"sign in"* slightly excludes the first audience
+users; _"sign in"_ slightly excludes the first audience
 (`docs/admin.md:175`).
 
 ## R4. Behaviour is locked in by Vitest and Playwright
@@ -83,7 +83,7 @@ users; *"sign in"* slightly excludes the first audience
   still flips `data-test="login-check-resend-confirmation"` visible.
 - `web/e2e/auth.spec.ts` gains a second `test(...)` block that
   uses `page.route('**/auth/magiclink*', ...)` to fulfil with
-  status 429, clicks *Send me a magic link*, and asserts the same
+  status 429, clicks _Send me a magic link_, and asserts the same
   `/auth/check` destination + same `login-check-heading` + same
   `login-check-email` value as the happy path. The original
   happy-path test stays untouched.
@@ -117,12 +117,12 @@ edits in this plan; tests `(b)`, `(j)`, and `(h)` in
   (`plans/0000_implementation_order.md:236-245`). This plan is the
   client-side complement.
 - **Timing-side-channel mitigations beyond awaiting the response.**
-  The contract (`docs/admin.md:175`) is about the *screen being
-  identical*, not about resistance to network-timing fingerprints.
+  The contract (`docs/admin.md:175`) is about the _screen being
+  identical_, not about resistance to network-timing fingerprints.
   A determined attacker observing wire timing across many requests
   could still distinguish a SMTP-bound 2xx from a fast-fail 4xx;
   closing that channel is out of scope for v1.
-- **An *"Account issues? Contact <address>"* surface.**
+- **An _"Account issues? Contact <address>"_ surface.**
   `docs/admin.md:189` flags this as the only escape from
   indistinguishability when banned users need an in-product appeal
   route. Deliberately deferred — landing it needs a decided
