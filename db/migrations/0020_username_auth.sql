@@ -123,4 +123,40 @@ $$;
 REVOKE EXECUTE ON FUNCTION public.adopt_stable_identity() FROM public;
 GRANT EXECUTE ON FUNCTION public.adopt_stable_identity() TO authenticated;
 
+-- 3. resolve_username — turn a typed username into the account's
+-- (id, username) via the case-fold lower(username) index. Sign-in (the BFF)
+-- runs before any session exists, so the resolver must work for an
+-- unauthenticated caller — hence SECURITY DEFINER granted to anon. Returns
+-- the stable user id (which the BFF authenticates the password grant against)
+-- and the case-preserving STORED handle (so the signed-in identity shows
+-- canonical casing, not whatever casing was typed). A miss is an empty result
+-- — a permitted, truthful "no such username".
+--
+-- No deleted_at filter: profiles has no soft-delete column and delete_account
+-- hard-deletes the row via cascade, so every stored handle is a live account.
+-- The only non-account row is the tombstone, whose provisional handle is
+-- unguessable and whose password grant cannot succeed, so resolving it is
+-- harmless. Exposing the uuid to anon is acceptable — usernames are public,
+-- the uuid is already in attribution everywhere, and the password grant it
+-- would otherwise unlock is locked to the BFF.
+CREATE FUNCTION public.resolve_username(p_username text)
+RETURNS TABLE (id uuid, username text)
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT id, username
+  FROM public.profiles
+  WHERE lower(username) = lower(p_username);
+$$;
+
+-- Same explicit revoke-then-grant idiom as the functions above so the grant
+-- surface is stated, not inherited from the PUBLIC default. anon is granted
+-- here (sign-in is pre-session), so the REVOKE is consistency rather than a
+-- boundary — but keeping every new function on the idiom avoids the next one
+-- silently over-granting.
+REVOKE EXECUTE ON FUNCTION public.resolve_username(text) FROM public;
+GRANT EXECUTE ON FUNCTION public.resolve_username(text) TO anon, authenticated;
+
 COMMIT;

@@ -402,10 +402,10 @@ pattern mirrors 2001's `set_username` `SECURITY DEFINER` write to `auth.users`.
 
 **Verify:** `./scripts/test-db.sh` · `cd web && pnpm exec prettier --check ../docs/data-model.md`
 
-### [ ] 2.3 Add `resolve_username()` RPC (migration + pgTAP + doc)
+### [x] 2.3 Add `resolve_username()` RPC (migration + pgTAP + doc)
 
 **Created:** 2026-06-17T08:42:42Z
-**Completed:**
+**Completed:** 2026-06-17T11:30:35Z
 
 **Why:** Sign-in (Phase 3) and registration's availability pre-check turn a typed
 username into the account's user id. Sign-in happens before any session exists,
