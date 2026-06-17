@@ -400,12 +400,13 @@ in-flight branch for no gain.
       for uniqueness, case-folding, the char constraint, and mutability.
       Its synthetic-e-mail GoTrue mechanism is superseded by 2003's
       stable-identity + BFF resolver — revised forward, not reverted.
-    - [ ] **2002: session-security foundation + auth BFF.** Grow
+    - [x] **2002: session-security foundation + auth BFF.** Grow
       `auth-proxy` into a Cairn-shaped BFF; make the session revocable
       (rotating refresh + reuse detection, short-lived server-held access
       tokens); `__Host-` cookie + CSRF check + sign-in rate-limiting.
       Closes a pre-existing prod gap independent of usernames; lands
-      first; prod-facing.
+      first; prod-facing. (Reuse is detection-only on GoTrue v2.158.1 — no
+      auto family-revoke; `signout?scope=global` is the manual kill-switch.)
     - [ ] **2003: username + password sign-in.** Revise 2001 forward —
       `set_username` becomes profiles-only and a stable uid-derived GoTrue
       identity replaces the synthetic e-mail; username→id resolver +

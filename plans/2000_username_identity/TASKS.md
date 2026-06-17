@@ -87,10 +87,23 @@ negative cases).
 
 ## Phase 2 — 2002: session-security foundation + auth BFF
 
-### [ ] 2.1 Plan and implement sub-step 2002 (revocable sessions, auth BFF, cookie hardening, rate-limiting)
+### [x] 2.1 Plan and implement sub-step 2002 (revocable sessions, auth BFF, cookie hardening, rate-limiting)
 
 **Created:** 2026-06-15T17:24:58Z
-**Completed:**
+**Completed:** 2026-06-17T08:16:43Z
+
+**Notes:** Implemented in `plans/2002_session_security/` (all 5 phases complete)
+and merged here `--no-ff`. The session model landed as **detection-only** reuse
+(GoTrue v2.158.1 rejects a replayed rotated token but does **not** family-revoke
+on reuse — confirmed by the Phase-1 spike), so theft is logged/rejected rather
+than auto-revoking the family; the manual kill-switch is
+`/auth/signout?scope=global`. A thin custom session table for real
+theft→family-revoke is deferred (recorded in `docs/architecture.md` "JWT storage"
++ `TODO.md`). Verify: `./scripts/check.sh` green on the merged parent; auth e2e
+(`auth.spec.ts`) green on chromium+firefox. **WebKit is not run** on this box
+(missing system libs — accepted; see `docs/testing.md`), and the pre-existing
+`public-list.spec.ts` clipboard test is an environmental flake — neither is a
+2002 regression.
 
 **Why:** Examining "what's in the cookie" for step 20 surfaced that
 `cairn_session` is a long-lived (~7-day), non-revocable access JWT and the
