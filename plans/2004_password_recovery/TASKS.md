@@ -1034,10 +1034,10 @@ constant screen) and set a new password from the code, then sign in.
 
 ## Phase 4 — e2e canary
 
-### [ ] 4.1 End-to-end recovery canary (Playwright)
+### [x] 4.1 End-to-end recovery canary (Playwright)
 
 **Created:** 2026-06-17T19:02:51Z
-**Completed:**
+**Completed:** 2026-06-18T12:54:55Z
 
 **Why:** The one test that proves the whole flow and pins the load-bearing coupling:
 that a password written by the pgcrypto RPC (R6) is actually accepted by GoTrue
@@ -1075,3 +1075,33 @@ password-recovery.spec.ts`) on chromium + firefox; confirm green.
 
 **Verify:** `cd web && pnpm exec playwright test e2e/password-recovery.spec.ts` (work
 box only) · `./scripts/check.sh` for the rest of the gauntlet.
+
+**Notes:**
+
+- **Ran green on the work box: 6 passed (3 tests × chromium + firefox).** Also statically
+  clean — `prettier --check`, `eslint`, and `pnpm check` (svelte-check) all pass. (Not run
+  on webkit, per the task decision.)
+- **Stale migration ledger uncovered while running this (fixed).** The running dev DB had
+  `public._migrations` recording `0019`–`0021` as applied, but none of `0021`'s objects
+  (the `recovery_tokens` table, the five recovery RPCs) nor `0019`'s
+  `user_settings.recovery_email` column actually existed — so every recovery request
+  returned a 502 (PostgREST couldn't find the RPC). Reconciled the dev DB by deleting the
+  `0021` ledger row and re-running `scripts/migrate.sh` (clean apply, since none of its
+  objects existed), then applying `0019`'s idempotent
+  `ALTER TABLE public.user_settings ADD COLUMN IF NOT EXISTS recovery_email text` and a
+  `NOTIFY pgrst`. This was a **local dev-DB drift only** — the migration files themselves
+  are correct and unchanged; no schema/migration edit was needed. Flagged because other
+  dev environments seeded from the same ledger state may need the same reconcile before
+  the recovery flow works.
+- **Helper extended** as the task anticipated: `web/e2e/helpers/mailpit.ts` gains
+  `waitForRecoveryCode(email, subjectIncludes)` (the recovery mails are plain text with
+  no link, so `waitForMagicLink`'s `<a href>` extractor doesn't apply, and verify vs
+  reset share the recipient so the subject disambiguates) plus `expectNoRecoveryMail`
+  for the anti-enumeration negative. Added `Subject` to the Mailpit list interface.
+- **Three tests, not one:** the full happy-path canary (set + verify recovery e-mail →
+  reset → new password signs in, old fails), a bad-reset-code test (inline error, password
+  unchanged), and the anti-enumeration test (unknown username → identical reset screen,
+  no mail). The anti-enumeration no-mail check uses a unique per-run probe address so it
+  stays non-flaky under parallel specs; the genuine externally-observable guarantee it
+  asserts is screen parity (mirrors `auth.spec.ts`'s magic-link anti-enumeration test,
+  which also asserts the screen, not the absence of a global send).
