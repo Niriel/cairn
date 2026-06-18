@@ -7,20 +7,25 @@ const POLICY_RANK: Record<InvitePolicy, number> = { everybody: 0, circle: 1, nob
 
 export const userSettings = $state<{
 	invitePolicy: InvitePolicy | null;
+	recoveryEmail: string | null;
 	loaded: boolean;
 }>({
 	invitePolicy: null,
+	recoveryEmail: null,
 	loaded: false
 });
 
 export async function loadUserSettings(): Promise<void> {
 	const me = profile.uid;
 	if (!me) return;
-	const row = await pgGet<{ invite_policy: InvitePolicy }>(
-		`/user_settings?id=eq.${me}&select=invite_policy`,
+	// recovery_email is read-only here — writes go through the BFF (the column is
+	// not PATCHable via PostgREST). There is deliberately no pgPatch writer for it.
+	const row = await pgGet<{ invite_policy: InvitePolicy; recovery_email: string | null }>(
+		`/user_settings?id=eq.${me}&select=invite_policy,recovery_email`,
 		{ headers: { Accept: 'application/vnd.pgrst.object+json' } }
 	);
 	userSettings.invitePolicy = row.invite_policy;
+	userSettings.recoveryEmail = row.recovery_email;
 	userSettings.loaded = true;
 }
 

@@ -18,20 +18,35 @@ beforeEach(async () => {
 });
 
 describe('loadUserSettings', () => {
-	test('populates invitePolicy from response and sets loaded', async () => {
+	test('populates invitePolicy and recoveryEmail from response and sets loaded', async () => {
 		server.use(
 			http.get('*/api/user_settings', () =>
 				HttpResponse.json(
-					{ invite_policy: 'circle' },
+					{ invite_policy: 'circle', recovery_email: 'alice@example.test' },
 					{ headers: { 'Content-Type': 'application/vnd.pgrst.object+json' } }
 				)
 			)
 		);
 		expect(settingsMod.userSettings.invitePolicy).toBeNull();
+		expect(settingsMod.userSettings.recoveryEmail).toBeNull();
 		expect(settingsMod.userSettings.loaded).toBe(false);
 		await settingsMod.loadUserSettings();
 		expect(settingsMod.userSettings.invitePolicy).toBe('circle');
+		expect(settingsMod.userSettings.recoveryEmail).toBe('alice@example.test');
 		expect(settingsMod.userSettings.loaded).toBe(true);
+	});
+
+	test('recoveryEmail stays null when none is on file', async () => {
+		server.use(
+			http.get('*/api/user_settings', () =>
+				HttpResponse.json(
+					{ invite_policy: 'everybody', recovery_email: null },
+					{ headers: { 'Content-Type': 'application/vnd.pgrst.object+json' } }
+				)
+			)
+		);
+		await settingsMod.loadUserSettings();
+		expect(settingsMod.userSettings.recoveryEmail).toBeNull();
 	});
 });
 

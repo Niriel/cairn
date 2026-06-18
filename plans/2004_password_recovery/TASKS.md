@@ -823,10 +823,10 @@ the prod Caddy + compose changes match `docs/deployment.md`.
 
 ## Phase 3 — web
 
-### [ ] 3.1 Auth-client functions + `user_settings` recovery-e-mail read
+### [x] 3.1 Auth-client functions + `user_settings` recovery-e-mail read
 
 **Created:** 2026-06-17T19:02:51Z
-**Completed:**
+**Completed:** 2026-06-18T12:16:52Z
 
 **Why:** The screens (3.2, 3.3) need typed client calls to the new BFF endpoints, and
 Settings needs to read the current recovery e-mail (writes go through the BFF, since
