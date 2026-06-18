@@ -157,10 +157,26 @@ authenticated;`. Leave `SELECT` intact.
 
 **Verify:** `./scripts/test-db.sh`
 
-### [ ] 1.2 `recovery_tokens` record, scoped role, and the verify-flow RPCs + pgTAP
+### [x] 1.2 `recovery_tokens` record, scoped role, and the verify-flow RPCs + pgTAP
 
 **Created:** 2026-06-17T19:02:51Z
-**Completed:**
+**Completed:** 2026-06-18T09:13:22Z
+
+**Notes:**
+
+- **Concrete values the task left open:** send caps are **per-address 3, per-account
+  5** within a **1-hour** window; a refused send raises the custom SQLSTATE **`CA429`**
+  (the BFF maps it to HTTP 429). The verification token expiry is 1 hour. These are
+  inlined as named `constant`s in `request_recovery_email_verification`.
+- **pgTAP TAP-stream hygiene:** `confirm_recovery_email` returns `text`, so a bare
+  `SELECT confirm_recovery_email(...)` used as setup prints its result row and corrupts
+  the TAP stream (phantom test / out-of-sequence). Non-asserted RPC setup calls are run
+  via `PERFORM` inside a `DO` block so they emit nothing — the same discard idiom
+  `invitations.sql` uses (capturing into a temp table). Asserted calls go through
+  `is()`/`lives_ok()`/`throws_ok()` as normal.
+- 27 new assertions; full suite 733 green. The return-status contract correction agreed
+  earlier is implemented as specified (commit on persistable outcomes, raise only for
+  `28000` guards).
 
 **Why:** Setting/changing a recovery e-mail must prove ownership (R13): send a code,
 store it pending, activate only on confirm. This adds the token record, the scoped BFF

@@ -117,6 +117,27 @@ alter table public.user_settings enable row level security;
 
 `created_at` and `modified_at` are present here — same shape as every other table — even though `created_at` will always equal `profiles.created_at` (both rows are inserted by the same on-signup trigger). The redundancy is deliberate: standardized column names across every table is worth more for debugging ergonomics than the one timestamp column it duplicates.
 
+### `auth_private.recovery_tokens`
+
+The pending side of the recovery flow — the transient record that backs "verify before effect." It lives in a dedicated `auth_private` schema, **not** `public`, and that placement is the primary security boundary: PostgREST is configured with `PGRST_DB_SCHEMAS: public`, so a table in `auth_private` is unreachable through the API by construction — the same lockdown posture as the `admin` schema, and stronger than `public` + RLS for the address snapshots and code hashes it holds. The schema's privileges are revoked from `public`, `authenticated`, and `anon`; row-level security is enabled on the table with **no policy** (deny-all) as belt-and-suspenders, so the rows stay protected even if the schema lockdown were ever loosened. Only the `security definer` recovery RPCs reach it, by fully-qualified name, running as the table's owner.
+
+```sql
+create table auth_private.recovery_tokens (
+  id          uuid primary key default gen_random_uuid(),
+  user_id     uuid not null references auth.users (id) on delete cascade,
+  purpose     text not null
+              check (purpose in ('verify_recovery_email', 'reset_password')),
+  email       text not null,
+  code_hash   text not null,
+  expires_at  timestamptz not null,
+  consumed_at timestamptz,
+  attempts    int not null default 0,
+  created_at  timestamptz not null default now()
+);
+```
+
+`purpose` separates the two flows that share the table: `verify_recovery_email` (an authenticated user proving a new address) and `reset_password` (a signed-out user redeeming a code). `email` is the address the code was sent to — the pending candidate for a verify, the on-file snapshot for a reset. `code_hash` is the SHA-256 hex of the 6-digit code, never the plaintext: that keeps the code out of database query logs, but it is **not** secrecy at rest — a SHA-256 over a 10⁶ space is trivially reversible, so the code's real protection is that `auth_private` is unreachable. `expires_at` gives the code a short life (one hour); `consumed_at` marks single use; `attempts` is the durable submission-attempt counter that bounds brute-forcing (see the verify/reset RPCs). The `on delete cascade` is what erases these snapshots when an account is deleted. Two indexes — `(user_id, purpose, created_at)` and `(email, created_at)` — serve the newest-token lookup and the per-account / per-address send caps. There is no `modified_at`/attribution: the rows are short-lived, machine-managed, and never user-edited.
+
 ### `lists`
 
 A named collection. The list itself is content-agnostic — it doesn't know whether it holds movies, gift ideas, or anything else.
@@ -710,8 +731,10 @@ To translate the schema into the API the web app actually consumes, here are the
 - `POST /rpc/set_username` — change your own `username`. Body: `{p_username}`. Rewrites `profiles.username` only. The GoTrue sign-in identity is the stable, uid-derived `<uid>@cairn.internal` set once at account creation, so a rename never touches `auth.users` and can never break the credential. Returns separable errors the UI maps apart: `23514` "invalid username" (not `^[A-Za-z0-9]{3,30}$`), `23505` "username taken" (handle held by another user, case-insensitively), `28000` (unauthenticated or tombstone caller). A case-only change to your own handle is allowed.
 - `POST /rpc/adopt_stable_identity` — set your own permanent GoTrue identity to the stable, uid-derived `<uid>@cairn.internal`. No body. Called by the registration flow right after signup (which uses a transient `<random>@cairn.internal` address) to adopt the permanent identity; the value derives from `public.uid()`, so a caller can only ever set their own. Idempotent (a second call rewrites the same value). Guarded to act only on the transient or already-stable `@cairn.internal` shapes — it refuses to touch a real address, so a legacy account's recovery e-mail can't be clobbered. Raises `28000` for an unauthenticated or tombstone caller.
 - `POST /rpc/resolve_username` — resolve a typed username to `(id, username)` via the case-fold `lower(username)` index. Body: `{p_username}`. Returns one row (the stable user id plus the case-preserving stored handle) for a match, zero rows for a miss. `anon`-callable, since sign-in runs before any session exists; used by the BFF for sign-in and the registration availability pre-check. Exposing the uuid is acceptable — usernames are public, the uuid is already in attribution, and the password grant it would otherwise unlock is reachable only through the BFF.
+- `POST /rpc/request_recovery_email_verification` — begin proving a candidate recovery e-mail. Body: `{p_email, p_code_hash}` — the BFF generates a 6-digit code, sends it to `p_email`, and passes only its hash here. `authenticated`-only; records a pending `verify_recovery_email` token. Enforces the per-address (3) and per-account (5) send caps within a one-hour window, raising `CA429` (mapped to HTTP 429) when exceeded; raises `23514` for a malformed address, `28000` for an unauthenticated or tombstone caller. Sets nothing on `user_settings` — the address only takes effect on confirm.
+- `POST /rpc/confirm_recovery_email` — finish proving the address. Body: `{p_code_hash}`. Returns a **status string** — `'ok'` (the newest pending token matched: `user_settings.recovery_email` is set and the token consumed), `'invalid'` (no matching live token, or a wrong code — `attempts` is bumped), or `'locked'` (the token hit the 5-attempt cap and is now spent). It **returns rather than raises** on a wrong code on purpose: PostgREST rolls a raised RPC back, which would discard the `attempts` bump and make the brute-force cap a no-op, so every outcome that must persist commits and only unauthenticated/tombstone callers raise (`28000`). The newest token is locked `for update` so concurrent guesses cannot race past the cap. `authenticated`-only.
 - `GET /user_settings?id=eq.<my-uid>` — fetch your own settings (RLS rejects any other id; the only row a caller ever sees is their own)
-- `PATCH /user_settings?id=eq.<my-uid>` — update your settings (`invite_policy`)
+- `PATCH /user_settings?id=eq.<my-uid>` — update your settings (`invite_policy` only — `recovery_email` is not directly writable; the table's `UPDATE` grant is narrowed to `invite_policy`, and `recovery_email` is set solely by `confirm_recovery_email`)
 - `GET /lists_deleted` — the per-user list trash (lists you were a member of that have been soft-deleted)
 - `GET /relationships?status=eq.circle` — your circle (RLS limits visibility to rows where you are `user_id`)
 - `GET /relationships?status=eq.blocked` — your blocklist (same RLS scope)
