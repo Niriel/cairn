@@ -714,10 +714,47 @@ in-memory `RateLimiter` and `constantShapeFailure` exist
 
 **Verify:** `cd auth-proxy && pnpm test && pnpm lint`
 
-### [ ] 2.4 Wire the recovery endpoints into prod + dev infrastructure
+### [x] 2.4 Wire the recovery endpoints into prod + dev infrastructure
 
 **Created:** 2026-06-17T19:40:24Z
-**Completed:**
+**Completed:** 2026-06-18T11:22:17Z
+
+**Notes:**
+
+- **JWT minting:** settled as `scripts/mint-bff-jwt.sh` (the option the task and
+  `docs/deployment.md` both name). Dependency-free — a bash wrapper that reads
+  `JWT_SECRET` (from env, or `.env` for dev convenience) and shells to `node -e` for
+  the HS256 HMAC (no jwt library, matching the repo's "no extra deps" lean). Emits
+  `{"role":"cairn_auth_bff", exp: now+~10y}`. Verified the output decodes and the
+  signature checks against the dev secret.
+- **Dev token: minted at startup, not committed.** `.env.example` keeps
+  `AUTH_BFF_DB_JWT` **blank**; the dev Vite proxy mints the `cairn_auth_bff` token from
+  the dev `JWT_SECRET` at config load (same HS256 algorithm as the mint script) and sets
+  it on `process.env`, so dev works on a fresh `cp .env.example .env` without committing
+  a real token to a `.example` file (which would trip secret scanners and is bad form).
+  An explicit `AUTH_BFF_DB_JWT` still wins if set (env parity with prod). Prod is
+  unchanged — its auth-proxy always receives a pre-minted, independently-rotatable token
+  (`.env.prod.example` has an empty placeholder). _(First cut committed a pre-minted dev
+  token in `.env.example`; reverted on review — it only validated against the
+  already-public dev secret, but committing a credential-shaped artifact is the wrong
+  pattern.)_
+- **Side work — `web/vite.config.ts` env loading (not anticipated by the task):** the
+  dev `bffJwt()` reader added in 2.3 reads `process.env.AUTH_BFF_DB_JWT`, but Vite does
+  **not** auto-populate `process.env` from `.env`, and the dev server runs in `web/`
+  (not the repo root where the secrets `.env` lives). So `defineConfig` was converted
+  from the static-object form to the function form `({ mode }) => { … }` to call
+  `loadEnv(mode, <repo root>, '')` and surface `AUTH_BFF_DB_JWT` onto `process.env`.
+  It's the only secret any dev `/auth` handler needs (sign-in/register use cookie
+  bearers), so this is the sole env-loading site. Not VITE_-prefixed → never reaches
+  the client bundle.
+- **Cross-check:** `docs/deployment.md` (Task 0.1) already documents this exact wiring
+  — `AUTH_BFF_DB_JWT` in `.env.prod`, the shared `SMTP_*` feeding the auth-proxy, the
+  `scripts/mint-bff-jwt.sh` mechanism, and the pre-deploy checklist item naming the
+  four POST endpoints in `@auth_credentials` with page-GET fall-through. The
+  implementation matches it with no divergence.
+- The wiring has no unit test of its own (per the Verify note); the auth-proxy suite
+  (98 green) plus web lint/check confirm nothing regressed. End-to-end proof is the
+  Phase-4 canary on the work box.
 
 **Why:** The recovery feature is dead in production unless (a) Caddy routes the new
 endpoints to the auth-proxy, (b) the auth-proxy container actually receives its SMTP

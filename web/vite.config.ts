@@ -1,8 +1,9 @@
-import { createHash, randomInt, randomUUID } from 'node:crypto';
+import { createHash, createHmac, randomInt, randomUUID } from 'node:crypto';
 import net from 'node:net';
+import path from 'node:path';
 
 import { sveltekit } from '@sveltejs/kit/vite';
-import { defineConfig } from 'vite';
+import { defineConfig, loadEnv } from 'vite';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 
 import {
@@ -468,10 +469,22 @@ function resetMailBody(code: string): { subject: string; text: string } {
 
 // The dev scoped-role JWT for the signed-out reset RPCs (request_password_reset /
 // reset_password), which are granted only to cairn_auth_bff — anon cannot reach
-// them. Mirrors bffJwt() in auth-proxy/src/lib/recovery.ts; Task 2.4 provisions the
-// value via .env.
+// them. Mirrors bffJwt() in auth-proxy/src/lib/recovery.ts. Set on process.env at
+// config load (from an explicit AUTH_BFF_DB_JWT or minted from the dev JWT_SECRET).
 function bffJwt(): string {
 	return process.env.AUTH_BFF_DB_JWT ?? '';
+}
+
+// Mint an HS256 cairn_auth_bff role JWT from the dev JWT_SECRET (the same algorithm
+// as scripts/mint-bff-jwt.sh). Dev-only convenience so the recovery path works out
+// of the box without committing a token to .env.example; in prod the auth-proxy
+// always receives a pre-minted, independently-rotatable AUTH_BFF_DB_JWT instead.
+function mintBffJwt(secret: string): string {
+	const b64 = (o: object): string => Buffer.from(JSON.stringify(o)).toString('base64url');
+	const exp = Math.floor(Date.now() / 1000) + 10 * 365 * 24 * 60 * 60; // ~10 years
+	const data = `${b64({ alg: 'HS256', typ: 'JWT' })}.${b64({ role: 'cairn_auth_bff', exp })}`;
+	const sig = createHmac('sha256', secret).update(data).digest('base64url');
+	return `${data}.${sig}`;
 }
 
 // Dev mirror of the prod POST /auth/recovery-email handler (auth-proxy/src/index.ts):
@@ -707,266 +720,286 @@ async function handleDevResetPassword(req: IncomingMessage, res: ServerResponse)
 	}
 }
 
-export default defineConfig({
-	plugins: [
-		{
-			// Stamps the original `/auth/...` URL onto the request before
-			// Vite's internal proxy rewrites it. The `proxyReq` and `proxyRes`
-			// handlers below need the original path to match against the
-			// path lists in auth-paths.ts (which are all `/auth/...`-shaped).
-			name: 'cairn-auth-shim',
-			enforce: 'pre',
-			configureServer(server) {
-				// no return from configureServer → installs before Vite's internal
-				// proxy; see auth-paths.ts and Task 1.4 Decisions.
-				server.middlewares.use((req, _res, next) => {
-					if (req.url?.startsWith('/auth/') || req.url === '/auth') {
-						req.cairnOriginalUrl = req.url;
-					}
-					next();
-				});
-				// Sign-out: dev mirror of the prod POST /auth/signout handler
-				// (auth-proxy/src/index.ts) — revoke server-side at GoTrue, then
-				// clear both cookies (cleared regardless of the revoke outcome).
-				// Mounted at root (no path arg) so `req.url` stays the full request
-				// path — `server.middlewares.use('/auth/signout', …)` would strip
-				// the mount and leave `req.url === '/'`, silently failing the
-				// segment match.
-				server.middlewares.use((req, res, next) => {
-					if (!isSegmentMatch(req.url, LOGOUT_PATHS) || req.method !== 'POST') {
-						next();
-						return;
-					}
-					if (!hasCsrfHeader(req)) {
-						res.statusCode = 403;
-						res.end(JSON.stringify({ error: 'missing csrf header' }));
-						return;
-					}
-					void handleDevSignout(req, res);
-				});
-				// Bespoke dev mirror of the prod /auth/refresh handler
-				// (auth-proxy/src/index.ts): exchange the durable refresh cookie
-				// at GoTrue, re-plant both cookies, return a tokenless user.
-				// GoTrue has no /refresh route, so this can't be a plain proxy.
-				// Distinguishes an authoritative revoke (clear + 401) from a
-				// transient blip (503, cookies intact).
-				server.middlewares.use((req, res, next) => {
-					if (req.url?.split('?')[0] !== '/auth/refresh' || req.method !== 'POST') {
-						next();
-						return;
-					}
-					if (!hasCsrfHeader(req)) {
-						res.statusCode = 403;
-						res.end(JSON.stringify({ error: 'missing csrf header' }));
-						return;
-					}
-					void handleDevRefresh(req, res);
-				});
-				// Cairn-shaped credential endpoints — dev mirror of the prod
-				// /auth/signin + /auth/register handlers (auth-proxy/src/index.ts),
-				// both now the real username+password flows. They sit behind the CSRF
-				// gate so dev exercises the same routes + guard as prod. GoTrue:9999
-				// has no such routes, so these can't be a plain proxy. (The prod
-				// rate-limiter is BFF-only — a dev-parity exception.)
-				server.middlewares.use((req, res, next) => {
-					const path = req.url?.split('?')[0];
-					if ((path !== '/auth/signin' && path !== '/auth/register') || req.method !== 'POST') {
-						next();
-						return;
-					}
-					if (!hasCsrfHeader(req)) {
-						res.statusCode = 403;
-						res.end(JSON.stringify({ error: 'missing csrf header' }));
-						return;
-					}
-					if (path === '/auth/signin') {
-						void handleDevSignin(req, res);
-						return;
-					}
-					void handleDevRegister(req, res);
-				});
-				// Recovery-e-mail set/confirm/remove — dev mirror of the prod
-				// /auth/recovery-email + /auth/recovery-email/confirm handlers
-				// (auth-proxy/src/index.ts). Matched by EXACT path (confirm first):
-				// the confirm path is a sub-path of the set path, so a prefix match
-				// would swallow it. Behind the CSRF gate for dev/prod parity.
-				server.middlewares.use((req, res, next) => {
-					const path = req.url?.split('?')[0];
-					if (
-						(path !== '/auth/recovery-email' && path !== '/auth/recovery-email/confirm') ||
-						req.method !== 'POST'
-					) {
-						next();
-						return;
-					}
-					if (!hasCsrfHeader(req)) {
-						res.statusCode = 403;
-						res.end(JSON.stringify({ error: 'missing csrf header' }));
-						return;
-					}
-					if (path === '/auth/recovery-email/confirm') {
-						void handleDevRecoveryConfirm(req, res);
-						return;
-					}
-					void handleDevRecoveryEmail(req, res);
-				});
-				// Signed-out recovery — dev mirror of the prod /auth/forgot-password +
-				// /auth/reset-password handlers (auth-proxy/src/index.ts). Behind the CSRF
-				// gate for dev/prod parity; both reach the scoped reset RPCs.
-				server.middlewares.use((req, res, next) => {
-					const path = req.url?.split('?')[0];
-					if (
-						(path !== '/auth/forgot-password' && path !== '/auth/reset-password') ||
-						req.method !== 'POST'
-					) {
-						next();
-						return;
-					}
-					if (!hasCsrfHeader(req)) {
-						res.statusCode = 403;
-						res.end(JSON.stringify({ error: 'missing csrf header' }));
-						return;
-					}
-					if (path === '/auth/forgot-password') {
-						void handleDevForgotPassword(req, res);
-						return;
-					}
-					void handleDevResetPassword(req, res);
-				});
-				// R6 lockdown (dev parity): the public GoTrue password grant must be
-				// unreachable; the only password-grant path is /auth/signin above.
-				// The legacy magic-link refresh-token grant still proxies through, so
-				// reject only grant_type=password (read from the query string).
-				server.middlewares.use((req, res, next) => {
-					if (req.url?.split('?')[0] !== '/auth/token' || req.method !== 'POST') {
-						next();
-						return;
-					}
-					const grantType = new URLSearchParams(req.url.split('?')[1] ?? '').get('grant_type');
-					if (grantType === 'password') {
-						res.statusCode = 403;
-						res.end(JSON.stringify({ error: 'use /auth/signin' }));
-						return;
-					}
-					next();
-				});
-			}
-		},
-		sveltekit()
-	],
-	server: {
-		proxy: {
-			'/api': {
-				target: POSTGREST_DEV_URL,
-				changeOrigin: false,
-				rewrite: (p) => p.replace(/^\/api/, ''),
-				configure: (proxy) => {
-					proxy.on('proxyReq', (proxyReq, req) => {
-						const token = readBearerFromCookie(req, ACCESS_COOKIE_NAME);
-						if (token && !proxyReq.getHeader('authorization')) {
-							proxyReq.setHeader('Authorization', `Bearer ${token}`);
+export default defineConfig(({ mode }) => {
+	// Load the repo-root .env (the same dev-secrets file docker compose reads —
+	// one level up from this web/ root) and surface the cairn_auth_bff role JWT on
+	// process.env. The dev recovery handlers (handleDevForgotPassword /
+	// handleDevResetPassword) present it as the bearer for the signed-out reset RPCs,
+	// which are granted only to that role. Prefer an explicitly provided
+	// AUTH_BFF_DB_JWT (env parity with prod); otherwise mint one from the dev
+	// JWT_SECRET so dev works out of the box WITHOUT a token committed to
+	// .env.example. Not VITE_-prefixed, so neither value reaches the client bundle.
+	const rootEnv = loadEnv(mode, path.resolve(process.cwd(), '..'), '');
+	const bff =
+		process.env.AUTH_BFF_DB_JWT ??
+		rootEnv.AUTH_BFF_DB_JWT ??
+		(rootEnv.JWT_SECRET ? mintBffJwt(rootEnv.JWT_SECRET) : undefined);
+	if (bff) process.env.AUTH_BFF_DB_JWT = bff;
+
+	return {
+		plugins: [
+			{
+				// Stamps the original `/auth/...` URL onto the request before
+				// Vite's internal proxy rewrites it. The `proxyReq` and `proxyRes`
+				// handlers below need the original path to match against the
+				// path lists in auth-paths.ts (which are all `/auth/...`-shaped).
+				name: 'cairn-auth-shim',
+				enforce: 'pre',
+				configureServer(server) {
+					// no return from configureServer → installs before Vite's internal
+					// proxy; see auth-paths.ts and Task 1.4 Decisions.
+					server.middlewares.use((req, _res, next) => {
+						if (req.url?.startsWith('/auth/') || req.url === '/auth') {
+							req.cairnOriginalUrl = req.url;
 						}
+						next();
 					});
-				}
-			},
-			'/avatars': {
-				target: 'http://localhost:8080',
-				changeOrigin: false,
-				configure: (proxy) => {
-					proxy.on('proxyReq', (proxyReq, req) => {
-						const token = readBearerFromCookie(req, ACCESS_COOKIE_NAME);
-						if (token && !proxyReq.getHeader('authorization')) {
-							proxyReq.setHeader('Authorization', `Bearer ${token}`);
-						}
-					});
-				}
-			},
-			'/auth': {
-				target: 'http://localhost:9999',
-				changeOrigin: false,
-				rewrite: (p) => p.replace(/^\/auth/, ''),
-				// `bypass` runs before `rewrite`, so `req.url` is still the
-				// original `/auth/...` here. Returning a string short-circuits
-				// the proxy entirely and lets SvelteKit's router serve the
-				// page (e.g. `/auth/callback?token=…`); see auth-paths.ts.
-				bypass: (req) => (isSegmentMatch(req.url, PUBLIC_AUTH_PATHS) ? req.url : undefined),
-				selfHandleResponse: true,
-				configure: (proxy) => {
-					proxy.on('proxyReq', (proxyReq, req) => {
-						// Narrowed to BEARER_AUTH_PATHS — see auth-paths.ts.
-						// `cairnOriginalUrl` is consulted because Vite's `rewrite`
-						// mutates `req.url` before this handler fires.
-						if (!isSegmentMatch(req.cairnOriginalUrl ?? req.url, BEARER_AUTH_PATHS)) {
+					// Sign-out: dev mirror of the prod POST /auth/signout handler
+					// (auth-proxy/src/index.ts) — revoke server-side at GoTrue, then
+					// clear both cookies (cleared regardless of the revoke outcome).
+					// Mounted at root (no path arg) so `req.url` stays the full request
+					// path — `server.middlewares.use('/auth/signout', …)` would strip
+					// the mount and leave `req.url === '/'`, silently failing the
+					// segment match.
+					server.middlewares.use((req, res, next) => {
+						if (!isSegmentMatch(req.url, LOGOUT_PATHS) || req.method !== 'POST') {
+							next();
 							return;
 						}
-						// Read the short-lived access cookie — the durable cookie now
-						// holds a refresh token GoTrue's /user would reject.
-						const token = readBearerFromCookie(req, ACCESS_COOKIE_NAME);
-						if (token && !proxyReq.getHeader('authorization')) {
-							proxyReq.setHeader('Authorization', `Bearer ${token}`);
+						if (!hasCsrfHeader(req)) {
+							res.statusCode = 403;
+							res.end(JSON.stringify({ error: 'missing csrf header' }));
+							return;
 						}
+						void handleDevSignout(req, res);
 					});
-					proxy.on('proxyRes', (proxyRes, req: IncomingMessage, res: ServerResponse) => {
-						const chunks: Buffer[] = [];
-						proxyRes.on('data', (c: Buffer) => chunks.push(c));
-						// async so the cookie-plant branch can enrich the user with the
-						// username (a PostgREST lookup) before forwarding; http-proxy
-						// ignores the returned promise and `res.end(body)` still runs last.
-						proxyRes.on('end', async () => {
-							let body = Buffer.concat(chunks);
-							for (const [k, v] of Object.entries(proxyRes.headers)) {
-								if (v === undefined) continue;
-								// Skip content-length so Node recomputes it from the
-								// (possibly rewritten) body in `res.end(body)`.
-								if (k.toLowerCase() === 'content-length') continue;
-								res.setHeader(k, v as string | string[]);
+					// Bespoke dev mirror of the prod /auth/refresh handler
+					// (auth-proxy/src/index.ts): exchange the durable refresh cookie
+					// at GoTrue, re-plant both cookies, return a tokenless user.
+					// GoTrue has no /refresh route, so this can't be a plain proxy.
+					// Distinguishes an authoritative revoke (clear + 401) from a
+					// transient blip (503, cookies intact).
+					server.middlewares.use((req, res, next) => {
+						if (req.url?.split('?')[0] !== '/auth/refresh' || req.method !== 'POST') {
+							next();
+							return;
+						}
+						if (!hasCsrfHeader(req)) {
+							res.statusCode = 403;
+							res.end(JSON.stringify({ error: 'missing csrf header' }));
+							return;
+						}
+						void handleDevRefresh(req, res);
+					});
+					// Cairn-shaped credential endpoints — dev mirror of the prod
+					// /auth/signin + /auth/register handlers (auth-proxy/src/index.ts),
+					// both now the real username+password flows. They sit behind the CSRF
+					// gate so dev exercises the same routes + guard as prod. GoTrue:9999
+					// has no such routes, so these can't be a plain proxy. (The prod
+					// rate-limiter is BFF-only — a dev-parity exception.)
+					server.middlewares.use((req, res, next) => {
+						const path = req.url?.split('?')[0];
+						if ((path !== '/auth/signin' && path !== '/auth/register') || req.method !== 'POST') {
+							next();
+							return;
+						}
+						if (!hasCsrfHeader(req)) {
+							res.statusCode = 403;
+							res.end(JSON.stringify({ error: 'missing csrf header' }));
+							return;
+						}
+						if (path === '/auth/signin') {
+							void handleDevSignin(req, res);
+							return;
+						}
+						void handleDevRegister(req, res);
+					});
+					// Recovery-e-mail set/confirm/remove — dev mirror of the prod
+					// /auth/recovery-email + /auth/recovery-email/confirm handlers
+					// (auth-proxy/src/index.ts). Matched by EXACT path (confirm first):
+					// the confirm path is a sub-path of the set path, so a prefix match
+					// would swallow it. Behind the CSRF gate for dev/prod parity.
+					server.middlewares.use((req, res, next) => {
+						const path = req.url?.split('?')[0];
+						if (
+							(path !== '/auth/recovery-email' && path !== '/auth/recovery-email/confirm') ||
+							req.method !== 'POST'
+						) {
+							next();
+							return;
+						}
+						if (!hasCsrfHeader(req)) {
+							res.statusCode = 403;
+							res.end(JSON.stringify({ error: 'missing csrf header' }));
+							return;
+						}
+						if (path === '/auth/recovery-email/confirm') {
+							void handleDevRecoveryConfirm(req, res);
+							return;
+						}
+						void handleDevRecoveryEmail(req, res);
+					});
+					// Signed-out recovery — dev mirror of the prod /auth/forgot-password +
+					// /auth/reset-password handlers (auth-proxy/src/index.ts). Behind the CSRF
+					// gate for dev/prod parity; both reach the scoped reset RPCs.
+					server.middlewares.use((req, res, next) => {
+						const path = req.url?.split('?')[0];
+						if (
+							(path !== '/auth/forgot-password' && path !== '/auth/reset-password') ||
+							req.method !== 'POST'
+						) {
+							next();
+							return;
+						}
+						if (!hasCsrfHeader(req)) {
+							res.statusCode = 403;
+							res.end(JSON.stringify({ error: 'missing csrf header' }));
+							return;
+						}
+						if (path === '/auth/forgot-password') {
+							void handleDevForgotPassword(req, res);
+							return;
+						}
+						void handleDevResetPassword(req, res);
+					});
+					// R6 lockdown (dev parity): the public GoTrue password grant must be
+					// unreachable; the only password-grant path is /auth/signin above.
+					// The legacy magic-link refresh-token grant still proxies through, so
+					// reject only grant_type=password (read from the query string).
+					server.middlewares.use((req, res, next) => {
+						if (req.url?.split('?')[0] !== '/auth/token' || req.method !== 'POST') {
+							next();
+							return;
+						}
+						const grantType = new URLSearchParams(req.url.split('?')[1] ?? '').get('grant_type');
+						if (grantType === 'password') {
+							res.statusCode = 403;
+							res.end(JSON.stringify({ error: 'use /auth/signin' }));
+							return;
+						}
+						next();
+					});
+				}
+			},
+			sveltekit()
+		],
+		server: {
+			proxy: {
+				'/api': {
+					target: POSTGREST_DEV_URL,
+					changeOrigin: false,
+					rewrite: (p) => p.replace(/^\/api/, ''),
+					configure: (proxy) => {
+						proxy.on('proxyReq', (proxyReq, req) => {
+							const token = readBearerFromCookie(req, ACCESS_COOKIE_NAME);
+							if (token && !proxyReq.getHeader('authorization')) {
+								proxyReq.setHeader('Authorization', `Bearer ${token}`);
 							}
-							res.statusCode = proxyRes.statusCode ?? 502;
-							const ct = String(proxyRes.headers['content-type'] ?? '');
-							if (ct.includes('application/json') && proxyRes.statusCode === 200) {
-								try {
-									const json = JSON.parse(body.toString('utf8'));
-									// Cookie-plant is narrowed to deliberate-login
-									// endpoints (auth-paths.ts COOKIE_PLANT_PATHS).
-									// `cairnOriginalUrl` is the original `/auth/...`
-									// since `rewrite` mutated `req.url` before we got here.
-									if (
-										typeof json?.access_token === 'string' &&
-										typeof json?.refresh_token === 'string' &&
-										isSegmentMatch(req.cairnOriginalUrl ?? req.url, COOKIE_PLANT_PATHS)
-									) {
-										// Plant BOTH cookies: refresh token in the durable
-										// cookie, access JWT in the short-lived one. Mirrors
-										// plantSession() in auth-proxy/src/lib/cookies.ts.
-										// append — preserves any upstream Set-Cookie the header-copy loop already forwarded
-										res.appendHeader('set-cookie', sessionCookie(COOKIE_NAME, json.refresh_token));
-										res.appendHeader(
-											'set-cookie',
-											sessionCookie(ACCESS_COOKIE_NAME, json.access_token)
-										);
-										// Enrich the forwarded user with the username (Task 3.4),
-										// using the freshly planted access token, before tokens
-										// are stripped below.
-										json.user = await enrichDevUser(json.user, json.access_token);
-									}
-									// strip tokens unconditionally — JS has no use for them; cookie is the source of truth (docs/architecture.md:145, :233)
-									if (
-										typeof json?.access_token === 'string' ||
-										typeof json?.refresh_token === 'string'
-									) {
-										delete json.access_token;
-										delete json.refresh_token;
-										body = Buffer.from(JSON.stringify(json));
-									}
-								} catch {
-									// non-JSON or parse error — pass through unchanged.
-								}
-							}
-							res.end(body);
 						});
-					});
+					}
+				},
+				'/avatars': {
+					target: 'http://localhost:8080',
+					changeOrigin: false,
+					configure: (proxy) => {
+						proxy.on('proxyReq', (proxyReq, req) => {
+							const token = readBearerFromCookie(req, ACCESS_COOKIE_NAME);
+							if (token && !proxyReq.getHeader('authorization')) {
+								proxyReq.setHeader('Authorization', `Bearer ${token}`);
+							}
+						});
+					}
+				},
+				'/auth': {
+					target: 'http://localhost:9999',
+					changeOrigin: false,
+					rewrite: (p) => p.replace(/^\/auth/, ''),
+					// `bypass` runs before `rewrite`, so `req.url` is still the
+					// original `/auth/...` here. Returning a string short-circuits
+					// the proxy entirely and lets SvelteKit's router serve the
+					// page (e.g. `/auth/callback?token=…`); see auth-paths.ts.
+					bypass: (req) => (isSegmentMatch(req.url, PUBLIC_AUTH_PATHS) ? req.url : undefined),
+					selfHandleResponse: true,
+					configure: (proxy) => {
+						proxy.on('proxyReq', (proxyReq, req) => {
+							// Narrowed to BEARER_AUTH_PATHS — see auth-paths.ts.
+							// `cairnOriginalUrl` is consulted because Vite's `rewrite`
+							// mutates `req.url` before this handler fires.
+							if (!isSegmentMatch(req.cairnOriginalUrl ?? req.url, BEARER_AUTH_PATHS)) {
+								return;
+							}
+							// Read the short-lived access cookie — the durable cookie now
+							// holds a refresh token GoTrue's /user would reject.
+							const token = readBearerFromCookie(req, ACCESS_COOKIE_NAME);
+							if (token && !proxyReq.getHeader('authorization')) {
+								proxyReq.setHeader('Authorization', `Bearer ${token}`);
+							}
+						});
+						proxy.on('proxyRes', (proxyRes, req: IncomingMessage, res: ServerResponse) => {
+							const chunks: Buffer[] = [];
+							proxyRes.on('data', (c: Buffer) => chunks.push(c));
+							// async so the cookie-plant branch can enrich the user with the
+							// username (a PostgREST lookup) before forwarding; http-proxy
+							// ignores the returned promise and `res.end(body)` still runs last.
+							proxyRes.on('end', async () => {
+								let body = Buffer.concat(chunks);
+								for (const [k, v] of Object.entries(proxyRes.headers)) {
+									if (v === undefined) continue;
+									// Skip content-length so Node recomputes it from the
+									// (possibly rewritten) body in `res.end(body)`.
+									if (k.toLowerCase() === 'content-length') continue;
+									res.setHeader(k, v as string | string[]);
+								}
+								res.statusCode = proxyRes.statusCode ?? 502;
+								const ct = String(proxyRes.headers['content-type'] ?? '');
+								if (ct.includes('application/json') && proxyRes.statusCode === 200) {
+									try {
+										const json = JSON.parse(body.toString('utf8'));
+										// Cookie-plant is narrowed to deliberate-login
+										// endpoints (auth-paths.ts COOKIE_PLANT_PATHS).
+										// `cairnOriginalUrl` is the original `/auth/...`
+										// since `rewrite` mutated `req.url` before we got here.
+										if (
+											typeof json?.access_token === 'string' &&
+											typeof json?.refresh_token === 'string' &&
+											isSegmentMatch(req.cairnOriginalUrl ?? req.url, COOKIE_PLANT_PATHS)
+										) {
+											// Plant BOTH cookies: refresh token in the durable
+											// cookie, access JWT in the short-lived one. Mirrors
+											// plantSession() in auth-proxy/src/lib/cookies.ts.
+											// append — preserves any upstream Set-Cookie the header-copy loop already forwarded
+											res.appendHeader(
+												'set-cookie',
+												sessionCookie(COOKIE_NAME, json.refresh_token)
+											);
+											res.appendHeader(
+												'set-cookie',
+												sessionCookie(ACCESS_COOKIE_NAME, json.access_token)
+											);
+											// Enrich the forwarded user with the username (Task 3.4),
+											// using the freshly planted access token, before tokens
+											// are stripped below.
+											json.user = await enrichDevUser(json.user, json.access_token);
+										}
+										// strip tokens unconditionally — JS has no use for them; cookie is the source of truth (docs/architecture.md:145, :233)
+										if (
+											typeof json?.access_token === 'string' ||
+											typeof json?.refresh_token === 'string'
+										) {
+											delete json.access_token;
+											delete json.refresh_token;
+											body = Buffer.from(JSON.stringify(json));
+										}
+									} catch {
+										// non-JSON or parse error — pass through unchanged.
+									}
+								}
+								res.end(body);
+							});
+						});
+					}
 				}
 			}
 		}
-	}
+	};
 });
