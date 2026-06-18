@@ -942,10 +942,10 @@ emailed code, from Settings.
   `recoveryEmail` (the 3.1 field) so the mounted row reads deterministically under the
   existing `SettingsScreen` test mock.
 
-### [ ] 3.3 Forgot-password + reset-password screens, routes, and guard
+### [x] 3.3 Forgot-password + reset-password screens, routes, and guard
 
 **Created:** 2026-06-17T19:02:51Z
-**Completed:**
+**Completed:** 2026-06-18T12:43:01Z
 
 **Why:** R4/R5's signed-out surface: request a reset by username (anti-enumeration
 constant screen) and set a new password from the code, then sign in.
@@ -1015,6 +1015,22 @@ constant screen) and set a new password from the code, then sign in.
    the new route IDs and the drift between auth-path copies).
 
 **Verify:** `cd web && pnpm test && pnpm lint && pnpm check`
+
+**Notes:**
+
+- **Dropped `required` from the ResetPassword username/password fields.** The
+  "fall back to /auth/forgot-password when submitted with no username" branch is
+  unreachable with a `required` username: native constraint validation blocks the
+  submit event before the handler runs (confirmed by a red test). Submission is fully
+  gated in JS instead (`canSubmit` + the explicit empty-username check), so the native
+  attributes were redundant as well as obstructive. Commented at the field.
+- The ResetPassword inline-error copy covers both a bad/expired code **and** a too-short
+  password, since the BFF maps the too-short case (a correct code with a short password)
+  to a 400 as well — both land on the same inline message, transient (≥500) on the
+  snackbar.
+- Verified the `auth-proxy` drift guard (`test/auth-paths-drift.test.ts`) stays green
+  after appending the two routes to both copies of `PUBLIC_AUTH_PATHS` /
+  `SIGNED_IN_REDIRECT_PATHS`.
 
 ## Phase 4 — e2e canary
 
