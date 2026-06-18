@@ -406,19 +406,13 @@ async function handleDevRegister(req: IncomingMessage, res: ServerResponse): Pro
 // Dev-only minimal SMTP send to Mailpit (localhost:1025, no auth/TLS). The prod
 // BFF sends via nodemailer (auth-proxy/src/lib/mail.ts); a tiny dependency-free
 // dialogue is enough here since Mailpit accepts plain unauthenticated SMTP, and
-// it keeps the web package free of a mail dependency. The copy mirrors
-// verifyEmailMessage() in mail.ts. Resolves once the message is accepted.
-function sendDevRecoveryMail(to: string, code: string): Promise<void> {
+// it keeps the web package free of a mail dependency. Takes the subject + body so
+// both the verify (verifyEmailMessage) and reset (resetPasswordMessage) copy can
+// be sent. Resolves once the message is accepted.
+function sendDevMail(to: string, subject: string, text: string): Promise<void> {
 	const from = 'no-reply@cairn.local';
 	const message =
-		`From: Cairn <${from}>\r\n` +
-		`To: <${to}>\r\n` +
-		'Subject: Confirm your recovery e-mail\r\n' +
-		'\r\n' +
-		'Someone asked to add this address as a recovery e-mail for a Cairn account.\r\n\r\n' +
-		`Your confirmation code is: ${code}\r\n\r\n` +
-		'Enter it in Cairn to confirm this address. The code expires in one hour.\r\n\r\n' +
-		"If you didn't ask for this, you can safely ignore this e-mail.\r\n";
+		`From: Cairn <${from}>\r\n` + `To: <${to}>\r\n` + `Subject: ${subject}\r\n` + '\r\n' + text;
 	// One command per server response; HELO (not EHLO) so each step gets a single
 	// reply line. The body's leading dots are stuffed and a lone "." terminates DATA.
 	const steps = [
@@ -444,6 +438,40 @@ function sendDevRecoveryMail(to: string, code: string): Promise<void> {
 		socket.on('error', reject);
 		socket.on('end', resolve);
 	});
+}
+
+// Dev copies of the two mail bodies (mirrors verifyEmailMessage /
+// resetPasswordMessage in auth-proxy/src/lib/mail.ts — the web package can't import
+// across the package boundary, so the copy is duplicated like the other dev
+// mirrors). `\r\n` line endings for the SMTP dialogue.
+function verifyMailBody(code: string): { subject: string; text: string } {
+	return {
+		subject: 'Confirm your recovery e-mail',
+		text:
+			'Someone asked to add this address as a recovery e-mail for a Cairn account.\r\n\r\n' +
+			`Your confirmation code is: ${code}\r\n\r\n` +
+			'Enter it in Cairn to confirm this address. The code expires in one hour.\r\n\r\n' +
+			"If you didn't ask for this, you can safely ignore this e-mail.\r\n"
+	};
+}
+
+function resetMailBody(code: string): { subject: string; text: string } {
+	return {
+		subject: 'Reset your Cairn password',
+		text:
+			'Someone asked to reset the password for a Cairn account linked to this address.\r\n\r\n' +
+			`Your reset code is: ${code}\r\n\r\n` +
+			'Enter it in Cairn to set a new password. The code expires in one hour.\r\n\r\n' +
+			"If you didn't ask for this, you can safely ignore this e-mail — your password will not change.\r\n"
+	};
+}
+
+// The dev scoped-role JWT for the signed-out reset RPCs (request_password_reset /
+// reset_password), which are granted only to cairn_auth_bff — anon cannot reach
+// them. Mirrors bffJwt() in auth-proxy/src/lib/recovery.ts; Task 2.4 provisions the
+// value via .env.
+function bffJwt(): string {
+	return process.env.AUTH_BFF_DB_JWT ?? '';
 }
 
 // Dev mirror of the prod POST /auth/recovery-email handler (auth-proxy/src/index.ts):
@@ -509,7 +537,8 @@ async function handleDevRecoveryEmail(req: IncomingMessage, res: ServerResponse)
 		return;
 	}
 	try {
-		await sendDevRecoveryMail(email, code);
+		const { subject, text } = verifyMailBody(code);
+		await sendDevMail(email, subject, text);
 	} catch {
 		res.statusCode = 502;
 		res.end(JSON.stringify({ error: 'could not send recovery e-mail' }));
@@ -567,6 +596,114 @@ async function handleDevRecoveryConfirm(req: IncomingMessage, res: ServerRespons
 	} else {
 		res.statusCode = 502;
 		res.end(JSON.stringify({ error: 'upstream auth service unavailable' }));
+	}
+}
+
+// Dev mirror of the prod POST /auth/forgot-password handler (auth-proxy/src/index.ts):
+// signed-out reset request by username. Anti-enumeration is timing parity — emit the
+// constant 200 FIRST, then run the scoped lookup-and-send entirely after responding
+// (fire-and-forget) so an account with a recovery e-mail isn't measurably slower. The
+// reset RPCs are granted only to cairn_auth_bff, so the dev handler attaches the dev
+// scoped-role JWT. The prod per-IP throttle is BFF-only (dev-parity exception).
+async function handleDevForgotPassword(req: IncomingMessage, res: ServerResponse): Promise<void> {
+	let body: { username?: unknown };
+	try {
+		body = JSON.parse(await readRequestBody(req)) as typeof body;
+	} catch {
+		res.statusCode = 400;
+		res.end(JSON.stringify({ error: 'invalid request' }));
+		return;
+	}
+	const username = typeof body.username === 'string' ? body.username : '';
+	if (!username) {
+		res.statusCode = 400;
+		res.end(JSON.stringify({ error: 'invalid request' }));
+		return;
+	}
+
+	const code = String(randomInt(0, 1_000_000)).padStart(6, '0');
+	const codeHash = createHash('sha256').update(code, 'utf8').digest('hex');
+
+	// Respond before the lookup/send — neither sits on the response's critical path.
+	res.statusCode = 200;
+	res.end(JSON.stringify({ ok: true }));
+
+	void (async () => {
+		try {
+			const r = await fetch(`${POSTGREST_DEV_URL}/rpc/request_password_reset`, {
+				method: 'POST',
+				headers: { 'content-type': 'application/json', Authorization: `Bearer ${bffJwt()}` },
+				body: JSON.stringify({ p_username: username, p_code_hash: codeHash })
+			});
+			if (!r.ok) return;
+			const email = (await r.json().catch(() => null)) as unknown;
+			if (typeof email === 'string') {
+				const { subject, text } = resetMailBody(code);
+				await sendDevMail(email, subject, text);
+			}
+		} catch {
+			// Swallow — the caller already got the constant 200.
+		}
+	})();
+}
+
+// Dev mirror of the prod POST /auth/reset-password handler (auth-proxy/src/index.ts):
+// set a new password from a code (no session). Pre-checks the minimum length, then
+// calls reset_password via the scoped role; maps 'ok'→200, collapses 'invalid'/'locked'
+// to one generic error, and maps a raised 23514 to the minimum-length error. No cookie
+// is planted (the user signs in afterwards).
+async function handleDevResetPassword(req: IncomingMessage, res: ServerResponse): Promise<void> {
+	let body: { username?: unknown; code?: unknown; new_password?: unknown };
+	try {
+		body = JSON.parse(await readRequestBody(req)) as typeof body;
+	} catch {
+		res.statusCode = 400;
+		res.end(JSON.stringify({ error: 'invalid request' }));
+		return;
+	}
+	const username = typeof body.username === 'string' ? body.username : '';
+	const code = typeof body.code === 'string' ? body.code : '';
+	const newPassword = typeof body.new_password === 'string' ? body.new_password : '';
+	if (!username || !code || !newPassword) {
+		res.statusCode = 400;
+		res.end(JSON.stringify({ error: 'invalid request' }));
+		return;
+	}
+	if (newPassword.length < 8) {
+		res.statusCode = 400;
+		res.end(JSON.stringify({ error: 'password too short' }));
+		return;
+	}
+
+	const codeHash = createHash('sha256').update(code, 'utf8').digest('hex');
+	const r = await fetch(`${POSTGREST_DEV_URL}/rpc/reset_password`, {
+		method: 'POST',
+		headers: { 'content-type': 'application/json', Authorization: `Bearer ${bffJwt()}` },
+		body: JSON.stringify({
+			p_username: username,
+			p_code_hash: codeHash,
+			p_new_password: newPassword
+		})
+	});
+	if (!r.ok) {
+		const errCode = (await r.json().catch(() => ({}) as { code?: string })).code;
+		if (errCode === '23514') {
+			res.statusCode = 400;
+			res.end(JSON.stringify({ error: 'password too short' }));
+		} else {
+			res.statusCode = 502;
+			res.end(JSON.stringify({ error: 'upstream auth service unavailable' }));
+		}
+		return;
+	}
+	const status = (await r.json().catch(() => null)) as unknown;
+	if (status === 'ok') {
+		res.statusCode = 200;
+		res.end(JSON.stringify({ ok: true }));
+	} else {
+		// Collapse 'invalid' and 'locked' to one generic error (R5/R8).
+		res.statusCode = 400;
+		res.end(JSON.stringify({ error: 'invalid or expired code' }));
 	}
 }
 
@@ -672,6 +809,29 @@ export default defineConfig({
 						return;
 					}
 					void handleDevRecoveryEmail(req, res);
+				});
+				// Signed-out recovery — dev mirror of the prod /auth/forgot-password +
+				// /auth/reset-password handlers (auth-proxy/src/index.ts). Behind the CSRF
+				// gate for dev/prod parity; both reach the scoped reset RPCs.
+				server.middlewares.use((req, res, next) => {
+					const path = req.url?.split('?')[0];
+					if (
+						(path !== '/auth/forgot-password' && path !== '/auth/reset-password') ||
+						req.method !== 'POST'
+					) {
+						next();
+						return;
+					}
+					if (!hasCsrfHeader(req)) {
+						res.statusCode = 403;
+						res.end(JSON.stringify({ error: 'missing csrf header' }));
+						return;
+					}
+					if (path === '/auth/forgot-password') {
+						void handleDevForgotPassword(req, res);
+						return;
+					}
+					void handleDevResetPassword(req, res);
 				});
 				// R6 lockdown (dev parity): the public GoTrue password grant must be
 				// unreachable; the only password-grant path is /auth/signin above.

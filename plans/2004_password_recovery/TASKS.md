@@ -617,10 +617,31 @@ e-mail and confirms ownership with the emailed code.
   is duplicated from `mail.ts`'s `verifyEmailMessage`, matching the other dev
   mirrors that duplicate prod logic.
 
-### [ ] 2.3 Forgot-password + reset-password endpoints (signed-out, scoped role)
+### [x] 2.3 Forgot-password + reset-password endpoints (signed-out, scoped role)
 
 **Created:** 2026-06-17T19:02:51Z
-**Completed:**
+**Completed:** 2026-06-18T10:58:11Z
+
+**Notes:**
+
+- `forgotPasswordHandler` is **synchronous** (returns `void`, not `Promise`): all
+  the awaited work (lookup + send) lives in the fire-and-forget IIFE that runs after
+  the constant 200, so the handler body itself has no top-level await and ESLint's
+  `require-await` rejects an `async` with no `await`. The dispatch calls it without
+  `await`. This is the natural shape of the R5 timing-parity requirement.
+- **Test hygiene for the fire-and-forget path:** the forgot lookup/send fire after
+  the response, so a background `request_password_reset` call can land in the stub
+  across a test boundary and pollute the next test's `pgReqs`. Each forgot test that
+  triggers a lookup now `vi.waitFor`s its own background call to land before
+  finishing (and the "never resolves" test holds the stub response, released in
+  `afterEach`), so `beforeEach` clears a settled `pgReqs`.
+- **Dev mirror:** generalized `sendDevRecoveryMail(to, code)` → `sendDevMail(to,
+  subject, text)` and extracted `verifyMailBody` / `resetMailBody` copy builders (the
+  dev reset send needs the reset copy, not the verify copy). Added a `bffJwt()` reader
+  for `AUTH_BFF_DB_JWT` — the dev forgot/reset handlers attach it because the reset
+  RPCs are granted only to `cairn_auth_bff`. **Task 2.4 still owns provisioning that
+  dev JWT** (and `.env` wiring); without it the dev forgot/reset path can't reach the
+  scoped RPCs, but that is the documented 2.4 dependency.
 
 **Why:** The signed-out half (R4, R5, R6, R7, R8): request a reset by username (code to
 the on-file address only, constant response), then set a new password from the code —
