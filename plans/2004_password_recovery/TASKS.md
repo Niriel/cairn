@@ -114,7 +114,7 @@ agree with `REQUIREMENTS.md`.
 - **Two existing tests lock in the old table-wide grant and must be updated in this same
   task, or the suite goes red** (verified):
   - `db/tests/grants.sql:54-55` asserts `has_table_privilege('authenticated',
-    'public.user_settings', 'UPDATE')` is **true**. Under a column-only grant this flips
+'public.user_settings', 'UPDATE')` is **true**. Under a column-only grant this flips
     to **false** (`has_table_privilege` ignores column grants), so the assertion fails.
     Rework it to assert the new reality: `authenticated` has **no** table-level UPDATE,
     `has_column_privilege('authenticated','public.user_settings','invite_policy','UPDATE')`
@@ -220,14 +220,27 @@ NOT NULL DEFAULT now()`. Index `(user_id, purpose, created_at)` (serves both the
     `verify_recovery_email` token (`email=p_email`, `code_hash=p_code_hash`,
     `expires_at=now()+interval '1 hour'`). The BFF passes a hash, not the plaintext
     code (keeps the code out of DB query logs).
-  - `confirm_recovery_email(p_code_hash text) RETURNS void` — find the caller's newest
-    unconsumed, unexpired `verify_recovery_email` token; **before comparing the hash,
-    reject if `attempts >= 5`** (the submission-attempt cap — treat an over-cap token as
-    spent so a 10^6 code space cannot be brute-forced; this is the load-bearing R8
-    defence, not the send caps above); on a `code_hash` match set
-    `user_settings.recovery_email = token.email` and `consumed_at = now()`; on miss
-    bump `attempts` and raise a distinguishable "invalid or expired code" (`28000`/a
-    chosen SQLSTATE).
+  - `confirm_recovery_email(p_code_hash text) RETURNS text` — returns a status string
+    (`'ok'` | `'invalid'` | `'locked'`) that the BFF maps to HTTP (R3 lets the Settings
+    UI surface the failure). **Return-not-raise is load-bearing, not a style choice:**
+    PostgREST runs each RPC in its own transaction and rolls back on a raised error, so a
+    wrong-code path that `RAISE`d would roll back its _own_ `attempts` bump — the
+    submission-attempt cap would never persist and the brute-force defence (R8) would be
+    a no-op (verified: an `UPDATE … +1` followed by `RAISE` in the same function leaves
+    the counter at its prior value). So every outcome that must persist a side effect
+    _commits_ by returning a status; only errors with nothing to persist (`uid()` NULL /
+    tombstone) still `RAISE 28000`. Body: select the caller's newest unconsumed,
+    unexpired `verify_recovery_email` token **`FOR UPDATE`** (serialising concurrent
+    guesses so the `attempts` check can't be raced past); if none, return `'invalid'`.
+    **Before comparing the hash, if `attempts >= 5`**, mark the token consumed and return
+    `'locked'` (the submission-attempt cap — treat an over-cap token as spent so a 10^6
+    code space cannot be brute-forced; load-bearing R8, not the send caps above). On a
+    `code_hash` match set `user_settings.recovery_email = token.email`,
+    `consumed_at = now()`, return `'ok'`. On a miss do `UPDATE … attempts = attempts + 1`
+    and return `'invalid'` (the bump commits — that is the whole point). The plaintext
+    code never reaches the DB — only the hash does (log hygiene); note a SHA-256 of a
+    6-digit code has ~no preimage resistance, so the hash is **not** at-rest secrecy
+    (that comes from `auth_private` being unreachable), and the comment should say so.
 - The pgTAP stub already carries the columns these touch; `recovery_email` write goes
   through the owner via `SECURITY DEFINER`, so it is unaffected by 1.1's grant.
 
@@ -243,18 +256,24 @@ NOT NULL DEFAULT now()`. Index `(user_id, purpose, created_at)` (serves both the
 
 1. RED — Create `db/tests/recovery_verify.sql` with `plan(N)`: (a) positive — after
    `request_recovery_email_verification` + `confirm_recovery_email` with the matching
-   hash, the caller's `recovery_email` equals the submitted address and the token is
-   consumed; (b) negative — a wrong `code_hash` does not set `recovery_email` and
-   raises; (c) negative — an expired token is rejected; (d) negative — a consumed token
-   cannot be reused; (e) one caller cannot confirm another caller's pending token; (f)
-   grant assertion — `cairn_auth_bff` exists and `authenticated` has EXECUTE on both
-   verify RPCs while `anon` does not; (g) negative — neither `authenticated` nor `anon`
-   has `USAGE` on schema `auth_private` (`has_schema_privilege(...,'auth_private','USAGE')`
-   is false), so `auth_private.recovery_tokens` is unreachable by them — plus the deny-all
-   RLS as belt-and-suspenders; (h) negative — the per-account verify-send cap rejects an
-   over-limit send for the same caller; (i) negative — the **submission-attempt cap**:
-   after 5 wrong `confirm_recovery_email` submissions against a token, a 6th call with
-   the **correct** hash is still rejected and `recovery_email` is not set.
+   hash, `confirm_recovery_email` returns `'ok'`, the caller's `recovery_email` equals
+   the submitted address, and the token is consumed; (b) negative — a wrong `code_hash`
+   returns `'invalid'`, does not set `recovery_email`, and **bumps `attempts`** (assert
+   the increment persisted — the return-not-raise property); (c) negative — an expired
+   token returns `'invalid'` and does not set `recovery_email`; (d) negative — a consumed
+   token cannot be reused (returns `'invalid'`); (e) one caller cannot confirm another
+   caller's pending token (returns `'invalid'`); (f) grant assertion — `cairn_auth_bff`
+   exists and `authenticated` has EXECUTE on both verify RPCs while `anon` does not; (g)
+   negative — neither `authenticated` nor `anon` has `USAGE` on schema `auth_private`
+   (`has_schema_privilege(...,'auth_private','USAGE')` is false), so
+   `auth_private.recovery_tokens` is unreachable by them — plus the deny-all RLS as
+   belt-and-suspenders; (h) negative — the per-account verify-send cap rejects an
+   over-limit send for the same caller (raises — nothing to persist on a refused send);
+   (i) negative — the **submission-attempt cap persists across calls** (the property the
+   return-not-raise shape exists to guarantee): 5 wrong `confirm_recovery_email` calls
+   each return `'invalid'` and the durable `attempts` count reaches 5 (a raising design
+   would leave it at 0); a 6th call with the **correct** hash returns `'locked'` and
+   `recovery_email` is not set.
 2. RED — `./scripts/test-db.sh`; confirm red (table/role/RPCs absent).
 3. GREEN — Append the `auth_private` schema, the `auth_private.recovery_tokens` table,
    the `cairn_auth_bff` role (+ its `USAGE ON SCHEMA public` grant), and the two verify
@@ -290,13 +309,16 @@ is enabled (`db/migrations/0001_init.sql:9`); `resolve_username` exists
   (Returning the address is safe **only** because the RPC is granted to the scoped role,
   not anon — see grant below.) Reference the token table by its fully-qualified name
   `auth_private.recovery_tokens` (Task 1.2's private schema; do not widen `search_path`).
-- `reset_password(p_username text, p_code_hash text, p_new_password text) RETURNS void`
-  — `SECURITY DEFINER`, `SET search_path = public, auth`. Resolve username → uid; find
-  the newest unconsumed, unexpired `auth_private.recovery_tokens` row with
-  `purpose = 'reset_password'` for that uid (fully-qualified — do not widen
-  `search_path`); **before comparing the hash, reject if `attempts >= 5`** (the same
-  submission-attempt cap as `confirm_recovery_email`, load-bearing for R8 on this
-  password-setting path); on a `code_hash` match, enforce the **8-character** password
+- `reset_password(p_username text, p_code_hash text, p_new_password text) RETURNS text`
+  — `SECURITY DEFINER`, `SET search_path = public, auth`, returning the same status
+  string as `confirm_recovery_email` (`'ok'` | `'invalid'` | `'locked'`) for the same
+  return-not-raise reason (a raised wrong-code path would roll back its own `attempts`
+  bump, defeating R8). Resolve username → uid; select the newest unconsumed, unexpired
+  `auth_private.recovery_tokens` row with `purpose = 'reset_password'` for that uid
+  **`FOR UPDATE`** (fully-qualified — do not widen `search_path`); if none, return
+  `'invalid'`. **Before comparing the hash, if `attempts >= 5`**, mark the token consumed
+  and return `'locked'` (the same submission-attempt cap as `confirm_recovery_email`,
+  load-bearing for R8 on this password-setting path). On a `code_hash` match, enforce the **8-character** password
   minimum length (this is the authoritative re-check — the same value the BFF enforces as
   `MIN_PASSWORD_LENGTH = 8` in `auth-proxy/src/index.ts`; the figure `8` is duplicated
   across **five** sites — this DB RPC, the BFF register flow + reset endpoint (2.3,
@@ -304,8 +326,11 @@ is enabled (`db/migrations/0001_init.sql:9`); `resolve_username` exists
   (`web/vite.config.ts:305` and the new one in 2.3) — with no shared const across the
   web/auth-proxy boundary, so all five must be kept in lockstep by hand) and set
   `auth.users.encrypted_password = crypt(p_new_password, gen_salt('bf'))`, then
-  `consumed_at = now()`; on miss bump `attempts` and raise "invalid or expired code".
-  Mints **no** session. Writing `auth.users` via `SECURITY DEFINER` follows the
+  `consumed_at = now()`, and return `'ok'`. A correct code but a too-short password is
+  the one match-path error with nothing to persist — `RAISE 23514` (the token is **not**
+  consumed, so the user can retry with a longer password). On a hash miss do
+  `UPDATE … attempts = attempts + 1` and return `'invalid'` (the bump commits). Mints
+  **no** session. Writing `auth.users` via `SECURITY DEFINER` follows the
   `adopt_stable_identity` precedent (`db/migrations/0020_username_auth.sql:75-116`).
   Note: `p_new_password` arrives in plaintext as an RPC argument (unavoidable — the
   pgcrypto `crypt()` must run in the DB per R6), so it crosses the PostgREST→Postgres
@@ -331,13 +356,16 @@ is enabled (`db/migrations/0001_init.sql:9`); `resolve_username` exists
    with a verified `recovery_email`, `request_password_reset` returns that address and
    creates a token; (b) `request_password_reset` returns NULL for an unknown username
    and for a user with no `recovery_email` (no token created); (c) positive —
-   `reset_password` with the matching hash changes `encrypted_password` to a value that
-   verifies against `crypt(new_pw, encrypted_password)` and consumes the token; (d)
-   negative — wrong/expired/consumed code is rejected and does not change the password;
-   (e) negative — a too-short password is rejected; (f) grant assertion — `cairn_auth_bff`
-   has EXECUTE on both RPCs while `anon` and `authenticated` do **not**; (g) negative —
-   the **submission-attempt cap**: after 5 wrong `reset_password` submissions, a 6th call
-   with the **correct** code is still rejected and `encrypted_password` is unchanged.
+   `reset_password` with the matching hash returns `'ok'`, changes `encrypted_password`
+   to a value that verifies against `crypt(new_pw, encrypted_password)`, and consumes the
+   token; (d) negative — a wrong/expired/consumed code returns `'invalid'` and does not
+   change the password; (e) negative — a correct code with a too-short password raises
+   `23514` and leaves the token **unconsumed** (the user can retry); (f) grant assertion
+   — `cairn_auth_bff` has EXECUTE on both RPCs while `anon` and `authenticated` do
+   **not**; (g) negative — the **submission-attempt cap persists across calls**: 5 wrong
+   `reset_password` calls each return `'invalid'` and the durable `attempts` count reaches
+   5, then a 6th call with the **correct** code returns `'locked'` and `encrypted_password`
+   is unchanged.
 2. RED — `./scripts/test-db.sh`; confirm red.
 3. GREEN — Append the two reset RPCs and their `cairn_auth_bff`-only grants to
    `0021_password_recovery.sql`.
@@ -410,8 +438,11 @@ e-mail and confirms ownership with the emailed code.
   bearer, as for `set_username`): `POST /auth/recovery-email` `{email}` → generate code,
   `request_recovery_email_verification(email, hash)` [user bearer], SMTP the code to
   `email`, `200`. `POST /auth/recovery-email/confirm` `{code}` →
-  `confirm_recovery_email(hash)` [user bearer], `200` on success or a `4xx` the UI maps
-  to "that code is incorrect or expired." Removal is `POST /auth/recovery-email` with
+  `confirm_recovery_email(hash)` [user bearer], which **returns a status string**
+  (`'ok'` | `'invalid'` | `'locked'`) — the BFF reads that value (the RPC commits its
+  `attempts` bump rather than raising, so there is no SQLSTATE to catch) and replies
+  `200` on `'ok'`, else a `4xx` the UI maps to "that code is incorrect or expired"
+  (`'invalid'`) or "too many attempts — request a new code" (`'locked'`). Removal is `POST /auth/recovery-email` with
   `{remove:true}` (**POST, not `DELETE`** — pinned here so the prod Caddy POST-only
   matcher in Task 2.4 and the `postJson`-based `removeRecoveryEmail()` client in Task 3.1
   all agree), clearing the address via an authenticated path (not by re-opening the
@@ -431,7 +462,7 @@ e-mail and confirms ownership with the emailed code.
   routes. **Add no new exported const to `auth-paths.ts`**: `auth-paths-drift.test.ts`
   pins the exact set of six export names (`auth-paths-drift.test.ts:51-58`), so a new
   const would fail the anchor. (The only `auth-paths.ts` edit in this whole plan is the
-  two public *page* routes in Task 3.3.)
+  two public _page_ routes in Task 3.3.)
 - **Dev mirror:** mirror the handlers in the dev Vite proxy `web/vite.config.ts` as
   local path checks (like the existing `'/auth/signin'` middleware), including the SMTP
   send to Mailpit at `localhost:1025`. `auth-proxy/test/auth-paths-drift.test.ts` must
@@ -485,16 +516,20 @@ in-memory `RateLimiter` and `constantShapeFailure` exist
   oracle R5 forbids. The requirement is **timing parity**, not just an identical body:
   neither the lookup nor the send sits on the response's critical path.
 - `POST /auth/reset-password` `{username, code, new_password}` (CSRF, no session):
-  per-IP throttle; `reset_password(username, hash, new_password)` via the scoped role;
-  `200` on success, a generic "invalid or expired code" otherwise. No cookies are
-  planted — the user signs in afterwards (R6).
+  per-IP throttle; `reset_password(username, hash, new_password)` via the scoped role.
+  The RPC **returns a status string** (`'ok'` | `'invalid'` | `'locked'`); the BFF
+  replies `200` on `'ok'` and **collapses `'invalid'` and `'locked'` to one generic
+  "invalid or expired code"** (R5/R8 — the signed-out path reveals less than the
+  authenticated confirm path). A raised `23514` (correct code, too-short password) maps
+  to the same minimum-length error the register flow returns. No cookies are planted —
+  the user signs in afterwards (R6).
 - Enforce the same password minimum length the register flow uses, for fast feedback
   (the RPC re-checks authoritatively).
 - **Where the endpoint paths live (as in 2.2):** the forgot/reset BFF endpoints are
   matched as **local path consts in `index.ts`** (like `SIGNIN_PATH`) and added to its
   local `CSRF_PROTECTED_PATHS`; mirror them in `web/vite.config.ts` as local path
   checks. They do **not** join the shared `auth-paths.ts` lists and introduce **no new
-  exported const** (the drift-test anchor). The *web page* routes
+  exported const** (the drift-test anchor). The _web page_ routes
   `/auth/forgot-password` + `/auth/reset-password` are added to `PUBLIC_AUTH_PATHS` +
   `SIGNED_IN_REDIRECT_PATHS` in **Task 3.3**, when those route pages exist — not here
   (in Phase 2 the pages don't exist yet, so adding them now would point the dev proxy's
