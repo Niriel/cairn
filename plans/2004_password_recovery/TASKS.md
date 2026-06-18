@@ -298,10 +298,10 @@ NOT NULL DEFAULT now()`. Index `(user_id, purpose, created_at)` (serves both the
 
 **Verify:** `./scripts/test-db.sh`
 
-### [ ] 1.3 Reset-flow RPCs (`request_password_reset`, `reset_password`) + pgTAP
+### [x] 1.3 Reset-flow RPCs (`request_password_reset`, `reset_password`) + pgTAP
 
 **Created:** 2026-06-17T19:02:51Z
-**Completed:**
+**Completed:** 2026-06-18T09:33:49Z
 
 **Why:** The signed-out reset (R4, R6): resolve a username to its on-file recovery
 address, mint a reset token, and — on a valid code — set a new password via pgcrypto
