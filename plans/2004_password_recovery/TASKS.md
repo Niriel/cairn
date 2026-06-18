@@ -391,10 +391,26 @@ is enabled (`db/migrations/0001_init.sql:9`); `resolve_username` exists
 
 ## Phase 2 — BFF + dev proxy
 
-### [ ] 2.1 SMTP mailer, scoped-role client, and code helpers in the BFF
+### [x] 2.1 SMTP mailer, scoped-role client, and code helpers in the BFF
 
 **Created:** 2026-06-17T19:02:51Z
-**Completed:**
+**Completed:** 2026-06-18T09:47:55Z
+
+**Notes:**
+
+- nodemailer ships no bundled types, so `@types/nodemailer` was added to
+  `devDependencies` alongside the `nodemailer` runtime dep (the task only
+  mentioned the runtime dep). Without it the `nodemailer.createTransport` call
+  is untyped `any` and the type-aware ESLint rules red.
+- `mail.ts` separates pure body builders (`verifyEmailMessage` /
+  `resetPasswordMessage`) from the send functions, and uses a `setMailTransport`
+  injection seam (a minimal `MailTransport` interface) so tests record messages
+  without touching SMTP — nodemailer has no env-stub equivalent to the
+  `POSTGREST_URL`/`GOTRUE_URL` pattern the other libs lean on.
+- `recovery.ts` returns discriminated results (`ResetRequestResult` /
+  `ResetResult`) that surface `throttled` (CA429) and `too_short` (23514) so the
+  Phase-2.3 endpoints can map them; the verify-flow RPCs are reached with the
+  user bearer (Task 2.2), not this scoped-role client.
 
 **Why:** The BFF must deliver recovery mail (GoTrue can't reach the real address) and
 call the scoped reset RPCs. This lands the shared plumbing the recovery endpoints
