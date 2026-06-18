@@ -3,15 +3,23 @@
 --
 -- E-mail's only remaining job after the username reversal is recovering a
 -- lost password. This column is its home. There is no new RLS policy and
--- no format CHECK or verification state here — the table's existing
--- owner-only policies (`user_settings_select`/`_update using (id =
--- public.uid())`) make the column structurally private, honouring the
--- `docs/invites.md` "e-mail is never shown" contract. Capturing,
--- verifying, and the reset flow are 2003.
+-- no format CHECK here — the table's existing owner-only policies
+-- (`user_settings_select`/`_update using (id = public.uid())`) make the
+-- column structurally private, honouring the `docs/invites.md` "e-mail is
+-- never shown" contract.
+--
+-- As of 0021 the column is **write-locked through PostgREST**: the
+-- table-wide UPDATE grant is narrowed to `invite_policy`, so a signed-in
+-- user cannot set `recovery_email` directly — it is written only by the
+-- `confirm_recovery_email` RPC after the emailed code is confirmed
+-- (verify-before-effect). The positive "owner has a verified recovery
+-- e-mail" state is therefore proven through that RPC in recovery_verify.sql
+-- (Task 1.2), not by a direct write here.
 --
 -- 3 assertions:
 --   1. Defaults NULL on a freshly seeded settings row.
---   2. The owner can UPDATE it and read it back.
+--   2. A direct UPDATE of `recovery_email` by the owner is now blocked at
+--      the GRANT layer (SQLSTATE 42501) — the lockdown boundary.
 --   3. A different authenticated user cannot read the owner's value
 --      (the row is invisible under `user_settings_select`) — the
 --      privacy negative case.
@@ -41,17 +49,18 @@ SELECT is(
   'recovery_email defaults NULL on a freshly seeded settings row'
 );
 
--- 2. Owner UPDATE positive: Alice sets and reads back her recovery e-mail.
-UPDATE public.user_settings
-SET recovery_email = 'me@example.test'
-WHERE id = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
-SELECT is(
-  (
-    SELECT recovery_email FROM public.user_settings
-    WHERE id = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'
-  ),
-  'me@example.test',
-  'recovery_email owner UPDATE positive: Alice sets and reads it back'
+-- 2. Direct-write lockdown: Alice cannot set recovery_email directly. The
+-- narrowed column grant (0021) gives authenticated UPDATE only on
+-- invite_policy, so this statement is denied at the GRANT layer (42501)
+-- before RLS is consulted. The verified-address path is confirm_recovery_email.
+SELECT throws_ok(
+  $$UPDATE public.user_settings
+    SET recovery_email = 'me@example.test'
+    WHERE id = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'$$,
+  '42501',
+  NULL,
+  'recovery_email direct write is blocked: only confirm_recovery_email '
+  'may set it (verify-before-effect)'
 );
 
 -- 3. Privacy negative: Bob cannot read Alice's recovery e-mail — her row

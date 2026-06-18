@@ -85,10 +85,10 @@ agree with `REQUIREMENTS.md`.
 
 ## Phase 1 — database
 
-### [ ] 1.1 Lock direct writes to `recovery_email` (column-level grant) + pgTAP
+### [x] 1.1 Lock direct writes to `recovery_email` (column-level grant) + pgTAP
 
 **Created:** 2026-06-17T19:02:51Z
-**Completed:**
+**Completed:** 2026-06-18T08:03:57Z
 
 **Why:** R13's verify-before-effect is only real if a signed-in user cannot
 `PATCH /user_settings` to set `recovery_email` directly, bypassing verification. Today

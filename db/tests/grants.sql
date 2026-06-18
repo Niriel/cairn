@@ -4,10 +4,11 @@
 -- so every omission needs a load-bearing negative assertion in
 -- addition to the positive grants.
 --
--- 89 assertions, four groups:
+-- 91 assertions, four groups:
 --
--- A. Positive table/verb matrix for `authenticated` (19) — every
---    granted (table, verb).
+-- A. Positive table/verb matrix for `authenticated` (21) — every
+--    granted (table, verb). user_settings UPDATE is column-level
+--    (invite_policy yes, recovery_email no — the recovery lockdown).
 -- B. Other `authenticated` positives (18) — view SELECTs, function
 --    EXECUTEs (including the new public_list_view RPC), and the
 --    invitations table + invite RPCs.
@@ -29,7 +30,7 @@
 
 BEGIN;
 
-SELECT plan(89);
+SELECT plan(91);
 
 -- ===================================================================
 -- A. Positive matrix for `authenticated`
@@ -45,14 +46,35 @@ SELECT ok(
   'authenticated has UPDATE on public.profiles'
 );
 
--- user_settings: SELECT, UPDATE
+-- user_settings: SELECT (table-wide) + UPDATE narrowed to the
+-- freely-editable column only. 0021 revoked the table-wide UPDATE so a
+-- signed-in user cannot PATCH `recovery_email` directly, bypassing the
+-- verify-before-effect flow — `recovery_email` is writable only by the
+-- confirm_recovery_email RPC (SECURITY DEFINER, runs as owner).
+-- `has_table_privilege(...,'UPDATE')` ignores column grants, so it now
+-- reports false; the column-level reality is asserted with
+-- `has_column_privilege`.
 SELECT ok(
   has_table_privilege('authenticated', 'public.user_settings', 'SELECT'),
   'authenticated has SELECT on public.user_settings'
 );
 SELECT ok(
-  has_table_privilege('authenticated', 'public.user_settings', 'UPDATE'),
-  'authenticated has UPDATE on public.user_settings'
+  NOT has_table_privilege('authenticated', 'public.user_settings', 'UPDATE'),
+  'authenticated has NO table-wide UPDATE on public.user_settings '
+  '(narrowed to a column grant so recovery_email is not directly writable)'
+);
+SELECT ok(
+  has_column_privilege(
+    'authenticated', 'public.user_settings', 'invite_policy', 'UPDATE'
+  ),
+  'authenticated has column-level UPDATE on user_settings.invite_policy'
+);
+SELECT ok(
+  NOT has_column_privilege(
+    'authenticated', 'public.user_settings', 'recovery_email', 'UPDATE'
+  ),
+  'authenticated has NO column-level UPDATE on user_settings.recovery_email '
+  '(load-bearing: the verify-before-effect lockdown)'
 );
 
 -- lists: SELECT, UPDATE (no INSERT — RPC-only; no DELETE — soft-only)
