@@ -254,6 +254,45 @@ $$;
 REVOKE EXECUTE ON FUNCTION public.confirm_recovery_email(text) FROM public;
 GRANT EXECUTE ON FUNCTION public.confirm_recovery_email(text) TO authenticated;
 
+-- clear_recovery_email is the removal counterpart of the set/confirm flow: the
+-- Remove affordance in Settings nulls the on-file address. Task 1.1 narrowed the
+-- authenticated UPDATE grant on user_settings to invite_policy only, so a
+-- signed-in user cannot null recovery_email directly through PostgREST — removal
+-- needs its own authenticated, owner-scoped writer. Unlike SETTING an address
+-- (which must prove ownership before it takes effect), REMOVING one's own
+-- address needs no verification: it only ever reduces what the account can do
+-- (it drops that account's self-serve reset path, which is the user's choice).
+-- The target row is derived from uid(), never a parameter, so a caller can only
+-- clear their OWN address — the same own-row discipline as the verify RPCs.
+-- Clearing when already NULL is a harmless, successful no-op (the UPDATE matches
+-- no non-NULL state to change), so the BFF removal endpoint can call it
+-- unconditionally. Any pending verify token is deliberately left to expire (it
+-- lives in auth_private, is single-use, and expires within the hour) rather than
+-- deleted here — keeping this a single-column write.
+CREATE FUNCTION public.clear_recovery_email()
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_uid uuid := public.uid();
+BEGIN
+  IF v_uid IS NULL THEN
+    RAISE EXCEPTION 'not authenticated' USING errcode = '28000';
+  END IF;
+  IF v_uid = '00000000-0000-0000-0000-000000000000' THEN
+    RAISE EXCEPTION 'cannot act as the tombstone user'
+    USING errcode = '28000';
+  END IF;
+
+  UPDATE public.user_settings SET recovery_email = NULL WHERE id = v_uid;
+END;
+$$;
+
+REVOKE EXECUTE ON FUNCTION public.clear_recovery_email() FROM public;
+GRANT EXECUTE ON FUNCTION public.clear_recovery_email() TO authenticated;
+
 -- 5. The reset-flow RPCs (signed-out): resolve a username to its on-file
 -- recovery e-mail, mail a code, and set a new password from that code — all
 -- without any GoTrue admin credential.

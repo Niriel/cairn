@@ -27,7 +27,7 @@
 
 BEGIN;
 
-SELECT plan(27);
+SELECT plan(34);
 
 \i /db/tests/fixtures/users_alice_bob_carol.sql
 
@@ -378,6 +378,91 @@ SELECT is(
   ),
   NULL,
   'the locked-out token never sets recovery_email'
+);
+
+-- ===================================================================
+-- (j) clear_recovery_email removes the caller's OWN verified address, is an
+--     idempotent no-op when already NULL, only ever touches uid()'s own row,
+--     is EXECUTE-able by authenticated but not anon, and raises for the
+--     tombstone caller. Removing one's own recovery address needs no code —
+--     it only reduces what an account can do (drops the self-serve reset path).
+-- ===================================================================
+-- (j.1) Positive: a signed-in user with a verified address clears it to NULL.
+RESET ROLE;
+DELETE FROM auth_private.recovery_tokens;
+UPDATE public.user_settings SET recovery_email = 'alice@example.test'
+WHERE id = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
+SELECT set_config(
+  'request.jwt.claims', '{"sub":"aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"}', TRUE
+);
+SET LOCAL ROLE authenticated;
+SELECT lives_ok(
+  $$SELECT public.clear_recovery_email()$$,
+  'clear_recovery_email runs for a signed-in user'
+);
+SELECT is(
+  (
+    SELECT recovery_email FROM public.user_settings
+    WHERE id = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'
+  ),
+  NULL,
+  'clear_recovery_email nulls the caller''s recovery_email'
+);
+
+-- (j.2) Idempotent: clearing again when already NULL is a successful no-op.
+SELECT lives_ok(
+  $$SELECT public.clear_recovery_email()$$,
+  'clear_recovery_email is a successful no-op when already NULL'
+);
+
+-- (j.3) Own-row only: Alice clearing her address leaves Bob's untouched.
+RESET ROLE;
+UPDATE public.user_settings SET recovery_email = 'bob@example.test'
+WHERE id = 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb';
+SELECT set_config(
+  'request.jwt.claims', '{"sub":"aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"}', TRUE
+);
+SET LOCAL ROLE authenticated;
+DO $$
+BEGIN
+  PERFORM public.clear_recovery_email();
+END$$;
+RESET ROLE;
+SELECT is(
+  (
+    SELECT recovery_email FROM public.user_settings
+    WHERE id = 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb'
+  ),
+  'bob@example.test',
+  'clear_recovery_email only touches uid()''s own row (another user untouched)'
+);
+
+-- (j.4) Grant: authenticated has EXECUTE; anon does not.
+SELECT ok(
+  has_function_privilege(
+    'authenticated', 'public.clear_recovery_email()', 'EXECUTE'
+  ),
+  'authenticated has EXECUTE on clear_recovery_email'
+);
+SELECT ok(
+  NOT has_function_privilege(
+    'anon', 'public.clear_recovery_email()', 'EXECUTE'
+  ),
+  'anon has NO EXECUTE on clear_recovery_email'
+);
+
+-- (j.5) Guard: the tombstone caller is refused with 28000.
+SELECT set_config(
+  'request.jwt.claims',
+  '{"sub":"00000000-0000-0000-0000-000000000000"}',
+  TRUE
+);
+SET LOCAL ROLE authenticated;
+SELECT throws_ok(
+  $$SELECT public.clear_recovery_email()$$,
+  '28000',
+  NULL,
+  'clear_recovery_email refuses the tombstone caller (28000)'
 );
 
 SELECT finish();

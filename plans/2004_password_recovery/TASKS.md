@@ -389,10 +389,10 @@ is enabled (`db/migrations/0001_init.sql:9`); `resolve_username` exists
 
 **Verify:** `./scripts/test-db.sh`
 
-### [ ] 1.4 `clear_recovery_email` RPC + pgTAP
+### [x] 1.4 `clear_recovery_email` RPC + pgTAP
 
 **Created:** 2026-06-18T10:08:17Z
-**Completed:**
+**Completed:** 2026-06-18T10:18:05Z
 
 **Why:** R3's set/change flow has a counterpart the design always assumed — a user
 removing their recovery e-mail (the **Remove** affordance in Settings, Task 3.2; the
