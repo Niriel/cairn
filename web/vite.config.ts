@@ -1,4 +1,5 @@
-import { randomUUID } from 'node:crypto';
+import { createHash, randomInt, randomUUID } from 'node:crypto';
+import net from 'node:net';
 
 import { sveltekit } from '@sveltejs/kit/vite';
 import { defineConfig } from 'vite';
@@ -402,6 +403,173 @@ async function handleDevRegister(req: IncomingMessage, res: ServerResponse): Pro
 	res.end(JSON.stringify({ user: { id: created.user.id, username } }));
 }
 
+// Dev-only minimal SMTP send to Mailpit (localhost:1025, no auth/TLS). The prod
+// BFF sends via nodemailer (auth-proxy/src/lib/mail.ts); a tiny dependency-free
+// dialogue is enough here since Mailpit accepts plain unauthenticated SMTP, and
+// it keeps the web package free of a mail dependency. The copy mirrors
+// verifyEmailMessage() in mail.ts. Resolves once the message is accepted.
+function sendDevRecoveryMail(to: string, code: string): Promise<void> {
+	const from = 'no-reply@cairn.local';
+	const message =
+		`From: Cairn <${from}>\r\n` +
+		`To: <${to}>\r\n` +
+		'Subject: Confirm your recovery e-mail\r\n' +
+		'\r\n' +
+		'Someone asked to add this address as a recovery e-mail for a Cairn account.\r\n\r\n' +
+		`Your confirmation code is: ${code}\r\n\r\n` +
+		'Enter it in Cairn to confirm this address. The code expires in one hour.\r\n\r\n' +
+		"If you didn't ask for this, you can safely ignore this e-mail.\r\n";
+	// One command per server response; HELO (not EHLO) so each step gets a single
+	// reply line. The body's leading dots are stuffed and a lone "." terminates DATA.
+	const steps = [
+		'HELO localhost',
+		`MAIL FROM:<${from}>`,
+		`RCPT TO:<${to}>`,
+		'DATA',
+		`${message.replace(/\r\n\./g, '\r\n..')}\r\n.`,
+		'QUIT'
+	];
+	return new Promise((resolve, reject) => {
+		const socket = net.createConnection({ host: 'localhost', port: 1025 });
+		socket.setEncoding('utf8');
+		let i = 0;
+		socket.on('data', () => {
+			if (i < steps.length) {
+				socket.write(`${steps[i++]}\r\n`);
+			} else {
+				socket.end();
+				resolve();
+			}
+		});
+		socket.on('error', reject);
+		socket.on('end', resolve);
+	});
+}
+
+// Dev mirror of the prod POST /auth/recovery-email handler (auth-proxy/src/index.ts):
+// the authenticated set/remove path, run under the caller's own access bearer.
+// {remove:true} clears the on-file address (clear_recovery_email, no code/mail);
+// otherwise generate a 6-digit code, record a verify token (passing only its hash),
+// and mail the plaintext to the candidate address.
+async function handleDevRecoveryEmail(req: IncomingMessage, res: ServerResponse): Promise<void> {
+	const token = readBearerFromCookie(req, ACCESS_COOKIE_NAME);
+	if (!token) {
+		res.statusCode = 401;
+		res.end(JSON.stringify({ error: 'no session' }));
+		return;
+	}
+	const bearer = { 'content-type': 'application/json', Authorization: `Bearer ${token}` };
+
+	let body: { email?: unknown; remove?: unknown };
+	try {
+		body = JSON.parse(await readRequestBody(req)) as typeof body;
+	} catch {
+		res.statusCode = 400;
+		res.end(JSON.stringify({ error: 'invalid request' }));
+		return;
+	}
+
+	if (body.remove === true) {
+		const r = await fetch(`${POSTGREST_DEV_URL}/rpc/clear_recovery_email`, {
+			method: 'POST',
+			headers: bearer,
+			body: '{}'
+		});
+		res.statusCode = r.ok ? 200 : 502;
+		res.end(JSON.stringify(r.ok ? { ok: true } : { error: 'upstream auth service unavailable' }));
+		return;
+	}
+
+	const email = typeof body.email === 'string' ? body.email : '';
+	if (!email) {
+		res.statusCode = 400;
+		res.end(JSON.stringify({ error: 'invalid request' }));
+		return;
+	}
+
+	const code = String(randomInt(0, 1_000_000)).padStart(6, '0');
+	const codeHash = createHash('sha256').update(code, 'utf8').digest('hex');
+	const r = await fetch(`${POSTGREST_DEV_URL}/rpc/request_recovery_email_verification`, {
+		method: 'POST',
+		headers: bearer,
+		body: JSON.stringify({ p_email: email, p_code_hash: codeHash })
+	});
+	if (!r.ok) {
+		const errCode = (await r.json().catch(() => ({}) as { code?: string })).code;
+		if (errCode === 'CA429') {
+			res.statusCode = 429;
+			res.end(JSON.stringify({ error: 'too many requests' }));
+		} else if (errCode === '23514') {
+			res.statusCode = 400;
+			res.end(JSON.stringify({ error: 'invalid e-mail' }));
+		} else {
+			res.statusCode = 502;
+			res.end(JSON.stringify({ error: 'upstream auth service unavailable' }));
+		}
+		return;
+	}
+	try {
+		await sendDevRecoveryMail(email, code);
+	} catch {
+		res.statusCode = 502;
+		res.end(JSON.stringify({ error: 'could not send recovery e-mail' }));
+		return;
+	}
+	res.statusCode = 200;
+	res.end(JSON.stringify({ ok: true }));
+}
+
+// Dev mirror of the prod POST /auth/recovery-email/confirm handler: hash the code
+// and redeem it via confirm_recovery_email (which RETURNS a status string), then
+// map 'ok'/'invalid'/'locked' to 200/400/429.
+async function handleDevRecoveryConfirm(req: IncomingMessage, res: ServerResponse): Promise<void> {
+	const token = readBearerFromCookie(req, ACCESS_COOKIE_NAME);
+	if (!token) {
+		res.statusCode = 401;
+		res.end(JSON.stringify({ error: 'no session' }));
+		return;
+	}
+	let body: { code?: unknown };
+	try {
+		body = JSON.parse(await readRequestBody(req)) as typeof body;
+	} catch {
+		res.statusCode = 400;
+		res.end(JSON.stringify({ error: 'invalid request' }));
+		return;
+	}
+	const code = typeof body.code === 'string' ? body.code : '';
+	if (!code) {
+		res.statusCode = 400;
+		res.end(JSON.stringify({ error: 'invalid request' }));
+		return;
+	}
+	const codeHash = createHash('sha256').update(code, 'utf8').digest('hex');
+	const r = await fetch(`${POSTGREST_DEV_URL}/rpc/confirm_recovery_email`, {
+		method: 'POST',
+		headers: { 'content-type': 'application/json', Authorization: `Bearer ${token}` },
+		body: JSON.stringify({ p_code_hash: codeHash })
+	});
+	if (!r.ok) {
+		res.statusCode = 502;
+		res.end(JSON.stringify({ error: 'upstream auth service unavailable' }));
+		return;
+	}
+	const status = (await r.json().catch(() => null)) as unknown;
+	if (status === 'ok') {
+		res.statusCode = 200;
+		res.end(JSON.stringify({ ok: true }));
+	} else if (status === 'invalid') {
+		res.statusCode = 400;
+		res.end(JSON.stringify({ error: 'incorrect or expired code' }));
+	} else if (status === 'locked') {
+		res.statusCode = 429;
+		res.end(JSON.stringify({ error: 'too many attempts' }));
+	} else {
+		res.statusCode = 502;
+		res.end(JSON.stringify({ error: 'upstream auth service unavailable' }));
+	}
+}
+
 export default defineConfig({
 	plugins: [
 		{
@@ -479,6 +647,31 @@ export default defineConfig({
 						return;
 					}
 					void handleDevRegister(req, res);
+				});
+				// Recovery-e-mail set/confirm/remove — dev mirror of the prod
+				// /auth/recovery-email + /auth/recovery-email/confirm handlers
+				// (auth-proxy/src/index.ts). Matched by EXACT path (confirm first):
+				// the confirm path is a sub-path of the set path, so a prefix match
+				// would swallow it. Behind the CSRF gate for dev/prod parity.
+				server.middlewares.use((req, res, next) => {
+					const path = req.url?.split('?')[0];
+					if (
+						(path !== '/auth/recovery-email' && path !== '/auth/recovery-email/confirm') ||
+						req.method !== 'POST'
+					) {
+						next();
+						return;
+					}
+					if (!hasCsrfHeader(req)) {
+						res.statusCode = 403;
+						res.end(JSON.stringify({ error: 'missing csrf header' }));
+						return;
+					}
+					if (path === '/auth/recovery-email/confirm') {
+						void handleDevRecoveryConfirm(req, res);
+						return;
+					}
+					void handleDevRecoveryEmail(req, res);
 				});
 				// R6 lockdown (dev parity): the public GoTrue password grant must be
 				// unreachable; the only password-grant path is /auth/signin above.

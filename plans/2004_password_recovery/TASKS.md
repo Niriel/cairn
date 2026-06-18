@@ -523,10 +523,10 @@ call the scoped reset RPCs. This lands the shared plumbing the recovery endpoint
 
 **Verify:** `cd auth-proxy && pnpm test && pnpm lint`
 
-### [ ] 2.2 Recovery-e-mail set + confirm endpoints (authenticated)
+### [x] 2.2 Recovery-e-mail set + confirm endpoints (authenticated)
 
 **Created:** 2026-06-17T19:02:51Z
-**Completed:**
+**Completed:** 2026-06-18T10:34:33Z
 
 **Why:** The authenticated half of R3: a signed-in user sets a candidate recovery
 e-mail and confirms ownership with the emailed code.
@@ -597,6 +597,26 @@ e-mail and confirms ownership with the emailed code.
 
 **Verify:** `cd auth-proxy && pnpm test && pnpm lint`
 
+**Notes:**
+
+- **Side work (not in Files):** added the three authenticated verify-flow client
+  functions (`requestRecoveryEmailVerification`, `confirmRecoveryEmail`,
+  `clearRecoveryEmail`) plus a user-bearer `callUserRpc` to
+  `auth-proxy/src/lib/recovery.ts`, broadening that module from "scoped-role
+  client" to also host the user-bearer verify-flow client. The 2.1 helpers
+  (`requestPasswordReset`/`resetPassword`) are scoped-role for the signed-out
+  reset flow; these new ones attach the caller's own access bearer (as
+  `set_username` does). They're covered end-to-end by `recovery-email.test.ts`
+  (stub PostgREST asserts the bearer + body) rather than a separate lib test, per
+  the task's endpoint-level test choice.
+- **Dev mail send:** `web` has no `nodemailer` dependency (it's an `auth-proxy`
+  dep) and the dev Vite proxy can't import across the package boundary, so the
+  dev mirror sends to Mailpit via a tiny dependency-free `node:net` SMTP dialogue
+  (`HELO`/`MAIL FROM`/`RCPT TO`/`DATA`/`QUIT`) instead of nodemailer. Dev-only,
+  localhost:1025, no auth/TLS — Mailpit accepts plain SMTP. The verify-code copy
+  is duplicated from `mail.ts`'s `verifyEmailMessage`, matching the other dev
+  mirrors that duplicate prod logic.
+
 ### [ ] 2.3 Forgot-password + reset-password endpoints (signed-out, scoped role)
 
 **Created:** 2026-06-17T19:02:51Z
@@ -632,6 +652,14 @@ in-memory `RateLimiter` and `constantShapeFailure` exist
   the user signs in afterwards (R6).
 - Enforce the same password minimum length the register flow uses, for fast feedback
   (the RPC re-checks authoritatively).
+- **Dev SMTP send (reuse what 2.2 built):** Task 2.2 added a dependency-free `node:net`
+  SMTP helper `sendDevRecoveryMail(to, code)` in `web/vite.config.ts` (web has no
+  `nodemailer` dep), but it is hardcoded to the **verify** copy/subject. The dev reset
+  handler needs the **reset** copy (prod's `resetPasswordMessage` / `sendResetCode`), so
+  **generalize that helper to take `(to, subject, text)`** (or add a sibling
+  `sendDevResetMail`) and pass the reset subject/body — do **not** mail the verify copy
+  for a reset. The `node:net` dialogue itself is reusable as-is; only the message text
+  changes.
 - **Where the endpoint paths live (as in 2.2):** the forgot/reset BFF endpoints are
   matched as **local path consts in `index.ts`** (like `SIGNIN_PATH`) and added to its
   local `CSRF_PROTECTED_PATHS`; mirror them in `web/vite.config.ts` as local path

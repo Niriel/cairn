@@ -118,8 +118,11 @@ client + screens, and one `web/e2e/` Playwright canary for the end-to-end proof.
   RPC positive + negative, scoped-role grant assertions, password-actually-changes.
 - **`auth-proxy/src/lib/mail.ts`** — SMTP mailer (nodemailer) + the recovery/verify
   mail bodies.
-- **`auth-proxy/src/lib/recovery.ts`** — the scoped-role PostgREST client and code
-  generation/hashing helpers.
+- **`auth-proxy/src/lib/recovery.ts`** — code generation/hashing helpers plus two
+  PostgREST clients: the scoped-role one (signed-out reset RPCs, role JWT) and the
+  user-bearer one (authenticated verify-flow RPCs —
+  `requestRecoveryEmailVerification` / `confirmRecoveryEmail` / `clearRecoveryEmail`,
+  added in Task 2.2).
 - **`auth-proxy/test/recovery-email.test.ts`**, **`auth-proxy/test/forgot-reset.test.ts`**
   — endpoint unit tests, stubbing GoTrue/PostgREST/SMTP.
 - **`web/src/lib/auth/components/ForgotPassword.svelte`**,
@@ -136,7 +139,11 @@ client + screens, and one `web/e2e/` Playwright canary for the end-to-end proof.
   wire rate-limiting and the scoped-role client.
 - **`web/src/lib/shared/model/auth-paths.ts`** + **`auth-proxy/src/lib/auth-paths.ts`**
   (drift-guarded copy) + **`web/vite.config.ts`** (dev proxy mirror, incl. the SMTP
-  send to Mailpit) — the four new paths, in lockstep.
+  send to Mailpit) — the four new paths, in lockstep. Note: `web` has no `nodemailer`
+  dependency and the dev proxy can't import `mail.ts` across the package boundary, so
+  the dev SMTP send is a tiny dependency-free `node:net` helper (`sendDevRecoveryMail`,
+  added in Task 2.2) that hits Mailpit at `localhost:1025` directly. It is verify-copy
+  specific as written — Task 2.3 generalizes it to carry the reset copy too.
 - **`web/src/lib/auth/model/auth-client.ts`** — `setRecoveryEmail`,
   `confirmRecoveryEmail`, `requestPasswordReset`, `resetPassword`.
 - **`web/src/lib/privacy/state/user-settings.svelte.ts`** — read `recovery_email` via

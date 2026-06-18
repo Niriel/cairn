@@ -25,6 +25,14 @@ import {
 	clientIp,
 	constantShapeFailure
 } from './lib/rate-limit.js';
+import {
+	generateCode,
+	hashCode,
+	requestRecoveryEmailVerification,
+	confirmRecoveryEmail,
+	clearRecoveryEmail
+} from './lib/recovery.js';
+import { sendVerifyCode } from './lib/mail.js';
 
 // Production auth BFF (Cairn-shaped). This is the prod analogue of the dev
 // Vite proxy in web/vite.config.ts (~lines 30–185): it owns the dual-cookie
@@ -62,6 +70,15 @@ const REFRESH_PATH = '/auth/refresh';
 const SIGNIN_PATH = '/auth/signin';
 const REGISTER_PATH = '/auth/register';
 
+// Authenticated recovery-e-mail endpoints (the signed-in user proving / removing
+// their own recovery address). Local path consts — they carry no route-guard /
+// cookie-plant / bearer-attach semantics, so they stay out of the shared
+// auth-paths.ts lists. The confirm path is a sub-path of the set path, so the
+// dispatch below matches them by exact path equality (not the prefix-matching
+// isSegmentMatch) and checks confirm first.
+const RECOVERY_EMAIL_PATH = '/auth/recovery-email';
+const RECOVERY_EMAIL_CONFIRM_PATH = '/auth/recovery-email/confirm';
+
 // Username format + minimum password length, enforced at the BFF before any
 // account is created. The username rule mirrors set_username's CHECK
 // (`^[A-Za-z0-9]{3,30}$`) so a register that passes here can't fail the DB guard.
@@ -84,7 +101,17 @@ const signinGuard = signinRateLimit(signinLimiter);
 // State-changing Cairn-shaped endpoints that require the CSRF header. The
 // magic-link GoTrue pass-throughs (/auth/token, /auth/verify, /auth/magiclink)
 // are the deliberate exception — see csrf.ts.
-const CSRF_PROTECTED_PATHS = [REFRESH_PATH, SIGNIN_PATH, REGISTER_PATH, ...LOGOUT_PATHS];
+const CSRF_PROTECTED_PATHS = [
+	REFRESH_PATH,
+	SIGNIN_PATH,
+	REGISTER_PATH,
+	// isSegmentMatch prefix-matches, so RECOVERY_EMAIL_PATH alone would also cover
+	// the confirm sub-path; both are listed for clarity. (CSRF protection over a
+	// prefix is correct — the narrower the gate, the safer.)
+	RECOVERY_EMAIL_PATH,
+	RECOVERY_EMAIL_CONFIRM_PATH,
+	...LOGOUT_PATHS
+];
 
 // Config is read per-request (not cached at module load) so tests can point
 // GOTRUE_URL at a stub server in beforeAll after the module is imported.
@@ -179,6 +206,21 @@ async function authHandler(req: Request, res: Response): Promise<void> {
 	// identity, and sets the chosen username.
 	if (req.method === 'POST' && isSegmentMatch(originalUrl, [REGISTER_PATH])) {
 		await registerHandler(req, res);
+		return;
+	}
+
+	// Recovery-e-mail set/confirm/remove (authenticated). Matched by EXACT path
+	// equality, not isSegmentMatch: the confirm path is a prefix-extension of the
+	// set path, so a prefix match keyed on the bare set path would also swallow
+	// confirm and route its body to the wrong handler. Confirm is checked first as
+	// belt-and-braces. Both sit behind the CSRF gate above.
+	const path = originalUrl.split('?')[0];
+	if (req.method === 'POST' && path === RECOVERY_EMAIL_CONFIRM_PATH) {
+		await recoveryEmailConfirmHandler(req, res);
+		return;
+	}
+	if (req.method === 'POST' && path === RECOVERY_EMAIL_PATH) {
+		await recoveryEmailHandler(req, res);
 		return;
 	}
 
@@ -499,6 +541,119 @@ async function registerHandler(req: Request, res: Response): Promise<void> {
 		expiresIn: created.expiresIn
 	});
 	res.status(200).json({ user: { id: created.userId, username } });
+}
+
+// POST /auth/recovery-email: the authenticated set/remove path. Runs under the
+// caller's own access bearer (read from the short-lived access cookie), so the
+// uid()-scoped RPCs only ever touch the caller's own row.
+//   - {remove:true} → clear_recovery_email (no code, no mail — removing one's own
+//     address needs no verification; it only drops the self-serve reset path).
+//   - {email}       → generate a 6-digit code, record a verify token via
+//     request_recovery_email_verification (passing only the hash), and — on
+//     success — mail the plaintext code to the candidate address.
+// The verify RPC enforces the per-address / per-account send caps (CA429 → 429)
+// and rejects a malformed address (23514 → 400). Never logs the address or code.
+async function recoveryEmailHandler(req: Request, res: Response): Promise<void> {
+	const token = readAccessCookie(req.headers.cookie);
+	if (!token) {
+		res.status(401).json({ error: 'no session' });
+		return;
+	}
+
+	let body: { email?: unknown; remove?: unknown };
+	try {
+		if (!Buffer.isBuffer(req.body) || req.body.length === 0) throw new Error('empty body');
+		body = JSON.parse(req.body.toString('utf8')) as typeof body;
+	} catch {
+		res.status(400).json({ error: 'invalid request' });
+		return;
+	}
+
+	// Removal: clear the on-file address. Idempotent, so a no-op clear still 200s.
+	if (body.remove === true) {
+		const cleared = await clearRecoveryEmail(token);
+		if (!cleared.ok) {
+			res.status(502).json({ error: 'upstream auth service unavailable' });
+			return;
+		}
+		res.status(200).json({ ok: true });
+		return;
+	}
+
+	const email = typeof body.email === 'string' ? body.email : '';
+	if (!email) {
+		res.status(400).json({ error: 'invalid request' });
+		return;
+	}
+
+	// Record the verify token first (it enforces the send caps); only mail the
+	// code once the DB has accepted the request.
+	const code = generateCode();
+	const requested = await requestRecoveryEmailVerification(email, hashCode(code), token);
+	if (requested.status === 'throttled') {
+		res.status(429).json({ error: 'too many requests' });
+		return;
+	}
+	if (requested.status === 'invalid_email') {
+		res.status(400).json({ error: 'invalid e-mail' });
+		return;
+	}
+	if (requested.status !== 'ok') {
+		res.status(502).json({ error: 'upstream auth service unavailable' });
+		return;
+	}
+
+	try {
+		await sendVerifyCode(email, code);
+	} catch {
+		// The token is recorded but the mail did not go out — answer 502 so the UI
+		// surfaces a transient failure; the user can retry (subject to the cap).
+		res.status(502).json({ error: 'could not send recovery e-mail' });
+		return;
+	}
+	res.status(200).json({ ok: true });
+}
+
+// POST /auth/recovery-email/confirm: redeem the emailed code. Hashes the code and
+// calls confirm_recovery_email under the caller's bearer; the RPC RETURNS a status
+// string (it commits its attempts bump rather than raising), which the BFF maps to
+// a status code: 200 ('ok'), 400 ('invalid' — incorrect or expired), 429 ('locked'
+// — attempt cap hit). Never logs the code.
+async function recoveryEmailConfirmHandler(req: Request, res: Response): Promise<void> {
+	const token = readAccessCookie(req.headers.cookie);
+	if (!token) {
+		res.status(401).json({ error: 'no session' });
+		return;
+	}
+
+	let body: { code?: unknown };
+	try {
+		if (!Buffer.isBuffer(req.body) || req.body.length === 0) throw new Error('empty body');
+		body = JSON.parse(req.body.toString('utf8')) as typeof body;
+	} catch {
+		res.status(400).json({ error: 'invalid request' });
+		return;
+	}
+	const code = typeof body.code === 'string' ? body.code : '';
+	if (!code) {
+		res.status(400).json({ error: 'invalid request' });
+		return;
+	}
+
+	const result = await confirmRecoveryEmail(hashCode(code), token);
+	if (result.status === 'ok') {
+		res.status(200).json({ ok: true });
+		return;
+	}
+	if (result.status === 'invalid') {
+		res.status(400).json({ error: 'incorrect or expired code' });
+		return;
+	}
+	if (result.status === 'locked') {
+		res.status(429).json({ error: 'too many attempts' });
+		return;
+	}
+	res.status(502).json({ error: 'upstream auth service unavailable' });
 }
 
 const app = express();
