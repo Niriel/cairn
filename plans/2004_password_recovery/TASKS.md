@@ -389,6 +389,77 @@ is enabled (`db/migrations/0001_init.sql:9`); `resolve_username` exists
 
 **Verify:** `./scripts/test-db.sh`
 
+### [ ] 1.4 `clear_recovery_email` RPC + pgTAP
+
+**Created:** 2026-06-18T10:08:17Z
+**Completed:**
+
+**Why:** R3's set/change flow has a counterpart the design always assumed — a user
+removing their recovery e-mail (the **Remove** affordance in Settings, Task 3.2; the
+"Recovery-e-mail removal" open question in `PLAN.md`). But Task 1.1 narrowed the
+`authenticated` UPDATE grant on `user_settings` to `invite_policy` only, so a signed-in
+user **cannot** null `recovery_email` directly through PostgREST, and the only existing
+writer (`confirm_recovery_email`) only ever _sets_ a verified address. Removal therefore
+needs its own authenticated, owner-scoped writer — the DB half the removal endpoint
+(Task 2.2) calls. This was flagged in `PLAN.md` → Open questions ("Recovery-e-mail
+removal … a dedicated authenticated BFF endpoint … rather than re-opening the column
+grant. Settled in Phase 2"); the DB function it depends on lands here in Phase 1, where
+the other recovery RPCs live and get their pgTAP coverage.
+
+**Prerequisites:** Task 1.1 (the column-level grant lockdown is in; `0021` exists). The
+`uid()`/tombstone guard idiom (`0020`) and the `recovery_email` column
+(`0019_username_identity.sql:152`) exist.
+
+**Decisions:**
+
+- `clear_recovery_email() RETURNS void` — `SECURITY DEFINER`, `SET search_path = public`,
+  the `REVOKE EXECUTE … FROM public` + `GRANT EXECUTE … TO authenticated` idiom and the
+  `uid()` / tombstone guards from `confirm_recovery_email` (`0021`). Body: a single
+  `UPDATE public.user_settings SET recovery_email = NULL WHERE id = uid()`. Removing
+  one's **own** recovery address needs no verification — it only ever _reduces_ what an
+  account can do (it drops that account's self-serve reset path, which is the user's
+  choice), so unlike setting it (which must prove ownership, R1/R3) there is nothing to
+  confirm. The function derives the target row from `uid()`, never a parameter, so a
+  caller can only clear their **own** address — the same own-row discipline as the
+  verify RPCs.
+- **Idempotent + harmless on a no-op:** clearing when already NULL is a successful no-op
+  (the `UPDATE` simply matches no non-NULL state to change). The BFF removal endpoint
+  (Task 2.2) can call it unconditionally.
+- **Pending verify tokens are deliberately left to expire**, not deleted here: they live
+  in `auth_private`, are unreachable, single-use, and expire in an hour, and a user who
+  removes their address is not mid-verification in any normal flow. Keeping the RPC a
+  single-column write matches the "simplest thing that works" principle; if a stale
+  pending-confirm-after-remove race ever matters it is a separate, later concern.
+- Appended to `db/migrations/0021_password_recovery.sql` (same single `BEGIN; … COMMIT;`),
+  after `confirm_recovery_email` and before the reset RPCs is fine — ordering within the
+  transaction is immaterial as no function calls another at definition time.
+
+**Files:**
+
+- `db/migrations/0021_password_recovery.sql` (modify — append the `clear_recovery_email`
+  RPC + its grant)
+- `db/tests/recovery_verify.sql` (modify — add the clear-flow assertions alongside the
+  existing verify-flow ones; bump `plan(N)`) **or** a sibling `recovery_clear.sql`
+  (create) if cleaner — implementer's choice, but keep the fixture/role pattern identical
+- `docs/data-model.md` (modify — document `clear_recovery_email` in the RPC list and note
+  that `recovery_email` is now written by the confirm RPC (set) and the clear RPC (null),
+  per R10's "DDL-precise specifics ride with their migration")
+
+**Steps:**
+
+1. RED — Add pgTAP assertions: (a) positive — a signed-in user with a verified
+   `recovery_email` calls `clear_recovery_email()` and their `recovery_email` becomes
+   NULL; (b) positive — calling it when already NULL is a successful no-op; (c) one caller
+   cannot clear another caller's address (it only ever touches `uid()`'s own row — assert
+   a second user's address is untouched); (d) grant — `authenticated` has EXECUTE, `anon`
+   does not; (e) the guards raise `28000` for the tombstone caller.
+2. RED — `./scripts/test-db.sh`; confirm red (function absent).
+3. GREEN — Append `clear_recovery_email` + grant to `0021_password_recovery.sql` per
+   Decisions.
+4. GREEN — `./scripts/test-db.sh`; confirm green.
+
+**Verify:** `./scripts/test-db.sh`
+
 ## Phase 2 — BFF + dev proxy
 
 ### [x] 2.1 SMTP mailer, scoped-role client, and code helpers in the BFF
@@ -460,7 +531,8 @@ call the scoped reset RPCs. This lands the shared plumbing the recovery endpoint
 **Why:** The authenticated half of R3: a signed-in user sets a candidate recovery
 e-mail and confirms ownership with the emailed code.
 
-**Prerequisites:** Task 2.1 (mailer + helpers); Task 1.2 (verify RPCs). The CSRF header
+**Prerequisites:** Task 2.1 (mailer + helpers); Task 1.2 (verify RPCs); Task 1.4
+(`clear_recovery_email` — the DB writer the removal branch calls). The CSRF header
 (`X-Cairn-Auth`), the cookie→bearer model, and the auth-path lockstep all exist from
 2002/2003.
 
@@ -477,8 +549,11 @@ e-mail and confirms ownership with the emailed code.
   (`'invalid'`) or "too many attempts — request a new code" (`'locked'`). Removal is `POST /auth/recovery-email` with
   `{remove:true}` (**POST, not `DELETE`** — pinned here so the prod Caddy POST-only
   matcher in Task 2.4 and the `postJson`-based `removeRecoveryEmail()` client in Task 3.1
-  all agree), clearing the address via an authenticated path (not by re-opening the
-  column grant).
+  all agree). The removal branch calls the **`clear_recovery_email` RPC** (Task 1.4) with
+  the **user bearer** — the column is write-locked to `authenticated` (Task 1.1), so the
+  null goes through that owner-scoped `SECURITY DEFINER` writer, **not** by re-opening the
+  column grant. No code/mail is involved (removing one's own address needs no
+  verification); reply `200`.
 - **Where the endpoint paths live:** these BFF endpoints are matched as **local path
   consts in `index.ts`** (exactly like the existing `SIGNIN_PATH` / `REGISTER_PATH`),
   and added to `index.ts`'s local `CSRF_PROTECTED_PATHS`. **Match the recovery-email

@@ -24,10 +24,11 @@ take effect.
 A signed-in user may read their own `recovery_email` but **cannot write it directly**
 through PostgREST. The table's `UPDATE` grant to `authenticated` is narrowed to the
 columns that remain freely editable (`invite_policy`); `recovery_email` is written
-only by the confirm RPC (R3). Positive: a user can still update their `invite_policy`.
-Negative: a `PATCH /user_settings` that sets `recovery_email` is rejected at the
-database. This is the enforcement point for R1 — without it, verification is
-advisory.
+only by owner-scoped `SECURITY DEFINER` RPCs — the confirm RPC, which _sets_ it to a
+proven address (R3), and the clear RPC, which _nulls_ it on removal (R3). Positive: a
+user can still update their `invite_policy`. Negative: a `PATCH /user_settings` that
+sets `recovery_email` is rejected at the database. This is the enforcement point for
+R1 — without it, verification is advisory.
 
 ## R3. Setting or changing the recovery e-mail is a send-then-confirm flow
 
@@ -37,6 +38,11 @@ unexpired, unconsumed code the address becomes the account's active `recovery_em
 (R1) and the token is consumed. A wrong, expired, or already-used code is rejected
 with a distinguishable error the UI can surface (the user is acting on their own
 account, so there is no enumeration concern here).
+
+Removing a recovery e-mail is the inverse and needs **no** verification: a user may clear
+their own `recovery_email` at will (it only drops that account's self-serve reset path,
+their choice). Because the column is write-locked (R2), removal goes through an
+owner-scoped clear RPC, not a direct write.
 
 ## R4. Forgot-password is requested by username; the code goes only to the on-file address
 

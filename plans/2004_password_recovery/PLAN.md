@@ -109,8 +109,9 @@ client + screens, and one `web/e2e/` Playwright canary for the end-to-end proof.
 - **`db/migrations/0021_password_recovery.sql`** — column-level grant lockdown on
   `user_settings`; the `recovery_tokens` record (in a dedicated, non-PostgREST-exposed
   `auth_private` schema); the scoped BFF role; the verify RPCs
-  (`request_recovery_email_verification`, `confirm_recovery_email`) and reset RPCs
-  (`request_password_reset`, `reset_password`).
+  (`request_recovery_email_verification`, `confirm_recovery_email`), the removal RPC
+  (`clear_recovery_email`), and the reset RPCs (`request_password_reset`,
+  `reset_password`).
 - **`db/tests/recovery_email_grant.sql`** — positive `invite_policy` update still
   works; negative direct `recovery_email` write blocked.
 - **`db/tests/recovery_verify.sql`**, **`db/tests/recovery_reset.sql`** — verify/reset
@@ -166,6 +167,10 @@ Set recovery e-mail (authenticated):
   browser → POST /auth/recovery-email/confirm {code}
     BFF: confirm_recovery_email(code) [user bearer] → user_settings.recovery_email := email
 
+Remove recovery e-mail (authenticated, no code):
+  browser → POST /auth/recovery-email {remove:true}
+    BFF: clear_recovery_email() [user bearer] → user_settings.recovery_email := NULL → 200
+
 Forgot password (signed-out):
   browser → POST /auth/forgot-password {username}
     BFF: per-IP throttle; gen code; respond constant 200 FIRST, then off the
@@ -188,16 +193,18 @@ that greens them (GREEN), in the same commit unit.
    `open-questions.md` (R10) before code. DDL-precise descriptions in `data-model.md`
    ride with the Phase-1 migration.
 1. **Phase 1 — database.** The grant lockdown (R2), the token record + scoped role
-   (R7, R8), and the verify (R3) and reset (R6) RPCs, each with pgTAP positive +
-   negative. RLS/grants are the security boundary, so the negative cases (direct
-   `recovery_email` write blocked; anon cannot call the reset RPCs) are load-bearing.
+   (R7, R8), the verify (R3) and reset (R6) RPCs, and the owner-scoped
+   `clear_recovery_email` removal RPC (R3), each with pgTAP positive + negative. RLS/grants
+   are the security boundary, so the negative cases (direct `recovery_email` write blocked;
+   anon cannot call the reset RPCs; a caller can only clear their own address) are
+   load-bearing.
 2. **Phase 2 — BFF + dev proxy + infra wiring.** SMTP mailer and scoped-role client
    (R9, R7); the authenticated recovery-e-mail endpoints (R3); the signed-out
    forgot/reset endpoints with rate-limiting and constant-shape (R4, R5, R8). auth-paths
-   + drift test + Vite proxy move in lockstep; unit tests stub GoTrue/PostgREST/SMTP.
-   The phase closes by wiring the endpoints into prod (Caddy allow-list, auth-proxy
-   `SMTP_*` + scoped-role env) and dev (the scoped-role JWT the dev proxy and e2e canary
-   need) — prod-facing.
+   - drift test + Vite proxy move in lockstep; unit tests stub GoTrue/PostgREST/SMTP.
+     The phase closes by wiring the endpoints into prod (Caddy allow-list, auth-proxy
+     `SMTP_*` + scoped-role env) and dev (the scoped-role JWT the dev proxy and e2e canary
+     need) — prod-facing.
 3. **Phase 3 — web.** Client functions and `user_settings` wiring; the Settings
    capture + confirm UI; the forgot-password + reset-password screens with routes and
    guard updates; Vitest asserting user-visible behaviour, including the
@@ -237,6 +244,8 @@ that greens them (GREEN), in the same commit unit.
 - **Verify-flow throttle keying.** The verify-send is authenticated, so a per-account
   bound exists naturally; the per-target-address cap is what stops "type victim@x,
   hammer resend." Default: apply the same DB-backed per-address cap as the reset-send.
-- **Recovery-e-mail removal.** Clearing `recovery_email` (set to NULL) needs no
-  verification; default is a dedicated authenticated BFF endpoint (or a confirm-RPC
-  overload) rather than re-opening the column grant. Settled in Phase 2.
+- **Recovery-e-mail removal.** _Settled._ Clearing `recovery_email` (set to NULL) needs
+  no verification, but the column is write-locked (R2), so it goes through a dedicated
+  owner-scoped `clear_recovery_email` `SECURITY DEFINER` RPC (Task **1.4**, Phase 1) — not
+  a re-opened column grant. The authenticated removal endpoint
+  (`POST /auth/recovery-email {remove:true}`, Task 2.2) calls it with the user bearer.
