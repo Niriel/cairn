@@ -24,10 +24,10 @@ built-in `/recover` would mail the non-deliverable internal identity.
 
 ## Phase 0 — reconcile docs
 
-### [ ] 0.1 Reconcile the recovery / session-model docs
+### [x] 0.1 Reconcile the recovery / session-model docs
 
 **Created:** 2026-06-17T19:02:51Z
-**Completed:**
+**Completed:** 2026-06-18T07:55:01Z
 
 **Why:** Cairn's docs are canonical for downstream steps; the recovery design reverses
 or fills in claims the docs make, so the narrative corrections land first (the parent

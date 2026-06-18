@@ -154,9 +154,14 @@ SMTP_PORT=587
 SMTP_USER=...
 SMTP_PASS=...
 SMTP_FROM=no-reply@example.com
+AUTH_BFF_DB_JWT=<scoped-role JWT, see below>
 ```
 
 Generate the random values with `openssl rand -hex 32`. Store the file in your password manager — losing it means losing the database.
+
+The same `SMTP_*` block now feeds the **auth-proxy** as well as GoTrue: the BFF sends Cairn's recovery and recovery-address-confirmation mail itself (GoTrue's built-in `/recover` can't reach the non-deliverable `<uid>@cairn.internal` identity — see `architecture.md` → "Password recovery is Cairn-orchestrated"), so the auth-proxy service in `docker-compose.prod.yml` receives `SMTP_HOST/PORT/USER/PASS/FROM` too.
+
+`AUTH_BFF_DB_JWT` is the **scoped-role credential** the BFF uses for the signed-out reset flow: a long-lived JWT carrying `{"role":"cairn_auth_bff"}` signed with `JWT_SECRET` (the standard PostgREST service-role pattern, with a far-future `exp`). The two reset RPCs — the username→address lookup that mints a token, and the pgcrypto password-set — are granted **only** to `cairn_auth_bff`, never to `anon` or `authenticated`, so the BFF needs this JWT to call them. Mint it once with a small documented one-shot (a `scripts/mint-bff-jwt.sh` reading `JWT_SECRET`, not generated on every BFF boot) so it can be rotated independently. **This JWT is a high-value secret** — holding it is a reset-takeover primitive (its holder can mint and redeem a reset token without the emailed code) — so it is env-only, never logged, and rotatable. It is still preferred over a GoTrue admin/service-role key, which would grant strictly more.
 
 ## Initial migration
 
@@ -323,6 +328,8 @@ Two things still must be confirmed before opening Cairn to public traffic:
 3. **The revocable-session config must be in force.** GoTrue refresh-token rotation enabled with a reuse interval that safely covers multi-tab boot skew; `GOTRUE_JWT_EXP` lowered to the short access TTL (single-digit minutes); both session cookies `__Host-`-prefixed (forcing `Secure` + `Path=/` + no `Domain`); the CSRF header enforced on the Cairn-shaped state-changing `/auth/*` endpoints; and Caddy setting `X-Real-IP` on the `@gotrue` upstream so the sign-in rate-limiter's per-IP key is the real client, not Caddy's container. Confirm these before opening public traffic — a deploy with rotation off or the JWT TTL still long silently loses the revocability and reuse-detection guarantees.
 
 4. **The signup switch lives in the prod `.env`, and its compose default is restrictive.** `docker-compose.prod.yml` sets `GOTRUE_DISABLE_SIGNUP: "${DISABLE_SIGNUP:-true}"` — so registration is **closed** unless the prod `.env` overrides it. Cairn runs open registration (`/auth/register` via the auth-proxy), so confirm `DISABLE_SIGNUP=false` is present in the prod `.env`; flip it to `true` (or drop the override) to close signups. The per-IP register throttle bounds mass signup from one source. `docs/invites.md` governs invite _acceptance_, not signup-openness.
+
+5. **The recovery flow's SMTP env and scoped-role credential must reach the auth-proxy.** Password recovery is Cairn-orchestrated (see `architecture.md`), so the **auth-proxy** — not just GoTrue — needs `SMTP_HOST/PORT/USER/PASS/FROM` in its service env, plus `AUTH_BFF_DB_JWT` (the `cairn_auth_bff` scoped-role JWT signed with `JWT_SECRET`; see `.env.prod` above). Confirm: (a) both are present in the prod `.env` and wired to the `auth-proxy` service in `docker-compose.prod.yml`; (b) Caddy's `@auth_credentials` allow-list routes the four recovery POST endpoints (`/auth/recovery-email*`, `/auth/recovery-email/confirm*`, `/auth/forgot-password*`, `/auth/reset-password*`) to the BFF, while the page GETs for `/auth/forgot-password` and `/auth/reset-password` still fall through to the SPA; (c) `AUTH_BFF_DB_JWT` is treated as a high-value secret (env-only, never logged, rotatable — it is a reset-takeover primitive). Without (a) the recovery endpoints reach the scoped RPCs as `anon` and fail; without (b) they 404 in prod while passing every unit test on stubs.
 
 ### Forced re-auth on the revocable-session deploy
 
