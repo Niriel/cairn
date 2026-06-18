@@ -872,10 +872,10 @@ the column is now read-only via PostgREST).
 
 **Verify:** `cd web && pnpm test && pnpm lint && pnpm check`
 
-### [ ] 3.2 Settings recovery-e-mail capture + confirm UI
+### [x] 3.2 Settings recovery-e-mail capture + confirm UI
 
 **Created:** 2026-06-17T19:02:51Z
-**Completed:**
+**Completed:** 2026-06-18T12:29:30Z
 
 **Why:** R3's user-facing surface: set/change a recovery e-mail and confirm it with the
 emailed code, from Settings.
@@ -924,6 +924,23 @@ emailed code, from Settings.
 4. GREEN — `cd web && pnpm test`; confirm green.
 
 **Verify:** `cd web && pnpm test && pnpm lint && pnpm check`
+
+**Notes:**
+
+- **No design JSX for this surface.** `design/cairn-screens.jsx`'s only "Recovery"
+  section is the deleted-lists/trash one the task explicitly says not to reuse; there is
+  no mockup for the recovery-e-mail row. Built from the task's inline layout spec, with
+  `LoginCheck.svelte` as the code-step template (icon disc, serif heading, bolded
+  address, centred `.mono` six-digit field).
+- **Added a Cancel button** to the editing (field) step — not named in the spec, but the
+  add/change flow needs a way back without submitting. It sits left (backward) of the
+  committal "Send code" button per the button-pair rule.
+- The six-digit field repeats the global `.mono` font-family (`'JetBrains Mono'`) via a
+  `:global(input)` rule rather than a class, since `TextInput` takes no `class` prop;
+  commented as mirroring the global role, not a new value.
+- Side work: extended `web/src/lib/privacy/state/__mocks__/user-settings.svelte.ts` with
+  `recoveryEmail` (the 3.1 field) so the mounted row reads deterministically under the
+  existing `SettingsScreen` test mock.
 
 ### [ ] 3.3 Forgot-password + reset-password screens, routes, and guard
 

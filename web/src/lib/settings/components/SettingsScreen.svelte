@@ -13,6 +13,7 @@
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { invitations } from '$lib/invite/state/invitations.svelte';
+	import RecoveryEmailRow from './RecoveryEmailRow.svelte';
 
 	const themes: { value: Theme; label: string; icon: IconName }[] = [
 		{ value: 'light', label: 'Light', icon: 'sun' },
@@ -159,6 +160,7 @@
 		<section class="preference-group">
 			<h2>Account</h2>
 			<div class="nav-rows">
+				<RecoveryEmailRow />
 				<NavRow title="Sign out" data-test="signout" onclick={signOut}>
 					{#snippet lead()}<Icon name="log-out" size={ICON_SIZE} />{/snippet}
 				</NavRow>
