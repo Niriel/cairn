@@ -27,19 +27,19 @@ That's the whole semantics.
 
 **Tap-add (one-sided).** When Alice taps Bob's profile (anywhere he appears — a member of another list, a sender of an invite she received, etc.) and chooses _"Add to circle,"_ Bob goes onto Alice's circle. Bob is not added to Alice's circle in return; Bob is not notified. Tap-add is the low-friction path and produces a low-commitment, one-sided outcome.
 
-**Email-add (mutual).** When Alice types `bob@protonmail.com` in the manual add flow (Settings → Privacy → Your circle → Add by email), the server creates _two_ circle rows: Alice → Bob and Bob → Alice. Either can remove the other later, unilaterally. The reasoning: typing someone's email is a strong signal of trust _and_ a much higher-friction action. If Alice went to the trouble, she's vouching for Bob, and it would feel one-sided and weird if Bob then had to separately add Alice back just to be able to invite her.
+**Username-add (mutual).** When Alice types Bob's `@username` in the manual add flow (Settings → Privacy → Your circle → Add by username), the server creates _two_ circle rows: Alice → Bob and Bob → Alice. Either can remove the other later, unilaterally. The reasoning: deliberately typing someone's username is a signal of trust _and_ a higher-friction action. If Alice went to the trouble, she's vouching for Bob, and it would feel one-sided and weird if Bob then had to separately add Alice back just to be able to invite her.
 
-Email-add is also the only way to add someone you don't already share a list with, so it's the natural place where mutuality is established.
+Username-add is also the only way to add someone you don't already share a list with, so it's the natural place where mutuality is established.
 
 **Bob is not notified about being added to Alice's circle**, in either path. The principle is general: _only notify when the user's experience actually changes._ Being in Alice's circle changes nothing for Bob day-to-day; it only governs what happens if/when he tries to invite Alice to something later. There's nothing for Bob to do, decide, or react to. So we don't surface it.
 
 And Bob never sees who has him in their circle — in either direction. Alice's circle is Alice's private permission setting on herself; the people listed in it haven't _agreed_ to anything social, they're just on her allowlist. Surfacing that to them would turn a private setting into a quasi-social signal, which is the opposite of what we want. Each user sees and manages only their own circle.
 
-### Email-add when Bob has blocked Alice
+### Username-add when Bob has blocked Alice
 
-The mutual-by-default has one asymmetry: a block beats it. If Alice email-adds Bob, but Bob has Alice on his blocklist, the **add succeeds on Alice's side** (Bob goes onto Alice's circle — Alice asked for that, and we don't tell her about Bob's block) **but the auto-add to Bob's circle is silently skipped**. The outcome is asymmetric: Alice has Bob in her circle; Bob does not have Alice in his. This preserves Bob's intent (he chose to block Alice; that decision is decisive) without leaking the existence of the block to Alice.
+The mutual-by-default has one asymmetry: a block beats it. If Alice username-adds Bob, but Bob has Alice on his blocklist, the **add succeeds on Alice's side** (Bob goes onto Alice's circle — Alice asked for that, and we don't tell her about Bob's block) **but the auto-add to Bob's circle is silently skipped**. The outcome is asymmetric: Alice has Bob in her circle; Bob does not have Alice in his. This preserves Bob's intent (he chose to block Alice; that decision is decisive) without leaking the existence of the block to Alice.
 
-This means the _only_ state where the email-add is asymmetric is "Bob has blocked Alice." Every other case produces the symmetric two-row outcome.
+This means the _only_ state where the username-add is asymmetric is "Bob has blocked Alice." Every other case produces the symmetric two-row outcome.
 
 ## The profile screen
 
@@ -61,9 +61,9 @@ The profile screen never shows whether _the other person_ has you in their circl
 
 Tapping your _own_ profile (your avatar in a list members screen, etc.) bounces to Settings — there is no "my profile" screen in v1; profile is a screen for looking at _others_.
 
-Email addresses are **never** shown on the profile screen, or anywhere else a user is rendered. Alice and Bob can collaborate on lists, exchange invites, be in each other's circles, and never see each other's email — only display name, avatar, and `@username`. E-mail is **no longer the auth identifier**: the public identity is the **username** (shown as `@username` alongside the display name and avatar), and e-mail is demoted to an optional, private recovery address. E-mail is not social information and is never an add-key for a registered user.
+Email addresses are **never** shown on the profile screen, or anywhere else a user is rendered. Alice and Bob can collaborate on lists, exchange invites, be in each other's circles, and never see each other's email — only display name, avatar, and `@username`. E-mail is **no longer the auth identifier**: the public identity is the **username** (shown as `@username` alongside the display name and avatar), and e-mail is demoted to an optional, private recovery address. E-mail is not social information and is never an add-key.
 
-> Add-by-username for registered users — the public-identity lookup that replaces the old e-mail add-key — arrives in step 20. The fate of unregistered-by-e-mail invites (whether e-mail survives as the lookup key for people who don't yet have an account) is decided there too; the e-mail-add mechanics described below are unchanged until then.
+The public add-key is the **username**. Both add paths — the invite flow (`send_invitation`) and the circle add (`add_circle_by_username`) — resolve a typed `@username` against `public.profiles`. There is no unregistered-user branch: usernames only exist for registered accounts, so a username that doesn't resolve is a plain miss. Because usernames are public, a miss can be told truthfully (see "What blocked invites look like" and the anti-enumeration note below) — the anti-enumeration concern that once justified swallowing every failure was an artefact of e-mail, which was private.
 
 ## The three-way invite policy
 
@@ -81,7 +81,7 @@ When a user changes `invite_policy` from `everybody` to `circle` or `nobody`, **
 
 ### "Block always wins"
 
-With the combined `relationships` table (`status` is either `'circle'` or `'blocked'`, never both), 'block always wins' manifests in two places: (1) in `send_invitation`, the block check (step 6 above) tests for a row with `status = 'blocked'` _before_ the policy check; (2) in `add_circle_by_id` and `add_circle_by_email`, the `ON CONFLICT DO UPDATE WHERE status <> 'blocked'` clause silently skips the circle-add if a blocked row already exists, leaving the blocked row unchanged. Either path preserves the block.
+With the combined `relationships` table (`status` is either `'circle'` or `'blocked'`, never both), 'block always wins' manifests in two places: (1) in `send_invitation`, the block check (step 6 above) tests for a row with `status = 'blocked'` _before_ the policy check; (2) in `add_circle_by_id` and `add_circle_by_username`, the `ON CONFLICT DO UPDATE WHERE status <> 'blocked'` clause silently skips the circle-add if a blocked row already exists, leaving the blocked row unchanged. Either path preserves the block.
 
 The block is the strongest possible signal and overrides every other path. Blocking someone who was already in your circle overwrites the `relationships` row's `status` from `circle` to `blocked` (the row stays, just changes status). Unblocking deletes the row — the prior `circle` state is _not_ restored automatically. If you want them back in your circle, re-add them deliberately. The simpler "absence = neither" semantic is worth more than preserving the prior state across a block/unblock cycle.
 
@@ -91,7 +91,7 @@ A separate per-user list, distinct from circles. Adding someone to your blocklis
 
 - Prevents them from inviting you to any list (regardless of your `invite_policy`).
 - Auto-declines any pending invite from them currently in your inbox.
-- Skips the auto-add to your circle when they email-add you (see above).
+- Skips the auto-add to your circle when they username-add you (see above).
 - Does **not** remove them from lists you both currently belong to. Cairn is a collaboration tool, not a social network — kicking Alice out of a list because Bob blocked her would be hostile to the _list_, which other people are using too. The block governs _new_ contact, not retroactive removal.
 - Is invisible to the blocked party. Bob doesn't get a notification; future invite attempts simply fail with the same generic error any blocked invite produces.
 
@@ -103,10 +103,10 @@ An invitation is a pending offer of list membership. It has three terminal state
 
 ### What `invite_policy` and blocks check, in order
 
-When Alice taps "Invite Bob" (whether by email, by tapping a circle member, or by tapping a co-member of another list), the server runs this sequence:
+When Alice taps "Invite Bob" (whether by username, by tapping a circle member, or by tapping a co-member of another list), the server runs this sequence:
 
 1. **Inviter-membership check.** If the caller is not a live member of the list: raise — cannot invite to a list you're not on. (`send_invitation` is `SECURITY DEFINER` and bypasses RLS, so this must be an explicit guard.)
-2. **Resolve target.** Look up `p_email` in `auth.users` (or use `p_user_id` directly). If email-keyed and no Cairn account matches, proceed directly to the insert step — all policy, block, and membership checks are skipped for unregistered addresses.
+2. **Resolve target.** Look up `p_username` in `public.profiles` (or use `p_user_id` directly). Raise `'no such user'` on a miss — usernames are public, so a miss is a truthful, distinct error, not something to hide. Every invitation therefore resolves to a real account before any policy or block check runs.
 3. **Self-check.** If the invitee resolves to Alice herself: clear error, _"You're already on this list"_ or _"You can't invite yourself."_ (No privacy concern; honesty wins.)
 4. **Existing membership.** If Bob is already a _live_ member of this list: no-op; Alice sees _"Bob is already on this list."_ A previously-removed (soft-deleted) membership row is treated as non-membership.
 5. **Existing pending invitation.** If Bob already has a pending invite to this list from anyone: no-op; Alice sees a generic success message.
@@ -118,24 +118,25 @@ When Alice taps "Invite Bob" (whether by email, by tapping a circle member, or b
 
 In every blocked case, Alice sees the same message: **"Couldn't send invite."** No detail about why. The same message covers:
 
-- Bob doesn't exist as a Cairn user.
 - Bob has `invite_policy = nobody`.
 - Bob has `invite_policy = circle` and Alice isn't in his circle.
 - Bob has Alice on his blocklist.
 
+A username that doesn't resolve is **not** in this bucket. It surfaces as a distinct, truthful error — _"No one on Cairn has that username"_ — raised by the target-resolution step before any policy or block check. Usernames are public, so telling Alice the handle is unknown leaks nothing; it's ordinary "check the spelling" feedback. What stays merged behind the generic string is only what's genuinely private: Bob's invite policy, his circle membership, and his blocklist.
+
 The legal/ethical reasoning, briefly:
 
-- **Privacy of Bob's settings.** Bob's invite preference and his blocklist are personal data. Telling Alice _"Bob is not accepting invites"_ leaks the existence of his preference and confirms his account exists. Both are minor leaks but real ones under GDPR's data-minimization principle.
+- **Privacy of Bob's settings.** Bob's invite preference and his blocklist are personal data. Telling Alice _"Bob is not accepting invites"_ leaks the existence of his preference. That's a minor leak but a real one under GDPR's data-minimization principle. (Confirming Bob's _account_ exists is no longer a concern — a resolvable `@username` already confirms that, publicly and by design.)
 - **Honesty to Alice.** A user-hostile pattern is to silently swallow Alice's invite while showing her _"sent!"_ The action genuinely failed; we say so.
-- **Anti-enumeration.** If errors distinguished _"Bob doesn't exist"_ from _"Bob blocked you"_ from _"Bob accepts everyone,"_ an attacker could probe the user database.
+- **Anti-enumeration of settings.** If the generic error distinguished _"Bob blocked you"_ from _"Bob accepts everyone,"_ an attacker could probe Bob's private preferences. It doesn't — every policy/block failure is the same string.
 
-The combination — _"Couldn't send invite"_ with no detail — satisfies all three. This matches how Signal and most privacy-conscious products handle delivery failures. The same anti-enumeration argument applies to the sign-in flow's response to a magic-link request — `admin.md` → "What the web app shows when a banned user tries to sign in" is the parallel application of this pattern to GoTrue's magic-link issuance, with the same shape (one screen, multiple backend outcomes, indistinguishable to the user).
+The combination — _"Couldn't send invite"_ with no detail on the private failures — satisfies all three. Note the scope has narrowed since e-mail was the add-key: back then a distinct "no such user" would have let an attacker enumerate _who has an account_, so existence had to be hidden too. Under usernames that's moot — existence is public — so only the private outcomes (policy, circle, block) stay merged. This still matches how Signal and most privacy-conscious products handle delivery failures.
 
-The single carve-out is **inviting yourself**, which surfaces a clear error: there's no privacy at stake.
+The carve-outs that surface a clear, distinct error are **inviting yourself** (no privacy at stake) and **an unknown username** (existence is public). Everything private stays behind the generic string.
 
-Note that Alice cannot type Bob's email into the invite flow and learn from the error whether Bob exists, has blocked her, etc. — every failure is the same string. **Email is also never echoed back in any UI.** If Alice mistypes `bob@protonmial.com`, the error is _"Couldn't send invite"_ — same as every other failure. (We considered echoing the typo back to help her notice it; we decided against it, on the grounds that the same error must be shown for every failure regardless of whether the email was malformed, real-but-unregistered, real-but-blocked, etc. The email she typed is on her screen; she can read it from there.)
+Note that Alice cannot type Bob's `@username` into the invite flow and learn from the error whether Bob has blocked her, what his policy is, etc. — every _private_ failure is the same string. Whether the username exists is a different matter: that's public, so a bad handle gets the honest _"No one on Cairn has that username."_
 
-## Inviting by email vs by circle vs by co-member
+## Inviting by username vs by circle vs by co-member
 
 All three paths produce the same `invitations` row at the end. The difference is the picker UI in front of them.
 
@@ -145,18 +146,18 @@ A bottom sheet opened from the list members screen. It has three sections, top t
 
 1. **Your circle** — people in Alice's circle, excluding existing members of the current list. Tap-to-invite.
 2. **Co-members of your other lists** — live co-members on Alice's other lists, deduplicated, excluding circle members already shown above and existing members of the current list. Tap-to-invite.
-3. **By email** — a text field at the bottom. Submit sends to the magic-link path (see below).
+3. **By username** — a text field at the bottom. Submit resolves the typed `@username` and sends the invite (see below).
 
-Sections 1 and 2 show display name + avatar only. **No emails.** A tap is a single action: it sends the invite. The row shows a brief check-mark on success or the generic error toast on failure.
+Sections 1 and 2 show display name + avatar + `@username`. **No emails.** A tap is a single action: it sends the invite. The row shows a brief check-mark on success or the generic error toast on failure.
 
-This is the path the docs previously didn't cover — email-only invites for people you already collaborate with is friction. The circle and co-member sections remove it.
+Sections 1 and 2 exist because username-only invites for people you already collaborate with would be friction; the circle and co-member sections remove it. Section 3 is the fallback for reaching someone who isn't in either — you just need their handle.
 
-### Email path
+### Username path
 
-The fallback for everyone, including unregistered users. Alice types or pastes an email; the server looks it up in `auth.users`:
+The fallback for reaching anyone by their public handle. Alice types or pastes a `@username`; the server resolves it against `public.profiles`:
 
-- **Match found.** Same path as picking from the list — invitation goes through the policy/block checks above and lands in the matched user's inbox.
-- **No match.** The server creates an invitation tied to the _email_ (not a user*id, since there is none yet). It also triggers a magic-link email: *"Alice invited you to her list 'Stuff to read' on Cairn. Tap to sign up and accept."\_ When the recipient signs up via that link, their new `auth.users` row is checked for any email-keyed pending invitations; matches are converted to user-keyed invitations and the inbox shows them on first sign-in.
+- **Match found.** Same path as picking from the list — the invitation goes through the policy/block checks above and lands in the matched user's inbox.
+- **No match.** The RPC raises `'no such user'` and the field shows _"No one on Cairn has that username"_ — a distinct, truthful error, because usernames are public. Nothing is created; there is no unregistered-user branch. (Cairn does not send e-mail on the invite path and never did — e-mail was only ever an identifier, and a handle with no account simply has nowhere to deliver an invite.)
 
 ## Inbox — receiving invites
 
@@ -175,7 +176,7 @@ After accepting, Bob optionally gets a one-time prompt: _"You accepted Alice's i
 
 A user has a soft cap of **20 pending invites** at any one time. Reaching the cap doesn't block the inviter — the oldest pending invite to that user is auto-declined to make room (FIFO). 20 is tunable; the right number is "high enough that no normal user ever notices."
 
-The cap applies to `target_user_id`-keyed pending invitations only; `target_email`-only rows (addressed to not-yet-registered users) are uncapped and convert to user-keyed rows at sign-up. Capping the email-keyed surface would let an attacker who knows an e-mail address evict that address's already-pending sign-up nudges by flooding adjacent typos.
+The cap applies per invitee (`target_user_id`). Every invitation is user-keyed — there is no unregistered-address surface to exempt now that the add-key is the username and `invitations` has no `target_email` column.
 
 **Policy-change cascade (deferred).** When a user changes `invite_policy` from `everybody` to `circle` or `nobody`, existing non-matching pending invites should be auto-declined. This behaviour is documented above but its DB-level enforcement is deferred to step 8; the step-7 DB layer leaves it to the client or a future trigger.
 
@@ -212,7 +213,7 @@ create table public.relationships (
 alter table public.relationships enable row level security;
 ```
 
-`(user_id, other_user_id)` is directional — _"user_id's view of other_user_id."_ A symmetric circle relationship (the email-add case) is two rows, one in each direction; the schema doesn't enforce symmetry. A single pair is either in the circle or blocked, never both — `status` is mutually exclusive. The column is named `other_user_id` (not `member_id`) because _member_ is reserved for `list_members`; uniformity inside the schema beats cross-table puns.
+`(user_id, other_user_id)` is directional — _"user_id's view of other_user_id."_ A symmetric circle relationship (the username-add case) is two rows, one in each direction; the schema doesn't enforce symmetry. A single pair is either in the circle or blocked, never both — `status` is mutually exclusive. The column is named `other_user_id` (not `member_id`) because _member_ is reserved for `list_members`; uniformity inside the schema beats cross-table puns.
 
 Blocking someone who was already in your circle overwrites the row's `status` from `circle` to `blocked` (a `PATCH` on the existing row, or an `INSERT … ON CONFLICT DO UPDATE`). Unblocking _deletes_ the row outright — the prior `circle` state is **not** restored across a block/unblock cycle. If you want them in your circle again, you re-add deliberately. This is a small departure from "unblock returns you to the prior state" that earlier drafts of this doc described; collapsing the two tables into one row-per-pair makes the simpler "absence = neither" semantic worth more than preserving a low-frequency edge case.
 
@@ -225,23 +226,18 @@ create table public.invitations (
   id             uuid primary key default gen_random_uuid(),
   list_id        uuid not null references public.lists(id) on delete cascade,
   created_by     uuid not null references auth.users(id) on delete cascade,
-  target_user_id uuid          references auth.users(id) on delete cascade,
-  target_email   text,
+  target_user_id uuid not null references auth.users(id) on delete cascade,
   created_at     timestamptz not null default now(),
-  modified_at    timestamptz not null default now(),
-  check (target_user_id is not null or target_email is not null)
+  modified_at    timestamptz not null default now()
 );
 
 alter table public.invitations enable row level security;
 
 create unique index invitations_target_user_uniq
-  on public.invitations (list_id, target_user_id)
-  where target_user_id is not null;
-
-create unique index invitations_target_email_uniq
-  on public.invitations (list_id, lower(target_email))
-  where target_email is not null and target_user_id is null;
+  on public.invitations (list_id, target_user_id);
 ```
+
+Every invitation is keyed to a registered account: the add-key is the public username, which only exists for real accounts, so `target_user_id` is `NOT NULL` and there is no `target_email` column, no either-or check constraint, and no separate email-keyed unique index. (Earlier drafts carried an email-keyed branch for not-yet-registered invitees; that path was never built and is retired here — see "Username path" above.)
 
 The column names follow the schema-wide rule: `created_by` for "who created the row" (uniform with `lists`, `items`, `list_members`); `target_*` for "who the row is _for_" (the invitee). Earlier drafts used `inviter_id` / `invitee_*` for self-documenting role names; the table name already carries that context, so the generic forms are clearer in aggregate. **Note**: `invitations.created_by` uses `on delete cascade` rather than `on delete set default` — invitations are pending state with no audit value once the inviter is gone, unlike `lists.created_by` / `items.created_by` which point to shared content. Same column name, different FK action; the action follows from the table's role, not from the column name.
 
@@ -273,27 +269,27 @@ create policy invitations_select on public.invitations
 
 The `relationships_update` policy lets a user flip a row's `status` (e.g., from `circle` to `blocked`) without the round-trip of delete-then-insert. Both `using` and `with check` are gated on `user_id = public.uid()`.
 
-Insert and delete on `invitations`, and the email-add path for `relationships` (which writes a row in _the other user's_ direction), go through stored procedures: `send_invitation`, `accept_invitation`, `decline_invitation`, `add_circle_by_email`, `add_circle_by_id`. These run as `security definer` functions because they need privileges to read other users' `invite_policy` and `relationships` rows for the policy/block checks, and to write the symmetric `relationships` row on the other user's behalf during email-add. The web app calls them via PostgREST RPCs; it doesn't touch the tables directly for these operations.
+Insert and delete on `invitations`, and the username-add path for `relationships` (which writes a row in _the other user's_ direction), go through stored procedures: `send_invitation`, `accept_invitation`, `decline_invitation`, `add_circle_by_username`, `add_circle_by_id`. These run as `security definer` functions because they need privileges to read other users' `invite_policy` and `relationships` rows for the policy/block checks, and to write the symmetric `relationships` row on the other user's behalf during username-add. The web app calls them via PostgREST RPCs; it doesn't touch the tables directly for these operations.
 
 The one exception is the inviter's own _cancel pending invite_ action, which is a direct `DELETE /invitations?id=eq.<uuid>` gated by the `invitations_delete` policy (`USING (created_by = public.uid())`); accept and decline by the invitee still go through the `accept_invitation` / `decline_invitation` RPCs.
 
 The pattern matches `delete_account` from `account-deletion.md`: when the logic involves cross-user state, it lives in a function, not in a policy.
 
-## The `add_circle_by_email` function (sketch)
+## The `add_circle_by_username` function (sketch)
 
 ```sql
-create or replace function public.add_circle_by_email(p_email text)
+create or replace function public.add_circle_by_username(p_username text)
 returns void
 language plpgsql security definer
-set search_path = public, auth
+set search_path = public
 as $$
 declare
   me     uuid := public.uid();
   target uuid;
 begin
-  select id into target from auth.users where lower(email) = lower(p_email);
+  select id into target from public.profiles where lower(username) = lower(p_username);
   if target is null then
-    raise exception 'no such user';   -- email-add only works on existing users
+    raise exception 'no such user';   -- username-add only works on existing users
   end if;
   if target = me then
     raise exception 'cannot add yourself';
@@ -320,7 +316,7 @@ $$;
 
 The `ON CONFLICT … DO UPDATE … WHERE status <> 'blocked'` shape is what enforces "block always wins" at write time: an existing `blocked` row is preserved, while an existing `circle` row stays `circle` (the no-op merge keeps `modified_at` honest if the trigger uses `OF (status)`).
 
-**Why `add_circle_by_email` is allowed to raise on an unregistered address.** Unlike `send_invitation`, which silently swallows every failure mode behind the same "Couldn't send invite" string to defeat enumeration, `add_circle_by_email` raises `'no such user'` when the e-mail doesn't match an `auth.users` row. The functions sit on opposite sides of a deliberate trade-off: `send_invitation` is reachable from every "Invite by e-mail" field in the app and is the only path that could ever feed an attacker's enumeration script, so it has to look the same for every failure. `add_circle_by_email` is buried two levels deeper in Settings → Privacy → Your circle → Add by e-mail, the caller is performing a high-friction action on an e-mail they already know belongs to a real person, and the error is the helpful UX signal _"this address isn't on Cairn — invite them instead."_ Hiding it behind a silent no-op would leave the user staring at a settings screen that did nothing. The block check inside the function still runs the same anti-enumeration pattern: if the target exists and has blocked the caller, the caller's row is created and the symmetric row is silently skipped, with no way for the caller to tell that a block exists.
+**Why both paths may raise on an unknown username.** Both `send_invitation` and `add_circle_by_username` resolve a typed `@username` and raise `'no such user'` on a miss — the trade-off that once split them has collapsed. It only ever existed because the add-key was an e-mail, which is _private_: telling a caller "no such e-mail" would have let them enumerate who has an account, so `send_invitation` (reachable from every invite field, the obvious enumeration surface) had to swallow that outcome behind the generic string, while `add_circle_by_email` — buried in Settings and acting on an address the caller already knew — was allowed the helpful signal. A username is _public_: a resolvable `@username` confirms an account by design, so there is nothing to enumerate and both paths can be truthful about existence. What stays merged behind the generic string in `send_invitation` is only the genuinely private outcomes — policy, circle membership, and block. And `add_circle_by_username` still runs the same anti-enumeration pattern for the block itself: if the target exists and has blocked the caller, the caller's row is created and the symmetric row is silently skipped, with no way for the caller to tell that a block exists.
 
 ## The `add_circle_by_id` function (sketch)
 
@@ -338,7 +334,7 @@ begin
     raise exception 'cannot add yourself';
   end if;
 
-  -- Explicit existence check (matches add_circle_by_email), so a stale
+  -- Explicit existence check (matches add_circle_by_username), so a stale
   -- profile id surfaces as 'no such user' rather than the cryptic raw
   -- FK 23503 the upsert would otherwise produce.
   select id into target from auth.users where id = p_user_id;
@@ -362,13 +358,13 @@ $$;
 
 ```sql
 create or replace function public.send_invitation(
-  p_list_id uuid,
-  p_email   text default null,
-  p_user_id uuid default null
+  p_list_id  uuid,
+  p_username text default null,
+  p_user_id  uuid default null
 )
 returns uuid    -- invitation id, or null on silent fail
 language plpgsql security definer
-set search_path = public, auth
+set search_path = public
 as $$
 declare
   inviter       uuid := public.uid();
@@ -380,13 +376,17 @@ begin
   -- Step 1: raise if caller is not a live member of p_list_id
   --   (inviter-membership check — see check sequence above; elided here).
 
-  -- Resolve target (email or user_id)
+  -- Resolve target (username or user_id). A username miss is public, so
+  -- it raises 'no such user' rather than folding into the silent-fail path.
   if p_user_id is not null then
     target := p_user_id;
-  elsif p_email is not null then
-    select id into target from auth.users where lower(email) = lower(p_email);
+  elsif p_username is not null then
+    select id into target from public.profiles where lower(username) = lower(p_username);
+    if target is null then
+      raise exception 'no such user';
+    end if;
   else
-    raise exception 'must provide either p_email or p_user_id';
+    raise exception 'must provide either p_username or p_user_id';
   end if;
 
   if target = inviter then
@@ -395,30 +395,27 @@ begin
 
   -- (existing-membership and existing-invite checks elided)
 
-  if target is not null then
-    -- Block check
-    if exists (select 1 from public.relationships
-               where user_id = target
-                 and other_user_id = inviter
-                 and status = 'blocked') then
-      return null;
-    end if;
-    -- Policy check
-    select invite_policy into policy from public.user_settings where id = target;
-    if policy = 'nobody' then return null; end if;
-    if policy = 'circle' then
-      select exists (select 1 from public.relationships
-                     where user_id = target
-                       and other_user_id = inviter
-                       and status = 'circle')
-        into in_circle;
-      if not in_circle then return null; end if;
-    end if;
+  -- Block check
+  if exists (select 1 from public.relationships
+             where user_id = target
+               and other_user_id = inviter
+               and status = 'blocked') then
+    return null;
+  end if;
+  -- Policy check
+  select invite_policy into policy from public.user_settings where id = target;
+  if policy = 'nobody' then return null; end if;
+  if policy = 'circle' then
+    select exists (select 1 from public.relationships
+                   where user_id = target
+                     and other_user_id = inviter
+                     and status = 'circle')
+      into in_circle;
+    if not in_circle then return null; end if;
   end if;
 
-  insert into public.invitations (list_id, created_by, target_user_id, target_email)
-  values (p_list_id, inviter, target,
-          case when target is null then p_email else null end)
+  insert into public.invitations (list_id, created_by, target_user_id)
+  values (p_list_id, inviter, target)
   returning id into invitation_id;
 
   return invitation_id;
@@ -426,7 +423,7 @@ end;
 $$;
 ```
 
-Returns `null` on silent fail, a uuid on success. The web app interprets `null` as "couldn't send" and shows the generic toast.
+Returns `null` on a silent (private) fail, raises `'no such user'` on an unknown username, and returns a uuid on success. The web app interprets `null` as "couldn't send" and shows the generic toast; it surfaces `'no such user'` as the distinct _"No one on Cairn has that username"_ message.
 
 ## The `accept_invitation` function (sketch)
 
@@ -444,8 +441,8 @@ begin
     raise exception 'invitation not found';
   end if;
 
-  -- IS DISTINCT FROM, not <>,
-  -- so NULL target_user_id (email-keyed) correctly raises.
+  -- IS DISTINCT FROM, not <>, keeps the guard null-safe even though
+  -- target_user_id is NOT NULL.
   if inv.target_user_id is distinct from public.uid() then
     raise exception 'not your invitation';
   end if;
@@ -480,8 +477,8 @@ begin
     raise exception 'invitation not found';
   end if;
 
-  -- IS DISTINCT FROM, not <>,
-  -- so NULL target_user_id (email-keyed) correctly raises.
+  -- IS DISTINCT FROM, not <>, keeps the guard null-safe even though
+  -- target_user_id is NOT NULL.
   if inv.target_user_id is distinct from public.uid() then
     raise exception 'not your invitation';
   end if;

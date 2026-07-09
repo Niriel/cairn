@@ -28,10 +28,10 @@ e-mail to username, and render `@username` wherever a person is shown. Builds on
 
 ## Phase 0 — reconcile docs
 
-### [ ] 0.1 Rewrite `docs/invites.md` + `docs/circles.md` from e-mail-add to username-add
+### [x] 0.1 Rewrite `docs/invites.md` + `docs/circles.md` from e-mail-add to username-add
 
 **Created:** 2026-07-09T09:46:23Z
-**Completed:**
+**Completed:** 2026-07-09T10:31:03Z
 
 **Why:** Both docs carry a 2001 forward-note deferring the add-by-e-mail→username
 mechanics to "step 20" (`invites.md:66`, `circles.md:49`); 2005 resolves them.
@@ -98,6 +98,22 @@ and later sub-plans reference a correct spec (parent R12 pattern).
 
 **Verify:** `./scripts/check.sh` (runs the Prettier MD format check) · manual
 re-read of the edited sections.
+
+**Notes:**
+
+- Verified with `pnpm exec prettier --check` on the two edited docs (the
+  MD-format part of `check.sh`) — passes. Did not run the full gauntlet:
+  the change is doc-only, so svelte-check / vitest / pgTAP / sqlfluff have
+  no new input.
+- Both rewritten RPC sketches now resolve against `public.profiles` and no
+  longer touch `auth.users` for the username lookup, so I changed their
+  `set search_path` from `public, auth` → `public` (`add_circle_by_username`
+  and `send_invitation`). Task 1.1 should carry this forward — the shipped
+  functions read `profiles.username` (mirroring `resolve_username` in
+  `db/migrations/0020`), not `auth.users.email`.
+- `add_circle_by_id` is unchanged: it takes a `uuid` and still checks
+  `auth.users`, so it keeps `search_path = public, auth`. Only the comment
+  reference to the sibling function was renamed.
 
 ### [ ] 0.2 Reconcile `docs/ui.md` and `docs/data-model.md`
 
