@@ -206,9 +206,9 @@ SELECT ok(
 );
 SELECT ok(
   has_function_privilege(
-    'authenticated', 'public.add_circle_by_email(text)', 'EXECUTE'
+    'authenticated', 'public.add_circle_by_username(text)', 'EXECUTE'
   ),
-  'authenticated has EXECUTE on public.add_circle_by_email(text)'
+  'authenticated has EXECUTE on public.add_circle_by_username(text)'
 );
 SELECT ok(
   has_function_privilege(
@@ -484,9 +484,9 @@ SELECT ok(
 );
 SELECT ok(
   NOT has_function_privilege(
-    'anon', 'public.add_circle_by_email(text)', 'EXECUTE'
+    'anon', 'public.add_circle_by_username(text)', 'EXECUTE'
   ),
-  'anon has no EXECUTE on public.add_circle_by_email(text)'
+  'anon has no EXECUTE on public.add_circle_by_username(text)'
 );
 SELECT ok(
   NOT has_function_privilege(

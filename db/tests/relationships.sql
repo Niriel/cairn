@@ -1,5 +1,5 @@
 -- relationships.sql — locks in the relationships table's four RLS
--- policies, the two circle RPCs (add_circle_by_email,
+-- policies, the two circle RPCs (add_circle_by_username,
 -- add_circle_by_id), the PK-freeze trigger
 -- (tg_freeze_relationships_pk), and the created_at-freeze half of
 -- tg_set_timestamps for this table.
@@ -21,6 +21,15 @@ BEGIN;
 SELECT plan(28);
 
 \i /db/tests/fixtures/users_alice_bob_carol.sql
+
+-- Known public handles for the username-add path (mirrors
+-- resolve_username.sql); overwrites the provisional signup handles.
+UPDATE public.profiles SET username = 'AliceHandle'
+WHERE id = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
+UPDATE public.profiles SET username = 'BobHandle'
+WHERE id = 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb';
+UPDATE public.profiles SET username = 'CarolHandle'
+WHERE id = 'cccccccc-cccc-cccc-cccc-cccccccccccc';
 
 -- ===================================================================
 -- A. RLS positive (4) — Alice acting on her own (Alice, Bob) row.
@@ -157,7 +166,7 @@ SELECT is(
 );
 
 -- ===================================================================
--- C. add_circle_by_email — mutual outcome (3).
+-- C. add_circle_by_username — mutual outcome (3).
 -- ===================================================================
 
 RESET ROLE;
@@ -169,7 +178,7 @@ SELECT set_config(
 );
 SET LOCAL ROLE authenticated;
 
-SELECT public.add_circle_by_email('bob@test');
+SELECT public.add_circle_by_username('BobHandle');
 
 RESET ROLE;
 
@@ -183,7 +192,7 @@ SELECT is(
       AND status = 'circle'
   ),
   1,
-  'C1: add_circle_by_email creates Alice -> Bob circle row'
+  'C1: add_circle_by_username creates Alice -> Bob circle row'
 );
 
 -- C2: Bob -> Alice row exists with status = 'circle' (mutual).
@@ -196,7 +205,7 @@ SELECT is(
       AND status = 'circle'
   ),
   1,
-  'C2: add_circle_by_email creates symmetric Bob -> Alice circle row'
+  'C2: add_circle_by_username creates symmetric Bob -> Alice circle row'
 );
 
 -- C3: idempotent re-call leaves both rows with status = 'circle'.
@@ -206,7 +215,7 @@ SELECT set_config(
   TRUE
 );
 SET LOCAL ROLE authenticated;
-SELECT public.add_circle_by_email('bob@test');
+SELECT public.add_circle_by_username('BobHandle');
 
 RESET ROLE;
 SELECT is(
@@ -219,8 +228,8 @@ SELECT is(
 );
 
 -- ===================================================================
--- D. add_circle_by_email — block-skips-mutual (2).
--- Bob has Alice blocked; Alice email-adds Bob. Alice gets Bob in
+-- D. add_circle_by_username — block-skips-mutual (2).
+-- Bob has Alice blocked; Alice username-adds Bob. Alice gets Bob in
 -- her circle; Bob's blocked-Alice row is preserved unchanged.
 -- ===================================================================
 
@@ -239,7 +248,7 @@ SELECT set_config(
 );
 SET LOCAL ROLE authenticated;
 
-SELECT public.add_circle_by_email('bob@test');
+SELECT public.add_circle_by_username('BobHandle');
 
 RESET ROLE;
 
@@ -264,13 +273,13 @@ SELECT is(
       AND other_user_id = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'
   ),
   'blocked',
-  'D2: Bob -> Alice block survives Alice''s email-add (block always wins)'
+  'D2: Bob -> Alice block survives Alice''s username-add (block always wins)'
 );
 
 -- ===================================================================
--- E. add_circle_by_email — caller-has-target-blocked (2).
+-- E. add_circle_by_username — caller-has-target-blocked (2).
 -- Alice has Bob blocked already. Bob has no row for Alice. Alice
--- email-adds Bob: her own blocked-Bob row is preserved (the WHERE
+-- username-adds Bob: her own blocked-Bob row is preserved (the WHERE
 -- clause skips the update); Bob's side is created fresh.
 -- ===================================================================
 
@@ -289,7 +298,7 @@ SELECT set_config(
 );
 SET LOCAL ROLE authenticated;
 
-SELECT public.add_circle_by_email('bob@test');
+SELECT public.add_circle_by_username('BobHandle');
 
 RESET ROLE;
 
@@ -302,7 +311,7 @@ SELECT is(
       AND other_user_id = 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb'
   ),
   'blocked',
-  'E1: Alice''s own blocked-Bob row not overwritten by add_circle_by_email'
+  'E1: Alice''s own blocked-Bob row not overwritten by add_circle_by_username'
 );
 
 -- E2: Bob -> Alice was created fresh as 'circle' (Bob has no block).
@@ -318,8 +327,8 @@ SELECT is(
 );
 
 -- ===================================================================
--- F. add_circle_by_email — both sides blocked (2).
--- Both blocked rows pre-exist. add_circle_by_email is a no-op on
+-- F. add_circle_by_username — both sides blocked (2).
+-- Both blocked rows pre-exist. add_circle_by_username is a no-op on
 -- both sides.
 -- ===================================================================
 
@@ -344,7 +353,7 @@ SELECT set_config(
 );
 SET LOCAL ROLE authenticated;
 
-SELECT public.add_circle_by_email('bob@test');
+SELECT public.add_circle_by_username('BobHandle');
 
 RESET ROLE;
 
@@ -373,7 +382,7 @@ SELECT is(
 );
 
 -- ===================================================================
--- G. add_circle_by_email — error cases (2).
+-- G. add_circle_by_username — error cases (2).
 -- ===================================================================
 
 RESET ROLE;
@@ -387,18 +396,18 @@ SET LOCAL ROLE authenticated;
 
 -- G1: self-add raises (P0001).
 SELECT throws_ok(
-  $$SELECT public.add_circle_by_email('alice@test')$$,
+  $$SELECT public.add_circle_by_username('AliceHandle')$$,
   'P0001',
   NULL,
-  'G1: add_circle_by_email of own email raises P0001'
+  'G1: add_circle_by_username of own username raises P0001'
 );
 
--- G2: nonexistent email raises (P0001).
+-- G2: nonexistent username raises (P0001).
 SELECT throws_ok(
-  $$SELECT public.add_circle_by_email('nobody@test')$$,
+  $$SELECT public.add_circle_by_username('ghost')$$,
   'P0001',
   NULL,
-  'G2: add_circle_by_email on unregistered email raises P0001'
+  'G2: add_circle_by_username on unregistered username raises P0001'
 );
 
 -- ===================================================================

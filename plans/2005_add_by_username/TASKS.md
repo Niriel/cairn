@@ -288,10 +288,10 @@ fixture rows; `docs/invites.md` (post-0.1) for the check sequence.
 - `schema_shape.sql` gained `col_not_null` + `hasnt_index` assertions
   (pgTAP core, not previously used in this suite — both work); plan 78 → 80.
 
-### [ ] 1.2 `add_circle_by_username` replaces `add_circle_by_email`
+### [x] 1.2 `add_circle_by_username` replaces `add_circle_by_email`
 
 **Created:** 2026-07-09T09:46:23Z
-**Completed:**
+**Completed:** 2026-07-09T10:58:59Z
 
 **Why:** The manual circle-add must key on username (parent R10), preserving the
 mutual two-row outcome that is the whole point of the manual path (parent R4,
@@ -343,6 +343,20 @@ outcome; `db/migrations/0008_relationships.sql` for the upsert shape to copy.
 5. GREEN — `./scripts/test-db.sh` → green.
 
 **Verify:** `./scripts/test-db.sh`
+
+**Notes:**
+
+- Green: 761 pgTAP assertions pass; SQLFluff clean. RED confirmed first
+  (relationships + grants failed with "function add_circle_by_username(text)
+  does not exist").
+- **`db/tests/schema_shape.sql` also needed editing** (not in the task's
+  Files list): its `has_function('add_circle_by_email', ...)` assertion broke
+  on the rename. Updated it to `add_circle_by_username` — a direct
+  consequence of the DROP+CREATE, same shape as the grants.sql renames the
+  task did call out.
+- Body copied verbatim from `add_circle_by_email` (the mutual block-permitting
+  double upsert); only the lookup changed (auth.users e-mail → profiles
+  username) and `search_path` narrowed `public, auth` → `public`.
 
 ## Phase 2 — RPC client wrappers + username input fields
 

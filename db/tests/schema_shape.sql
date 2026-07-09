@@ -269,8 +269,8 @@ SELECT has_column(
   'relationships.modified_at exists'
 );
 SELECT has_function(
-  'public', 'add_circle_by_email', ARRAY['text'],
-  'public.add_circle_by_email(text) exists'
+  'public', 'add_circle_by_username', ARRAY['text'],
+  'public.add_circle_by_username(text) exists'
 );
 SELECT has_function(
   'public', 'add_circle_by_id', ARRAY['uuid'],

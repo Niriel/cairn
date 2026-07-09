@@ -158,4 +158,60 @@ ALTER TABLE public.invitations DROP COLUMN target_email;
 ALTER TABLE public.invitations
 ALTER COLUMN target_user_id SET NOT NULL;
 
+-- ---------------------------------------------------------------------
+-- 3. add_circle_by_username — mutual circle-add re-keyed on username.
+-- ---------------------------------------------------------------------
+-- Replaces add_circle_by_email: the manual circle-add now keys on the
+-- public username (resolved against public.profiles), not e-mail. The
+-- mutual two-row outcome and the "block always wins" ON CONFLICT … DO
+-- UPDATE … WHERE status <> 'blocked' upsert are copied verbatim
+-- (docs/circles.md → "The username-add path"). Raises 'no such user'
+-- on an unknown handle (truthful — usernames are public) and 'cannot
+-- add yourself' on self. CREATE OR REPLACE cannot rename the parameter,
+-- so DROP + CREATE; search_path drops `auth` since the lookup is now
+-- against public.profiles rather than auth.users.
+DROP FUNCTION public.add_circle_by_email(text);
+
+CREATE FUNCTION public.add_circle_by_username(p_username text)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  me     uuid := public.uid();
+  target uuid;
+BEGIN
+  SELECT id INTO target FROM public.profiles
+  WHERE lower(username) = lower(p_username);
+  IF target IS NULL THEN
+    RAISE EXCEPTION 'no such user';
+  END IF;
+  IF target = me THEN
+    RAISE EXCEPTION 'cannot add yourself';
+  END IF;
+
+  -- Always: caller -> target, unless the caller has target blocked (in
+  -- which case the existing blocked row is preserved).
+  INSERT INTO public.relationships (user_id, other_user_id, status)
+  VALUES (me, target, 'circle')
+  ON CONFLICT (user_id, other_user_id) DO UPDATE
+  SET status = 'circle'
+  WHERE public.relationships.status <> 'blocked';
+
+  -- Mutual: target -> caller, unless target has the caller blocked
+  -- (block-skips-mutual). If target already has the caller in their
+  -- circle, the upsert keeps status = 'circle'.
+  INSERT INTO public.relationships (user_id, other_user_id, status)
+  VALUES (target, me, 'circle')
+  ON CONFLICT (user_id, other_user_id) DO UPDATE
+  SET status = 'circle'
+  WHERE public.relationships.status <> 'blocked';
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.add_circle_by_username(text) FROM public;
+GRANT EXECUTE ON FUNCTION public.add_circle_by_username(text)
+TO authenticated;
+
 COMMIT;
