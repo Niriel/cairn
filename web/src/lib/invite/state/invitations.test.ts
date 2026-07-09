@@ -21,7 +21,6 @@ const RAW_SENT_ROW = {
 	id: 'inv-1',
 	list_id: LIST_ID,
 	target_user_id: BOB_UID,
-	target_email: null,
 	created_at: '2026-05-01T10:00:00Z'
 };
 
@@ -48,7 +47,6 @@ describe('pendingInviteFor', () => {
 				id: 'inv-1',
 				listId: LIST_ID,
 				targetUserId: BOB_UID,
-				targetEmail: null,
 				createdAt: '2026-05-01T10:00:00Z'
 			}
 		];
@@ -61,7 +59,6 @@ describe('pendingInviteFor', () => {
 				id: 'inv-1',
 				listId: LIST_ID,
 				targetUserId: CAROL_UID,
-				targetEmail: null,
 				createdAt: '2026-05-01T10:00:00Z'
 			}
 		];
@@ -78,7 +75,6 @@ describe('loadSent', () => {
 		expect(invMod.invitations.sent[0].id).toBe('inv-1');
 		expect(invMod.invitations.sent[0].listId).toBe(LIST_ID);
 		expect(invMod.invitations.sent[0].targetUserId).toBe(BOB_UID);
-		expect(invMod.invitations.sent[0].targetEmail).toBeNull();
 		expect(invMod.invitations.sent[0].createdAt).toBe('2026-05-01T10:00:00Z');
 	});
 });
@@ -90,7 +86,6 @@ describe('cancelInvitation', () => {
 				id: 'inv-1',
 				listId: LIST_ID,
 				targetUserId: BOB_UID,
-				targetEmail: null,
 				createdAt: '2026-05-01T10:00:00Z'
 			}
 		];
@@ -204,12 +199,12 @@ describe('sendInvitation', () => {
 		});
 	});
 
-	test('(i2) with { email } calls pgPost with p_email', async () => {
+	test('(i2) with { username } calls pgPost with p_username', async () => {
 		vi.mocked(pgMod.pgPost).mockResolvedValue('some-id');
-		await invMod.sendInvitation(LIST_ID, { email: 'bob@example.net' });
+		await invMod.sendInvitation(LIST_ID, { username: 'BobHandle' });
 		expect(pgMod.pgPost).toHaveBeenCalledWith('/rpc/send_invitation', {
 			p_list_id: LIST_ID,
-			p_email: 'bob@example.net'
+			p_username: 'BobHandle'
 		});
 	});
 
@@ -217,6 +212,14 @@ describe('sendInvitation', () => {
 		vi.mocked(pgMod.pgPost).mockResolvedValue(null);
 		await expect(invMod.sendInvitation(LIST_ID, { userId: BOB_UID })).rejects.toThrow(
 			"Couldn't send invite"
+		);
+	});
+
+	test('(i7) ApiError P0001/no such user maps to "No such username"', async () => {
+		const err = Object.assign(new Error('no such user'), { code: 'P0001' });
+		vi.mocked(pgMod.pgPost).mockRejectedValue(err);
+		await expect(invMod.sendInvitation(LIST_ID, { username: 'ghost' })).rejects.toThrow(
+			'No such username'
 		);
 	});
 

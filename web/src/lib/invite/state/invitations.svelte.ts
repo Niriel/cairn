@@ -6,7 +6,6 @@ export type SentEntry = {
 	id: string;
 	listId: string;
 	targetUserId: string | null;
-	targetEmail: string | null;
 	createdAt: string;
 };
 
@@ -24,7 +23,6 @@ type RawSentRow = {
 	id: string;
 	list_id: string;
 	target_user_id: string | null;
-	target_email: string | null;
 	created_at: string;
 };
 
@@ -52,7 +50,6 @@ export async function loadSent(): Promise<void> {
 		id: r.id,
 		listId: r.list_id,
 		targetUserId: r.target_user_id,
-		targetEmail: r.target_email,
 		createdAt: r.created_at
 	}));
 }
@@ -113,12 +110,12 @@ export async function declineInvitation(id: string): Promise<void> {
 
 export async function sendInvitation(
 	listId: string,
-	target: { userId: string } | { email: string }
+	target: { userId: string } | { username: string }
 ): Promise<void> {
 	const body =
 		'userId' in target
 			? { p_list_id: listId, p_user_id: target.userId }
-			: { p_list_id: listId, p_email: target.email };
+			: { p_list_id: listId, p_username: target.username };
 	let result: unknown;
 	try {
 		result = await pgPost<unknown>('/rpc/send_invitation', body);
@@ -128,6 +125,9 @@ export async function sendInvitation(
 			if (msg === 'self-invite') throw new Error("You can't invite yourself.", { cause: err });
 			if (msg === 'already a member')
 				throw new Error("They're already on this list.", { cause: err });
+			// A username miss is public (usernames are not private), so it
+			// surfaces distinctly rather than behind the generic string.
+			if (msg === 'no such user') throw new Error('No such username', { cause: err });
 		}
 		throw new Error("Couldn't send invite", { cause: err });
 	}

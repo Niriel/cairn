@@ -360,10 +360,10 @@ outcome; `db/migrations/0008_relationships.sql` for the upsert shape to copy.
 
 ## Phase 2 — RPC client wrappers + username input fields
 
-### [ ] 2.1 Invite wrapper + `InvitePickerSheet` username field
+### [x] 2.1 Invite wrapper + `InvitePickerSheet` username field
 
 **Created:** 2026-07-09T09:46:23Z
-**Completed:**
+**Completed:** 2026-07-09T11:09:12Z
 
 **Why:** The invite picker must collect a username (not an e-mail) and surface the
 three server outcomes distinctly (parent R6/R10): sent, couldn't send, no such
@@ -425,6 +425,37 @@ username.
 5. GREEN — `pnpm lint` · `pnpm check` · `pnpm test` → green.
 
 **Verify:** `pnpm lint` · `pnpm check` · `pnpm test` (in `web/`)
+
+**Notes:**
+
+- Green: `pnpm lint`, `pnpm check` (0 errors), and `pnpm test` (813 Vitest
+  tests) all pass. RED confirmed first (7 failures across the two files).
+- Wrapper now maps three outcomes: resolves on a uuid, throws
+  "Couldn't send invite" on `null`, and throws "No such username" on
+  `P0001 'no such user'`; the existing self-invite / already-a-member
+  mappings are unchanged. Dropped `targetEmail` from `SentEntry` /
+  `RawSentRow` / the `loadSent` mapping (inert — nothing consumed it).
+- Picker field is now "By username" (`@username` placeholder, no
+  `type=email`/`inputmode`/`autocomplete`, `invite-picker-username-input`/
+  `-send` ids); removed the stale anti-enumeration hedge and its comment.
+  Renamed the `.email-*` CSS classes to `.username-*`.
+- **Blocking follow-up the plan doesn't cover (needs a decision):** three
+  existing Playwright specs — `web/e2e/invites.spec.ts`,
+  `web/e2e/privacy.spec.ts`, `web/e2e/block.spec.ts` — drive the invite
+  picker via the old `invite-picker-email-input` / `-send` ids and **fill an
+  e-mail address**. This rename orphans those locators, and even reworked to
+  the new ids they'd fail: `send_invitation` now resolves a *username*
+  against `public.profiles`, so an e-mail string yields 'no such user'.
+  Worse, those specs sign users in via the **magic-link** flow
+  (`login-email` + `waitForMagicLink`) and never establish a username, so
+  they can't simply type the invitee's handle — fixing them means migrating
+  them onto the username-auth flow. That's Phase-4-scale and depends on the
+  e2e harness 2003 left behind. **Phase 4's Task 4.1 only *adds* a new
+  add-by-username spec; it does not retrofit these three.** I did **not**
+  touch them (out of 2.1's scope and Files list) and did **not** run the e2e
+  suite (WebKit can't run on this box; the others need the full stack up).
+  Recommend the user either widen Task 4.1 or add a task to migrate
+  invites/privacy/block e2e onto username auth + the username invite field.
 
 ### [ ] 2.2 Circle wrapper + `CircleScreen` add-by-username field
 

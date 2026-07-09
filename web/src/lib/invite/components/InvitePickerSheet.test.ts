@@ -113,11 +113,56 @@ describe('InvitePickerSheet', () => {
 		expect(queryByDataTest(`invite-picker-comember-row-${DAVE_UID}`)).not.toBeNull();
 	});
 
-	test('(e) by-email Send button calls sendInvitation with { email }', async () => {
+	test('(e) by-username Send button calls sendInvitation with { username }', async () => {
+		vi.mocked(sendInvitation).mockResolvedValue();
 		const { getByDataTest } = await renderSheet();
-		const input = getByDataTest('invite-picker-email-input') as HTMLInputElement;
-		await fireEvent.input(input, { target: { value: 'friend@example.net' } });
-		await fireEvent.click(getByDataTest('invite-picker-email-send'));
-		expect(sendInvitation).toHaveBeenCalledWith(LIST_ID, { email: 'friend@example.net' });
+		const input = getByDataTest('invite-picker-username-input') as HTMLInputElement;
+		await fireEvent.input(input, { target: { value: 'BobHandle' } });
+		await fireEvent.click(getByDataTest('invite-picker-username-send'));
+		expect(sendInvitation).toHaveBeenCalledWith(LIST_ID, { username: 'BobHandle' });
+	});
+
+	test('(e2) the username input is not an e-mail input', async () => {
+		const { getByDataTest } = await renderSheet();
+		const input = getByDataTest('invite-picker-username-input') as HTMLInputElement;
+		expect(input.getAttribute('type')).not.toBe('email');
+		expect(input.getAttribute('inputmode')).not.toBe('email');
+		expect(input.getAttribute('autocomplete')).not.toBe('email');
+	});
+
+	test('(e3) a successful send shows "Invite sent"', async () => {
+		vi.mocked(sendInvitation).mockResolvedValue();
+		const { getByDataTest } = await renderSheet();
+		await fireEvent.input(getByDataTest('invite-picker-username-input'), {
+			target: { value: 'BobHandle' }
+		});
+		await fireEvent.click(getByDataTest('invite-picker-username-send'));
+		await tick();
+		await tick();
+		expect(getByDataTest('invite-picker-toast').textContent).toContain('Invite sent');
+	});
+
+	test('(e4) a null-outcome send shows "Couldn\'t send invite"', async () => {
+		vi.mocked(sendInvitation).mockRejectedValue(new Error("Couldn't send invite"));
+		const { getByDataTest } = await renderSheet();
+		await fireEvent.input(getByDataTest('invite-picker-username-input'), {
+			target: { value: 'BobHandle' }
+		});
+		await fireEvent.click(getByDataTest('invite-picker-username-send'));
+		await tick();
+		await tick();
+		expect(getByDataTest('invite-picker-toast').textContent).toContain("Couldn't send invite");
+	});
+
+	test('(e5) an unknown handle shows "No such username"', async () => {
+		vi.mocked(sendInvitation).mockRejectedValue(new Error('No such username'));
+		const { getByDataTest } = await renderSheet();
+		await fireEvent.input(getByDataTest('invite-picker-username-input'), {
+			target: { value: 'ghost' }
+		});
+		await fireEvent.click(getByDataTest('invite-picker-username-send'));
+		await tick();
+		await tick();
+		expect(getByDataTest('invite-picker-toast').textContent).toContain('No such username');
 	});
 });

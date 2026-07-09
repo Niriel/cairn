@@ -19,6 +19,6 @@ export const acceptInvitation = vi.fn(
 );
 export const declineInvitation = vi.fn((_id: string): Promise<void> => Promise.resolve());
 export const sendInvitation = vi.fn(
-	(_listId: string, _target: { userId: string } | { email: string }): Promise<void> =>
+	(_listId: string, _target: { userId: string } | { username: string }): Promise<void> =>
 		Promise.resolve()
 );
