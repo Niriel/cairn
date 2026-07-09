@@ -258,10 +258,30 @@ to replace); `docs/frontend-layout.md` (lib tier split, filename rules);
 
 ## Phase 4 — 2004: password recovery
 
-### [ ] 4.1 Plan and implement sub-step 2004 (recovery-e-mail capture + verify, forgot-password reset)
+### [x] 4.1 Plan and implement sub-step 2004 (recovery-e-mail capture + verify, forgot-password reset)
 
 **Created:** 2026-06-15T17:24:58Z
-**Completed:**
+**Completed:** 2026-07-09T09:24:00Z
+
+**Notes:** Sub-plan `plans/2004_password_recovery/` planned and implemented task
+by task (RED before GREEN), then merged `--no-ff` into `2000_username_identity`.
+
+- Landed the column-level lockdown on `user_settings.recovery_email` (writes only
+  via the scoped `cairn_auth_bff` role), the `recovery_tokens` record + verify-flow
+  RPCs, the signed-out `request_password_reset` / `reset_password` RPCs, and
+  `clear_recovery_email` — all with positive + negative pgTAP
+  (`recovery_email_grant`, `recovery_verify`, `recovery_reset`, `grants`).
+- BFF grew an SMTP mailer + code helpers + scoped-role client, authenticated
+  set/confirm/remove recovery-e-mail endpoints, and signed-out forgot/reset
+  endpoints; wired into prod + dev infra (`docker-compose*.yml`, `vite.config.ts`,
+  `auth-paths`, `mint-bff-jwt.sh`) with auth-proxy vitest coverage.
+- Web: auth-client recovery functions, Settings recovery-e-mail capture + confirm
+  UI (`RecoveryEmailRow` / `RecoveryEmailVerify`), and signed-out
+  forgot/reset-password screens + routes, with Vitest.
+- **Verify:** `./scripts/check.sh` green on the merged parent (exit 0). Recovery
+  Playwright canary (`password-recovery.spec.ts`, 6 tests) green on
+  **chromium + firefox**; **WebKit not run** on this box (missing system libs —
+  standing machine-conditional rule, see `docs/testing.md`).
 
 **Why:** E-mail's only remaining job is recovering a lost password (R4, R9).
 This sub-step adds the recovery-e-mail capture, the verify-before-effect gate
