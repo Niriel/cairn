@@ -28,12 +28,11 @@ WHERE NOT (
   AND user_id = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'
 );
 WITH ins AS (
-  INSERT INTO public.invitations (list_id, created_by, target_user_id, target_email)
+  INSERT INTO public.invitations (list_id, created_by, target_user_id)
   VALUES (
     '22222222-2222-2222-2222-222222222222',
     'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
-    'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
-    NULL
+    'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb'
   )
   RETURNING id
 )
@@ -69,12 +68,11 @@ SELECT is(
 RESET ROLE;
 TRUNCATE _del_inv;
 WITH ins AS (
-  INSERT INTO public.invitations (list_id, created_by, target_user_id, target_email)
+  INSERT INTO public.invitations (list_id, created_by, target_user_id)
   VALUES (
     '22222222-2222-2222-2222-222222222222',
     'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
-    'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
-    NULL
+    'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb'
   )
   RETURNING id
 )

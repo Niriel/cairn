@@ -51,11 +51,11 @@ SELECT ok(
 -- 2. Positive insert. invitations has no attribution trigger, so
 -- created_by must be supplied explicitly.
 SELECT lives_ok(
-  $$INSERT INTO public.invitations (list_id, created_by, target_email)
+  $$INSERT INTO public.invitations (list_id, created_by, target_user_id)
     VALUES (
       '11111111-1111-1111-1111-111111111111',
       'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
-      'someone@test')$$,
+      'cccccccc-cccc-cccc-cccc-cccccccccccc')$$,
   'invitation insert with known profile created_by succeeds'
 );
 
@@ -76,11 +76,11 @@ END;
 $$;
 
 SELECT throws_ok(
-  $$INSERT INTO public.invitations (list_id, created_by, target_email)
+  $$INSERT INTO public.invitations (list_id, created_by, target_user_id)
     VALUES (
       '11111111-1111-1111-1111-111111111111',
       'eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee',
-      'another@test')$$,
+      'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb')$$,
   '23503',
   NULL,
   'invitation insert fails FK violation when created_by has no profiles row'

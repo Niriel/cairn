@@ -14,7 +14,7 @@
 
 BEGIN;
 
-SELECT plan(78);
+SELECT plan(80);
 
 -- ---------------------------------------------------------------------
 -- Tables (6) — every new table introduced by 0004 must exist.
@@ -278,7 +278,8 @@ SELECT has_function(
 );
 
 -- ---------------------------------------------------------------------
--- invitations table (1) + columns (7) + invite RPCs (3) — added by 0009.
+-- invitations table (1) + columns (6 present, target_user_id NOT NULL,
+-- target_email absent, email-index absent) + invite RPCs (3) — 0009, 0022.
 -- ---------------------------------------------------------------------
 SELECT has_table(
   'public', 'invitations', 'invitations table exists'
@@ -301,11 +302,26 @@ SELECT has_column(
   'target_user_id',
   'invitations.target_user_id exists'
 );
-SELECT has_column(
+-- Load-bearing: 0022 dropped the email-keyed invite path. Every invite
+-- now resolves to a registered account, so target_user_id is NOT NULL
+-- and the target_email column and its partial unique index are gone.
+SELECT col_not_null(
+  'public',
+  'invitations',
+  'target_user_id',
+  'invitations.target_user_id is NOT NULL'
+);
+SELECT hasnt_column(
   'public',
   'invitations',
   'target_email',
-  'invitations.target_email exists'
+  'invitations has no `target_email` column (email-keyed path retired)'
+);
+SELECT hasnt_index(
+  'public',
+  'invitations',
+  'invitations_target_email_uniq',
+  'invitations_target_email_uniq index is gone'
 );
 SELECT has_column(
   'public',

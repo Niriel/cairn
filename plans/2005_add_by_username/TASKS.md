@@ -171,10 +171,10 @@ match the code 2005 ships.
 
 ## Phase 1 — DB migration + pgTAP
 
-### [ ] 1.1 Username-keyed `send_invitation`, truthful miss, and `target_email` retirement
+### [x] 1.1 Username-keyed `send_invitation`, truthful miss, and `target_email` retirement
 
 **Created:** 2026-07-09T09:46:23Z
-**Completed:**
+**Completed:** 2026-07-09T10:50:52Z
 
 **Why:** Adding a person to a list must key on the public username, not e-mail
 (parent R10), and — since the unregistered-e-mail path was inert — the
@@ -260,6 +260,33 @@ fixture rows; `docs/invites.md` (post-0.1) for the check sequence.
 6. GREEN — `./scripts/test-db.sh` → green (all fixtures above included).
 
 **Verify:** `./scripts/test-db.sh`
+
+**Notes:**
+
+- Green: all 761 pgTAP assertions pass; SQLFluff clean on the new migration
+  and every edited test file. RED was confirmed first (schema_shape 72–74
+  failed on the target_email/NOT-NULL/index assertions; `invitations.sql`
+  failed because the old `send_invitation` had no `p_username` parameter).
+- **Defensive DELETE added to the migration** (not in the task's Decisions
+  list): `DELETE FROM public.invitations WHERE target_user_id IS NULL;`
+  before `SET NOT NULL`. The email-keyed path was inert/never-built so there
+  should be no such rows, but a live database could in principle hold one,
+  and `SET NOT NULL` would abort on it. Dropping them first makes the
+  migration safe to apply on prod.
+- Dropping `target_email` auto-drops the multi-column CHECK that referenced
+  it (Postgres drops table constraints involving a dropped column), so no
+  explicit `DROP CONSTRAINT` was needed — the generated constraint name was
+  never depended on.
+- `send_invitation`'s `search_path` narrowed `public, auth` → `public`: the
+  target now resolves against `public.profiles`, so `auth` is no longer read.
+- Beyond the task's called-out edits, swept `invitations.sql` for **all** 11
+  `target_email` INSERT column-lists (mechanical strip) and fixed two stale
+  header/section comments in `invite_cascades.sql` and `export_my_data.sql`
+  that described the retired email-keyed path. The `export_my_data()` and
+  cap-trigger function bodies needed no change — neither references the
+  `target_email` column (only `target_user_id`).
+- `schema_shape.sql` gained `col_not_null` + `hasnt_index` assertions
+  (pgTAP core, not previously used in this suite — both work); plan 78 → 80.
 
 ### [ ] 1.2 `add_circle_by_username` replaces `add_circle_by_email`
 

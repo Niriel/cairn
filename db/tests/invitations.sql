@@ -29,6 +29,16 @@ SELECT no_plan();
 \i /db/tests/fixtures/users_alice_bob_carol.sql
 \i /db/tests/fixtures/list_solo_alice.sql
 
+-- Give Alice, Bob, and Carol known public handles so send_invitation's
+-- username resolution has something to resolve (mirrors resolve_username.sql).
+-- The provisional handles seeded by tg_profile_on_signup are overwritten here.
+UPDATE public.profiles SET username = 'AliceHandle'
+WHERE id = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
+UPDATE public.profiles SET username = 'BobHandle'
+WHERE id = 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb';
+UPDATE public.profiles SET username = 'CarolHandle'
+WHERE id = 'cccccccc-cccc-cccc-cccc-cccccccccccc';
+
 -- ===================================================================
 -- A. invitations_select RLS (3) — inviter and invitee can see;
 -- outsider cannot.
@@ -51,12 +61,11 @@ WHERE
   );
 
 INSERT INTO public.invitations
-(list_id, created_by, target_user_id, target_email)
+(list_id, created_by, target_user_id)
 VALUES (
   '22222222-2222-2222-2222-222222222222',
   'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
-  'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
-  NULL
+  'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb'
 );
 
 -- A1: Alice (inviter) sees the row.
@@ -130,13 +139,13 @@ CREATE TEMPORARY TABLE _b_ids (id1 uuid, id2 uuid);
 GRANT ALL ON _b_ids TO authenticated;
 INSERT INTO _b_ids (id1) SELECT public.send_invitation(
   '22222222-2222-2222-2222-222222222222',
-  p_user_id := 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb'
+  p_username := 'BobHandle'
 );
 
 -- B1: returns non-null uuid.
 SELECT ok(
   (SELECT id1 IS NOT NULL FROM _b_ids),
-  'B1: send_invitation(Alice -> Bob on list_alice) returns non-null'
+  'B1: send_invitation(Alice -> BobHandle on list_alice) returns non-null'
 );
 
 -- B2: an invitations row exists with the expected shape.
@@ -147,11 +156,10 @@ SELECT is(
     WHERE
       created_by = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'
       AND target_user_id = 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb'
-      AND target_email IS NULL
       AND list_id = '22222222-2222-2222-2222-222222222222'
   ),
   1,
-  'B2: invitations row exists with (Alice, Bob, NULL, list_alice)'
+  'B2: invitations row exists with (Alice, Bob, list_alice)'
 );
 
 -- B3: idempotency — re-call returns the same uuid (step 5 short-circuit).
@@ -163,7 +171,7 @@ SELECT set_config(
 SET LOCAL ROLE authenticated;
 UPDATE _b_ids SET id2 = public.send_invitation(
   '22222222-2222-2222-2222-222222222222',
-  p_user_id := 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb'
+  p_username := 'BobHandle'
 );
 SELECT is(
   (SELECT id1 FROM _b_ids),
@@ -264,7 +272,7 @@ SELECT throws_ok(
 );
 
 -- ===================================================================
--- E. send_invitation — neither p_email nor p_user_id given (1).
+-- E. send_invitation — neither p_username nor p_user_id given (1).
 -- ===================================================================
 
 RESET ROLE;
@@ -292,12 +300,12 @@ SET LOCAL ROLE authenticated;
 SELECT throws_ok(
   $$SELECT public.send_invitation(
     '22222222-2222-2222-2222-222222222222',
-    p_email := NULL,
+    p_username := NULL,
     p_user_id := NULL
   )$$,
   'P0001',
   NULL,
-  'E1: missing both p_email and p_user_id raises P0001'
+  'E1: missing both p_username and p_user_id raises P0001'
 );
 
 -- ===================================================================
@@ -377,7 +385,7 @@ SET LOCAL ROLE authenticated;
 SELECT throws_ok(
   $$SELECT public.send_invitation(
     '22222222-2222-2222-2222-222222222222',
-    p_user_id := 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb'
+    p_username := 'BobHandle'
   )$$,
   'P0001',
   NULL,
@@ -489,7 +497,7 @@ SELECT is(
   (
     SELECT public.send_invitation(
       '22222222-2222-2222-2222-222222222222',
-      p_user_id := 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb'
+      p_username := 'BobHandle'
     )
   ),
   NULL,
@@ -530,7 +538,7 @@ SELECT is(
   (
     SELECT public.send_invitation(
       '22222222-2222-2222-2222-222222222222',
-      p_user_id := 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb'
+      p_username := 'BobHandle'
     )
   ),
   NULL,
@@ -571,7 +579,7 @@ SELECT is(
   (
     SELECT public.send_invitation(
       '22222222-2222-2222-2222-222222222222',
-      p_user_id := 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb'
+      p_username := 'BobHandle'
     )
   ),
   NULL,
@@ -618,14 +626,17 @@ SELECT ok(
   (
     SELECT public.send_invitation(
       '22222222-2222-2222-2222-222222222222',
-      p_user_id := 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb'
+      p_username := 'BobHandle'
     ) IS NOT NULL
   ),
   'L1: invite_policy=circle and Alice in Bob''s circle -> non-null'
 );
 
 -- ===================================================================
--- M. send_invitation — email-keyed, unregistered email (3).
+-- M. send_invitation — truthful miss on an unknown username (1).
+-- A username that resolves to no profile raises P0001 'no such user',
+-- distinct from the silent NULL returns of block/policy — username
+-- existence is public, so the miss is told truthfully.
 -- ===================================================================
 
 RESET ROLE;
@@ -651,53 +662,19 @@ SELECT set_config(
 );
 SET LOCAL ROLE authenticated;
 
-CREATE TEMPORARY TABLE _m_ids (id1 uuid, id2 uuid);
-GRANT ALL ON _m_ids TO authenticated;
-INSERT INTO _m_ids (id1) SELECT public.send_invitation(
-  '22222222-2222-2222-2222-222222222222',
-  p_email := 'nobody@example.com'
-);
-
--- M1: non-null uuid.
-SELECT ok(
-  (SELECT id1 IS NOT NULL FROM _m_ids),
-  'M1: send_invitation(p_email := nobody) returns non-null'
-);
-
--- M2: row exists with target_user_id NULL, target_email set.
-RESET ROLE;
-SELECT is(
-  (
-    SELECT count(*)::int FROM public.invitations
-    WHERE
-      list_id = '22222222-2222-2222-2222-222222222222'
-      AND target_user_id IS NULL
-      AND target_email = 'nobody@example.com'
-  ),
-  1,
-  'M2: email-keyed invitations row exists'
-);
-
--- M3: idempotency on email-keyed path.
-SELECT set_config(
-  'request.jwt.claims',
-  '{"sub":"aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"}',
-  TRUE
-);
-SET LOCAL ROLE authenticated;
-UPDATE _m_ids SET id2 = public.send_invitation(
-  '22222222-2222-2222-2222-222222222222',
-  p_email := 'nobody@example.com'
-);
-SELECT is(
-  (SELECT id1 FROM _m_ids),
-  (SELECT id2 FROM _m_ids),
-  'M3: re-call with same email returns the same uuid'
+SELECT throws_ok(
+  $$SELECT public.send_invitation(
+    '22222222-2222-2222-2222-222222222222',
+    p_username := 'ghost'
+  )$$,
+  'P0001',
+  'no such user',
+  'M1: unknown username raises P0001 ''no such user'' (truthful miss)'
 );
 
 
 -- ===================================================================
--- N. send_invitation — both p_email and p_user_id non-null, p_user_id wins (1).
+-- N. send_invitation — both p_username and p_user_id non-null, p_user_id wins (1).
 -- ===================================================================
 
 RESET ROLE;
@@ -727,7 +704,7 @@ SELECT ok(
   (
     SELECT public.send_invitation(
       '22222222-2222-2222-2222-222222222222',
-      p_email := 'irrelevant@example.com',
+      p_username := 'CarolHandle',
       p_user_id := 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb'
     ) IS NOT NULL
   ),
@@ -741,10 +718,9 @@ SELECT is(
     WHERE
       list_id = '22222222-2222-2222-2222-222222222222'
       AND target_user_id = 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb'
-      AND target_email IS NULL
   ),
   1,
-  'N2: p_user_id wins — target_user_id = Bob, target_email = NULL'
+  'N2: p_user_id wins — target resolves to Bob, not CarolHandle'
 );
 
 -- ===================================================================
@@ -771,12 +747,11 @@ CREATE TEMPORARY TABLE _o_ids (pre uuid, post uuid);
 GRANT ALL ON _o_ids TO authenticated;
 WITH ins AS (
   INSERT INTO public.invitations
-  (list_id, created_by, target_user_id, target_email)
+  (list_id, created_by, target_user_id)
   VALUES (
     '22222222-2222-2222-2222-222222222222',
     'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
-    'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
-    NULL
+    'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb'
   )
   RETURNING id
 )
@@ -792,7 +767,7 @@ SET LOCAL ROLE authenticated;
 
 UPDATE _o_ids SET post = public.send_invitation(
   '22222222-2222-2222-2222-222222222222',
-  p_user_id := 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb'
+  p_username := 'BobHandle'
 );
 
 -- O1: same uuid as pre-inserted (step-5 short-circuit).
@@ -840,12 +815,11 @@ CREATE TEMPORARY TABLE _p_inv (id uuid);
 GRANT ALL ON _p_inv TO authenticated;
 WITH ins AS (
   INSERT INTO public.invitations
-  (list_id, created_by, target_user_id, target_email)
+  (list_id, created_by, target_user_id)
   VALUES (
     '22222222-2222-2222-2222-222222222222',
     'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
-    'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
-    NULL
+    'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb'
   )
   RETURNING id
 )
@@ -929,12 +903,11 @@ CREATE TEMPORARY TABLE _q_inv (id uuid);
 GRANT ALL ON _q_inv TO authenticated;
 WITH ins AS (
   INSERT INTO public.invitations
-  (list_id, created_by, target_user_id, target_email)
+  (list_id, created_by, target_user_id)
   VALUES (
     '22222222-2222-2222-2222-222222222222',
     'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
-    'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
-    NULL
+    'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb'
   )
   RETURNING id
 )
@@ -1001,12 +974,11 @@ CREATE TEMPORARY TABLE _r_inv (id uuid);
 GRANT ALL ON _r_inv TO authenticated;
 WITH ins AS (
   INSERT INTO public.invitations
-  (list_id, created_by, target_user_id, target_email)
+  (list_id, created_by, target_user_id)
   VALUES (
     '22222222-2222-2222-2222-222222222222',
     'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
-    'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
-    NULL
+    'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb'
   )
   RETURNING id
 )
@@ -1064,57 +1036,6 @@ SELECT throws_ok(
 );
 
 -- ===================================================================
--- T. accept_invitation — email-keyed invitation raises (1).
--- ===================================================================
-
-RESET ROLE;
-DELETE FROM public.invitations;
-DELETE FROM public.relationships;
-DELETE FROM public.list_members
-WHERE NOT (
-  list_id = '22222222-2222-2222-2222-222222222222'
-  AND user_id = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'
-);
-UPDATE public.user_settings SET invite_policy = 'everybody'
-WHERE
-  id IN (
-    'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
-    'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
-    'cccccccc-cccc-cccc-cccc-cccccccccccc'
-  );
-
-CREATE TEMPORARY TABLE _t_inv (id uuid);
-GRANT ALL ON _t_inv TO authenticated;
-WITH ins AS (
-  INSERT INTO public.invitations
-  (list_id, created_by, target_user_id, target_email)
-  VALUES (
-    '22222222-2222-2222-2222-222222222222',
-    'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
-    NULL,
-    'bob@test.cairn'
-  )
-  RETURNING id
-)
-
-INSERT INTO _t_inv (id) SELECT id FROM ins;
-
-SELECT set_config(
-  'request.jwt.claims',
-  '{"sub":"bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"}',
-  TRUE
-);
-SET LOCAL ROLE authenticated;
-
-SELECT throws_ok(
-  $$SELECT public.accept_invitation((SELECT id FROM _t_inv))$$,
-  'P0001',
-  NULL,
-  'T1: accept on an email-keyed (target_user_id IS NULL) invite raises'
-);
-
-
--- ===================================================================
 -- U. decline_invitation — happy path (1).
 -- ===================================================================
 
@@ -1138,12 +1059,11 @@ CREATE TEMPORARY TABLE _u_inv (id uuid);
 GRANT ALL ON _u_inv TO authenticated;
 WITH ins AS (
   INSERT INTO public.invitations
-  (list_id, created_by, target_user_id, target_email)
+  (list_id, created_by, target_user_id)
   VALUES (
     '22222222-2222-2222-2222-222222222222',
     'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
-    'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
-    NULL
+    'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb'
   )
   RETURNING id
 )
@@ -1192,12 +1112,11 @@ CREATE TEMPORARY TABLE _v_inv (id uuid);
 GRANT ALL ON _v_inv TO authenticated;
 WITH ins AS (
   INSERT INTO public.invitations
-  (list_id, created_by, target_user_id, target_email)
+  (list_id, created_by, target_user_id)
   VALUES (
     '22222222-2222-2222-2222-222222222222',
     'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
-    'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
-    NULL
+    'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb'
   )
   RETURNING id
 )
@@ -1250,40 +1169,6 @@ SELECT throws_ok(
 );
 
 
--- V4: email-keyed invitation.
-RESET ROLE;
-DELETE FROM public.invitations;
-
-CREATE TEMPORARY TABLE _v4_inv (id uuid);
-GRANT ALL ON _v4_inv TO authenticated;
-WITH ins AS (
-  INSERT INTO public.invitations
-  (list_id, created_by, target_user_id, target_email)
-  VALUES (
-    '22222222-2222-2222-2222-222222222222',
-    'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
-    NULL,
-    'bob@test.cairn'
-  )
-  RETURNING id
-)
-
-INSERT INTO _v4_inv (id) SELECT id FROM ins;
-
-SELECT set_config(
-  'request.jwt.claims',
-  '{"sub":"bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"}',
-  TRUE
-);
-SET LOCAL ROLE authenticated;
-SELECT throws_ok(
-  $$SELECT public.decline_invitation((SELECT id FROM _v4_inv))$$,
-  'P0001',
-  NULL,
-  'V4: decline on email-keyed (target_user_id IS NULL) invite raises'
-);
-
-
 -- ===================================================================
 -- W. block auto-decline — INSERT path (2).
 -- Alice inserts (Alice, Bob, 'blocked') -> t40 trigger should delete
@@ -1308,20 +1193,18 @@ WHERE
 
 -- Seed both invitations (Bob -> Alice, Bob -> Carol) directly.
 INSERT INTO public.invitations
-(list_id, created_by, target_user_id, target_email)
+(list_id, created_by, target_user_id)
 VALUES (
   '22222222-2222-2222-2222-222222222222',
   'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
-  'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
-  NULL
+  'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'
 );
 INSERT INTO public.invitations
-(list_id, created_by, target_user_id, target_email)
+(list_id, created_by, target_user_id)
 VALUES (
   '22222222-2222-2222-2222-222222222222',
   'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
-  'cccccccc-cccc-cccc-cccc-cccccccccccc',
-  NULL
+  'cccccccc-cccc-cccc-cccc-cccccccccccc'
 );
 
 SELECT set_config(
@@ -1398,12 +1281,11 @@ INSERT INTO public.relationships (user_id, other_user_id, status) VALUES
 
 RESET ROLE;
 INSERT INTO public.invitations
-(list_id, created_by, target_user_id, target_email)
+(list_id, created_by, target_user_id)
 VALUES (
   '22222222-2222-2222-2222-222222222222',
   'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
-  'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
-  NULL
+  'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'
 );
 
 SELECT set_config(
@@ -1465,12 +1347,11 @@ INSERT INTO public.relationships (user_id, other_user_id, status) VALUES
 
 RESET ROLE;
 INSERT INTO public.invitations
-(list_id, created_by, target_user_id, target_email)
+(list_id, created_by, target_user_id)
 VALUES (
   '22222222-2222-2222-2222-222222222222',
   'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
-  'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
-  NULL
+  'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'
 );
 
 -- Y1: pending invite still present after the INSERT-of-circle row above.
