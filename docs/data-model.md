@@ -725,7 +725,7 @@ To translate the schema into the API the web app actually consumes, here are the
 - `PATCH /items?id=eq.<uuid>` — edit, soft-delete, or restore an item (restore = `PATCH` with `deleted_at: null`)
 - `POST /votes` — cast a vote (with `Prefer: resolution=merge-duplicates` to handle re-voting)
 - `DELETE /votes?item_id=eq.<uuid>` — retract a vote. The `votes_delete` RLS policy (`using (user_id = public.uid())`) scopes the delete to the caller's own vote; omit `user_id` from the query — RLS is the enforcement, not the application filter.
-- `GET /profiles?id=eq.<uuid>` — fetch a profile (world-readable to authenticated callers; only `id`, `display_name`, `avatar_version`, `created_at`)
+- `GET /profiles?id=eq.<uuid>` — fetch a profile (world-readable to authenticated callers; only `id`, `username`, `display_name`, `avatar_version`, `created_at`)
 - `PATCH /profiles?id=eq.<my-uid>` — update your own profile (direct write; prefer `/rpc/set_display_name` which trims and validates)
 - `POST /rpc/set_display_name` — update your own `display_name`. Body: `{new_name}`. Trims whitespace, rejects empty or >100-character values (SQLSTATE `23514`)
 - `POST /rpc/set_username` — change your own `username`. Body: `{p_username}`. Rewrites `profiles.username` only. The GoTrue sign-in identity is the stable, uid-derived `<uid>@cairn.internal` set once at account creation, so a rename never touches `auth.users` and can never break the credential. Returns separable errors the UI maps apart: `23514` "invalid username" (not `^[A-Za-z0-9]{3,30}$`), `23505` "username taken" (handle held by another user, case-insensitively), `28000` (unauthenticated or tombstone caller). A case-only change to your own handle is allowed.

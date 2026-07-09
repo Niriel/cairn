@@ -115,10 +115,10 @@ re-read of the edited sections.
   `auth.users`, so it keeps `search_path = public, auth`. Only the comment
   reference to the sibling function was renamed.
 
-### [ ] 0.2 Reconcile `docs/ui.md` and `docs/data-model.md`
+### [x] 0.2 Reconcile `docs/ui.md` and `docs/data-model.md`
 
 **Created:** 2026-07-09T09:46:23Z
-**Completed:**
+**Completed:** 2026-07-09T10:35:17Z
 
 **Why:** The UI doc still documents "By email" fields and has no `@username`
 visual role; the data-model doc's profiles-read note omits `username`. Both must
@@ -150,6 +150,24 @@ match the code 2005 ships.
 2. Edit the `data-model.md` profiles-read note to include `username`.
 
 **Verify:** `./scripts/check.sh` (Prettier MD format check) · manual re-read.
+
+**Notes:**
+
+- Verified with `pnpm exec prettier --check` on the two edited docs — passes.
+  Doc-only change, so the rest of `check.sh` has no new input.
+- Beyond the two called-out edits I also swept `ui.md` for consistency: the
+  Blocked-screen "no add-by-email field" line and the invite-picker row
+  descriptions (added `@username` to the circle/co-member rows and the
+  profile-sheet contents), so the render-location list in the typography
+  section matches the prose that references it.
+- **Doc divergence to flag (out of 0.2 scope):** `data-model.md:89` describes
+  the `lower(username)` unique index as "the same `lower()`-expression idiom
+  used for `invitations.target_email`". Task 0.1 removed `target_email` from
+  `invites.md`, and Task 1.1 retires the column in the migration — so that
+  comparison will dangle. It's an RPC/schema-adjacent line the plan defers to
+  the migration tasks; worth confirming 1.1 (or a follow-up) rewrites the
+  idiom example (e.g. point it at `citext`-avoidance generally, or drop the
+  cross-reference) so no live doc cites a removed column.
 
 ## Phase 1 — DB migration + pgTAP
 
