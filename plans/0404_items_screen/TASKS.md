@@ -29,9 +29,11 @@ section already reads `deleted_at: null` without `deleted_by: null` — no chang
 **Prerequisites:** None — doc-only.
 
 **Files:**
+
 - `docs/data-model.md` (modify)
 
 **Steps:**
+
 1. In `docs/data-model.md`, in the `items_deleted` paragraph, find the restore sentence:
    "Restoring an item is a `PATCH /items?id=eq.<uuid>` with `{"deleted_at": null, "deleted_by": null}`"
    and update it:
@@ -50,6 +52,7 @@ section already reads `deleted_at: null` without `deleted_by: null` — no chang
 **Prerequisites:** None — pure DB migration.
 
 **Decisions:**
+
 - Add two FK constraints on `items` using `ON DELETE SET DEFAULT` (matching the existing items FKs to `auth.users`). When a profile is hard-deleted (only via cascade from `auth.users`), the `auth.users` FK's `SET DEFAULT` fires, setting `created_by`/`modified_by` to the tombstone UUID before the profiles row disappears; the new FK's own `SET DEFAULT` is a no-op idempotent fallback.
 - Add one FK constraint on `votes` using `ON DELETE CASCADE` (matching the existing `votes.user_id → auth.users ON DELETE CASCADE`). When a profile is cascade-deleted with its `auth.users` row, the votes are already cascade-deleted by the `auth.users` FK, so this FK is idempotent but required for PostgREST to resolve the profile embed.
 - The tombstone profile row (`id = '00000000-0000-0000-0000-000000000000'`, `display_name = 'Deleted user'`) was inserted in migration 0004, so all existing items rows satisfy the new FKs immediately. Votes rows reference real users so also satisfy them.
@@ -57,10 +60,12 @@ section already reads `deleted_at: null` without `deleted_by: null` — no chang
 - pgTAP test: assert all three FK constraints exist using `fk_ok` (the project pattern — see `db/tests/list_metadata.sql:53`).
 
 **Files:**
+
 - `db/migrations/0006_items_profiles_fk.sql` (create)
 - `db/tests/0006_items_profiles_fk.sql` (create — pgTAP)
 
 **Steps:**
+
 1. RED — Create `db/tests/0006_items_profiles_fk.sql` with pgTAP assertions using `fk_ok`
    (the project pattern — see `db/tests/list_metadata.sql:53`):
    - `fk_ok('public', 'items', 'created_by', 'public', 'profiles', 'id', 'items.created_by FK to profiles');`
@@ -74,13 +79,14 @@ section already reads `deleted_at: null` without `deleted_by: null` — no chang
      immediately `DELETE FROM public.profiles WHERE id = <that-uuid>`, leaving the `auth.users` row
      intact. Set `request.jwt.claims` to that UUID. **Run the INSERT at the `cairn` role** (the table
      owner — it bypasses RLS, so no list-membership row for this UUID is needed): `INSERT INTO
-     public.items (list_id, name) VALUES (...)`. The attribution trigger stamps `created_by = uid()`
+public.items (list_id, name) VALUES (...)`. The attribution trigger stamps `created_by = uid()`
      (the profileless UUID) via the JWT claims — this passes the `auth.users` FK but fails the new
      `profiles` FK. Running as `authenticated` instead would fail on `items_insert`'s
      `is_list_member()` check before reaching the FK, making the test vacuous. This matches the
      pattern in `db/tests/rls_items.sql` where fixture inserts are always run at the `cairn` role.
 2. RED — Run `./scripts/test-db.sh` and confirm the new file reports failures (FKs don't exist yet).
 3. GREEN — Create `db/migrations/0006_items_profiles_fk.sql`:
+
    ```sql
    -- 0006_items_profiles_fk.sql — FK constraints enabling PostgREST profile joins
    --   from items.created_by, items.modified_by, and votes.user_id to public.profiles.
@@ -95,6 +101,7 @@ section already reads `deleted_at: null` without `deleted_by: null` — no chang
      ADD CONSTRAINT votes_user_id_profiles_fk
        FOREIGN KEY (user_id) REFERENCES public.profiles (id) ON DELETE CASCADE;
    ```
+
 4. GREEN — Run `./scripts/test-db.sh` with the migration applied; all tests pass.
 5. Run `./scripts/check.sh`.
 
@@ -114,6 +121,7 @@ section already reads `deleted_at: null` without `deleted_by: null` — no chang
 **Prerequisites:** None — this is the first task on the `0404_items_screen` branch.
 
 **Decisions:**
+
 - Route stub is a minimal `+page.svelte` that imports `ItemsScreen` (not yet created); to avoid a toolchain catch-22, import it with `// @ts-expect-error — component added in Task 4.1` so `pnpm check` passes before the component exists. Alternatively, create a placeholder `ItemsScreen.svelte` stub alongside. **Prefer the stub approach**: create a bare-bones `ItemsScreen.svelte` in Phase 1 (renders a `<div data-test="items-screen-stub"></div>`) to give `svelte-check` a valid import target; the real component replaces it in Task 4.1.
 - Once the route exists, remove the `// eslint-disable-next-line svelte/no-navigation-without-resolve` comment in `ListsScreen.svelte` (line 88–89) and replace the bare string `goto('/lists/' + item.id)` with `goto(resolve('/lists/' + item.id))`.
 - `Item` type fields: `id`, `list_id`, `name`, `notes: string | null`, `created_by`, `modified_by`, `created_by_name`, `modified_by_name: string | null`, `score`, `created_at`, `modified_at`, `my_vote: number | null`, `member_votes: { user_id: string; display_name: string; value: number }[]`.
@@ -127,6 +135,7 @@ section already reads `deleted_at: null` without `deleted_by: null` — no chang
 **Reference:** `docs/quality.md` "Navigating to a not-yet-created SvelteKit route" for the stub pattern. `docs/frontend-layout.md` for lib structure and mock placement. Route test file must be named `page.test.ts` (no `+` prefix).
 
 **Files:**
+
 - `web/src/routes/(app)/lists/[list_id]/+page.svelte` (create — stub)
 - `web/src/routes/(app)/lists/[list_id]/page.test.ts` (create)
 - `web/src/lib/item/components/ItemsScreen.svelte` (create — placeholder stub)
@@ -137,6 +146,7 @@ section already reads `deleted_at: null` without `deleted_by: null` — no chang
 - `web/src/lib/list/components/ListsScreen.svelte` (modify — replace eslint-disable goto with resolve())
 
 **Steps:**
+
 1. Create `web/src/lib/item/components/ItemsScreen.svelte` placeholder:
    ```svelte
    <div data-test="items-screen-stub"></div>
@@ -170,15 +180,25 @@ section already reads `deleted_at: null` without `deleted_by: null` — no chang
 **Prerequisites:** Task 1.1 — `item.ts` model functions exist; MSW handlers return predictable data.
 
 **Decisions:**
+
 - Store shape (Svelte 5 `$state`):
   ```typescript
   export const items = $state<{
-    rows: Item[];
-    loading: boolean;
-    error: string | null;
-    listId: string | null;
-    pendingDelete: { item: Item; timerId: ReturnType<typeof setTimeout> } | null;
-  }>({ rows: [], loading: false, error: null, listId: null, pendingDelete: null });
+  	rows: Item[];
+  	loading: boolean;
+  	error: string | null;
+  	listId: string | null;
+  	pendingDelete: {
+  		item: Item;
+  		timerId: ReturnType<typeof setTimeout>;
+  	} | null;
+  }>({
+  	rows: [],
+  	loading: false,
+  	error: null,
+  	listId: null,
+  	pendingDelete: null,
+  });
   ```
 - `loadItems(listId: string)`: sets `loading = true`, reads `uid` from `session.current` (import `session` from `$lib/shared/state/session.svelte`, same as `lists.svelte.ts`), calls `fetchItems(listId, uid)`, updates `rows` and `listId`, sets `loading = false`.
 - `upsertVote(itemId, value)`: finds the item in `rows`, stores old `{ my_vote, score }`, optimistically sets new values, calls API, rolls back on error.
@@ -190,20 +210,28 @@ section already reads `deleted_at: null` without `deleted_by: null` — no chang
 - The mock `__mocks__/items.svelte.ts` exports `items` as a plain reactive object with all the same fields (preset empty) and stub functions that do nothing; tests that render components which use the store can override with `vi.mocked`.
 
 **Files:**
+
 - `web/src/lib/item/state/items.svelte.ts` (create)
 - `web/src/lib/item/state/items.test.ts` (create)
 - `web/src/lib/item/state/__mocks__/items.svelte.ts` (create)
 - `web/src/lib/shared/state/session.svelte` (import only — no edits)
 
 **Steps:**
+
 1. RED — Write `items.test.ts`. Mock `$lib/shared/state/session.svelte` (same pattern as `lists.test.ts`):
    ```typescript
-   vi.mock('$lib/shared/state/session.svelte');
+   vi.mock("$lib/shared/state/session.svelte");
    ```
    In `beforeAll` (or at the top of the describe block) call `sessionMod.setSignedIn({ id: TEST_UID, email: 'dev@example.test' })` so `loadItems` receives a real uid. Add a `beforeEach` that resets the `items` singleton back to its initial shape before every test — `items` is module-level `$state` and persists between test runs in the same Vitest worker:
    ```typescript
    beforeEach(() => {
-     Object.assign(items, { rows: [], loading: false, error: null, listId: null, pendingDelete: null });
+   	Object.assign(items, {
+   		rows: [],
+   		loading: false,
+   		error: null,
+   		listId: null,
+   		pendingDelete: null,
+   	});
    });
    ```
    Then write tests: (a) `loadItems` populates `rows`; (b) `upsertVote` mutates `my_vote` and
@@ -237,6 +265,7 @@ section already reads `deleted_at: null` without `deleted_by: null` — no chang
 **Prerequisites:** Task 1.1 — `Icon.svelte` (`thumbs-up`, `thumbs-down` icons) exists in `$lib/basic/components/Icon.svelte`.
 
 **Decisions:**
+
 - Props: `value: number | null` (null = no vote = render `=`), `onchange: (v: number | null) => void`, `disabled?: boolean`.
 - Thumb logic for thumbs-up: `null` → `onchange(1)`; +3 → disabled (opacity 0.35, no event); −1 → `onchange(null)` (vote removal — opposite-direction tap takes −1 to 0, which is invalid, so emit null for store to DELETE); otherwise → `onchange(value + 1)`. For thumbs-down: mirror exactly — `null` → `onchange(-1)`; −3 → disabled; +1 → `onchange(null)` (vote removal); otherwise → `onchange(value - 1)`. The null-emission formula: `Math.abs(value) === 1 && direction === -Math.sign(value)` (opposite-direction tap at ±1).
 - The indicator slot is always 44 px wide (`min-width: 44px; text-align: center`), JetBrains Mono 16 px, **font-weight 600** (per `docs/ui.md` "Vote indicator typography" — weight is constant across all seven states). **letter-spacing**: `0` when value is `null` or `0`; `'-0.04em'` otherwise (per `design/cairn-ui.jsx` `VoteIndicator:175` — tightens multi-char symbols like `---` and `+++`). Mapping: `null|0 → '='`, `1 → '+'`, `2 → '++'`, `3 → '+++'`, `-1 → '-'`, `-2 → '--'`, `-3 → '---'`. Color: `var(--sage)` for positive, `var(--ember)` for negative, `var(--stone)` for neutral.
@@ -246,11 +275,13 @@ section already reads `deleted_at: null` without `deleted_by: null` — no chang
 **Reference:** `design/cairn-ui.jsx` `VoteControl` and `VoteIndicator` functions for exact visual spec. `docs/ui.md` § "The vote control".
 
 **Files:**
+
 - `web/src/lib/item/components/VoteControl.svelte` (create)
 - `web/src/lib/item/components/VoteControl.test.ts` (create)
 - `web/src/lib/item/components/__mocks__/VoteControl.svelte` (create)
 
 **Steps:**
+
 1. RED — Write `VoteControl.test.ts`: (a) renders `=` when `value` is null; (b) renders `+` when value is 1; (c) renders `---` when value is −3; (d) tapping up calls `onchange(1)` when value is null; (e) tapping up when value is +1 calls `onchange(2)` (ordinary nudge); (f) tapping DOWN when value is +1 calls `onchange(null)` (vote removal — opposite-direction tap at +1); (g) tapping up when value is +3 button is disabled; (h) tapping UP when value is −1 calls `onchange(null)` (vote removal — opposite-direction tap at −1); (i) clicking a thumb stops event propagation (no parent toggle fired).
 2. GREEN — Implement `VoteControl.svelte`.
 3. Create `__mocks__/VoteControl.svelte` (stub renders three spans with test ids).
@@ -274,6 +305,7 @@ section already reads `deleted_at: null` without `deleted_by: null` — no chang
 **Prerequisites:** Tasks 1.2 and 2.1 — `items` store and `VoteControl` exist.
 
 **Decisions:**
+
 - `ItemsScreen` accepts a `listId: string` prop (passed from `+page.svelte`, which reads `$page.params.list_id`). The component calls `loadItems(listId)` on mount via `$effect`. This keeps `ItemsScreen` testable by passing the ID directly in tests, with no need to mock `$app/state`.
 - Also needs the list name and member count for the TopBar sub-text. Options: (a) fetch from `GET /lists?id=eq.<uuid>` in the store or component; (b) pass list metadata from the ListsScreen route state. **Option (a)**: fetch a minimal list row (`?id=eq.<uuid>&select=name,list_members(user_id)&list_members.deleted_at=is.null`) inside `ItemsScreen` on mount via a local `$state({ name: '', memberCount: 0 })` reactive variable and a `pgGet` call alongside `loadItems` — keeps routing simple and the items screen self-contained. Member count is `listMeta.list_members.length` (the array length of the embedded `list_members` rows, filtered to active members by the `deleted_at=is.null` modifier). **Do not** use `list_members(count)` — `count` is not a column on `list_members`; that syntax fails at runtime. The MSW handler for the `GET /lists` endpoint is added in Task 1.1 step 8; in `ItemsScreen.test.ts` the stub returns `[{ id: 'test-list-id', name: 'Test list', list_members: [{ user_id: '...' }] }]`.
 - **TopBar sub-text canonical format**: `"{itemCount} items · {memberCount} member"` (singular) or `"{itemCount} items · {memberCount} members"` (plural). Items come first, members second. (The two JSX mocks — `ItemsScreen` and `ItemsScreenWithUndo` — disagree on order; use `ItemsScreen`'s "items · members" ordering as canonical.)
@@ -301,6 +333,7 @@ section already reads `deleted_at: null` without `deleted_by: null` — no chang
 **Reference:** `design/cairn-screens.jsx` `ItemsScreen`, `ItemRow`, `ItemPanel`, `EmptyListScreen` functions. `docs/ui.md` § "Items screen" and § "Empty states".
 
 **Files:**
+
 - `web/src/lib/item/components/ItemsScreen.svelte` (modify — replace stub with full implementation)
 - `web/src/lib/item/components/ItemsScreen.test.ts` (create)
 - `web/src/lib/item/components/AddEditItemSheet.svelte` (create)
@@ -309,6 +342,7 @@ section already reads `deleted_at: null` without `deleted_by: null` — no chang
 - `web/src/lib/item/components/DeleteItemSheet.test.ts` (create)
 
 **Steps:**
+
 1. RED — Write `ItemsScreen.test.ts`: (a) shows loading state initially; (b) shows empty state when `rows` is empty; (c) renders item rows with names and vote controls; (d) tapping a row opens its panel (one at a time — opening a second closes the first); (e) tapping the back button calls `history.back()` (assert via `vi.spyOn(window.history, 'back')`); (f) FAB is visible when no pending delete; (g) TopBar title text matches the list name returned by the `GET /lists` stub handler (i.e. "Test list"); (h) with a panel open, dispatching a `popstate` event on `window` closes the panel (assert `data-test="item-panel"` is no longer in the DOM) — verifies the `pushHistoryGuard` integration.
 2. RED — Write `AddEditItemSheet.test.ts`: (a) add mode shows "New item" title; (b) edit mode pre-populates name and notes; (c) submitting in add mode calls `addItem`; (d) submitting in edit mode calls `editItem`; (e) cancel closes without calling anything.
 3. RED — Write `DeleteItemSheet.test.ts`: (a) shows item name in heading; (b) Cancel does not call `softDeleteItem`; (c) Delete calls `softDeleteItem` with the item id.
@@ -320,6 +354,7 @@ section already reads `deleted_at: null` without `deleted_by: null` — no chang
 **Verify:** `pnpm lint` · `pnpm check` · `pnpm test`
 
 **Notes:**
+
 - Inline `vi.mock(path, factory)` for `AddEditItemSheet`/`DeleteItemSheet` is not practical for Svelte 5 components in this test setup (no existing inline Svelte component factory pattern in the codebase). Created `__mocks__/` files instead; noted the deviation from the task's "one-off inline" preference.
 - The back-stack module has module-level state (`suppressNextPopState`, `activeListeners`) that persists across tests. Test (h) was broken by `suppressNextPopState = true` left by test (d)'s guard cleanup. Fixed by importing `_resetForTesting()` and calling it in `afterEach` alongside `vi.restoreAllMocks()`.
 - `$state(item?.name ?? '')` triggers Svelte's `state_referenced_locally` warning (capturing initial prop value). Refactored to `$derived` + `$effect` initialization pattern to silence the warning cleanly.
@@ -336,6 +371,7 @@ section already reads `deleted_at: null` without `deleted_by: null` — no chang
 **Prerequisites:** Task 3.1 — `ItemsScreen.svelte` full implementation exists; `items.pendingDelete` is wired.
 
 **Decisions:**
+
 - The snackbar is rendered inside `ItemsScreen` when `items.pendingDelete !== null`. Use a bespoke `<div>` — not `Snackbar.svelte`, which has no icon slot and cannot accommodate R11's trash-2 icon.
 - Position: shell-aware fixed positioning per `docs/ui.md` § "App shell width and fixed-position elements": `position: fixed; left: max(0px, calc(50% - var(--app-max-w) / 2 + 12px)); right: max(0px, calc(50% - var(--app-max-w) / 2 + 12px)); bottom: calc(env(safe-area-inset-bottom) + 18px)`. Bare `left: 12px; right: 12px` must not be used — it escapes the 26 rem shell on wide screens.
 - Content (success path): trash-2 icon, "Deleted '{item.name}'" (item name span uses `overflow: hidden; text-overflow: ellipsis; white-space: nowrap` so a long name — up to 500 chars per the DB constraint — stays single-line), "UNDO" text button (uppercase, sage, weight 700).
@@ -347,10 +383,12 @@ section already reads `deleted_at: null` without `deleted_by: null` — no chang
 **Reference:** `design/cairn-screens.jsx` `ItemsScreenWithUndo` for visual spec. `docs/ui.md` § "Undo snackbar" for the safe-area pattern and FAB-hiding rule.
 
 **Files:**
+
 - `web/src/lib/item/components/ItemsScreen.svelte` (modify — add snackbar + FAB conditional)
 - `web/src/lib/item/components/ItemsScreen.test.ts` (modify — add snackbar tests)
 
 **Steps:**
+
 1. RED — Add to `ItemsScreen.test.ts`: (a) after `softDeleteItem` sets `pendingDelete`, snackbar is visible with item name; (b) FAB is hidden while snackbar is showing; (c) tapping UNDO calls `undoDelete`; (d) when `pendingDelete` is null, snackbar is not in DOM; (e) when `items.error` is non-null (undo failed), snackbar shows "Couldn't restore — item is in trash." and the UNDO button is absent.
 2. GREEN — Add snackbar markup and conditional FAB to `ItemsScreen.svelte`.
 3. Run `pnpm lint && pnpm check && pnpm test`.
@@ -371,6 +409,7 @@ section already reads `deleted_at: null` without `deleted_by: null` — no chang
 **Prerequisites:** Tasks 3.1 and 3.2 — `ItemsScreen` is complete and the route exists.
 
 **Decisions:**
+
 - Test file: `web/e2e/items.spec.ts`. Look at existing e2e tests for the test helper and login patterns.
 - Scenarios: (a) navigate from lists to a list with items — items are rendered in score-sorted order; (b) tap a row — accordion opens, tap again — closes; (c) tap a second row — first closes, second opens; (d) vote up — indicator updates; (e) tap "Edit" in panel — edit sheet opens with pre-populated fields, save → item name updated; (f) tap "Delete" in panel → confirmation sheet → confirm → snackbar appears with item name; (g) tap UNDO → item returns to list; (h) tap the in-app back button → lands on `/lists` (or use `page.goBack()` to exercise `history.back()`); (i) empty state renders "Nothing here yet" copy and "Add the first item" button.
 - The Playwright tests run against the dev server (`pnpm dev`) seeded with the dev database. They use the dev login shortcut (or magic-link flow) same as existing e2e tests.
@@ -378,9 +417,11 @@ section already reads `deleted_at: null` without `deleted_by: null` — no chang
 **Reference:** `docs/testing.md` — Playwright setup and conventions. Existing `web/e2e/` tests for login helper pattern.
 
 **Files:**
+
 - `web/e2e/items.spec.ts` (create)
 
 **Steps:**
+
 1. Read `web/e2e/` to find the existing login helper and test patterns.
 2. Write `items.spec.ts` covering the scenarios in Decisions.
 3. Run `cd web && pnpm test:e2e -- items.spec.ts` — all scenarios must pass.

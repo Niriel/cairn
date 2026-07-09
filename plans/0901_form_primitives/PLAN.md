@@ -115,9 +115,9 @@ The parent plan's R15 confirms.
 
 ---
 
-*The sub-sections below are added by Task 1.1 after reading the
+_The sub-sections below are added by Task 1.1 after reading the
 existing code. They supersede any draft values in the sections
-above and are the authoritative reference for Phases 2–4.*
+above and are the authoritative reference for Phases 2–4._
 
 ### Open questions — resolved
 
@@ -178,16 +178,16 @@ above and are the authoritative reference for Phases 2–4.*
 
 ### Primary-tone colour reconciliation table
 
-| Call site | Old bg | New tone | New bg |
-|-----------|--------|----------|--------|
-| `AddEditItemSheet.btn-submit` | `--ink` | `tone="primary"` | `--accent` |
+| Call site                       | Old bg     | New tone         | New bg                 |
+| ------------------------------- | ---------- | ---------------- | ---------------------- |
+| `AddEditItemSheet.btn-submit`   | `--ink`    | `tone="primary"` | `--accent`             |
 | `EditDescriptionSheet.btn-save` | `--accent` | `tone="primary"` | `--accent` (no change) |
-| `RenameListSheet.btn-save` | `--accent` | `tone="primary"` | `--accent` (no change) |
-| `CreateListSheet` submit | `--accent` | `tone="primary"` | `--accent` (no change) |
-| `ItemsScreen.empty-cta` | `--ink` | `tone="ink"` | `--ink` (no change) |
-| `ListsScreen.empty-cta` | `--ink` | `tone="ink"` | `--ink` (no change) |
-| `InvitesInboxScreen.empty-cta` | `--ink` | `tone="ink"` | `--ink` (no change) |
-| `InvitePickerSheet.send-btn` | `--ink` | `tone="ink"` | `--ink` (no change) |
+| `RenameListSheet.btn-save`      | `--accent` | `tone="primary"` | `--accent` (no change) |
+| `CreateListSheet` submit        | `--accent` | `tone="primary"` | `--accent` (no change) |
+| `ItemsScreen.empty-cta`         | `--ink`    | `tone="ink"`     | `--ink` (no change)    |
+| `ListsScreen.empty-cta`         | `--ink`    | `tone="ink"`     | `--ink` (no change)    |
+| `InvitesInboxScreen.empty-cta`  | `--ink`    | `tone="ink"`     | `--ink` (no change)    |
+| `InvitePickerSheet.send-btn`    | `--ink`    | `tone="ink"`     | `--ink` (no change)    |
 
 **`tone="ink"` on `variant="rect"` = `background: var(--ink);
 color: var(--paper); border: none`.** This is the filled-dark
@@ -213,41 +213,41 @@ style documented in `docs/ui.md` "Illustrated empty state"
 
 ### Button migration table
 
-| Today's class | File | variant | tone | size | leadingIcon |
-|---|---|---|---|---|---|
-| `.btn-cancel` | `AddEditItemSheet`, `EditDescriptionSheet`, `DeleteItemSheet`, `ListOverflowSheet` (confirm-cancel) | `rect` | `ink` | `md` | — |
-| `.btn-submit` | `AddEditItemSheet` | `rect` | `primary` | `md` | — |
-| `.btn-save` | `EditDescriptionSheet`, `RenameListSheet` | `rect` | `primary` | `md` | — |
-| `.btn-delete` | `DeleteItemSheet` | `rect` | `destructive` | `md` | — |
-| `.confirm-leave` | `ListOverflowSheet` | `rect` | `destructive` | `sm` | — |
-| submit (`type="submit"`) | `CreateListSheet` | `rect` | `primary` | `md` | — |
-| cancel (`type="button"`) | `CreateListSheet` | `rect` | `ink` | `md` | — |
-| `.row` (Rename, EditDesc, ManageMembers, ViewBin) | `ListOverflowSheet` | `text` | `ink` | `md` | — |
-| `.row-delete` (Delete list) | `ListOverflowSheet` | `text` | `destructive` | `md` | — |
-| `.row` (Leave list) | `ListOverflowSheet` | `text` | `ink` | `md` | — |
-| `.invite-btn` (pill, circle rows) | `InvitePickerSheet` | `pill` | `ink` | `sm` | — |
-| `.send-btn` | `InvitePickerSheet` | `rect` | `ink` | `md` | — |
-| `.remove-btn` | `CircleScreen` | `pill` | `destructive` | `sm` | — |
-| `.multi-row` | `InvitesBanner` | `text` | `ink` | `md` | — |
-| `.unblock-btn` | `BlockedScreen` | `pill` | `ink` | `sm` | — |
-| `.row` actions | `ProfileSheet` | `text` | `ink` | `md` | — |
-| `.row` actions | `AvatarSourceSheet` | `text` | `ink` | `md` | — |
-| `.pill-btn.ink` | profile `+page.svelte` | `pill` | `ink` | `sm` | `pencil` |
-| `.pill-btn.ember` | profile `+page.svelte` | `pill` | `destructive` | `sm` | — |
-| `.save-btn` | profile `+page.svelte` (TopBar) | `rect` | `ink` | `sm` | — |
-| `.upload-action-btn` | profile `+page.svelte` | `rect` | `ink` | `md` | — |
-| `.profile-chip` | `SettingsScreen` | `text` | `ink` | `md` | — |
-| `.nav-row` | `SettingsScreen`, `PrivacyScreen`, `InvitesInboxScreen` | `text` | `ink` | `md` | — |
-| `.panel-btn` (Edit) | `ItemsScreen` | `pill` | `ink` | `sm` | `pencil` |
-| `.panel-btn.destructive` (Delete) | `ItemsScreen` | `pill` | `destructive` | `sm` | `trash` |
-| `.empty-cta` | `ItemsScreen`, `ListsScreen`, `InvitesInboxScreen` | `rect` | `ink` | `md` | `plus` |
-| `.row-nav` (list-row navigation) | `ListsScreen` | `text` | `ink` | `md` | — |
-| `.restore` | `TrashScreen` | `pill` | `ink` | `sm` | — |
-| `.restore` | `DeletedListsScreen` | `pill` | `ink` | `sm` | — |
-| "Not now" (left) | `PostAcceptPromptSheet` | `rect` | `ink` | `md` | — |
-| "Add to circle" (right) | `PostAcceptPromptSheet` | `rect` | `primary` | `md` | — |
-| "Got it" | `CircleExplainerSheet` | `rect` | `ink` | `md` | — |
-| `.resend` | `LoginCheck` | `text` | `primary` | `sm` | — |
+| Today's class                                     | File                                                                                                | variant | tone          | size | leadingIcon |
+| ------------------------------------------------- | --------------------------------------------------------------------------------------------------- | ------- | ------------- | ---- | ----------- |
+| `.btn-cancel`                                     | `AddEditItemSheet`, `EditDescriptionSheet`, `DeleteItemSheet`, `ListOverflowSheet` (confirm-cancel) | `rect`  | `ink`         | `md` | —           |
+| `.btn-submit`                                     | `AddEditItemSheet`                                                                                  | `rect`  | `primary`     | `md` | —           |
+| `.btn-save`                                       | `EditDescriptionSheet`, `RenameListSheet`                                                           | `rect`  | `primary`     | `md` | —           |
+| `.btn-delete`                                     | `DeleteItemSheet`                                                                                   | `rect`  | `destructive` | `md` | —           |
+| `.confirm-leave`                                  | `ListOverflowSheet`                                                                                 | `rect`  | `destructive` | `sm` | —           |
+| submit (`type="submit"`)                          | `CreateListSheet`                                                                                   | `rect`  | `primary`     | `md` | —           |
+| cancel (`type="button"`)                          | `CreateListSheet`                                                                                   | `rect`  | `ink`         | `md` | —           |
+| `.row` (Rename, EditDesc, ManageMembers, ViewBin) | `ListOverflowSheet`                                                                                 | `text`  | `ink`         | `md` | —           |
+| `.row-delete` (Delete list)                       | `ListOverflowSheet`                                                                                 | `text`  | `destructive` | `md` | —           |
+| `.row` (Leave list)                               | `ListOverflowSheet`                                                                                 | `text`  | `ink`         | `md` | —           |
+| `.invite-btn` (pill, circle rows)                 | `InvitePickerSheet`                                                                                 | `pill`  | `ink`         | `sm` | —           |
+| `.send-btn`                                       | `InvitePickerSheet`                                                                                 | `rect`  | `ink`         | `md` | —           |
+| `.remove-btn`                                     | `CircleScreen`                                                                                      | `pill`  | `destructive` | `sm` | —           |
+| `.multi-row`                                      | `InvitesBanner`                                                                                     | `text`  | `ink`         | `md` | —           |
+| `.unblock-btn`                                    | `BlockedScreen`                                                                                     | `pill`  | `ink`         | `sm` | —           |
+| `.row` actions                                    | `ProfileSheet`                                                                                      | `text`  | `ink`         | `md` | —           |
+| `.row` actions                                    | `AvatarSourceSheet`                                                                                 | `text`  | `ink`         | `md` | —           |
+| `.pill-btn.ink`                                   | profile `+page.svelte`                                                                              | `pill`  | `ink`         | `sm` | `pencil`    |
+| `.pill-btn.ember`                                 | profile `+page.svelte`                                                                              | `pill`  | `destructive` | `sm` | —           |
+| `.save-btn`                                       | profile `+page.svelte` (TopBar)                                                                     | `rect`  | `ink`         | `sm` | —           |
+| `.upload-action-btn`                              | profile `+page.svelte`                                                                              | `rect`  | `ink`         | `md` | —           |
+| `.profile-chip`                                   | `SettingsScreen`                                                                                    | `text`  | `ink`         | `md` | —           |
+| `.nav-row`                                        | `SettingsScreen`, `PrivacyScreen`, `InvitesInboxScreen`                                             | `text`  | `ink`         | `md` | —           |
+| `.panel-btn` (Edit)                               | `ItemsScreen`                                                                                       | `pill`  | `ink`         | `sm` | `pencil`    |
+| `.panel-btn.destructive` (Delete)                 | `ItemsScreen`                                                                                       | `pill`  | `destructive` | `sm` | `trash`     |
+| `.empty-cta`                                      | `ItemsScreen`, `ListsScreen`, `InvitesInboxScreen`                                                  | `rect`  | `ink`         | `md` | `plus`      |
+| `.row-nav` (list-row navigation)                  | `ListsScreen`                                                                                       | `text`  | `ink`         | `md` | —           |
+| `.restore`                                        | `TrashScreen`                                                                                       | `pill`  | `ink`         | `sm` | —           |
+| `.restore`                                        | `DeletedListsScreen`                                                                                | `pill`  | `ink`         | `sm` | —           |
+| "Not now" (left)                                  | `PostAcceptPromptSheet`                                                                             | `rect`  | `ink`         | `md` | —           |
+| "Add to circle" (right)                           | `PostAcceptPromptSheet`                                                                             | `rect`  | `primary`     | `md` | —           |
+| "Got it"                                          | `CircleExplainerSheet`                                                                              | `rect`  | `ink`         | `md` | —           |
+| `.resend`                                         | `LoginCheck`                                                                                        | `text`  | `primary`     | `sm` | —           |
 
 **Carve-outs (stay raw `<button>`):** `VoteControl.svelte` thumb;
 `Accordion.svelte` header; `(see more)/(see less)` expander in
@@ -260,52 +260,56 @@ style documented in `docs/ui.md` "Illustrated empty state"
 
 Base styles apply to all `<button>` renders regardless of
 variant/tone:
+
 ```css
 button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font: inherit;
-  font-weight: 600;
-  cursor: pointer;
-  line-height: 1;
-  white-space: nowrap;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	font: inherit;
+	font-weight: 600;
+	cursor: pointer;
+	line-height: 1;
+	white-space: nowrap;
 }
 ```
 
 **`variant="rect"`** (filled rectangle):
 
-| tone | background | color | border | border-radius |
-|---|---|---|---|---|
-| `primary` | `var(--accent)` | `var(--paper)` | none | 12 px |
-| `ink` | `var(--ink)` | `var(--paper)` | none | 12 px |
-| `destructive` | `var(--ember)` | `var(--paper)` | none | 12 px |
+| tone          | background      | color          | border | border-radius |
+| ------------- | --------------- | -------------- | ------ | ------------- |
+| `primary`     | `var(--accent)` | `var(--paper)` | none   | 12 px         |
+| `ink`         | `var(--ink)`    | `var(--paper)` | none   | 12 px         |
+| `destructive` | `var(--ember)`  | `var(--paper)` | none   | 12 px         |
 
 Size padding / font-size:
+
 - `md`: `padding: 12px 20px; font-size: 15px`
 - `sm`: `padding: 8px 14px; font-size: 13px`
 
 **`variant="pill"`** (outlined capsule):
 
-| tone | background | color | border |
-|---|---|---|---|
-| `primary` | transparent | `var(--accent)` | `1px solid var(--accent)` |
-| `ink` | transparent | `var(--ink)` | `1px solid var(--ink)` |
-| `destructive` | transparent | `var(--ember)` | `1px solid var(--rule)` |
+| tone          | background  | color           | border                    |
+| ------------- | ----------- | --------------- | ------------------------- |
+| `primary`     | transparent | `var(--accent)` | `1px solid var(--accent)` |
+| `ink`         | transparent | `var(--ink)`    | `1px solid var(--ink)`    |
+| `destructive` | transparent | `var(--ember)`  | `1px solid var(--rule)`   |
 
 `border-radius: 999px` for all pill tones. Size:
+
 - `sm`: `padding: 7px 14px; font-size: 12.5px; gap: 6px`
 - `md`: `padding: 10px 18px; font-size: 14px; gap: 6px`
 
 **`variant="text"`** (ghost row / inline-link):
 
-| tone | color | background | border |
-|---|---|---|---|
-| `primary` | `var(--accent)` | transparent | none |
-| `ink` | `var(--ink)` | transparent | none |
-| `destructive` | `var(--ember)` | transparent | none |
+| tone          | color           | background  | border |
+| ------------- | --------------- | ----------- | ------ |
+| `primary`     | `var(--accent)` | transparent | none   |
+| `ink`         | `var(--ink)`    | transparent | none   |
+| `destructive` | `var(--ember)`  | transparent | none   |
 
 Size:
+
 - `md`: `padding: 12px 18px; width: 100%; font-size: 15px; font-weight: 500; text-align: left; gap: 12px`
 - `sm`: `padding: 4px 8px; font-size: 13px; gap: 6px` (inline-link)
 
@@ -314,53 +318,64 @@ the children slot with `gap: 8px` (icon is 14 px for `sm`,
 16 px for `md`). No icon when `leadingIcon` is undefined.
 
 **Focus / disabled states (all variants):**
+
 - `:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px }`
 - `:disabled { opacity: 0.5; cursor: default }`
 
 ### Input primitive prop surfaces
 
 **`<TextInput>`**
+
 ```ts
 type Props = {
-  value: string;
-  type?: 'text' | 'email';    // default 'text'
-  id?: string;
-  name?: string;
-  placeholder?: string;
-  disabled?: boolean;
-  required?: boolean;
-  autocomplete?: string;
-  inputmode?: string;
-  'data-test'?: string;
-  oninput?: (e: Event) => void;
-  onchange?: (e: Event) => void;
-  onblur?: (e: FocusEvent) => void;
-  onkeydown?: (e: KeyboardEvent) => void;
+	value: string;
+	type?: "text" | "email"; // default 'text'
+	id?: string;
+	name?: string;
+	placeholder?: string;
+	disabled?: boolean;
+	required?: boolean;
+	autocomplete?: string;
+	inputmode?: string;
+	"data-test"?: string;
+	oninput?: (e: Event) => void;
+	onchange?: (e: Event) => void;
+	onblur?: (e: FocusEvent) => void;
+	onkeydown?: (e: KeyboardEvent) => void;
 };
 ```
+
 CSS block:
+
 ```css
 input {
-  width: 100%;
-  padding: 12px 14px;
-  border: 1px solid var(--rule);
-  border-radius: 12px;
-  background: var(--paper);
-  color: var(--ink);
-  font: inherit;
-  font-size: 16px;
-  box-sizing: border-box;
+	width: 100%;
+	padding: 12px 14px;
+	border: 1px solid var(--rule);
+	border-radius: 12px;
+	background: var(--paper);
+	color: var(--ink);
+	font: inherit;
+	font-size: 16px;
+	box-sizing: border-box;
 }
-input:focus { outline: none; border-color: var(--ink); }
-input::placeholder { color: var(--stone); }
+input:focus {
+	outline: none;
+	border-color: var(--ink);
+}
+input::placeholder {
+	color: var(--stone);
+}
 ```
 
 **`<Textarea>`**
 Same props as `<TextInput>` minus `type` and `inputmode`, plus:
+
 ```ts
   rows?: number;
   minHeight?: string;   // CSS length, e.g. '88px' or '4rem'
 ```
+
 CSS block: same as `<TextInput>` plus `resize: none`.
 `minHeight` renders as `min-height: {minHeight}` on the
 `<textarea>`; `rows` renders as the `rows` attribute (if both
@@ -368,20 +383,29 @@ are passed, `minHeight` wins and `rows` is ignored — document
 this in a type-narrowing overload comment).
 
 **`<Label>`**
+
 ```ts
 type Props = {
-  for?: string;
-  uppercase?: boolean;   // default false
-  children: Snippet;
-  'data-test'?: string;
+	for?: string;
+	uppercase?: boolean; // default false
+	children: Snippet;
+	"data-test"?: string;
 };
 ```
+
 CSS:
+
 ```css
-label { font-size: 12px; color: var(--stone); font-weight: 500; }
+label {
+	font-size: 12px;
+	color: var(--stone);
+	font-weight: 500;
+}
 label.uppercase {
-  font-size: 12px; font-weight: 600;
-  letter-spacing: 0.06em; text-transform: uppercase;
+	font-size: 12px;
+	font-weight: 600;
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
 }
 ```
 
@@ -421,8 +445,8 @@ sub-plan.
 
 - **`web/src/lib/basic/components/Button.svelte`** — extend with
   `variant: 'rect'|'pill'|'text'`, `tone: 'primary'|<neutral-
-  name>|'destructive'`, `size: 'sm'|'md'`, `leadingIcon?:
-  IconName` (Task 2.1). Default prop combination reproduces
+name>|'destructive'`, `size: 'sm'|'md'`, `leadingIcon?:
+IconName` (Task 2.1). Default prop combination reproduces
   today's filled-rectangle shape pixel-for-pixel.
 - **`web/src/lib/basic/components/Button.test.ts`** — add
   assertions for every new `variant × tone × size` combination

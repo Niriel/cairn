@@ -44,6 +44,7 @@ from `main` and the merged step-8 product surface is the audit
 baseline.
 
 **Decisions:**
+
 - Sub-branch is cut from `0900_refactor_css_components`, not from
   `main`.
 - Scope (from REQUIREMENTS.md):
@@ -56,13 +57,13 @@ baseline.
   - R2: `<IconButton>` is **not** collapsed into `<Button>` — its
     icon-only call sites do not migrate.
   - R3: `<TextInput>` primitive with `bind:value`, `type?: 'text'
-    | 'email'`, and the standard `id`/`name`/`placeholder`/
+| 'email'`, and the standard `id`/`name`/`placeholder`/
     `disabled`/`required`/`autocomplete`/`inputmode`/`data-test`
     props. Owns the canonical input CSS block
     (`padding: 12px 14px; border: 1px solid var(--rule);
-    border-radius: 12px; background: var(--paper);
-    color: var(--ink); font: inherit; font-size: 16px;
-    width: 100%; box-sizing: border-box`) and the focus /
+border-radius: 12px; background: var(--paper);
+color: var(--ink); font: inherit; font-size: 16px;
+width: 100%; box-sizing: border-box`) and the focus /
     placeholder states.
   - R4: `<Textarea>` primitive — same CSS as `<TextInput>` plus
     `resize: none` and a configurable `min-height` / `rows`. The
@@ -133,13 +134,14 @@ baseline.
   fold into the canonical `<TextInput>` shape (`var(--paper)`
   background, `12px 14px` padding). If 0901's exploration phase
   decides preserving the variant is worth a `<TextInput
-  variant="alt">` prop, the reconciliation is reversed; record
+variant="alt">` prop, the reconciliation is reversed; record
   the call in PLAN.md Decisions. The sub-plan's Vitest update for
   `LoginRequest.test.ts` may need to adjust an assertion if it
   queries for the old background specifically; otherwise existing
   assertions hold.
 
 **Steps:**
+
 1. `git checkout -b 0901_form_primitives 0900_refactor_css_components`
 2. Invoke `/write-plan` to create `plans/0901_form_primitives/`
    with its three files. The plan must include: (a) the exploration
@@ -158,7 +160,7 @@ baseline.
    explicitly (svelte-check is not ESLint and
    `no-floating-promises` only fires under lint).
 5. `git checkout 0900_refactor_css_components && git merge --no-ff
-   0901_form_primitives`
+0901_form_primitives`
 
 **Verify:** `./scripts/check.sh` green on
 `0900_refactor_css_components` after merge. Manual walkthrough of
@@ -181,10 +183,11 @@ the empty-state CTAs.
 **Completed:** 2026-05-30T07:49:16Z
 
 **Notes:** The 0901 sweep had already added `<Label>` + `.field` wrapping to every non-carve-out input. Confirmed audit results:
+
 - All nine `<TextInput>` / `<Textarea>` call sites have a `<Label>` sibling inside a `.field` div.
 - `AvatarSourceSheet.svelte` — two `sr-only` hidden file inputs triggered by buttons; explicit carve-out, no labels needed.
 - `InvitePickerSheet.svelte` — uses raw `<label class="section-label email-label" for="…">` as section heading; explicit carve-out per task decisions.
-No files were changed; `pnpm lint` · `pnpm check` · `pnpm test` all green.
+  No files were changed; `pnpm lint` · `pnpm check` · `pnpm test` all green.
 
 **Why:** During 0901 input migration it became clear that placeholder-only
 forms are the norm across the codebase (list sheets, auth, profile, invites)
@@ -198,6 +201,7 @@ the migration sweep is done; this task only adds `<Label>` wrappers to
 the remaining label-less inputs.
 
 **Decisions:**
+
 - Every input that lacks a `<Label>` in a user-facing form gets one. Use
   `<Label for="…">` + an `id` on the input. Wrap the pair in
   `<div class="field">` with `display: flex; flex-direction: column; gap: 8px`
@@ -214,10 +218,12 @@ the remaining label-less inputs.
   `no-unsafe-member-access` fires otherwise — discovered in task 4.3).
 
 **Files:** (audit first, then list — roughly)
+
 - All files touched by 0901 tasks 4.2–4.6 that still lack a `<Label>`
 - Any remaining `<input>` / `<textarea>` outside 0901's scope
 
 **Steps:**
+
 1. `grep -rn '<input\|<textarea\|<TextInput\|<Textarea' web/src --include='*.svelte'`
    and for each hit confirm a sibling `<Label>` exists. Build a list of
    label-less fields.
@@ -257,6 +263,7 @@ markup-only on top of the migrated buttons / inputs; sequencing
 (button shape in 0901, markup shape in 0902).
 
 **Decisions:**
+
 - Sub-branch is cut from the updated `0900_refactor_css_components`
   (post-0901 merge).
 - Scope (from REQUIREMENTS.md):
@@ -336,6 +343,7 @@ markup-only on top of the migrated buttons / inputs; sequencing
   empty-state vertical rhythm, sheet-header padding.
 
 **Steps:**
+
 1. `git checkout -b 0902_icon_semantic_html 0900_refactor_css_components`
 2. Invoke `/write-plan` to create `plans/0902_icon_semantic_html/`
    with its three files. The plan must include: (a) the Icon
@@ -355,7 +363,7 @@ markup-only on top of the migrated buttons / inputs; sequencing
    catches any tap-target / focus / keyboard-traversal regression
    the markup change might introduce.
 5. `git checkout 0900_refactor_css_components && git merge --no-ff
-   0902_icon_semantic_html`
+0902_icon_semantic_html`
 
 **Verify:** `./scripts/check.sh --e2e` green on
 `0900_refactor_css_components` after merge. Open every screen
@@ -381,6 +389,7 @@ and `<Icon>` does not gain a `color` prop.
 **Completed:** 2026-06-10T09:00:00Z
 
 **Notes:**
+
 - `./scripts/check.sh` (Prettier, ESLint, sqlfluff, shellcheck, shfmt,
   svelte-check, pgTAP, web Vitest, sidecar Vitest) green on the merged
   `0900_refactor_css_components`.
@@ -415,6 +424,7 @@ and unlocks step 10 (account deletion).
 `0900_refactor_css_components`.
 
 **Decisions:**
+
 - Run `./scripts/check.sh --e2e` to exercise unit + type-check +
   ESLint + e2e layers on the fully merged state. The e2e suite is
   the strongest signal of "no behaviour change" — if every
@@ -429,9 +439,11 @@ and unlocks step 10 (account deletion).
   doc edit into the wrap-up commit.
 
 **Files:**
+
 - `plans/0000_implementation_order.md` (modify)
 
 **Steps:**
+
 1. On `0900_refactor_css_components`, run
    `./scripts/check.sh --e2e` — must be green.
 2. Edit `plans/0000_implementation_order.md`: change `9. [ ]` to

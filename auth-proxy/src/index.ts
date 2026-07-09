@@ -25,6 +25,16 @@ import {
 	clientIp,
 	constantShapeFailure
 } from './lib/rate-limit.js';
+import {
+	generateCode,
+	hashCode,
+	requestRecoveryEmailVerification,
+	confirmRecoveryEmail,
+	clearRecoveryEmail,
+	requestPasswordReset,
+	resetPassword
+} from './lib/recovery.js';
+import { sendVerifyCode, sendResetCode } from './lib/mail.js';
 
 // Production auth BFF (Cairn-shaped). This is the prod analogue of the dev
 // Vite proxy in web/vite.config.ts (~lines 30–185): it owns the dual-cookie
@@ -62,6 +72,22 @@ const REFRESH_PATH = '/auth/refresh';
 const SIGNIN_PATH = '/auth/signin';
 const REGISTER_PATH = '/auth/register';
 
+// Authenticated recovery-e-mail endpoints (the signed-in user proving / removing
+// their own recovery address). Local path consts — they carry no route-guard /
+// cookie-plant / bearer-attach semantics, so they stay out of the shared
+// auth-paths.ts lists. The confirm path is a sub-path of the set path, so the
+// dispatch below matches them by exact path equality (not the prefix-matching
+// isSegmentMatch) and checks confirm first.
+const RECOVERY_EMAIL_PATH = '/auth/recovery-email';
+const RECOVERY_EMAIL_CONFIRM_PATH = '/auth/recovery-email/confirm';
+
+// Signed-out password-recovery endpoints (no session). Both reach the scoped
+// cairn_auth_bff reset RPCs (granted only to that role), so the private on-file
+// address and the password write never sit on the anon PostgREST surface. Local
+// path consts for the same reason as the recovery-email ones above.
+const FORGOT_PASSWORD_PATH = '/auth/forgot-password';
+const RESET_PASSWORD_PATH = '/auth/reset-password';
+
 // Username format + minimum password length, enforced at the BFF before any
 // account is created. The username rule mirrors set_username's CHECK
 // (`^[A-Za-z0-9]{3,30}$`) so a register that passes here can't fail the DB guard.
@@ -84,7 +110,19 @@ const signinGuard = signinRateLimit(signinLimiter);
 // State-changing Cairn-shaped endpoints that require the CSRF header. The
 // magic-link GoTrue pass-throughs (/auth/token, /auth/verify, /auth/magiclink)
 // are the deliberate exception — see csrf.ts.
-const CSRF_PROTECTED_PATHS = [REFRESH_PATH, SIGNIN_PATH, REGISTER_PATH, ...LOGOUT_PATHS];
+const CSRF_PROTECTED_PATHS = [
+	REFRESH_PATH,
+	SIGNIN_PATH,
+	REGISTER_PATH,
+	// isSegmentMatch prefix-matches, so RECOVERY_EMAIL_PATH alone would also cover
+	// the confirm sub-path; both are listed for clarity. (CSRF protection over a
+	// prefix is correct — the narrower the gate, the safer.)
+	RECOVERY_EMAIL_PATH,
+	RECOVERY_EMAIL_CONFIRM_PATH,
+	FORGOT_PASSWORD_PATH,
+	RESET_PASSWORD_PATH,
+	...LOGOUT_PATHS
+];
 
 // Config is read per-request (not cached at module load) so tests can point
 // GOTRUE_URL at a stub server in beforeAll after the module is imported.
@@ -179,6 +217,33 @@ async function authHandler(req: Request, res: Response): Promise<void> {
 	// identity, and sets the chosen username.
 	if (req.method === 'POST' && isSegmentMatch(originalUrl, [REGISTER_PATH])) {
 		await registerHandler(req, res);
+		return;
+	}
+
+	// Recovery-e-mail set/confirm/remove (authenticated). Matched by EXACT path
+	// equality, not isSegmentMatch: the confirm path is a prefix-extension of the
+	// set path, so a prefix match keyed on the bare set path would also swallow
+	// confirm and route its body to the wrong handler. Confirm is checked first as
+	// belt-and-braces. Both sit behind the CSRF gate above.
+	const path = originalUrl.split('?')[0];
+	if (req.method === 'POST' && path === RECOVERY_EMAIL_CONFIRM_PATH) {
+		await recoveryEmailConfirmHandler(req, res);
+		return;
+	}
+	if (req.method === 'POST' && path === RECOVERY_EMAIL_PATH) {
+		await recoveryEmailHandler(req, res);
+		return;
+	}
+
+	// Signed-out recovery: request a reset code by username, then set a new password
+	// from the code. Both run via the scoped cairn_auth_bff role and behind the CSRF
+	// gate above; neither plants a session.
+	if (req.method === 'POST' && path === FORGOT_PASSWORD_PATH) {
+		forgotPasswordHandler(req, res);
+		return;
+	}
+	if (req.method === 'POST' && path === RESET_PASSWORD_PATH) {
+		await resetPasswordHandler(req, res);
 		return;
 	}
 
@@ -499,6 +564,220 @@ async function registerHandler(req: Request, res: Response): Promise<void> {
 		expiresIn: created.expiresIn
 	});
 	res.status(200).json({ user: { id: created.userId, username } });
+}
+
+// POST /auth/recovery-email: the authenticated set/remove path. Runs under the
+// caller's own access bearer (read from the short-lived access cookie), so the
+// uid()-scoped RPCs only ever touch the caller's own row.
+//   - {remove:true} → clear_recovery_email (no code, no mail — removing one's own
+//     address needs no verification; it only drops the self-serve reset path).
+//   - {email}       → generate a 6-digit code, record a verify token via
+//     request_recovery_email_verification (passing only the hash), and — on
+//     success — mail the plaintext code to the candidate address.
+// The verify RPC enforces the per-address / per-account send caps (CA429 → 429)
+// and rejects a malformed address (23514 → 400). Never logs the address or code.
+async function recoveryEmailHandler(req: Request, res: Response): Promise<void> {
+	const token = readAccessCookie(req.headers.cookie);
+	if (!token) {
+		res.status(401).json({ error: 'no session' });
+		return;
+	}
+
+	let body: { email?: unknown; remove?: unknown };
+	try {
+		if (!Buffer.isBuffer(req.body) || req.body.length === 0) throw new Error('empty body');
+		body = JSON.parse(req.body.toString('utf8')) as typeof body;
+	} catch {
+		res.status(400).json({ error: 'invalid request' });
+		return;
+	}
+
+	// Removal: clear the on-file address. Idempotent, so a no-op clear still 200s.
+	if (body.remove === true) {
+		const cleared = await clearRecoveryEmail(token);
+		if (!cleared.ok) {
+			res.status(502).json({ error: 'upstream auth service unavailable' });
+			return;
+		}
+		res.status(200).json({ ok: true });
+		return;
+	}
+
+	const email = typeof body.email === 'string' ? body.email : '';
+	if (!email) {
+		res.status(400).json({ error: 'invalid request' });
+		return;
+	}
+
+	// Record the verify token first (it enforces the send caps); only mail the
+	// code once the DB has accepted the request.
+	const code = generateCode();
+	const requested = await requestRecoveryEmailVerification(email, hashCode(code), token);
+	if (requested.status === 'throttled') {
+		res.status(429).json({ error: 'too many requests' });
+		return;
+	}
+	if (requested.status === 'invalid_email') {
+		res.status(400).json({ error: 'invalid e-mail' });
+		return;
+	}
+	if (requested.status !== 'ok') {
+		res.status(502).json({ error: 'upstream auth service unavailable' });
+		return;
+	}
+
+	try {
+		await sendVerifyCode(email, code);
+	} catch {
+		// The token is recorded but the mail did not go out — answer 502 so the UI
+		// surfaces a transient failure; the user can retry (subject to the cap).
+		res.status(502).json({ error: 'could not send recovery e-mail' });
+		return;
+	}
+	res.status(200).json({ ok: true });
+}
+
+// POST /auth/recovery-email/confirm: redeem the emailed code. Hashes the code and
+// calls confirm_recovery_email under the caller's bearer; the RPC RETURNS a status
+// string (it commits its attempts bump rather than raising), which the BFF maps to
+// a status code: 200 ('ok'), 400 ('invalid' — incorrect or expired), 429 ('locked'
+// — attempt cap hit). Never logs the code.
+async function recoveryEmailConfirmHandler(req: Request, res: Response): Promise<void> {
+	const token = readAccessCookie(req.headers.cookie);
+	if (!token) {
+		res.status(401).json({ error: 'no session' });
+		return;
+	}
+
+	let body: { code?: unknown };
+	try {
+		if (!Buffer.isBuffer(req.body) || req.body.length === 0) throw new Error('empty body');
+		body = JSON.parse(req.body.toString('utf8')) as typeof body;
+	} catch {
+		res.status(400).json({ error: 'invalid request' });
+		return;
+	}
+	const code = typeof body.code === 'string' ? body.code : '';
+	if (!code) {
+		res.status(400).json({ error: 'invalid request' });
+		return;
+	}
+
+	const result = await confirmRecoveryEmail(hashCode(code), token);
+	if (result.status === 'ok') {
+		res.status(200).json({ ok: true });
+		return;
+	}
+	if (result.status === 'invalid') {
+		res.status(400).json({ error: 'incorrect or expired code' });
+		return;
+	}
+	if (result.status === 'locked') {
+		res.status(429).json({ error: 'too many attempts' });
+		return;
+	}
+	res.status(502).json({ error: 'upstream auth service unavailable' });
+}
+
+// POST /auth/forgot-password: request a reset code by username (no session).
+// Anti-enumeration is timing-parity, not just an identical body: the constant 200
+// is emitted FIRST and the scoped lookup-and-send runs entirely AFTER responding,
+// fire-and-forget. A username that HAS a recovery e-mail does an extra
+// per-address-cap check + token INSERT + SMTP send that a miss skips, so awaiting
+// the RPC before responding would make accounts with a recovery e-mail measurably
+// slower — a timing oracle. request_password_reset returns the on-file address (or
+// null); only on an address is the code mailed there. Per-IP throttled (the
+// sign-in limiter's per-IP leg, shared with register). Never logs the username,
+// address, or code.
+function forgotPasswordHandler(req: Request, res: Response): void {
+	const ip = clientIp(req);
+	if (signinLimiter.check(ip).blocked) {
+		res.status(429).json({ error: 'too many requests' });
+		return;
+	}
+	signinLimiter.recordFailure(ip);
+
+	let body: { username?: unknown };
+	try {
+		if (!Buffer.isBuffer(req.body) || req.body.length === 0) throw new Error('empty body');
+		body = JSON.parse(req.body.toString('utf8')) as typeof body;
+	} catch {
+		res.status(400).json({ error: 'invalid request' });
+		return;
+	}
+	const username = typeof body.username === 'string' ? body.username : '';
+	if (!username) {
+		res.status(400).json({ error: 'invalid request' });
+		return;
+	}
+
+	const code = generateCode();
+
+	// Respond BEFORE the lookup/send — neither sits on the response's critical path.
+	res.status(200).json({ ok: true });
+
+	// Fire-and-forget: resolve the on-file address (scoped role) and, only if one
+	// came back, mail the code. Any failure is swallowed — never surfaced (R5).
+	void (async () => {
+		try {
+			const result = await requestPasswordReset(username, hashCode(code));
+			if (result.status === 'sent') await sendResetCode(result.email, code);
+		} catch {
+			// Swallow — the caller already got the constant 200.
+		}
+	})();
+}
+
+// POST /auth/reset-password: set a new password from a code (no session). Per-IP
+// throttled; pre-checks the minimum password length for fast feedback (the RPC
+// re-checks authoritatively). reset_password RETURNS a status string the BFF maps:
+// 200 ('ok'); a single generic "invalid or expired code" for BOTH 'invalid' and
+// 'locked' (the signed-out path reveals less than the authenticated confirm — R5/R8);
+// the register flow's minimum-length error for a raised 23514 (correct code, too-short
+// password). No cookie is planted — the user signs in afterwards (R6). Never logs the
+// username, code, or password.
+async function resetPasswordHandler(req: Request, res: Response): Promise<void> {
+	const ip = clientIp(req);
+	if (signinLimiter.check(ip).blocked) {
+		res.status(429).json({ error: 'too many requests' });
+		return;
+	}
+	signinLimiter.recordFailure(ip);
+
+	let body: { username?: unknown; code?: unknown; new_password?: unknown };
+	try {
+		if (!Buffer.isBuffer(req.body) || req.body.length === 0) throw new Error('empty body');
+		body = JSON.parse(req.body.toString('utf8')) as typeof body;
+	} catch {
+		res.status(400).json({ error: 'invalid request' });
+		return;
+	}
+	const username = typeof body.username === 'string' ? body.username : '';
+	const code = typeof body.code === 'string' ? body.code : '';
+	const newPassword = typeof body.new_password === 'string' ? body.new_password : '';
+	if (!username || !code || !newPassword) {
+		res.status(400).json({ error: 'invalid request' });
+		return;
+	}
+	if (newPassword.length < MIN_PASSWORD_LENGTH) {
+		res.status(400).json({ error: 'password too short' });
+		return;
+	}
+
+	const result = await resetPassword(username, hashCode(code), newPassword);
+	if (result.status === 'ok') {
+		res.status(200).json({ ok: true });
+		return;
+	}
+	if (result.status === 'too_short') {
+		res.status(400).json({ error: 'password too short' });
+		return;
+	}
+	if (result.status === 'invalid' || result.status === 'locked') {
+		res.status(400).json({ error: 'invalid or expired code' });
+		return;
+	}
+	res.status(502).json({ error: 'upstream auth service unavailable' });
 }
 
 const app = express();

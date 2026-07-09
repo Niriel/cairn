@@ -88,6 +88,10 @@
 			<div class="inline-error" data-test="signin-error">{inlineError}</div>
 		{/if}
 
+		<p class="forgot">
+			<a href={resolve('/auth/forgot-password')} data-test="signin-forgot-link">Forgot password?</a>
+		</p>
+
 		<div class="submit-row">
 			<Button
 				type="submit"
@@ -175,6 +179,17 @@
 
 	.submit-row {
 		display: flex;
+	}
+
+	.forgot {
+		text-align: right;
+		font-size: 13px;
+		margin-top: -4px;
+	}
+
+	.forgot a {
+		color: var(--accent);
+		text-decoration: none;
 	}
 
 	.crosslink {

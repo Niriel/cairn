@@ -27,6 +27,7 @@ ambiguity from entering the sub-plan.
 **Prerequisites:** `0700_invites_circles_db` branch exists and is checked out.
 
 **Decisions:**
+
 - `circles.md` does **not** contain the "direct insert" sentence (it was in
   `invites.md`; removal is handled in task 0.2). The gap in `circles.md` is
   different: the "In the data model" section mentions `add_circle_by_email` but
@@ -36,11 +37,13 @@ ambiguity from entering the sub-plan.
 - No other changes to `circles.md` in this task.
 
 **Files:**
+
 - `docs/circles.md` (modify)
 
 **Steps:**
+
 1. In `docs/circles.md` "In the data model" section, after the sentence "The
-   email-add path writes a row in the *other* direction via a `security definer`
+   email-add path writes a row in the _other_ direction via a `security definer`
    function (`add_circle_by_email`), bypassing RLS as needed but performing the
    block-check first.", add a new sentence: "The one-sided tap-add path goes
    through the `add_circle_by_id` RPC — a thin `security definer` function that
@@ -72,6 +75,7 @@ an updated step-2 paragraph in the check sequence); apply only the steps that
 haven't already been applied.
 
 **Decisions:**
+
 - Add a brief `add_circle_by_id` sketch directly after the `add_circle_by_email`
   block, showing the one-sided upsert and the self-add guard.
 - Remove the "tap_add is a direct insert" paragraph at the bottom of the
@@ -86,12 +90,14 @@ haven't already been applied.
   SQL, not final production code. The canonical SQL lives in the migration files.
 
 **Files:**
+
 - `docs/invites.md` (modify)
 
 **Steps:**
+
 1. In the existing `send_invitation` sketch `declare` block, add
    `invitation_id uuid;` — the variable is used in `returning id into
-   invitation_id` but is not declared. (Skip if already present.)
+invitation_id` but is not declared. (Skip if already present.)
 2. Replace the entire "What invite_policy and blocks check, in order" numbered
    list with the following eight-step target state (verify against the current
    doc — step 1 and the Resolve target position are the additions; the rest is
@@ -106,7 +112,7 @@ haven't already been applied.
    3. **Self-check.** If the invitee resolves to Alice herself: clear error,
       "You're already on this list" or "You can't invite yourself." (No privacy
       concern; honesty wins.)
-   4. **Existing membership.** If Bob is already a *live* member of this list:
+   4. **Existing membership.** If Bob is already a _live_ member of this list:
       no-op; Alice sees "Bob is already on this list." A previously-removed
       (soft-deleted) membership row is treated as non-membership.
    5. **Existing pending invitation.** If Bob already has a pending invite to
@@ -118,13 +124,13 @@ haven't already been applied.
       `everybody`: pass.
    8. **Success.** Insert an `invitations` row.
 3. In the § "Block always wins" subsection, replace the paragraph beginning "The
-   blocklist is checked *after* the policy" with a corrected paragraph reflecting
+   blocklist is checked _after_ the policy" with a corrected paragraph reflecting
    the single-table design: "With the combined `relationships` table (`status` is
    either `'circle'` or `'blocked'`, never both), 'block always wins' manifests
    in two places: (1) in `send_invitation`, the block check (step 6 above) tests
-   for a row with `status = 'blocked'` *before* the policy check; (2) in
+   for a row with `status = 'blocked'` _before_ the policy check; (2) in
    `add_circle_by_id` and `add_circle_by_email`, the `ON CONFLICT DO UPDATE WHERE
-   status <> 'blocked'` clause silently skips the circle-add if a blocked row
+status <> 'blocked'` clause silently skips the circle-add if a blocked row
    already exists, leaving the blocked row unchanged. Either path preserves the
    block." Remove the two sub-bullets that follow (they describe an impossible
    state — you cannot simultaneously have circle and blocked status in one row).
@@ -136,15 +142,15 @@ haven't already been applied.
    `add_circle_by_id`.
 5. After the `add_circle_by_email` sketch block, insert an `add_circle_by_id`
    sketch section showing: self-add guard, then the one-sided `INSERT … ON
-   CONFLICT DO UPDATE WHERE status <> 'blocked'` upsert.
+CONFLICT DO UPDATE WHERE status <> 'blocked'` upsert.
 6. After the `send_invitation` sketch block, insert `accept_invitation` (fetch
    row + validate `target_user_id = uid()` using `IS DISTINCT FROM` +
    `INSERT … ON CONFLICT (list_id, user_id) DO UPDATE SET deleted_at = null,
-   deleted_by = null` + hard-delete invitation, all in one transaction) and
+deleted_by = null` + hard-delete invitation, all in one transaction) and
    `decline_invitation` (fetch + validate with `IS DISTINCT FROM` + hard-delete)
    sketch sections. Add a code comment in each sketch at the validate step noting
    the `IS DISTINCT FROM` requirement, e.g., `-- IS DISTINCT FROM, not <>,
-   -- so NULL target_user_id (email-keyed) correctly raises`.
+-- so NULL target_user_id (email-keyed) correctly raises`.
 7. At the top of the `send_invitation` sketch's `begin` block, add the comment:
    `-- Step 1: raise if caller is not a live member of p_list_id`
    `--   (inviter-membership check — see check sequence above; elided here).`
@@ -180,10 +186,11 @@ the simpler of the two sub-plans (no cross-table transaction).
 updates.
 
 **Decisions:**
+
 - Sub-branch is cut from `0700_invites_circles_db`, not from `main`.
 - Scope: `db/migrations/0008_relationships.sql` (table + trigger bindings + 4
   RLS policies + 2 RPCs + `GRANT SELECT, INSERT, UPDATE, DELETE ON
-  public.relationships TO authenticated`); `db/tests/relationships.sql` (full
+public.relationships TO authenticated`); `db/tests/relationships.sql` (full
   pgTAP); updates to `db/tests/schema_shape.sql` and `db/tests/grants.sql`
   (add table-level grant assertions for `relationships` in addition to the EXECUTE
   grants for both RPCs; update the `plan(N)` count to match).
@@ -191,7 +198,7 @@ updates.
   trigger functions (defined in `0004_domain_schema.sql`) to the new table —
   do not redefine them, just add the `CREATE TRIGGER` bindings.
 - The `tg_set_modified_at` binding uses `BEFORE UPDATE OF status ON
-  relationships` matching the `OF (cols)` pattern from every other table.
+relationships` matching the `OF (cols)` pattern from every other table.
 - Name the bindings `t05_set_timestamps` and `t20_set_modified_at`
   (unsuffixed — Postgres scopes trigger names per-table, and every other
   timestamped table in `0004_domain_schema.sql:514–576` and
@@ -208,6 +215,7 @@ updates.
   this task done.
 
 **Steps:**
+
 1. `git checkout -b 0701_relationships 0700_invites_circles_db`
 2. Invoke `/write-plan` to create `plans/0701_relationships/` with its three files.
 3. Implement the sub-plan task by task.
@@ -239,6 +247,7 @@ transaction.
 `send_invitation` reads are available in the dev DB.
 
 **Decisions:**
+
 - Sub-branch is cut from the updated `0700_invites_circles_db` (post-0701 merge).
 - Scope: `db/migrations/0009_invitations.sql` (table + unique indexes + trigger
   binding + 1 RLS policy + 3 RPCs + `tg_block_declines_invitations` trigger
@@ -254,22 +263,22 @@ transaction.
   R5 (including the inviter-membership guard at step 1, which is not shown in the
   `invites.md` sketch but is required — the sketch is illustrative only).
 - Add a pgTAP test for `send_invitation(p_list_id := x, p_email := null,
-  p_user_id := null)` — must raise (R5 validation: "raise if neither p_email
+p_user_id := null)` — must raise (R5 validation: "raise if neither p_email
   nor p_user_id is provided"). This path is listed in R5 but was absent from
   the R9 test catalogue.
 - `accept_invitation` and `decline_invitation` must use `IS DISTINCT FROM` (not
   `<>`) for the invitee guard: `IF target_user_id IS DISTINCT FROM public.uid()
-  THEN RAISE …`. Using `<>` silently passes when `target_user_id IS NULL`
+THEN RAISE …`. Using `<>` silently passes when `target_user_id IS NULL`
   (email-keyed invitation), because `NULL <> value` is NULL (falsy) in PL/pgSQL.
 - `accept_invitation` inserts into `list_members` using `ON CONFLICT (list_id,
-  user_id) DO UPDATE SET deleted_at = null, deleted_by = null`. This handles
+user_id) DO UPDATE SET deleted_at = null, deleted_by = null`. This handles
   both previously-removed members (soft-deleted PK collision) and a concurrent-
   accept race; `DO NOTHING` would leave previously-removed members un-restored.
   `created_by` will be `public.uid()` (the acceptor) — `tg_set_attribution_list_members`
   overwrites any supplied value unconditionally on INSERT.
 - Block auto-decline (R10): `tg_block_declines_invitations` must be a
   `SECURITY DEFINER` function with `set search_path = public`. It fires `AFTER
-  INSERT OR UPDATE OF status ON relationships FOR EACH ROW`. When
+INSERT OR UPDATE OF status ON relationships FOR EACH ROW`. When
   `NEW.status = 'blocked'`, hard-delete all `invitations` rows where
   `created_by = NEW.other_user_id AND target_user_id = NEW.user_id`. Cover both
   the INSERT path (new block row) and the UPDATE path (circle → blocked) in
@@ -281,8 +290,8 @@ transaction.
   two concurrent callers can both pass step 5, then one INSERT succeeds and the
   other would raise an unhandled `unique_violation` (23505). Implement using
   either: (a) `EXCEPTION WHEN unique_violation THEN SELECT id INTO invitation_id
-  FROM invitations WHERE … ; RETURN invitation_id;`, or (b) `ON CONFLICT … DO
-  NOTHING` with a follow-up SELECT. Record which approach in the 0702 task's
+FROM invitations WHERE … ; RETURN invitation_id;`, or (b) `ON CONFLICT … DO
+NOTHING` with a follow-up SELECT. Record which approach in the 0702 task's
   Decisions, and include a pgTAP test that exercises this path.
 - `schema_shape.sql` plan count at branch-cut (after 0701 lands): will be
   `plan(56)` + assertions added by 0701. `grants.sql` similarly. Before writing
@@ -290,6 +299,7 @@ transaction.
   them in the 0702 task Decisions as the starting N before the 0702 additions.
 
 **Steps:**
+
 1. `git checkout -b 0702_invitations 0700_invites_circles_db`
 2. Invoke `/write-plan` to create `plans/0702_invitations/` with its three files.
 3. Implement the sub-plan task by task.
@@ -315,12 +325,14 @@ all RLS policies, all five RPCs, and pgTAP coverage — before it lands on `main
 **Prerequisites:** Tasks 1.1 and 2.1 both merged into `0700_invites_circles_db`.
 
 **Decisions:**
+
 - Run `./scripts/check.sh` without `--e2e` — step 7 is DB-only; there are no
   new Playwright flows to run here (step 8 adds those).
 - Tick step 7's checkbox in `plans/0000_implementation_order.md` as part of the
   merge commit.
 
 **Steps:**
+
 1. On `0700_invites_circles_db`, run `./scripts/check.sh` — must be green.
 2. Edit `plans/0000_implementation_order.md`: change `7. [ ]` to `7. [x]`.
 3. Commit: `chore(plan): tick step 7 in implementation order`.

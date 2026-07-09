@@ -9,6 +9,7 @@ and the tombstone Avatar visual.
 ## Context
 
 After step 5 the stack has:
+
 - **DB:** `lists`, `items`, `votes`, full RLS, `items_deleted` view,
   `lists_deleted` view. All soft-delete machinery is in place.
 - **Item soft-delete (step 4):** Items can be soft-deleted from the accordion's
@@ -120,6 +121,7 @@ main
 ### Files touched across the step (sub-plan level)
 
 **New — components:**
+
 - `web/src/lib/list/components/ListOverflowSheet.svelte`
 - `web/src/lib/shared/components/UndoSnackbar.svelte` (extracted/refactored from
   the step-4 item snackbar; props: `message: string`, `onUndo: () => void`;
@@ -127,13 +129,16 @@ main
   `ItemsScreen.svelte` and `ListsScreen.svelte`)
 
 **New — routes:**
+
 - `web/src/routes/(app)/lists/[list_id]/trash/+page.svelte`
 - `web/src/routes/(app)/settings/deleted-lists/+page.svelte`
 
 **New — model:**
+
 - `web/src/lib/shared/model/constants.ts`
 
 **Modified — components and state:**
+
 - `web/src/lib/list/components/ListsScreen.svelte` (add `⋮` per row)
 - `web/src/lib/list/state/lists.svelte.ts` (add delete/undo state)
 - `web/src/lib/item/components/ItemsScreen.svelte` (wire `⋮`, tombstone style)
@@ -141,9 +146,11 @@ main
 - `web/src/lib/settings/components/SettingsScreen.svelte` (Recovery section)
 
 **Modified — docs:**
+
 - `docs/ui.md` (resolve "Not decided" bullet for list editing affordance)
 
 **New — tests:**
+
 - `web/src/lib/shared/components/UndoSnackbar.test.ts`
 - `web/src/lib/list/components/ListOverflowSheet.test.ts`
 - `web/src/routes/(app)/lists/[list_id]/trash/page.test.ts`

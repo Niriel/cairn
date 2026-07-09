@@ -277,6 +277,163 @@ describe('signOutEverywhere', () => {
 	});
 });
 
+describe('setRecoveryEmail', () => {
+	test('POSTs `${VITE_AUTH_BASE}/recovery-email` with {email} + the CSRF header', async () => {
+		let seenPath: string | null = null;
+		let seenCsrf: string | null = null;
+		let seenBody: unknown = null;
+		server.use(
+			http.post('*/auth/recovery-email', async ({ request }) => {
+				seenPath = new URL(request.url).pathname;
+				seenCsrf = request.headers.get(CSRF_HEADER);
+				seenBody = await request.json();
+				return HttpResponse.json({ ok: true });
+			})
+		);
+		await mod.setRecoveryEmail('alice@example.test');
+		expect(seenPath).toBe('/auth/recovery-email');
+		expect(seenCsrf).not.toBeNull();
+		expect(seenBody).toEqual({ email: 'alice@example.test' });
+	});
+
+	test('throws HttpError on a 429 (send cap hit)', async () => {
+		server.use(
+			http.post('*/auth/recovery-email', () =>
+				HttpResponse.json({ error: 'too many requests' }, { status: 429 })
+			)
+		);
+		const rejection = expect(mod.setRecoveryEmail('alice@example.test')).rejects;
+		await rejection.toBeInstanceOf(mod.HttpError);
+		await rejection.toMatchObject({ name: 'HttpError', status: 429 });
+	});
+});
+
+describe('confirmRecoveryEmail', () => {
+	test('POSTs `${VITE_AUTH_BASE}/recovery-email/confirm` with {code} + the CSRF header', async () => {
+		let seenPath: string | null = null;
+		let seenCsrf: string | null = null;
+		let seenBody: unknown = null;
+		server.use(
+			http.post('*/auth/recovery-email/confirm', async ({ request }) => {
+				seenPath = new URL(request.url).pathname;
+				seenCsrf = request.headers.get(CSRF_HEADER);
+				seenBody = await request.json();
+				return HttpResponse.json({ ok: true });
+			})
+		);
+		await mod.confirmRecoveryEmail('123456');
+		expect(seenPath).toBe('/auth/recovery-email/confirm');
+		expect(seenCsrf).not.toBeNull();
+		expect(seenBody).toEqual({ code: '123456' });
+	});
+
+	test('throws HttpError on a 400 (incorrect or expired code)', async () => {
+		server.use(
+			http.post('*/auth/recovery-email/confirm', () =>
+				HttpResponse.json({ error: 'invalid or expired code' }, { status: 400 })
+			)
+		);
+		const rejection = expect(mod.confirmRecoveryEmail('000000')).rejects;
+		await rejection.toBeInstanceOf(mod.HttpError);
+		await rejection.toMatchObject({ name: 'HttpError', status: 400 });
+	});
+});
+
+describe('removeRecoveryEmail', () => {
+	test('POSTs `${VITE_AUTH_BASE}/recovery-email` with {remove:true} + the CSRF header', async () => {
+		let seenPath: string | null = null;
+		let seenCsrf: string | null = null;
+		let seenBody: unknown = null;
+		server.use(
+			http.post('*/auth/recovery-email', async ({ request }) => {
+				seenPath = new URL(request.url).pathname;
+				seenCsrf = request.headers.get(CSRF_HEADER);
+				seenBody = await request.json();
+				return HttpResponse.json({ ok: true });
+			})
+		);
+		await mod.removeRecoveryEmail();
+		expect(seenPath).toBe('/auth/recovery-email');
+		expect(seenCsrf).not.toBeNull();
+		expect(seenBody).toEqual({ remove: true });
+	});
+
+	test('throws HttpError on a 502 (upstream unavailable)', async () => {
+		server.use(
+			http.post('*/auth/recovery-email', () =>
+				HttpResponse.json({ error: 'upstream auth service unavailable' }, { status: 502 })
+			)
+		);
+		const rejection = expect(mod.removeRecoveryEmail()).rejects;
+		await rejection.toBeInstanceOf(mod.HttpError);
+		await rejection.toMatchObject({ name: 'HttpError', status: 502 });
+	});
+});
+
+describe('requestPasswordReset', () => {
+	test('POSTs `${VITE_AUTH_BASE}/forgot-password` with {username} + the CSRF header', async () => {
+		let seenPath: string | null = null;
+		let seenCsrf: string | null = null;
+		let seenBody: unknown = null;
+		server.use(
+			http.post('*/auth/forgot-password', async ({ request }) => {
+				seenPath = new URL(request.url).pathname;
+				seenCsrf = request.headers.get(CSRF_HEADER);
+				seenBody = await request.json();
+				return HttpResponse.json({ ok: true });
+			})
+		);
+		await mod.requestPasswordReset('dev');
+		expect(seenPath).toBe('/auth/forgot-password');
+		expect(seenCsrf).not.toBeNull();
+		expect(seenBody).toEqual({ username: 'dev' });
+	});
+
+	// The anti-enumeration swallow is the ForgotPassword screen's job (3.3), NOT
+	// the client's — requestPasswordReset throws like every other auth-client call.
+	test('throws HttpError on a non-2xx (e.g. 429)', async () => {
+		server.use(
+			http.post('*/auth/forgot-password', () =>
+				HttpResponse.json({ error: 'too many requests' }, { status: 429 })
+			)
+		);
+		const rejection = expect(mod.requestPasswordReset('dev')).rejects;
+		await rejection.toBeInstanceOf(mod.HttpError);
+		await rejection.toMatchObject({ name: 'HttpError', status: 429 });
+	});
+});
+
+describe('resetPassword', () => {
+	test('POSTs `${VITE_AUTH_BASE}/reset-password` with {username, code, new_password} + the CSRF header', async () => {
+		let seenPath: string | null = null;
+		let seenCsrf: string | null = null;
+		let seenBody: unknown = null;
+		server.use(
+			http.post('*/auth/reset-password', async ({ request }) => {
+				seenPath = new URL(request.url).pathname;
+				seenCsrf = request.headers.get(CSRF_HEADER);
+				seenBody = await request.json();
+				return HttpResponse.json({ ok: true });
+			})
+		);
+		await mod.resetPassword('dev', '123456', 'new-cairn-pw');
+		expect(seenPath).toBe('/auth/reset-password');
+		expect(seenCsrf).not.toBeNull();
+		expect(seenBody).toEqual({ username: 'dev', code: '123456', new_password: 'new-cairn-pw' });
+	});
+
+	test('throws HttpError on a 400 (invalid or expired code)', async () => {
+		server.use(
+			http.post('*/auth/reset-password', () =>
+				HttpResponse.json({ error: 'invalid or expired code' }, { status: 400 })
+			)
+		);
+		const rejection = expect(mod.resetPassword('dev', '000000', 'new-cairn-pw')).rejects;
+		await rejection.toBeInstanceOf(mod.HttpError);
+		await rejection.toMatchObject({ name: 'HttpError', status: 400 });
+	});
+});
+
 describe('refresh', () => {
 	test('delegates to the shared single-flight refresh(): POSTs /auth/refresh with the CSRF header', async () => {
 		let seenPath: string | null = null;

@@ -16,6 +16,12 @@ vi.mock('$lib/shared/state/preferences.svelte');
 vi.mock('$lib/shared/state/session.svelte');
 vi.mock('$lib/basic/components/Button.svelte');
 vi.mock('$lib/invite/state/invitations.svelte');
+vi.mock('$lib/privacy/state/user-settings.svelte');
+vi.mock('$lib/auth/model/auth-client', () => ({
+	setRecoveryEmail: vi.fn(),
+	removeRecoveryEmail: vi.fn(),
+	confirmRecoveryEmail: vi.fn()
+}));
 vi.mock('$app/navigation');
 vi.mock('$app/paths');
 
@@ -64,6 +70,11 @@ describe('SettingsScreen', () => {
 		const { getByDataTest } = render(SettingsScreen);
 		await fireEvent.click(getByDataTest('fontsize-xl'));
 		expect(preferences.fontSize).toBe('xl');
+	});
+
+	test('(f-2) recovery e-mail row is mounted in the Account section', () => {
+		const { queryByDataTest } = render(SettingsScreen);
+		expect(queryByDataTest('recovery-email-add')).not.toBeNull();
 	});
 
 	test('(g) profile chip renders display name when loaded', () => {

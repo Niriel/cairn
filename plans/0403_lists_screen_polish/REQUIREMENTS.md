@@ -14,6 +14,7 @@ The TopBar layout changes from a three-column grid (`1fr auto 1fr`) to a flex ro
 ## R2. Lists screen TopBar shows the Cairn glyph and a "Signed in as" subtitle
 
 The Lists screen `<TopBar>` uses:
+
 - `left` = `<CairnGlyph size={26} color="var(--accent)" />`
 - title = "Cairn"
 - `sub` = `"Signed in as <display_name>"` when `profile.displayName` is non-null; omitted otherwise
@@ -53,7 +54,7 @@ When `lists.items` is empty and `lists.loading` is false, the Lists screen rende
 
 `docs/ui.md` currently describes a generic two-line empty-state pattern ("No lists yet." / "Tap [icon] to create one.") and inline FAB-hint styling that does not match the design for the Lists screen. The doc is updated to:
 
-1. Clarify that the two-line guideline applies to *simple* empty states; elaborate illustrated empty states (like the Lists screen) use the illustrated circle + CTA pattern from the design spec instead.
+1. Clarify that the two-line guideline applies to _simple_ empty states; elaborate illustrated empty states (like the Lists screen) use the illustrated circle + CTA pattern from the design spec instead.
 2. Note that the TopBar now uses a flex layout (not the previous grid) and supports `left` and `sub` props.
 
 ## R7. `lists_item_count` PostgreSQL computed-column function
@@ -70,7 +71,12 @@ PostgREST follows FK chains to resolve embedded resource joins. `list_members.us
 
 ```ts
 item_count: number;
-list_members: { profiles: { display_name: string } }[];
+list_members: {
+	profiles: {
+		display_name: string;
+	}
+}
+[];
 ```
 
 `web/src/lib/list/state/lists.svelte.ts` updates the query to:

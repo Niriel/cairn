@@ -30,6 +30,16 @@ see `.claude/commands/write-plan.md` for the numbering and file-format
 conventions); tick the box in `0000_…` once the matching sub-plan is
 merged.
 
+`/concerns` audits the **written plan files** for problems (internal
+contradictions, divergence from `docs/`, conventions, stale claims) and
+resolves them _inside the plan files_ — it is **not** the tool for acting
+on a design flaw or runtime discovery you make while implementing a task.
+When `/work` (or any implementation) surfaces a problem with the approach
+itself — a spec that can't work as written, a wrong assumption uncovered
+by running the code — stop and discuss it with the user directly, then fix
+it at its cheapest home (adjust the task, update the doc, or `/write-plan`
+a revision). Don't reach for `/concerns` to "handle" such a discovery.
+
 Cairn is in **alpha** — it's now live at `https://cairn.lynnscape.eu`
 (see "We are going live" below). The docs in `docs/` are living
 specifications, not holy tablets — when a plan finds a better
@@ -96,7 +106,7 @@ that aren't repeated in every task.
   pronoun, including when referring to demo characters with gendered
   names like Bob or Carol. Gender-neutral by default — never assume.
   Proper nouns that contain a gendered pronoun (e.g. film titles like
-  *His Girl Friday*) stay as written. Same code/UI split as above:
+  _His Girl Friday_) stay as written. Same code/UI split as above:
   this rule is about rendered copy, not code.
 - E-mail addresses are private — never shown in the UI (see `docs/invites.md`).
 - Button pairs: right is forward/committal, left is backward/destructive

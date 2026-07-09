@@ -9,7 +9,7 @@ worked example this mirrors.
 > **Revised after 2001 merged.** Phases 2–6 were reshaped around the
 > session-security + auth-BFF design (see `PLAN.md` "Design revision" and
 > `REQUIREMENTS.md` R14–R19). Phase 1 (2001) is frozen historical record — its
-> synthetic-e-mail mechanism is revised *forward* by Phase 3 (2003), not
+> synthetic-e-mail mechanism is revised _forward_ by Phase 3 (2003), not
 > reverted.
 
 ## Reference skills and docs
@@ -46,6 +46,7 @@ spike), and lands `profiles.username` with case-fold uniqueness and the
 **Prerequisites:** `2000_username_identity` branch exists and is checked out.
 
 **Decisions:**
+
 - Sub-branch is cut from `2000_username_identity`, not from `main`.
 - The sub-plan's **Phase 0** reconciles `docs/architecture.md` (Authentication
   section, magic-link flow steps, "Considered and rejected"),
@@ -66,6 +67,7 @@ spike), and lands `profiles.username` with case-fold uniqueness and the
 negative cases).
 
 **Steps:**
+
 1. `git checkout -b 2001_username_identity_db 2000_username_identity`
 2. Invoke `/write-plan` to create `plans/2001_username_identity_db/` with its
    REQUIREMENTS.md, PLAN.md (including the Phase-0 doc reconciliation and the
@@ -78,6 +80,7 @@ negative cases).
 **Verify:** `./scripts/check.sh` green on `2000_username_identity` after merge.
 
 **Notes:**
+
 - Merged. The synthetic-e-mail mechanism this sub-step chose (and the
   "keep the proxy a dumb shim" stance it leaned on) is **superseded** by the
   session-security + auth-BFF revision — see `PLAN.md` "Design revision" and
@@ -99,11 +102,12 @@ on reuse — confirmed by the Phase-1 spike), so theft is logged/rejected rather
 than auto-revoking the family; the manual kill-switch is
 `/auth/signout?scope=global`. A thin custom session table for real
 theft→family-revoke is deferred (recorded in `docs/architecture.md` "JWT storage"
-+ `TODO.md`). Verify: `./scripts/check.sh` green on the merged parent; auth e2e
-(`auth.spec.ts`) green on chromium+firefox. **WebKit is not run** on this box
-(missing system libs — accepted; see `docs/testing.md`), and the pre-existing
-`public-list.spec.ts` clipboard test is an environmental flake — neither is a
-2002 regression.
+
+- `TODO.md`). Verify: `./scripts/check.sh` green on the merged parent; auth e2e
+  (`auth.spec.ts`) green on chromium+firefox. **WebKit is not run** on this box
+  (missing system libs — accepted; see `docs/testing.md`), and the pre-existing
+  `public-list.spec.ts` clipboard test is an environmental flake — neither is a
+  2002 regression.
 
 **Why:** Examining "what's in the cookie" for step 20 surfaced that
 `cairn_session` is a long-lived (~7-day), non-revocable access JWT and the
@@ -117,6 +121,7 @@ on a secure BFF (R14, R15, R17, R18).
 depends on no later sub-step — it can ship on its own.
 
 **Decisions:**
+
 - Sub-branch cut from `2000_username_identity` (post-2001 merge):
   `git checkout -b 2002_session_security 2000_username_identity`.
 - **Revocable, rotating session (R14):** the cookie carries a rotating
@@ -158,6 +163,7 @@ dev compose, the pre-deploy auth checklist); `auth-proxy/src/index.ts` and
 logs).
 
 **Steps:**
+
 1. `git checkout -b 2002_session_security 2000_username_identity`
 2. Invoke `/write-plan` to create `plans/2002_session_security/` with its three
    files (including the Phase-0 R19 doc reconciliation).
@@ -198,6 +204,7 @@ revise-forward that drops 2001's synthetic-e-mail fragility (R3, R5, R7, R16).
 and the BFF + revocable session model exist on `2000_username_identity`.
 
 **Decisions:**
+
 - Sub-branch cut from the updated `2000_username_identity`:
   `git checkout -b 2003_username_auth 2000_username_identity`.
 - **Stable GoTrue identity + resolver (R16):** give each account a stable,
@@ -218,7 +225,7 @@ and the BFF + revocable session model exist on `2000_username_identity`.
   register + sign-in screens replace `LoginRequest.svelte` / `LoginCheck.svelte`
   as the primary path; `web/src/lib/shared/state/session.svelte.ts` `AuthUser`
   carries `username` and drops the e-mail-as-identity assumption (note
-  `assertAuthUser` currently *requires* `email`).
+  `assertAuthUser` currently _requires_ `email`).
 - Whether registration stays invite-gated, and how an invited user bootstraps a
   username+password account, is settled here against `docs/invites.md`.
 - **Phase 0 (R19):** correct `docs/data-model.md`'s `set_username` /
@@ -229,8 +236,8 @@ and the BFF + revocable session model exist on `2000_username_identity`.
   register/sign-in JSX in `design/cairn-screens.jsx` and record the layout spec
   (structure, proportions, copy) and the token/global rule for colour+type.
 - **Tests:** pgTAP for the simplified `set_username`; Vitest for the auth-client
-  + screens (user-visible behaviour); Playwright for register → sign-in and a
-  username-change-then-sign-in path against the real stack.
+  - screens (user-visible behaviour); Playwright for register → sign-in and a
+    username-change-then-sign-in path against the real stack.
 
 **Reference:** `docs/data-model.md` (`set_username`, the synthetic-domain note
 to replace); `docs/frontend-layout.md` (lib tier split, filename rules);
@@ -238,6 +245,7 @@ to replace); `docs/frontend-layout.md` (lib tier split, filename rules);
 `design/cairn-screens.jsx` (register/sign-in layout).
 
 **Steps:**
+
 1. `git checkout -b 2003_username_auth 2000_username_identity`
 2. Invoke `/write-plan` to create `plans/2003_username_auth/` with its three
    files (Phase-0 R19 doc edits; the `set_username` revise-forward as its own
@@ -263,6 +271,7 @@ This sub-step adds the recovery-e-mail capture, the verify-before-effect gate
 and 3.1 merged (a sign-in screen to return to after reset).
 
 **Decisions:**
+
 - Sub-branch cut from the updated `2000_username_identity`:
   `git checkout -b 2004_password_recovery 2000_username_identity`.
 - Recovery-e-mail capture in Settings (`user_settings.recovery_email`, shipped
@@ -289,6 +298,7 @@ and 3.1 merged (a sign-in screen to return to after reset).
 settings layout — record the layout spec before writing screen tasks).
 
 **Steps:**
+
 1. `git checkout -b 2004_password_recovery 2000_username_identity`
 2. Invoke `/write-plan` to create `plans/2004_password_recovery/`.
 3. Implement task by task, RED before GREEN.
@@ -312,6 +322,7 @@ makes usernames visible so non-unique display names are always resolvable
 2002–2004; may proceed in parallel with 2004 once 2003 is in.
 
 **Decisions:**
+
 - Sub-branch cut from the updated `2000_username_identity`:
   `git checkout -b 2005_add_by_username 2000_username_identity`.
 - DB: `send_invitation` and the circle-add RPC accept a username and resolve it
@@ -333,6 +344,7 @@ makes usernames visible so non-unique display names are always resolvable
 screen tasks).
 
 **Steps:**
+
 1. `git checkout -b 2005_add_by_username 2000_username_identity`
 2. Invoke `/write-plan` to create `plans/2005_add_by_username/`.
 3. Implement task by task, RED before GREEN.
@@ -359,6 +371,7 @@ sessions, username sign-in + stable identity, and recovery all exist on
 a second prod migration window.)
 
 **Decisions:**
+
 - Sub-branch cut from the updated `2000_username_identity`:
   `git checkout -b 2006_alpha_migration 2000_username_identity`.
 - Migration derives each existing account's username from its `display_name`,
@@ -377,7 +390,7 @@ a second prod migration window.)
   announcement or transition window is needed.
 - Remove the e-mail sign-in surface (magic-link request/check/callback) and
   reconcile remaining references to `plans/0302`/`plans/1700` and the
-  architecture-doc retirement *mechanics* left intact by 2001. Confirm prod
+  architecture-doc retirement _mechanics_ left intact by 2001. Confirm prod
   GoTrue config (password grant reachable; signup posture per `docs/invites.md`).
 - Flag prod-affecting changes per CLAUDE.md "We are going live": the migration,
   GoTrue config, and the public sign-in surface all change here.
@@ -387,6 +400,7 @@ pre-deploy auth checklist); `docs/admin.md` (operator password reset for
 no-recovery-e-mail accounts, if added).
 
 **Steps:**
+
 1. `git checkout -b 2006_alpha_migration 2000_username_identity`
 2. Invoke `/write-plan` to create `plans/2006_alpha_migration/`.
 3. Implement task by task, RED before GREEN; rehearse the backfill against a
@@ -407,6 +421,7 @@ land the orchestration branch.
 **Prerequisites:** Tasks 1.1–6.1 all merged into `2000_username_identity`.
 
 **Decisions:**
+
 - Tick the step-20 checkbox (and its sub-bullets) in
   `plans/0000_implementation_order.md`. If that file lists the old 2001–2005
   decomposition, reconcile it to the 2001–2006 shape while ticking.
@@ -414,9 +429,11 @@ land the orchestration branch.
   grouping is visible on the commit tree.
 
 **Files:**
+
 - `plans/0000_implementation_order.md` (modify)
 
 **Steps:**
+
 1. Edit `plans/0000_implementation_order.md`: flip step 20 and its 2001–2006
    sub-bullets from `[ ]` to `[x]`.
 2. Commit on `2000_username_identity` (`chore(plan): tick step 20 …`).

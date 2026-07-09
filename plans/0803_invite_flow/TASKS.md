@@ -25,19 +25,22 @@
 **Prerequisites:** `web/src/lib/invite/state/invitations.svelte.ts` exists from 0802 with `sent`, `loadSent`, `pendingInviteFor`, `cancelInvitation`. `web/src/lib/invite/state/__mocks__/invitations.svelte.ts` exists. `web/src/lib/shared/http/postgrest.ts` exports `pgGet`, `pgPost`, `ApiError`. `web/src/lib/shared/state/profile.svelte` exports `profile.uid`. `web/src/lib/privacy/state/relationships.svelte.ts` exports `addCircleById` (needed by postAcceptPrompts consumers — not by the module itself, but the mock must expose it so component tests can verify "Add to circle" calls it).
 
 **Decisions:**
+
 - **`InboxEntry` type:** `{ id: string; listId: string; listName: string; inviterUid: string; inviterName: string; inviterAvatarVersion: number; createdAt: string }`. Exported so component tests can construct fixtures.
 - **`loadInbox` URL:** `GET /invitations?target_user_id=eq.${me}&select=id,list_id,created_by,created_at,lists(name),profiles!created_by(display_name,avatar_version)`. The `profiles!created_by` hint disambiguates the FK from `invitations.created_by` to `profiles`.
-- **`acceptInvitation(id)` shape:** reads the inbox entry *before* calling the RPC so the inviter identity and list ID survive the hard-delete. Calls `POST /rpc/accept_invitation { p_invitation_id: id }`. On RPC failure, rethrows with a generic `Error("Couldn't accept invite")` — callers should show a toast. Removes the entry from `invitations.inbox`. Adds `{ inviterUid, inviterName }` to `invitations.postAcceptPrompts`. Returns `{ inviterUid, inviterName, listId }` so the caller can navigate.
+- **`acceptInvitation(id)` shape:** reads the inbox entry _before_ calling the RPC so the inviter identity and list ID survive the hard-delete. Calls `POST /rpc/accept_invitation { p_invitation_id: id }`. On RPC failure, rethrows with a generic `Error("Couldn't accept invite")` — callers should show a toast. Removes the entry from `invitations.inbox`. Adds `{ inviterUid, inviterName }` to `invitations.postAcceptPrompts`. Returns `{ inviterUid, inviterName, listId }` so the caller can navigate.
 - **`sendInvitation` error mapping:** catches `ApiError`; maps `(code 'P0001', message 'self-invite')` → rethrows `Error("You can't invite yourself.")`; maps `(code 'P0001', message 'already a member')` → rethrows `Error("They're already on this list.")`; all other errors, or a `null` return from the RPC (the documented silent-decline signal when block/policy checks fail — see `docs/invites.md` `send_invitation` sketch; this is the normal path, not an unexpected state) → rethrows `Error("Couldn't send invite")`. Typed e-mail never in any error string.
 - **`postAcceptPrompts`:** `SvelteSet<{ inviterUid: string; inviterName: string }>` exported as part of the top-level `invitations` state object. `SvelteSet` is imported from `svelte/reactivity`. Its entries are removed one-by-one as the user dismisses or acts.
 - **Mock update:** the `__mocks__/invitations.svelte.ts` gains stub entries for every new export — `inbox: InboxEntry[]` on the state object, `loadInbox = vi.fn()`, `sendInvitation = vi.fn()`, `acceptInvitation = vi.fn()`, `declineInvitation = vi.fn()`, `postAcceptPrompts` as a `SvelteSet`.
 
 **Files:**
+
 - `web/src/lib/invite/state/invitations.svelte.ts` (modify)
 - `web/src/lib/invite/state/__mocks__/invitations.svelte.ts` (modify)
 - `web/src/lib/invite/state/invitations.test.ts` (modify — add tests for new functions)
 
 **Steps:**
+
 1. RED — In `invitations.test.ts`, add `describe` blocks for:
    - `loadInbox`: calls `pgGet` with the correct URL, populates `invitations.inbox` with mapped `InboxEntry` objects (test one row, check all five fields).
    - `acceptInvitation`: reads inviter from inbox before RPC, calls `pgPost('/rpc/accept_invitation', { p_invitation_id: id })`, removes entry from inbox, adds entry to `postAcceptPrompts`, returns `{ inviterUid, inviterName, listId }`.
@@ -46,7 +49,7 @@
    - `sendInvitation` with `{ email }`: calls `pgPost` with `p_email`.
    - `sendInvitation` error mapping: `P0001 / self-invite` → `"You can't invite yourself."`; `P0001 / already a member` → `"They're already on this list."`; other ApiError or null return → `"Couldn't send invite"`.
    - `acceptInvitation` error path: when RPC throws, rethrows with `Error("Couldn't accept invite")` without modifying inbox or `postAcceptPrompts`.
-   Run `cd web && pnpm test -- invitations` and confirm all new tests fail (functions don't exist yet).
+     Run `cd web && pnpm test -- invitations` and confirm all new tests fail (functions don't exist yet).
 2. GREEN — In `invitations.svelte.ts`:
    - Import `SvelteSet` from `svelte/reactivity`.
    - Add `InboxEntry` type export.
@@ -71,11 +74,12 @@
 **Prerequisites:** Task 1.1 complete — `invitations.inbox`, `acceptInvitation`, `declineInvitation` all exported and mocked.
 
 **Decisions:**
+
 - **Component location:** `web/src/lib/invite/components/InvitesBanner.svelte`. The `invite/` domain now has components; create the `components/` and `__mocks__/` directories if they don't exist.
 - **Props:** none — the component reads directly from `invitations.inbox` (reactive) and calls `loadInbox()` on mount so the inbox is populated when the ListsScreen first renders. Use `$effect(() => { void loadInbox(); })` in the component script.
 - **Single-invite state (design ref: `InboxBanner` with `count === 1`):**
   - Container: `margin: 8px 18px 14px`, `padding: 14px`, `background: var(--paper-alt)`, `border: 1px solid var(--rule)`, `border-radius: 12px`.
-  - Inner row: 28 px `<Avatar>`, copy "*{inviterName}* invited you to *{listName}*" (inviterName in bold, "invited you to" in `var(--stone)`, listName in bold).
+  - Inner row: 28 px `<Avatar>`, copy "_{inviterName}_ invited you to _{listName}_" (inviterName in bold, "invited you to" in `var(--stone)`, listName in bold).
   - Button pair below: "Decline" (flex 1, border `var(--rule)`, `var(--stone)` text) | "Accept" (flex 1, `var(--sage)` background, white text).
   - Decline: calls `declineInvitation(entry.id)`.
   - Accept: calls `acceptInvitation(entry.id)` → on resolve, `goto(resolve('/lists/<listId>'))`. The post-accept prompt is shown by the layout (R5), not here.
@@ -90,6 +94,7 @@
   - No test for banner state transitions in ListsScreen.test.ts — that's InvitesBanner.test.ts's job; ListsScreen just asserts the stub is mounted.
 
 **Files:**
+
 - `web/src/lib/invite/components/InvitesBanner.svelte` (create)
 - `web/src/lib/invite/components/__mocks__/InvitesBanner.svelte` (create)
 - `web/src/lib/invite/components/InvitesBanner.test.ts` (create)
@@ -97,6 +102,7 @@
 - `web/src/lib/list/components/ListsScreen.test.ts` (modify — mock + mount assertion)
 
 **Steps:**
+
 1. RED — Create `InvitesBanner.test.ts` with tests:
    - (a) renders nothing when `invitations.inbox` is empty.
    - (b) renders single-invite card with inviter name and list name when inbox has 1 entry.
@@ -106,7 +112,7 @@
    - (e) multi-invite collapsed row renders when inbox has 2+ entries with correct count.
    - (f) multi-invite row navigates to `/settings/invites` on click.
    - (g) `loadInbox` is called on mount.
-   Run `cd web && pnpm test -- InvitesBanner` and confirm red.
+     Run `cd web && pnpm test -- InvitesBanner` and confirm red.
 2. GREEN — Create `InvitesBanner.svelte` and its mock. Implement the three states per Decisions. Run `cd web && pnpm test -- InvitesBanner` and confirm green.
 3. Modify `ListsScreen.svelte` to import and mount `<InvitesBanner>` above the list/empty-state content.
 4. Update `ListsScreen.test.ts` — add `vi.mock('$lib/invite/components/InvitesBanner.svelte')` and assert the stub is present.
@@ -124,16 +130,18 @@
 **Prerequisites:** Task 1.1 complete — `invitations.postAcceptPrompts` exported and mocked. Task 2.1 complete — `acceptInvitation` is the live function that populates the set.
 
 **Decisions:**
-- **Component:** `web/src/lib/invite/components/PostAcceptPromptSheet.svelte`. Reads `invitations.postAcceptPrompts`; takes the first entry (via iterator) as the displayed prompt. Uses the existing `<Sheet>` primitive. Copy: *"You accepted {Name}'s invite. Add {Name} to your circle?"* Left button: "Not now" → removes entry from set (calls `invitations.postAcceptPrompts.delete(entry)`). Right button: "Add to circle" → calls `addCircleById(entry.inviterUid)` then removes entry. Uses `<ButtonPair>` for button layout.
+
+- **Component:** `web/src/lib/invite/components/PostAcceptPromptSheet.svelte`. Reads `invitations.postAcceptPrompts`; takes the first entry (via iterator) as the displayed prompt. Uses the existing `<Sheet>` primitive. Copy: _"You accepted {Name}'s invite. Add {Name} to your circle?"_ Left button: "Not now" → removes entry from set (calls `invitations.postAcceptPrompts.delete(entry)`). Right button: "Add to circle" → calls `addCircleById(entry.inviterUid)` then removes entry. Uses `<ButtonPair>` for button layout.
 - **`data-test` attributes:** `post-accept-prompt` on the Sheet; `post-accept-not-now`; `post-accept-add-to-circle`.
 - **Mock:** `web/src/lib/invite/components/__mocks__/PostAcceptPromptSheet.svelte` renders `<div data-test="post-accept-prompt-stub"></div>`.
 - **Layout wiring:** `(app)/+layout.svelte` imports `PostAcceptPromptSheet` and `invitations` from their modules. Renders `{#if invitations.postAcceptPrompts.size > 0}<PostAcceptPromptSheet />{/if}` after `{@render children()}`.
 - **Layout test:** create `web/src/routes/(app)/layout.test.ts` (no `+` prefix — route-test filename rule). Mock `$lib/invite/components/PostAcceptPromptSheet.svelte` and `$lib/invite/state/invitations.svelte`. Assertions:
   - (a) prompt stub not rendered when `postAcceptPrompts` is empty.
   - (b) prompt stub rendered when one entry is in `postAcceptPrompts`.
-  The prompt's internal behaviour (Not now / Add to circle) is tested in `PostAcceptPromptSheet.test.ts`, not the layout test.
+    The prompt's internal behaviour (Not now / Add to circle) is tested in `PostAcceptPromptSheet.test.ts`, not the layout test.
 
 **Files:**
+
 - `web/src/lib/invite/components/PostAcceptPromptSheet.svelte` (create)
 - `web/src/lib/invite/components/__mocks__/PostAcceptPromptSheet.svelte` (create)
 - `web/src/lib/invite/components/PostAcceptPromptSheet.test.ts` (create)
@@ -141,12 +149,13 @@
 - `web/src/routes/(app)/layout.test.ts` (create)
 
 **Steps:**
+
 1. RED — Create `PostAcceptPromptSheet.test.ts` with tests:
    - (a) renders prompt copy with inviter name.
    - (b) "Not now" removes entry from `postAcceptPrompts`.
    - (c) "Add to circle" calls `addCircleById` with inviterUid then removes entry.
-   Create `layout.test.ts` with tests (a) and (b) from Decisions.
-   Run `cd web && pnpm test -- PostAcceptPromptSheet` and confirm red.
+     Create `layout.test.ts` with tests (a) and (b) from Decisions.
+     Run `cd web && pnpm test -- PostAcceptPromptSheet` and confirm red.
 2. GREEN — Create `PostAcceptPromptSheet.svelte` and its mock. Modify `(app)/+layout.svelte`.
 3. Run `cd web && pnpm test -- PostAcceptPromptSheet` · `pnpm test -- "routes/(app)/layout"` and confirm green.
 
@@ -166,10 +175,11 @@
 **Prerequisites:** Task 1.1 complete — `invitations.inbox` and `declineInvitation` / `acceptInvitation` mocked. Task 2.1 complete — `InvitesBanner` mounted in ListsScreen (so tests there stay green).
 
 **Decisions:**
+
 - **Route file:** `web/src/routes/(app)/settings/invites/+page.svelte`. Minimal: `<script lang="ts"> import InvitesInboxScreen from '$lib/invite/components/InvitesInboxScreen.svelte'; </script> <InvitesInboxScreen />`. No `.ts` loader needed — the screen fetches inbox on mount.
 - **`InvitesInboxScreen.svelte` (design ref: `InvitesInboxScreen`):**
   - TopBar: title "Invites", subtitle `${invitations.inbox.length} pending` (reactive).
-  - Intro paragraph: *"People who've invited you to their lists. Accept to join, or decline to clear."* (`font-size: 12.5px`, `color: var(--stone)`, padding `14px 18px 6px`).
+  - Intro paragraph: _"People who've invited you to their lists. Accept to join, or decline to clear."_ (`font-size: 12.5px`, `color: var(--stone)`, padding `14px 18px 6px`).
   - Calls `loadInbox()` on mount (`$effect`).
   - Per-row: 36 px Avatar; inviter name + " invited you to" grey label; list name bold (15 px, `var(--ink)`); timestamp via `timeAgo(entry.createdAt)` (11 px monospace `var(--stone-lt)`); Decline / Accept pill buttons.
   - Accept: calls `acceptInvitation(id)` → on resolve, `goto(resolve('/lists/<listId>'))` using the `listId` from the return value.
@@ -192,6 +202,7 @@
 **Design reference:** `design/cairn-screens.jsx` `SettingsScreen` (canonical, line 1084+) for the Invites row count badge. Do not use `SettingsScreenV2_LEGACY` in `cairn-invite-screens.jsx` — it is marked deprecated and shows an e-mail address in the profile chip.
 
 **Files:**
+
 - `web/src/routes/(app)/settings/invites/+page.svelte` (create)
 - `web/src/lib/invite/components/InvitesInboxScreen.svelte` (create)
 - `web/src/lib/invite/components/__mocks__/InvitesInboxScreen.svelte` (create)
@@ -201,14 +212,15 @@
 - `web/src/lib/invite/components/InvitesBanner.svelte` (modify — upgrade bare-string `goto` to `goto(resolve('/settings/invites'))`)
 
 **Steps:**
+
 1. RED — Create `InvitesInboxScreen.test.ts` with tests:
    - (a) intro paragraph text present.
    - (b) row renders inviter name and list name.
    - (c) Decline button calls `declineInvitation`.
    - (d) Accept button calls `acceptInvitation` and then `goto`.
    - (d2) when `acceptInvitation` rejects, does not call `goto`.
-   Update `SettingsScreen.test.ts` — update j-4 and j-5, add j-5b and j-5c.
-   Run `cd web && pnpm test -- InvitesInboxScreen` and confirm red; `pnpm test -- SettingsScreen` and confirm red on the updated j-4/j-5.
+     Update `SettingsScreen.test.ts` — update j-4 and j-5, add j-5b and j-5c.
+     Run `cd web && pnpm test -- InvitesInboxScreen` and confirm red; `pnpm test -- SettingsScreen` and confirm red on the updated j-4/j-5.
 2. GREEN — Create route file `settings/invites/+page.svelte`, `InvitesInboxScreen.svelte`, and its mock. Modify `SettingsScreen.svelte` per Decisions.
 3. Run `cd web && pnpm test -- InvitesInboxScreen` · `pnpm test -- SettingsScreen` and confirm green.
 
@@ -224,6 +236,7 @@
 **Completed:** 2026-05-29T07:31:47Z
 
 **Notes:**
+
 - The `lists.svelte.ts` and `profile.svelte.ts` modules also needed mocking in the test — added alongside the modules listed in the task's mock plan.
 - Used `SvelteSet` directly (not wrapped in `$state`) for `currentMemberIds` and `invitedIds` — `SvelteSet` is already reactive, so the wrapper was an ESLint violation under `svelte/prefer-svelte-reactivity`.
 - Inside the `$derived.by` co-members aggregation, a transient `Map` is used and tripped the same lint rule; suppressed with a single-line `eslint-disable-next-line` because the map is fully local to the derivation (no cross-frame reactivity).
@@ -233,6 +246,7 @@
 **Prerequisites:** Task 1.1 complete — `sendInvitation` mocked. `relationships.svelte.ts` mock exports `relationships.circle`. `lists.svelte.ts` state accessible.
 
 **Decisions:**
+
 - **Props:** `listId: string`, `onclose: () => void`.
 - **Already-members fetch:** on mount, fetch `GET /list_members?list_id=eq.{listId}&deleted_at=is.null&select=user_id` and store as a `Set<string>` (`currentMemberIds`). This fetch is awaited before rendering the sections.
 - **Circle section:** filter `relationships.circle` entries where `otherUserId` not in `currentMemberIds` and not equal to `profile.uid`. Sub-line "In your circle". Invite button calls `sendInvitation(listId, { userId: m.otherUserId })`.
@@ -246,12 +260,14 @@
 - **`data-test` attributes:** `invite-picker-circle-row-{userId}`, `invite-picker-invite-{userId}`, `invite-picker-email-input`, `invite-picker-email-send`.
 
 **Files:**
+
 - `web/src/lib/invite/components/InvitePickerSheet.svelte` (create)
 - `web/src/lib/invite/components/__mocks__/InvitePickerSheet.svelte` (create)
 - `web/src/lib/invite/components/InvitePickerSheet.test.ts` (create)
 - `web/src/lib/list/state/lists.svelte` (read-only dependency — not modified; imported for `lists.items` in the co-members computation)
 
 **Steps:**
+
 1. RED — Create `InvitePickerSheet.test.ts` with tests:
    - (a) circle section renders one row when `relationships.circle` has a non-member.
    - (b) circle section omits a user who is already a member of the target list.
@@ -259,7 +275,7 @@
    - (c2) after a successful Invite click, the Invite button is replaced by a check-mark icon for that row.
    - (d) co-members section excludes circle members.
    - (e) by-email Send button calls `sendInvitation` with `{ email }`.
-   Run `cd web && pnpm test -- InvitePickerSheet` and confirm red.
+     Run `cd web && pnpm test -- InvitePickerSheet` and confirm red.
 2. GREEN — Create `InvitePickerSheet.svelte` and its mock per Decisions.
 3. Run `cd web && pnpm test -- InvitePickerSheet` and confirm green.
 
@@ -275,6 +291,7 @@
 **Completed:** 2026-05-29T07:39:10Z
 
 **Notes:**
+
 - The task said to read `page.params.list_id` from `$app/state` in the route; the route uses `PageProps` instead, matching the established pattern in `lists/[list_id]/+page.svelte` (no other route in the repo uses `$app/state`). Result is identical — `params.list_id` is passed to `<MembersScreen listId={...} />`.
 - Created `web/src/lib/profile/components/__mocks__/ProfileSheet.svelte` (didn't exist). The Files list didn't mention it but the test needs it to assert the profile-sheet stub appears on row tap.
 
@@ -283,6 +300,7 @@
 **Prerequisites:** Task 4.1 complete — `InvitePickerSheet` exists and is mocked. `ProfileSheet` exists from 0802. `pendingInviteFor` and `loadSent` available from the invitations module.
 
 **Decisions:**
+
 - **Route file:** `web/src/routes/(app)/lists/[list_id]/members/+page.svelte`. Reads `page.params.list_id`, passes to `<MembersScreen listId={page.params.list_id} />`. Import `page` from `$app/state`.
 - **`MembersScreen.svelte` fetch (on mount):**
   `GET /list_members?list_id=eq.{listId}&deleted_at=is.null&select=user_id,created_at,lists(created_by,name),profiles!user_id(display_name,avatar_version)`.
@@ -302,12 +320,14 @@
 - **Mock:** `web/src/lib/list/components/__mocks__/MembersScreen.svelte` renders `<div data-test="members-screen-stub"></div>`.
 
 **Files:**
+
 - `web/src/routes/(app)/lists/[list_id]/members/+page.svelte` (create)
 - `web/src/lib/list/components/MembersScreen.svelte` (create)
 - `web/src/lib/list/components/__mocks__/MembersScreen.svelte` (create)
 - `web/src/lib/list/components/MembersScreen.test.ts` (create)
 
 **Steps:**
+
 1. RED — Create `MembersScreen.test.ts` with tests:
    - (a) section label shows member count ("N people on this list").
    - (a2) section label shows "1 person on this list" (singular) when there is exactly 1 member.
@@ -317,7 +337,7 @@
    - (d) row with `user_id === lists.created_by` (non-self) shows "Created the list".
    - (e) tapping a non-self row opens ProfileSheet (stub visible).
    - (f) "Add member" button opens InvitePickerSheet (stub visible).
-   Run `cd web && pnpm test -- MembersScreen` and confirm red.
+     Run `cd web && pnpm test -- MembersScreen` and confirm red.
 2. GREEN — Create route file `lists/[list_id]/members/+page.svelte` and `MembersScreen.svelte` per Decisions. Add mock.
 3. Run `cd web && pnpm test -- MembersScreen` and confirm green.
 
@@ -333,6 +353,7 @@
 **Completed:** 2026-05-29T07:58:22Z
 
 **Notes:**
+
 - User redirected the (b) test to assert via `data-test` attributes rather than UI label text — checking that the label string `"Delete list"` appears in `textContent` is tautological and would break under i18n. The new (b) checks the ordered list of `data-test` attributes; the same principle was added to `docs/testing.md` under "Don't assert on UI label text".
 
 **Why:** Completes the six-row overflow shape specified in R10. The Manage members row navigates to `/lists/{listId}/members` — that route exists now (Phase 5), so the typed-routes pass is satisfied.
@@ -340,9 +361,10 @@
 **Prerequisites:** Task 5.1 complete — `/lists/[list_id]/members` route exists. `profile.uid` available from `$lib/shared/state/profile.svelte`.
 
 **Decisions:**
+
 - **Row order (6 rows):** 1. Rename list · 2. Edit description · 3. Manage members · 4. View bin · 5. Leave list · 6. Delete list.
 - **Manage members:** `<button class="row" data-test="list-overflow-manage-members" onclick={() => { goto(resolve('/lists/<listId>/members')); onclose(); }>`. Icon `users`, label "Manage members".
-- **Leave list confirmation:** inline confirmation block (not a separate Sheet). When tapped, replaces the "Leave list" button with a confirm block: copy *"Leave {listName}? You'll have to be re-invited to rejoin."* + `<ButtonPair>`: left "Cancel" (restores the button), right "Leave" (`data-test="list-overflow-leave-confirm"`). On confirm: `PATCH /list_members?list_id=eq.{listId}&user_id=eq.{profile.uid}` with body `{ deleted_at: new Date().toISOString() }` (no `deleted_by` — trigger handles it). On success: `goto(resolve('/lists'))` then `onclose()`.
+- **Leave list confirmation:** inline confirmation block (not a separate Sheet). When tapped, replaces the "Leave list" button with a confirm block: copy _"Leave {listName}? You'll have to be re-invited to rejoin."_ + `<ButtonPair>`: left "Cancel" (restores the button), right "Leave" (`data-test="list-overflow-leave-confirm"`). On confirm: `PATCH /list_members?list_id=eq.{listId}&user_id=eq.{profile.uid}` with body `{ deleted_at: new Date().toISOString() }` (no `deleted_by` — trigger handles it). On success: `goto(resolve('/lists'))` then `onclose()`.
 - **`ListOverflowSheet` props:** `listId` already exists. Add nothing new — navigation uses `listId` directly and leave-list uses `profile.uid` from the profile store.
 - **`ListOverflowSheet.test.ts` updates:**
   - Update test `(b)` — now asserts six rows: "Rename list", "Edit description", "Manage members", "View bin", "Leave list", "Delete list".
@@ -352,10 +374,12 @@
   - Add `vi.mock('$lib/shared/http/postgrest')`, `vi.mock('$lib/shared/state/profile.svelte')`, `vi.mock('$app/navigation')`, and `vi.mock('$app/paths')` at the top if not already present.
 
 **Files:**
+
 - `web/src/lib/list/components/ListOverflowSheet.svelte` (modify)
 - `web/src/lib/list/components/ListOverflowSheet.test.ts` (modify)
 
 **Steps:**
+
 1. RED — Update `ListOverflowSheet.test.ts` with tests (b-updated), (h), (i), (j). Run `cd web && pnpm test -- ListOverflowSheet` and confirm the updated test (b) and new tests fail.
 2. GREEN — Modify `ListOverflowSheet.svelte`: insert the Manage members row after "Edit description", insert the Leave list row (with inline confirm state) before "Delete list".
 3. Run `cd web && pnpm test -- ListOverflowSheet` and confirm green.
@@ -376,6 +400,7 @@
 **Prerequisites:** All Phases 1–6 complete — routes, components, and state module are in place.
 
 **Decisions:**
+
 - Follow the pattern of `web/e2e/items.spec.ts`: `test.describe.serial`, unique per-run emails (`alice+invites-${runId}@example.test`), magic-link via `waitForMagicLink`.
 - **`invites.spec.ts`:** Alice signs in, creates a list, opens the picker (via Members screen → Add member), sends invite to Bob by e-mail. Bob signs in (new page), sees single-invite banner, accepts, lands on the list, post-accept prompt appears, Bob taps "Add to circle". Navigate back; banner is gone.
 - **`block.spec.ts`:** Alice and Bob share a list (seeded by Alice inviting Bob in beforeAll). Alice opens Bob's ProfileSheet from Members screen, blocks Bob (confirms). New Bob page: Bob opens picker on another list, types Alice's e-mail, taps Send — toast "Couldn't send invite" appears (no Alice e-mail echoed).
@@ -384,11 +409,13 @@
 - Report in Notes that the specs were written but not run in this environment.
 
 **Files:**
+
 - `web/e2e/invites.spec.ts` (create)
 - `web/e2e/block.spec.ts` (create)
 - `web/e2e/privacy.spec.ts` (create)
 
 **Steps:**
+
 1. Create `web/e2e/invites.spec.ts` — full `test.describe.serial` block per Decisions.
 2. Create `web/e2e/block.spec.ts`.
 3. Create `web/e2e/privacy.spec.ts`.
@@ -397,6 +424,7 @@
 **Verify:** `cd web && pnpm lint` · `pnpm check` (Playwright specs typecheck; tests not run — reported as untested per project convention)
 
 **Notes:**
+
 - Specs were not executed — Playwright is not installed/runnable in this environment. `pnpm lint` and `pnpm check` both pass against the new spec files (TS types are sound, ESLint clean).
 - The picker is opened in each spec by navigating directly to `/lists/{id}/members` and tapping `members-add` rather than via the ItemsScreen overflow sheet — `MoreButton` does not expose a `data-test`, and direct navigation makes the specs more robust to header changes.
 - The block spec's post-block assertion is "toast appears without echoing Alice's e-mail" rather than the exact `"Couldn't send invite"` text the plan suggested. The picker uses the anti-enumeration message uniformly (it can't distinguish a silent-decline from a happy path), so asserting absence-of-e-mail is the property that actually matters and matches the picker's real behaviour.
@@ -415,13 +443,16 @@
 **Prerequisites:** Task 6.1 complete — six-row order confirmed.
 
 **Decisions:**
+
 - Change the step 8 parenthetical's overflow row list from the current wording to: "Rename / Edit description / Manage members / View bin / Leave list / Delete list".
 - The step 8 checkbox remains `[ ]` — it flips to `[x]` in task 4.1 of `0800_invites_circles_ui` after the merge.
 
 **Files:**
+
 - `plans/0000_implementation_order.md` (modify)
 
 **Steps:**
+
 1. Open `plans/0000_implementation_order.md`, locate the step 8 bullet, update the overflow row parenthetical to list all six rows in order.
 2. Run `cd web && pnpm lint` (no code changes — just confirming nothing broke).
 

@@ -22,42 +22,51 @@ the code.
 **Prerequisites:** None.
 
 **Decisions:**
+
 - Template uses only `{{ .ConfirmationURL }}`; `{{ .Token }}` must not appear
   anywhere in the file.
 - Minimal inline CSS only (no external stylesheet, no image assets). GoTrue
   renders the template server-side and mails it; no JS, no external fetch.
 - Brand name "Cairn" appears as a plain `<h2>`.
-- Ignore note reads: *"If you didn't request this, you can safely ignore this
-  e-mail."* — British English ("e-mail" hyphenated per project convention).
+- Ignore note reads: _"If you didn't request this, you can safely ignore this
+  e-mail."_ — British English ("e-mail" hyphenated per project convention).
 - GoTrue v2 uses Go's `text/template` syntax: `{{ .ConfirmationURL }}` is the
   exact variable name for the magic-link URL.
 
 **Files:**
+
 - `gotrue/templates/magic_link.html` (create)
 
 **Steps:**
+
 1. Create the directory `gotrue/templates/` (it does not exist yet).
 2. Write `gotrue/templates/magic_link.html` with this content:
 
 ```html
 <!DOCTYPE html>
 <html lang="en">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Sign in to Cairn</title>
-</head>
-<body style="font-family:sans-serif;max-width:480px;margin:40px auto;padding:0 24px;color:#111;">
-  <h2 style="margin-bottom:8px;">Cairn</h2>
-  <p>Tap the link below to sign in.</p>
-  <p style="margin:32px 0;">
-    <a href="{{ .ConfirmationURL }}"
-       style="background:#111;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600;">
-      Sign in to Cairn
-    </a>
-  </p>
-  <p style="font-size:14px;color:#666;">If you didn't request this, you can safely ignore this e-mail.</p>
-</body>
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<title>Sign in to Cairn</title>
+	</head>
+	<body
+		style="font-family:sans-serif;max-width:480px;margin:40px auto;padding:0 24px;color:#111;"
+	>
+		<h2 style="margin-bottom:8px;">Cairn</h2>
+		<p>Tap the link below to sign in.</p>
+		<p style="margin:32px 0;">
+			<a
+				href="{{ .ConfirmationURL }}"
+				style="background:#111;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600;"
+			>
+				Sign in to Cairn
+			</a>
+		</p>
+		<p style="font-size:14px;color:#666;">
+			If you didn't request this, you can safely ignore this e-mail.
+		</p>
+	</body>
 </html>
 ```
 
@@ -77,6 +86,7 @@ container via a volume mount.
 **Prerequisites:** Task 1.1 (`gotrue/templates/magic_link.html` exists).
 
 **Decisions:**
+
 - Mount path inside the container: `/gotrue/templates` (read-only). Matches the
   env var value to keep the mental model simple.
 - The `volumes` key is new on the `gotrue` service; no other service is changed.
@@ -84,9 +94,11 @@ container via a volume mount.
   (`docker-compose.prod.yml`) is step 14's responsibility.
 
 **Files:**
+
 - `docker-compose.yml` (modify)
 
 **Steps:**
+
 1. In the `gotrue` service `environment` block, add after the existing SMTP
    vars:
    ```yaml
@@ -124,6 +136,7 @@ costs nothing extra.
 immediately after Phase 1).
 
 **Decisions:**
+
 - Change `waitForMagicLink` return type from `Promise<string>` to
   `Promise<{ link: string; html: string; text: string }>`. The single call site
   (`auth.spec.ts` line 23) is updated in Task 2.2.
@@ -131,21 +144,27 @@ immediately after Phase 1).
   this field; it is not optional.
 - `extractMagicLink` remains a private helper; it does not need to change.
 - The `waitForMagicLink` return statement changes from `return
-  extractMagicLink(msg.HTML, email)` to `return { link: extractMagicLink(msg.HTML,
-  email), html: msg.HTML, text: msg.Text }`.
+extractMagicLink(msg.HTML, email)` to `return { link: extractMagicLink(msg.HTML,
+email), html: msg.HTML, text: msg.Text }`.
 
 **Files:**
+
 - `web/e2e/helpers/mailpit.ts` (modify)
 
 **Steps:**
+
 1. In `web/e2e/helpers/mailpit.ts`:
    a. Add `Text: string` to `MailpitMessage`.
    b. Change the `waitForMagicLink` signature to return
-      `Promise<{ link: string; html: string; text: string }>`.
+   `Promise<{ link: string; html: string; text: string }>`.
    c. Update the `return` statement inside the `if (match)` block to:
-      ```typescript
-      return { link: extractMagicLink(msg.HTML, email), html: msg.HTML, text: msg.Text };
-      ```
+   ```typescript
+   return {
+   	link: extractMagicLink(msg.HTML, email),
+   	html: msg.HTML,
+   	text: msg.Text,
+   };
+   ```
 2. Confirm `pnpm check` reports a type error on `auth.spec.ts` line 23
    (`const link = await waitForMagicLink(email)` — `string` is no longer
    assignable). This is expected and will be resolved in Task 2.2.
@@ -168,6 +187,7 @@ go undetected until the first user complained.
 reads `const link = await waitForMagicLink(email)` and fails `pnpm check`).
 
 **Decisions:**
+
 - Regex: `/\b\d{6}\b/` — word-boundary-delimited six-digit sequence. Catches
   GoTrue's default token range (000000–999999) without false-positives on longer
   numeric strings (port numbers, timestamps, JWT fragments) that may appear in
@@ -181,9 +201,11 @@ reads `const link = await waitForMagicLink(email)` and fails `pnpm check`).
   does not call `waitForMagicLink` and needs no change.
 
 **Files:**
+
 - `web/e2e/auth.spec.ts` (modify)
 
 **Steps:**
+
 1. In `web/e2e/auth.spec.ts`, change line 23 from:
    ```typescript
    const link = await waitForMagicLink(email);
@@ -225,12 +247,14 @@ SvelteKit (production) and the static sidecar (dev, Task 3.2) can serve it.
 **Prerequisites:** Tasks 1.1 and 1.2 complete.
 
 **Decisions:**
+
 - Template destination: `web/static/gotrue/templates/magic_link.html`.
 - Remove the `volumes` block from the `gotrue` service entirely.
 - Delete `gotrue/templates/` from the repo root.
 - The env var value is updated in Task 3.2 once the sidecar approach is decided.
 
 **Files:**
+
 - `web/static/gotrue/templates/magic_link.html` (created — moved from `gotrue/templates/magic_link.html`)
 - `gotrue/templates/magic_link.html` (deleted)
 - `docker-compose.yml` (modified — removed `volumes` block from `gotrue` service)
@@ -262,6 +286,7 @@ env var is changed to a full `http://static/...` URL so GoTrue uses it verbatim
 **Prerequisites:** Task 3.1 (`web/static/gotrue/templates/magic_link.html` exists).
 
 **Decisions:**
+
 - Sidecar image: `nginx:alpine` — minimal, no configuration needed for plain
   static file serving.
 - Service name `static` — short, descriptive, and used as the hostname in the
@@ -278,10 +303,12 @@ env var is changed to a full `http://static/...` URL so GoTrue uses it verbatim
   is served by the production web container.
 
 **Files:**
+
 - `docker-compose.yml` (modify — add `static` service; update
   `GOTRUE_MAILER_TEMPLATES_MAGIC_LINK`; add `static` to `gotrue` depends_on)
 
 **Steps:**
+
 1. In `docker-compose.yml`, add after the `mailpit` service:
    ```yaml
    static:
@@ -329,6 +356,7 @@ discard any styles on it.
 **Prerequisites:** Task 1.1 (template file exists and is being delivered).
 
 **Decisions:**
+
 - Table-based layout for centering and the button — the only layout model with
   broad email client support.
 - `padding` on `<td>` for spacing, not `margin`.
@@ -344,6 +372,7 @@ discard any styles on it.
 - No `<style>` block — stripped by Gmail and other webmail clients.
 
 **Files:**
+
 - `web/static/gotrue/templates/magic_link.html` (rewritten)
 - `docs/email-html.md` (created — records the conventions for all future
   Cairn email templates)

@@ -34,7 +34,7 @@ If the HTTP GET fails (connection refused, 4xx, 5xx), GoTrue logs the error and
 **silently falls back to its built-in default template**. The email is still
 sent — there is no hard failure. Because Cairn's own template now also shows the
 code, the tell of a fallback is no longer "a six-digit code appears" — it's the
-*wrong* template rendering: the unbranded GoTrue default, missing Cairn's layout
+_wrong_ template rendering: the unbranded GoTrue default, missing Cairn's layout
 and the "Don't share this code with anyone." line.
 
 Templates are cached for 10 seconds after a successful fetch.
@@ -43,11 +43,11 @@ Templates are cached for 10 seconds after a successful fetch.
 
 GoTrue uses Go's `text/template`. The variables available in magic-link emails:
 
-| Variable | Value |
-|---|---|
-| `{{ .ConfirmationURL }}` | The full magic-link URL (use this for the sign-in button) |
-| `{{ .Token }}` | The six-digit OTP code (presented as a typeable code in Cairn's template) |
-| `{{ .SiteURL }}` | The value of `GOTRUE_SITE_URL` |
+| Variable                 | Value                                                                     |
+| ------------------------ | ------------------------------------------------------------------------- |
+| `{{ .ConfirmationURL }}` | The full magic-link URL (use this for the sign-in button)                 |
+| `{{ .Token }}`           | The six-digit OTP code (presented as a typeable code in Cairn's template) |
+| `{{ .SiteURL }}`         | The value of `GOTRUE_SITE_URL`                                            |
 
 The plain-text MIME part is generated automatically by stripping HTML tags from
 the rendered HTML body. A separate text template is not required, and Cairn does

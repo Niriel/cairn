@@ -42,11 +42,11 @@ must track Caddy releases; (B) stock Caddy `handle_response` + a
 replace-response plugin — rejected because stock/plugin Caddy cannot lift
 a JSON field into a `Set-Cookie` and strip body fields reliably; (C) a
 tiny Node auth-proxy sidecar between Caddy and GoTrue that reuses the
-*exact* tested dev logic and the shared `auth-paths.ts`. We pick **(C)**
+_exact_ tested dev logic and the shared `auth-paths.ts`. We pick **(C)**
 for the alpha: lowest correctness risk, zero dev/prod drift by reusing
 the single narrowing module, and it leans on a Node-sidecar pattern the
 stack already runs in prod (the avatar `sidecar/`, which `architecture.md`
-itself blesses). This *does* deviate from the doc's "no separate Node
+itself blesses). This _does_ deviate from the doc's "no separate Node
 service for auth" line; the deviation is recorded explicitly in
 `docs/architecture.md`/`deployment.md`, honours the contract the doc
 actually cares about (JS never holds the JWT), and names option (A) as the
@@ -72,16 +72,17 @@ container serves `static/` → `build/gotrue/...`), which is up regardless of
 cert state (R6).
 
 **Safe-by-default compose layering: the base publishes no host ports.**
-Docker Compose *concatenates* `ports` lists (and merges `depends_on` maps)
+Docker Compose _concatenates_ `ports` lists (and merges `depends_on` maps)
 across `-f` files — verified empirically — so a prod override cannot remove
 a base port with `ports: []` (it's a silent no-op) and cannot drop a base
 `depends_on` entry. Relying on that would leave Postgres, PostgREST, and
 GoTrue published on `0.0.0.0` in prod; ufw is no help either, because
 Docker's publish rules sit in the `nat`/`DOCKER` chains and bypass ufw's
 `INPUT` filter. Rather than fight the merge with `!override`/`!reset` tags
-(which leave the *unsafe* state as the default if one is mistyped or
+(which leave the _unsafe_ state as the default if one is mistyped or
 forgotten on a future service), we restructure into three files so the safe
 state is the default:
+
 - **`docker-compose.yml`** — prod-safe base: the services common to dev and
   prod (postgres, postgrest, gotrue, sidecar, caddy) with **no** published
   host ports, and `gotrue.depends_on: [postgres]` only.
@@ -98,7 +99,7 @@ state is the default:
 Dev stays a bare `docker compose up` (auto-loads the override → byte-for-byte
 today's stack); the deploy command is unchanged
 (`-f docker-compose.yml -f docker-compose.prod.yml` skips the dev override).
-Forget the prod file and you get *nothing* exposed, not a public database.
+Forget the prod file and you get _nothing_ exposed, not a public database.
 No `!override`/`!reset` tags are needed and the `depends_on` merge footgun
 disappears (R1, R8).
 
@@ -114,7 +115,7 @@ loopback Postgres publish above lets the script work without exposing
 Postgres to the internet (R8).
 
 **Minimal imprint now, full legal later.** `0000` flags the German
-Impressum as a *public-launch* blocker. For an unadvertised early
+Impressum as a _public-launch_ blocker. For an unadvertised early
 alpha the risk is far lower, but a one-page operator/contact stub is
 cheap insurance if the URL leaks. The full step-14 surface (Privacy, Terms,
 OSS attributions, …) is out of scope (R9).
@@ -138,7 +139,7 @@ OSS attributions, …) is out of scope (R9).
   prod-safe base (Caddy `80/443`, loopback Postgres, `web` + `auth-proxy`,
   prod GoTrue env).
 - **`caddy/Caddyfile.prod`** — real (non-pseudocode) routing + shim wiring
-  + ACME TLS.
+  - ACME TLS.
 - **`.env.prod.example`** — committed secret/config template.
 - **`web/src/routes/imprint/+page.svelte`** (+ `page.test.ts`) — minimal
   imprint stub. (Exact route dir confirmed against existing `web/src/routes/`
@@ -193,7 +194,7 @@ checks rather than unit tests. Phase 0 lands the doc reconciliation first.
    prod-mode build that drops dev-login; verify the bundle grep. (R4)
 3. **Phase 3 — compose restructure + production compose.** First make
    `docker-compose.yml` prod-safe (no published ports; `gotrue.depends_on:
-   [postgres]`) and move every dev-only thing into a new auto-loaded
+[postgres]`) and move every dev-only thing into a new auto-loaded
    `docker-compose.override.yml`, verifying the dev stack is unchanged
    (Task 3.1). Then add `docker-compose.prod.yml` with the loopback Postgres
    publish, Caddy `80/443`, prod GoTrue env, and the `web` + `auth-proxy`

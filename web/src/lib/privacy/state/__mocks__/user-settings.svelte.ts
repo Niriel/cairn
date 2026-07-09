@@ -4,9 +4,11 @@ type InvitePolicy = 'everybody' | 'circle' | 'nobody';
 
 export const userSettings = $state<{
 	invitePolicy: InvitePolicy | null;
+	recoveryEmail: string | null;
 	loaded: boolean;
 }>({
 	invitePolicy: null,
+	recoveryEmail: null,
 	loaded: false
 });
 

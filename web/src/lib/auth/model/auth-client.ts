@@ -126,6 +126,48 @@ export async function verifyOtp(email: string, token: string): Promise<{ user: A
 	return { user: payload.user };
 }
 
+// Recovery e-mail (authenticated). The address column is read-only via
+// PostgREST, so every write goes through the BFF under the caller's own
+// session. A non-2xx throws `HttpError` so the Settings screen can map status
+// → copy (429 send-cap, 400 wrong/expired code, 502 transient).
+
+// Begin setting a recovery address: POST /auth/recovery-email { email }. The
+// BFF records a verify token and mails a 6-digit code to the candidate address.
+export async function setRecoveryEmail(email: string): Promise<void> {
+	await postJson<unknown>('/recovery-email', { email });
+}
+
+// Redeem the emailed code: POST /auth/recovery-email/confirm { code }.
+export async function confirmRecoveryEmail(code: string): Promise<void> {
+	await postJson<unknown>('/recovery-email/confirm', { code });
+}
+
+// Clear the on-file address: POST /auth/recovery-email { remove: true }. No
+// code or mail — removing one's own address needs no verification.
+export async function removeRecoveryEmail(): Promise<void> {
+	await postJson<unknown>('/recovery-email', { remove: true });
+}
+
+// Signed-out password reset (no session). Request a reset code by username:
+// POST /auth/forgot-password { username }. This throws on a non-2xx like every
+// other call here; the anti-enumeration swallow is the ForgotPassword screen's
+// job (it ignores any error), mirroring sendMagicLink's caller.
+export async function requestPasswordReset(username: string): Promise<void> {
+	await postJson<unknown>('/forgot-password', { username });
+}
+
+// Set a new password from a reset code: POST /auth/reset-password
+// { username, code, new_password }. No cookie is planted — the user signs in
+// afterwards. A non-2xx (400 invalid/expired code or too-short password, 429)
+// throws `HttpError`.
+export async function resetPassword(
+	username: string,
+	code: string,
+	newPassword: string
+): Promise<void> {
+	await postJson<unknown>('/reset-password', { username, code, new_password: newPassword });
+}
+
 // Revocable sign-out: POST /auth/signout revokes the session server-side
 // (GoTrue /logout) and clears both cookies. The CSRF header is required.
 export async function signOut(): Promise<void> {

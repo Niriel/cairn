@@ -48,14 +48,14 @@ per-selector mapping):
   −0.01em, `--ink`, margin 0.
 - **`h2`** — section **title**. 0.8125 rem, 600, `--ink-soft`, **normal
   case**, `margin: 0`. **Not uppercase.** Uppercase + `0.06em` tracking is the
-  *form-label* look and lives only on the `<Label>` primitive — the two roles
+  _form-label_ look and lives only on the `<Label>` primitive — the two roles
   were conflated under the word "label", and this requirement separates them: a
   section title is a small heading, a form label is the upper-cased field
   caption. Dropping uppercase from section titles is a deliberate, app-wide
   visual change (the JSX prototyped them upper-cased, but type is not lifted
   from the JSX). Padding stays scoped (it is layout). CircleScreen's
   `.section-header` (0.75 rem / 0.04em, uppercase) converges onto this.
-  SettingsScreen's `.preview-label` is a *form* sub-label, **not** a section
+  SettingsScreen's `.preview-label` is a _form_ sub-label, **not** a section
   title — it uses `<Label>`, not `h2` (see R5 / task 5.10), so it is **not**
   absorbed here.
 - **`h3`** — standard row / primary label. 0.9375 rem, 600, `--ink`, margin 0.
@@ -102,8 +102,8 @@ re-declares these borders/backgrounds:
   convert every `border-bottom`-as-separator into an explicit `<hr>`: that
   predates the concrete `<ul>`/`<li>` migration, and an `<hr>` is invalid as a
   direct child of a `<ul>` (a border on each `<li class="row">` is the right
-  idiom for data rows). `<hr>` survives only where it separates a *menu of
-  actions* rather than data rows — `ListOverflowSheet`'s action list, wrapped as
+  idiom for data rows). `<hr>` survives only where it separates a _menu of
+  actions_ rather than data rows — `ListOverflowSheet`'s action list, wrapped as
   `<li role="separator"><hr /></li>` (task 5.2). That action menu therefore does
   **not** carry the global `.rows` class — it is `<hr>`-separated, not the
   per-row-border data-list model, and keeping `.rows` would add the container
@@ -129,8 +129,8 @@ badge looks; raw duplicated buttons are replaced by the existing `<Button>`:
   with tone variants: `.badge-ink` (bg `--ink`, color `--paper`),
   `.badge-soft` (bg `--paper-alt`, `1px solid var(--rule)`, color `--stone`),
   and score variants `.badge-score.positive` (`color: var(--sage); background:
-  var(--sage-bg)`) / `.badge-score.negative` (`color: var(--ember); background:
-  var(--ember-bg)`). The score badge keeps both its tinted background **and** a
+var(--sage-bg)`) / `.badge-score.negative` (`color: var(--ember); background:
+var(--ember-bg)`). The score badge keeps both its tinted background **and** a
   text colour (matching today's `ItemsScreen` look); its radius converges from
   the current 6 px to the `.badge` pill (`99px`) — a deliberate change. Covers
   the count badge (InvitesBanner), the privacy badge (PrivacyScreen), and the
@@ -138,7 +138,7 @@ badge looks; raw duplicated buttons are replaced by the existing `<Button>`:
   **not** a badge — it is a centred text label; see R5 carve-outs / task 5.9.)
 - **Error toast.** `TrashScreen` and `DeletedListsScreen` carry a byte-identical
   persistent `.error` toast (ember text, paper background, `1px solid
-  var(--ember)`, radius, shell-aware fixed positioning). It is globalised as a
+var(--ember)`, radius, shell-aware fixed positioning). It is globalised as a
   single `.toast-error` class in `controls.css` (visual **and** the shared
   fixed-position pattern, since it is a self-contained transient surface), and
   both screens apply it, deleting their duplicated scoped rule. It stays a
@@ -148,7 +148,7 @@ badge looks; raw duplicated buttons are replaced by the existing `<Button>`:
   `.btn-accept` / `.btn-decline` with their own padding, radius, font, and
   color. These are replaced by `<Button variant="pill">`, deleting the
   hand-rolled button CSS. `<Button>` today exposes tones `primary | ink |
-  destructive`, none of which render the **filled sage** Accept button the
+destructive`, none of which render the **filled sage** Accept button the
   design specifies (`background: var(--sage); color: #fff` — see
   `design/cairn-invite-screens.jsx` and `docs/ui.md` → "Accept (sage)").
   `<Button>` therefore gains a minimal new **`sage` tone** that renders
@@ -164,7 +164,7 @@ badge looks; raw duplicated buttons are replaced by the existing `<Button>`:
 
 Div scaffolding becomes semantic across every in-scope file. The mappings:
 
-- **Sectioning.** A "section label" is the *title of a group of content*
+- **Sectioning.** A "section label" is the _title of a group of content_
   ("Your circle", "Appearance", "Who can invite you to lists"), so each such
   group becomes a `<section>` whose heading is that title. The element rules:
   - The section title → `<h2>` (global `h2` type). A `<div class="section-label">`
@@ -172,7 +172,7 @@ Div scaffolding becomes semantic across every in-scope file. The mappings:
   - **No trivial headers.** A `<section>` whose only introductory content is its
     title keeps a bare `<h2>` as its first child — do **not** wrap a lone `<h2>`
     in a `<header>`. Promote to `<header>` only when the section's intro carries
-    *more than the title* (a subtitle, a count, a trailing action) — this is the
+    _more than the title_ (a subtitle, a count, a trailing action) — this is the
     sheet-header case below.
   - **Trailing notes → `<footer>`.** Closing/explanatory content at the foot of
     a section (e.g. PrivacyScreen's `cascade-note` "3 pending invites have been
@@ -182,7 +182,7 @@ Div scaffolding becomes semantic across every in-scope file. The mappings:
     `<section>` should have a heading); only labelled content groups are
     sectioned.
 - `<div class="header">` → `<header>` — the sheet/screen header where the title
-  *does* travel with companions: the sheet title `<h2 class="t-sheet">` + an
+  _does_ travel with companions: the sheet title `<h2 class="t-sheet">` + an
   optional `<p class="caption">` subtitle.
 - `<div class="rows">` → `<ul class="rows">`; `<div class="row">` →
   `<li class="row">` (or `<button class="row">` where the row is itself the
@@ -206,7 +206,7 @@ layout div, not a list item). The InvitePicker e-mail "By e-mail" caption is
 both the e-mail `<section>`'s intro **and** the label for its one input, so it
 uses the existing `<Label>` primitive (`<Label for="…">By e-mail</Label>`,
 which renders the upper-cased form-label look as a real `<label>` — the correct
-look here, since this caption *is* the label for the e-mail input) rather than a
+look here, since this caption _is_ the label for the e-mail input) rather than a
 `<div class="section-label">` — no global `.section-label` class is introduced.
 
 ## R6. One empty-state look, migrated everywhere
@@ -291,7 +291,7 @@ split apart in expandable ones:
 - **the list item / divider unit** — what `.rows .row { border-bottom }` (R3)
   targets; one per `<li>`, on every list. This stays `.row`, unchanged.
 - **the horizontal flex line** — the `<li>` itself in the five simple sites, but
-  a *child* (`.row-inner` / `.row-top`) in the expandable ones.
+  a _child_ (`.row-inner` / `.row-top`) in the expandable ones.
 
 So the flex-line layout must **not** be lifted onto the global `.row`: doing so
 would apply `display: flex; align-items: center` to the expandable
@@ -336,8 +336,8 @@ badge/count, and a trailing `chevron-right` icon, all wrapped in a
 `<Button variant="text" tone="ink" size="md">` — repeats verbatim across
 `SettingsScreen` (Invites, Privacy, Deleted lists, Sign out) and `PrivacyScreen`
 (Your circle, Blocked). **`InvitesInboxScreen` is not a consumer** — it renders
-*data rows* (invite cards on `<li class="row">`), not nav-rows; the "Invites"
-nav-row lives in `SettingsScreen`, pointing *to* that inbox. (An earlier draft
+_data rows_ (invite cards on `<li class="row">`), not nav-rows; the "Invites"
+nav-row lives in `SettingsScreen`, pointing _to_ that inbox. (An earlier draft
 listed it; that was the nav-row/destination conflation.) `SettingsScreen`'s
 profile chip (an `<Avatar>` lead + display-name, no sub) **also** migrates:
 `NavRow`'s lead is a snippet (below), not an icon name, so the chip passes its
@@ -386,7 +386,7 @@ duplicated nav-row CSS.
 plus a tone — is rendered at four sites today as raw `<span class="badge badge-*
 …">` (ItemsScreen aggregate score, InvitesBanner multi-count, PrivacyScreen
 circle + blocked counts), and the SettingsScreen → Invites count is a plain
-`<span class="nav-row-count caption mono">` that is *not* a badge at all.
+`<span class="nav-row-count caption mono">` that is _not_ a badge at all.
 
 Extract `web/src/lib/basic/components/Badge.svelte` (the `basic/` tier — a
 generic control primitive, peer of `<Button>`, carrying app-semantic tones the
@@ -438,7 +438,7 @@ pill pair.
 - **Consumers.** `InvitesInboxScreen` maps the inbox to `<InviteCard>`s inside its
   `<ul class="rows">` (each in a `<li class="row">`); `InvitesBanner`'s
   single-invite branch renders one `<InviteCard>` inside its `.card-alt` wrapper.
-  Both delete their duplicated invite markup. (The *multi*-invite banner branch is
+  Both delete their duplicated invite markup. (The _multi_-invite banner branch is
   unchanged in nature — a nav-link to the invites page carrying an `ink` count
   `<Badge>` per R12, not an `<InviteCard>`.)
 - Co-located `InviteCard.test.ts`: renders inviter name, list name and date;
@@ -452,7 +452,7 @@ numerals. Yet `.mono` is applied to a date at only **two** of the seven
 `timeAgo`/date sites (InvitesInboxScreen `.when`, and CircleScreen /
 BlockedScreen `.sub`); the other five (TrashScreen, ItemsScreen ×2, MembersScreen
 "Joined …", ListsScreen, DeletedListsScreen) are already plain caption/fine text.
-Mono earns its place for *numeric / tabular* runs (vote values, the score badge,
+Mono earns its place for _numeric / tabular_ runs (vote values, the score badge,
 counts) — not a lone prose date.
 
 - **Dates lose `.mono`.** They render as `.caption` (or `.fine` where the line is
@@ -481,7 +481,7 @@ via `align-items: center` and are unaffected today).
 ## Non-requirements (explicitly excluded)
 
 - **New components beyond `<EmptyState>`, `<NavRow>`, `<Badge>`, and
-  `<InviteCard>`.** This plan globalises CSS and reuses the *existing*
+  `<InviteCard>`.** This plan globalises CSS and reuses the _existing_
   `<Button>`; beyond the `<NavRow>` (R11), `<Badge>` (R12), and `<InviteCard>`
   (R13) extractions, it does **not** extract `<Card>` or `<Toast>` Svelte
   components. Those are follow-up plans. (Replacing raw `<button>`s with the
@@ -489,7 +489,7 @@ via `align-items: center` and are unaffected today).
   `sage` filled-pill tone added to `<Button>` per R4 is an extension of the
   existing primitive, not a new component.)
 - **`<Icon>` `color` prop** — `Icon` uses `stroke="currentColor"`; callers set
-  `color` on an ancestor. No prop added. Icon *sizing* in `em` (R1) is applied
+  `color` on an ancestor. No prop added. Icon _sizing_ in `em` (R1) is applied
   where a task calls for it, but a wholesale Icon-component change to em-based
   sizing is out of scope.
 - **Reworking the vote control, segmented control, or theme/size pickers'

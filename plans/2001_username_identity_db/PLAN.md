@@ -4,7 +4,7 @@ Sub-step 2001 of step 20 (`plans/2000_username_identity`). Lands the
 `username` column, case-fold uniqueness, the `set_username` RPC, and the
 recovery-e-mail home; settles the GoTrue mechanism spike; and reconciles
 the specification docs that the e-mail→username reversal makes stale —
-all *before* 2002–2005 build on them. This is the DB + docs foundation;
+all _before_ 2002–2005 build on them. This is the DB + docs foundation;
 no web code and no live-data migration ship here.
 
 ## Context
@@ -15,7 +15,7 @@ Cairn's identity hangs off e-mail today. GoTrue authenticates by
 this person" is keyed by e-mail (`send_invitation(p_email)`,
 `add_circle_by_email`), resolved against `auth.users`. `docs/architecture.md`
 states the model as "**email magic links only** … No passwords are ever
-stored or transmitted by us" and lists passwords-avoided as a *benefit*
+stored or transmitted by us" and lists passwords-avoided as a _benefit_
 under "Considered and rejected". Step 20 reverses that: a public, unique,
 user-chosen **username** is the identity and add-key, a **password** is
 the credential, and e-mail is demoted to optional recovery.
@@ -54,14 +54,14 @@ and the doc reconciliation that lets the rest reference a correct spec.
 **Synthetic deterministic e-mail, client/RPC-derived — not a proxy
 resolver (R5).** GoTrue has no username concept, so something must bridge
 username → GoTrue identity. We derive a synthetic e-mail
-`lower(username) || '@users.cairn.invalid'` and let the *caller* compute
+`lower(username) || '@users.cairn.invalid'` and let the _caller_ compute
 it: sign-in (2002) posts the synthetic e-mail to the existing password
 grant; `set_username` rewrites `auth.users.email` to the new synthetic
 value inside the definer RPC. No server-side lookup, no privacy leak, and
 crucially **no widening of the `auth-proxy` trust surface** — the proxy
 stays a dumb cookie shim. The rejected alternative keeps a stable
 uid-derived GoTrue identity plus a username→identity resolver in
-`auth-proxy`; it buys GoTrue's *native* e-mail-based recovery but couples
+`auth-proxy`; it buys GoTrue's _native_ e-mail-based recovery but couples
 the proxy to the username schema and grows the most security-sensitive
 component in the stack. Since recovery is a custom flow regardless (the
 real recovery e-mail lives outside GoTrue's identity, in `user_settings`
@@ -105,7 +105,7 @@ signup at the `lower(username)` index, an accepted negligible risk for a
 throwaway value). The `0019` migration
 backfills the same expression into every pre-existing row (dev seeds and
 the `Deleted user` tombstone at `id = 00000000-…`,
-`db/migrations/0004_domain_schema.sql:83`) *before* `SET NOT NULL`, so the
+`db/migrations/0004_domain_schema.sql:83`) _before_ `SET NOT NULL`, so the
 constraint is satisfiable the moment it lands. The provisional is a
 throwaway placeholder: 2002 sets a chosen username on registration, and
 2005 overwrites the live-alpha provisionals with display-name-derived
@@ -115,7 +115,7 @@ plumbing 2002 owns; baking it in now would speculatively build 2002's
 surface against an untested registration flow.
 
 **`set_username` rewrites `auth.users.email` directly, like the admin
-RPCs (R4).** Because the synthetic e-mail *is* the GoTrue identity,
+RPCs (R4).** Because the synthetic e-mail _is_ the GoTrue identity,
 changing the username must rewrite `auth.users.email` atomically with
 `profiles.username`, or the next sign-in (computed from the new username)
 fails. `set_username` is `SECURITY DEFINER` and writes `auth.users`
@@ -138,17 +138,17 @@ the confirmation send, the reset path) is 2003's, and pre-deciding its
 column shape here would likely be reshaped there.
 
 **Phase 0 reconciles narrative claims; schema-DDL doc edits ride with
-the migration (R7).** Two kinds of doc edit. The *narrative* identity
+the migration (R7).** Two kinds of doc edit. The _narrative_ identity
 claims that 2002–2005 read for rationale — `architecture.md`'s
 Authentication section and OAuth-rejection entry, the `invites.md`/
 `circles.md` "e-mail is the auth identifier / add-key" claim,
 `open-questions.md` — are pure prose with no code behind them, so they
-land first as Phase 0. The *descriptive* schema DDL in `data-model.md`
+land first as Phase 0. The _descriptive_ schema DDL in `data-model.md`
 (the `profiles`/`user_settings` blocks, the trigger note, the RPC list)
 describes the migration, so each edit is folded into the matching schema
 task and lands in the same commit — keeping doc and code in lockstep
 rather than letting an up-front doc edit drift from the final migration.
-The retirement *mechanics* (the magic-link callback/hash flow, the shim-
+The retirement _mechanics_ (the magic-link callback/hash flow, the shim-
 narrowing prose) are left untouched: they describe code that 2005
 removes, and editing them now would put the doc ahead of the code in a
 surface 2005 owns. Likewise the `invites.md`/`circles.md` edits correct
@@ -234,7 +234,7 @@ tests).
 - **`.claude/skills/writing-tasks.md`** — task block format; Phase-0
   doc-reconciliation convention; doc-edit-rides-with-code rule.
 - **`docs/testing.md`** — pgTAP is load-bearing; new constraints/RPCs
-  get positive *and* negative cases; the fixture + `request.jwt.claims`
+  get positive _and_ negative cases; the fixture + `request.jwt.claims`
   harness.
 - **`docs/data-model.md`** — the `profiles`/`user_settings` split, the
   `lower()`-index idiom, the `tg_profile_on_signup` shape, the RPC list.
@@ -267,16 +267,16 @@ tests).
   writes and that a direct e-mail rewrite doesn't trip a harness
   invariant. Verified in Task 1.2's RED step against the test harness; if
   the real `auth.users` shape differs, note it and adjust.
-- **The mechanism's *runtime* behaviour is not verifiable in 2001.** The
+- **The mechanism's _runtime_ behaviour is not verifiable in 2001.** The
   pgTAP suite runs against a stubbed `auth.users` with no GoTrue
   connected (`db/test-bootstrap.sql`), so no test in this sub-plan proves
   GoTrue actually authenticates a directly-SQL-written synthetic
   `@users.cairn.invalid` address through the password grant. The
-  dev-shortcut precedent cited in Decisions uses GoTrue-*confirmed*
+  dev-shortcut precedent cited in Decisions uses GoTrue-_confirmed_
   `*.test` users, not directly-written synthetic addresses. 2001 pins the
   constant and makes `set_username` honour the invariant; the end-to-end
   "GoTrue accepts the synthetic e-mail + password" check is deferred to
   2002 (manual / Playwright against the real stack). The unconfirmed-
-  synthetic-on-*fresh-registration* risk (a brand-new synthetic-e-mail
+  synthetic-on-_fresh-registration_ risk (a brand-new synthetic-e-mail
   user with no `email_confirmed_at`) lives in 2002, not here — every user
   `set_username` touches in 2001 is already confirmed.

@@ -74,10 +74,12 @@ The metadata line delivered in Phase 2 only shows a formatted date. The design s
 ### Phase 3 Architecture additions
 
 New files:
+
 - **`db/migrations/0005_list_metadata.sql`** — FK constraint + `lists_item_count` function + grant.
 - **`db/tests/0050_list_metadata.sql`** — pgTAP tests for function behaviour and FK existence.
 
 Modified files:
+
 - **`web/src/lib/list/model/list.ts`** — add `item_count: number` and `list_members` fields.
 - **`web/src/lib/list/state/lists.svelte.ts`** — extended PostgREST query.
 - **`web/src/lib/list/components/ListsScreen.svelte`** — `timeAgo` helper, `Avatar` import, full metadata row rendering.

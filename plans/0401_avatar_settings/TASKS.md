@@ -26,6 +26,7 @@ rather than stub it.
 **Prerequisites:** None — no prior task needed.
 
 **Decisions:**
+
 - Lives at `web/src/lib/shared/components/Avatar.svelte` — it's a cross-domain
   display primitive (Settings, Items, future screens all use it), so `shared/`
   is correct, not a per-domain folder.
@@ -36,7 +37,8 @@ rather than stub it.
 - **Colour:** djb2-style hash of the name's UTF-16 char codes:
   ```ts
   let h = 5381;
-  for (let i = 0; i < name.length; i++) h = ((h * 33) ^ name.charCodeAt(i)) >>> 0;
+  for (let i = 0; i < name.length; i++)
+  	h = ((h * 33) ^ name.charCodeAt(i)) >>> 0;
   const hue = h % 360;
   ```
   Apply as `background: oklch(70% 0.10 ${hue}deg)`. White text (`color: #fff`).
@@ -48,11 +50,13 @@ rather than stub it.
   can assert which name was passed.
 
 **Files:**
+
 - `web/src/lib/shared/components/Avatar.svelte` (create)
 - `web/src/lib/shared/components/Avatar.test.ts` (create)
 - `web/src/lib/shared/components/__mocks__/Avatar.svelte` (create)
 
 **Steps:**
+
 1. RED — Create `Avatar.test.ts` with `plan`:
    - Single-word name → one initial (e.g. `'Alice'` → `'A'`).
    - Two-word name → two initials (e.g. `'Alice Wonderland'` → `'AW'`).
@@ -95,6 +99,7 @@ Items screen (0403) will need it for attribution. Centralising the fetch in
 **Prerequisites:** None — no dependency on task 1.1.
 
 **Decisions:**
+
 - Module: `web/src/lib/shared/state/profile.svelte.ts`.
 - Exports `profile` as a `$state` object: `{ displayName: string | null }`.
   Starts as `{ displayName: null }`.
@@ -108,9 +113,9 @@ Items screen (0403) will need it for attribution. Centralising the fetch in
   with an explicit `Accept` header for the single-object response:
   ```ts
   pgGet<{ display_name: string }>(
-    '/profiles?id=eq.' + uid + '&select=display_name',
-    { headers: { Accept: 'application/vnd.pgrst.object+json' } }
-  )
+  	"/profiles?id=eq." + uid + "&select=display_name",
+  	{ headers: { Accept: "application/vnd.pgrst.object+json" } },
+  );
   ```
   Without this header the default `Accept: application/json` makes PostgREST
   return an array, and `result.display_name` would be `undefined` at runtime.
@@ -125,12 +130,14 @@ Items screen (0403) will need it for attribution. Centralising the fetch in
 - MSW handler for `GET /api/profiles` must be added to `web/src/lib/test/handlers.ts`.
 
 **Files:**
+
 - `web/src/lib/shared/state/profile.svelte.ts` (create)
 - `web/src/lib/shared/state/profile.test.ts` (create)
 - `web/src/lib/shared/state/__mocks__/profile.svelte.ts` (create)
 - `web/src/lib/test/handlers.ts` (modify — add profiles GET handler)
 
 **Steps:**
+
 1. RED — Add an MSW handler in `handlers.ts` for `GET /api/profiles` (path only,
    no query-string in the pattern) returning `{ display_name: 'Alice' }`.
    Use the path-only pattern — URLPattern query-string wildcard behaviour in
@@ -171,12 +178,13 @@ exists). Mocks for `preferences.svelte.ts` and `session.svelte.ts` already
 exist at `__mocks__/`.
 
 **Decisions:**
+
 - Component at `web/src/lib/settings/components/SettingsScreen.svelte`.
 - Uses `TopBar` with `showBack={false}` and title "Settings" (it's a
   top-level screen — no back arrow).
 - **Profile chip:** two states:
   - When `profile.displayName` is `null` (loading): render a `<div
-    data-test="profile-chip-skeleton">` containing a circle placeholder
+data-test="profile-chip-skeleton">` containing a circle placeholder
     (44 × 44 px, `border-radius: 50%`) and a short rectangle, both
     with a CSS `@keyframes` shimmer animation (grey background sliding
     highlight). Avatar is **not** rendered in this state.
@@ -200,10 +208,12 @@ exist at `__mocks__/`.
   `vi.mock('$lib/shared/state/session.svelte')`.
 
 **Files:**
+
 - `web/src/lib/settings/components/SettingsScreen.svelte` (create)
 - `web/src/lib/settings/components/SettingsScreen.test.ts` (create)
 
 **Steps:**
+
 1. RED — Create `SettingsScreen.test.ts`:
    - Sign Out button is present with `data-test="signout"`.
    - Clicking Sign Out calls `signOut()`.
@@ -234,6 +244,7 @@ sign-out after the button moves.
 **Prerequisites:** Task 3.1 (`SettingsScreen.svelte` exists).
 
 **Decisions:**
+
 - `src/routes/(app)/+layout.svelte` — minimal: just `<script>` importing
   `Snippet` type and `{@render children()}`. No guard logic — the root layout
   already redirects unauthenticated users. SvelteKit route groups do not
@@ -250,6 +261,7 @@ sign-out after the button moves.
   `page.test.ts` (no `+` prefix), per `docs/frontend-layout.md`.
 
 **Files:**
+
 - `web/src/routes/(app)/+layout.svelte` (create)
 - `web/src/routes/(app)/settings/+page.svelte` (create)
 - `web/src/routes/(app)/settings/page.test.ts` (create — smoke test: page renders)
@@ -257,6 +269,7 @@ sign-out after the button moves.
 - `web/e2e/auth.spec.ts` (modify — navigate to /settings before sign-out click)
 
 **Steps:**
+
 1. Create `src/routes/(app)/+layout.svelte` with `{@render children()}`.
 2. Create `src/routes/(app)/settings/+page.svelte` importing `SettingsScreen`.
 3. Create `src/routes/(app)/settings/page.test.ts` with a smoke test (renders

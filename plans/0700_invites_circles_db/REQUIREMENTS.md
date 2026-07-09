@@ -14,7 +14,7 @@ Create `public.relationships` with columns `user_id` (uuid, not null, FK to
 `('circle', 'blocked')`), `created_at` (timestamptz, not null, default now()),
 `modified_at` (timestamptz, not null, default now()); primary key
 `(user_id, other_user_id)`; additional CHECK `user_id <> other_user_id`. Enable
-RLS. The schema is directional: *"user_id's view of other_user_id."*
+RLS. The schema is directional: _"user_id's view of other_user_id."_
 
 Bind `tg_set_timestamps` (`BEFORE INSERT OR UPDATE`) and `tg_set_modified_at`
 (`BEFORE UPDATE OF status`) to this table, following the per-table trigger
@@ -22,6 +22,7 @@ pattern in `data-model.md` → "Triggers". The trigger functions already exist
 from `0004_domain_schema.sql`; only the bindings need to be created.
 
 Four RLS policies (see `invites.md` → "RLS and stored procedures"):
+
 - `relationships_select`: `for select using (user_id = public.uid())`
 - `relationships_insert`: `for insert with check (user_id = public.uid())`
 - `relationships_update`: `for update using (user_id = public.uid()) with check (user_id = public.uid())`
@@ -40,7 +41,7 @@ function":
 1. Resolve `p_email` to a uuid via `auth.users`; raise if not found; raise if
    `target = me`.
 2. Upsert Alice → Bob: `INSERT … ON CONFLICT (user_id, other_user_id) DO UPDATE
-   SET status = 'circle' WHERE relationships.status <> 'blocked'`. If Alice has
+SET status = 'circle' WHERE relationships.status <> 'blocked'`. If Alice has
    Bob blocked, the existing `blocked` row is preserved.
 3. Upsert Bob → Alice (symmetric): same shape. If Bob has Alice blocked, his
    side is left unchanged.
@@ -83,6 +84,7 @@ Column ordering follows the canonical SQL in `invites.md` and `data-model.md`:
 "attribution after payload" convention — the canonical SQL is the spec.)
 
 Two unique indexes:
+
 - `invitations_target_user_uniq` on `(list_id, target_user_id)` WHERE
   `target_user_id is not null`.
 - `invitations_target_email_uniq` on `(list_id, lower(target_email))` WHERE
@@ -92,6 +94,7 @@ Bind `tg_set_timestamps` (`BEFORE INSERT OR UPDATE`). No `tg_set_modified_at`
 binding — invitations have no mutable payload columns in v1.
 
 One RLS policy:
+
 - `invitations_select`: `for select using (created_by = public.uid() or target_user_id = public.uid())`
 
 No `invitations_insert` or `invitations_delete` policy — all inserts and deletes
@@ -115,7 +118,7 @@ Check sequence (in order):
    `auth.users`. If email-keyed and no match: skip checks 3–6, jump to step 7
    (email-path for unregistered users).
 3. **Self-check.** If `target = inviter`: raise with a clear error.
-4. **Existing-membership check.** If `target` already has a *live*
+4. **Existing-membership check.** If `target` already has a _live_
    `list_members` row for this list: raise. A soft-deleted membership row is
    treated as non-membership — the invite proceeds, and the row is restored by
    `accept_invitation` on acceptance.
@@ -123,17 +126,17 @@ Check sequence (in order):
    `(p_list_id, target_user_id)` or `(p_list_id, lower(p_email))`: return the
    existing id (idempotent no-op; the caller sees "sent").
 6. **Block check.** If `relationships` has `user_id = target, other_user_id =
-   inviter, status = 'blocked'`: return null (silent fail).
+inviter, status = 'blocked'`: return null (silent fail).
 7. **Policy check.** Read `user_settings.invite_policy` for target. `'nobody'`
    → return null. `'circle'` → check whether inviter is in target's circle
    (`relationships` row with `user_id = target, other_user_id = inviter, status
-   = 'circle'`); absent → return null. `'everybody'` → pass.
+= 'circle'`); absent → return null. `'everybody'` → pass.
 8. **Insert.** `INSERT INTO invitations (list_id, created_by, target_user_id,
-   target_email)` with `target_user_id = target` if resolved, else `target_email
-   = p_email`. Return the new `id`. The INSERT must handle a concurrent-duplicate
+target_email)` with `target_user_id = target` if resolved, else `target_email
+= p_email`. Return the new `id`. The INSERT must handle a concurrent-duplicate
    unique constraint violation (`23505`) gracefully: catch it and return the
    existing invitation id (via a fallback SELECT or `ON CONFLICT … DO NOTHING
-   RETURNING id`) rather than raising.
+RETURNING id`) rather than raising.
 
 GRANT EXECUTE to `authenticated`. Set `search_path = public, auth`.
 
@@ -142,11 +145,11 @@ GRANT EXECUTE to `authenticated`. Set `search_path = public, auth`.
 A `security definer` function `public.accept_invitation(p_invitation_id uuid) returns void`.
 
 1. Fetch the `invitations` row; raise if not found or if `target_user_id is distinct from
-   public.uid()`. Using `IS DISTINCT FROM` (not `<>`) is required here: `NULL <> value`
+public.uid()`. Using `IS DISTINCT FROM` (not `<>`) is required here: `NULL <> value`
    evaluates to NULL in PL/pgSQL (not raised), so `<>` would silently pass for email-keyed
    invitations where `target_user_id IS NULL`. `IS DISTINCT FROM` treats NULL correctly.
 2. `INSERT INTO list_members (list_id, user_id) VALUES (inv.list_id, public.uid())
-   ON CONFLICT (list_id, user_id) DO UPDATE SET deleted_at = null, deleted_by = null`.
+ON CONFLICT (list_id, user_id) DO UPDATE SET deleted_at = null, deleted_by = null`.
    `created_by` is set to `public.uid()` (the acceptor) by `tg_set_attribution_list_members`
    on INSERT — the trigger unconditionally overwrites any supplied value, so the
    inviter cannot be preserved here. The `ON CONFLICT DO UPDATE` handles both the
@@ -163,7 +166,7 @@ All three steps in one transaction. GRANT EXECUTE to `authenticated`. Set
 A `security definer` function `public.decline_invitation(p_invitation_id uuid) returns void`.
 
 1. Fetch the `invitations` row; raise if not found or if `target_user_id is distinct from
-   public.uid()`. Same `IS DISTINCT FROM` requirement as R6 — `<>` silently passes when
+public.uid()`. Same `IS DISTINCT FROM` requirement as R6 — `<>` silently passes when
    `target_user_id IS NULL` (email-keyed invitation).
 2. Hard-delete the `invitations` row.
 
@@ -175,7 +178,7 @@ New test file `db/tests/relationships.sql`. Tests must cover:
 
 - **Schema shape** (updates to `schema_shape.sql`): `has_table('relationships')`,
   `has_column` for all five columns (`user_id, other_user_id, status,
-  created_at, modified_at` — no `id` column; PK is composite),
+created_at, modified_at` — no `id` column; PK is composite),
   `has_function` for `add_circle_by_email` and `add_circle_by_id`.
 - **Grants** (updates to `grants.sql`): `SELECT, INSERT, UPDATE, DELETE` on
   `public.relationships` granted to `authenticated` (positive assertions; also
@@ -225,8 +228,8 @@ New test file `db/tests/invitations.sql`. Tests must cover:
   unique-constraint handler; when both `p_email` and `p_user_id` are non-null,
   `p_user_id` wins and the email is disregarded.
 - **`accept_invitation`** — creates a `list_members` row with `created_by =
-  acceptor`; restores a previously soft-deleted membership row via `ON CONFLICT
-  DO UPDATE`; hard-deletes the invitation row; raises if caller is not the
+acceptor`; restores a previously soft-deleted membership row via `ON CONFLICT
+DO UPDATE`; hard-deletes the invitation row; raises if caller is not the
   invitee; raises if invitation id doesn't exist; raises if the invitation is
   email-keyed (`target_user_id IS NULL`) — no registered user can be the invitee
   of an email-keyed invitation (verifies the `IS DISTINCT FROM` guard).
@@ -269,7 +272,7 @@ invite from them currently in your inbox." The trigger lives in `0009_invitation
   action the user expected to complete.
 - **Cancel invitation by the inviter** — no `cancel_invitation` RPC is in step 7
   scope. Step 8 will add it (either a dedicated RPC or a `for delete using
-  (created_by = public.uid())` policy + DELETE grant on `invitations`).
+(created_by = public.uid())` policy + DELETE grant on `invitations`).
 - **Policy-change cascade** — auto-declining existing invites when `invite_policy`
   changes is documented in `invites.md` but not in the master plan's step 7
   scope; deferred to step 8 or a step-8 addendum.

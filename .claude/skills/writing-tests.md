@@ -96,8 +96,8 @@ trap.
 
 The narrow exception is **harness-lifecycle** cleanups in
 `vitest.setup.ts`: RTL's `cleanup()` after each test and MSW's
-`server.resetHandlers()` between tests. Those aren't shared *mock
-state* — they're tearing the harness back down to a known floor so
+`server.resetHandlers()` between tests. Those aren't shared _mock
+state_ — they're tearing the harness back down to a known floor so
 the next test starts clean. That's the only legitimate use of a
 `beforeEach`-style hook at file or suite scope.
 
@@ -110,31 +110,31 @@ between tests often hits this: one test sets
 `preferences.theme = 'dark'`, the effect writes `'dark'` to
 localStorage, `beforeEach` then assigns
 `preferences.theme = 'system'` and clears localStorage — but if the
-test happened to *start* with `theme === 'system'`, the reset's
+test happened to _start_ with `theme === 'system'`, the reset's
 effect never ran, the clear deletes nothing the effect wrote, and
 the next test's assertion fails mysteriously.
 
-The fix is to flush the reset's effect *before* clearing downstream
+The fix is to flush the reset's effect _before_ clearing downstream
 state. Make `beforeEach` `async`, assign the reset value,
 `await tick()`, then clear:
 
 ```ts
 beforeEach(async () => {
-  preferences.theme = 'system';
-  preferences.fontSize = 'm';
-  await tick();
-  localStorage.clear();
-  document.documentElement.removeAttribute('data-theme');
+	preferences.theme = "system";
+	preferences.fontSize = "m";
+	await tick();
+	localStorage.clear();
+	document.documentElement.removeAttribute("data-theme");
 });
 ```
 
 The `await tick()` is load-bearing — without it the reset's effect
-can land *after* your clear and leak into the next test.
+can land _after_ your clear and leak into the next test.
 
 ### Store tests that trigger async fetches
 
 `await tick()` flushes Svelte's reactive queue — it does not wait
-for Promises started *inside* an effect. If the effect under test
+for Promises started _inside_ an effect. If the effect under test
 calls `pgGet` (or any other async operation), `tick()` alone is not
 enough: after it returns, the fetch is in flight but not yet
 resolved.
@@ -143,10 +143,10 @@ Pattern: `tick()` to fire the effect, then `vi.waitFor()` to poll
 until the async work lands:
 
 ```ts
-sessionMod.setSignedIn({ id: TEST_UID, email: 'dev@example.test' });
-await tick();               // fires the $effect
+sessionMod.setSignedIn({ id: TEST_UID, email: "dev@example.test" });
+await tick(); // fires the $effect
 await vi.waitFor(() => {
-  expect(profileMod.profile.displayName).toBe('Alice');
+	expect(profileMod.profile.displayName).toBe("Alice");
 });
 ```
 
@@ -154,7 +154,7 @@ await vi.waitFor(() => {
 or the 1 s default timeout elapses — far more reliable than a fixed
 `setTimeout` delay.
 
-When testing that the store *resets* after a synchronous transition
+When testing that the store _resets_ after a synchronous transition
 (e.g. sign-out sets `displayName = null` directly, without a fetch),
 `await tick()` alone is sufficient for that assertion.
 

@@ -37,6 +37,7 @@ the file unlink happens separately via the sidecar (R6).
 ## R4. pgTAP coverage for the migration
 
 `db/tests/avatars.sql` covers:
+
 - Column default is `0`.
 - `bump_avatar_version()` returns the incremented value and the row reflects it.
 - Calling `bump_avatar_version()` twice yields `2`, not `1` (atomic, not idempotent).
@@ -82,6 +83,7 @@ container.
 
 The existing `Avatar.svelte` component (which renders an initials disc only)
 is extended to branch on `avatar_version`:
+
 - When `avatar_version === 0` (or no value provided): render the initials disc
   exactly as today.
 - When `avatar_version > 0`: render `<img src="/avatars/{uid}.webp?v={avatar_version}" alt="">`.
@@ -93,6 +95,7 @@ The `Profile` store is updated to fetch `avatar_version` alongside
 
 A new screen reachable from the Settings profile chip (the chip that already
 exists from step 4, but previously did not navigate anywhere). The screen shows:
+
 - A large avatar (112 px) at the top, either the initials disc or the photo.
 - A **Change picture** / **Add a picture** pill button below the avatar.
 - A **Remove** pill button (visible only when `avatar_version > 0`).
@@ -118,6 +121,7 @@ After the user taps Save, a full-screen upload-state view replaces Edit Profile
 for the duration of the operation. Five variants, each with its own TopBar
 ("Profile picture"), a centred icon in a tinted circle, a title, a subtitle,
 and an action button:
+
 - **Uploading** — neutral tone, feather icon, title "Uploading…", subtitle
   "Resizing to 256 × 256 and saving to your account.", action "Cancel".
   The TopBar back arrow is **disabled** during active upload — the only

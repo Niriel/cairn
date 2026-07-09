@@ -8,12 +8,12 @@ The principle is the same one that runs through the rest of the architecture: **
 
 Cairn is polyglot — TypeScript/Svelte in `web/`, SQL in `db/`, shell in `scripts/` — so the toolchain is too. Each language gets a real tool for each concern, not a "we'll figure out SQL later" placeholder.
 
-| Concern | TypeScript / Svelte | SQL | Shell |
-| --- | --- | --- | --- |
-| Type / static check | `svelte-check` (TS + Svelte) | (Postgres parses on apply) | (none) |
-| Lint | ESLint (flat config) + `eslint-plugin-svelte` + `typescript-eslint` | [SQLFluff](https://sqlfluff.com/) (Postgres dialect) | [ShellCheck](https://www.shellcheck.net/) |
-| Format | [Prettier](https://prettier.io/) + `prettier-plugin-svelte` | SQLFluff format | [shfmt](https://github.com/mvdan/sh) |
-| Editor baseline | `.editorconfig` | `.editorconfig` | `.editorconfig` |
+| Concern             | TypeScript / Svelte                                                 | SQL                                                  | Shell                                     |
+| ------------------- | ------------------------------------------------------------------- | ---------------------------------------------------- | ----------------------------------------- |
+| Type / static check | `svelte-check` (TS + Svelte)                                        | (Postgres parses on apply)                           | (none)                                    |
+| Lint                | ESLint (flat config) + `eslint-plugin-svelte` + `typescript-eslint` | [SQLFluff](https://sqlfluff.com/) (Postgres dialect) | [ShellCheck](https://www.shellcheck.net/) |
+| Format              | [Prettier](https://prettier.io/) + `prettier-plugin-svelte`         | SQLFluff format                                      | [shfmt](https://github.com/mvdan/sh)      |
+| Editor baseline     | `.editorconfig`                                                     | `.editorconfig`                                      | `.editorconfig`                           |
 
 A single pre-commit hook (lefthook) runs all of the above on the files about to be committed. CI runs them on the whole tree.
 
@@ -61,23 +61,26 @@ ESLint catches the things the type checker can't: unused variables, prefer-const
 
 ```js
 // web/eslint.config.js (sketch)
-import js from '@eslint/js';
-import ts from 'typescript-eslint';
-import svelte from 'eslint-plugin-svelte';
-import prettier from 'eslint-config-prettier';
+import js from "@eslint/js";
+import ts from "typescript-eslint";
+import svelte from "eslint-plugin-svelte";
+import prettier from "eslint-config-prettier";
 
 export default [
-  js.configs.recommended,
-  ...ts.configs.recommendedTypeChecked,
-  ...svelte.configs['flat/recommended'],
-  prettier, // disables stylistic rules Prettier owns; must be last
-  {
-    languageOptions: { parserOptions: { project: './tsconfig.json' } },
-    rules: {
-      'no-console': ['warn', { allow: ['warn', 'error'] }],
-      '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }]
-    }
-  }
+	js.configs.recommended,
+	...ts.configs.recommendedTypeChecked,
+	...svelte.configs["flat/recommended"],
+	prettier, // disables stylistic rules Prettier owns; must be last
+	{
+		languageOptions: { parserOptions: { project: "./tsconfig.json" } },
+		rules: {
+			"no-console": ["warn", { allow: ["warn", "error"] }],
+			"@typescript-eslint/no-unused-vars": [
+				"error",
+				{ argsIgnorePattern: "^_" },
+			],
+		},
+	},
 ];
 ```
 
@@ -99,12 +102,12 @@ Prettier formats `.ts`, `.js`, `.svelte`, `.css`, `.json`, `.md`, and (via plugi
 ```jsonc
 // web/.prettierrc
 {
-  "useTabs": true,
-  "singleQuote": true,
-  "trailingComma": "none",
-  "printWidth": 100,
-  "plugins": ["prettier-plugin-svelte"],
-  "overrides": [{ "files": "*.svelte", "options": { "parser": "svelte" } }]
+	"useTabs": true,
+	"singleQuote": true,
+	"trailingComma": "none",
+	"printWidth": 100,
+	"plugins": ["prettier-plugin-svelte"],
+	"overrides": [{ "files": "*.svelte", "options": { "parser": "svelte" } }],
 }
 ```
 
@@ -222,15 +225,15 @@ This is a defence in depth — the formatters would catch a wrong indent on comm
 
 ```jsonc
 {
-  "editor.formatOnSave": true,
-  "editor.defaultFormatter": "esbenp.prettier-vscode",
-  "[svelte]": { "editor.defaultFormatter": "svelte.svelte-vscode" },
-  "[sql]":    { "editor.defaultFormatter": "dorzey.vscode-sqlfluff" },
-  "[shellscript]": { "editor.defaultFormatter": "foxundermoon.shell-format" },
-  "eslint.validate": ["javascript", "typescript", "svelte"],
-  "eslint.experimental.useFlatConfig": true,
-  "files.trimTrailingWhitespace": true,
-  "files.insertFinalNewline": true
+	"editor.formatOnSave": true,
+	"editor.defaultFormatter": "esbenp.prettier-vscode",
+	"[svelte]": { "editor.defaultFormatter": "svelte.svelte-vscode" },
+	"[sql]": { "editor.defaultFormatter": "dorzey.vscode-sqlfluff" },
+	"[shellscript]": { "editor.defaultFormatter": "foxundermoon.shell-format" },
+	"eslint.validate": ["javascript", "typescript", "svelte"],
+	"eslint.experimental.useFlatConfig": true,
+	"files.trimTrailingWhitespace": true,
+	"files.insertFinalNewline": true,
 }
 ```
 
@@ -250,22 +253,22 @@ pre-commit:
   parallel: true
   commands:
     eslint:
-      glob: 'web/**/*.{ts,js,svelte}'
+      glob: "web/**/*.{ts,js,svelte}"
       run: cd web && pnpm exec eslint {staged_files}
     prettier:
-      glob: 'web/**/*.{ts,js,svelte,css,json,md}'
+      glob: "web/**/*.{ts,js,svelte,css,json,md}"
       run: cd web && pnpm exec prettier --check {staged_files}
     svelte-check:
-      glob: 'web/**/*.{ts,svelte}'
+      glob: "web/**/*.{ts,svelte}"
       run: cd web && pnpm exec svelte-check --tsconfig ./tsconfig.json
     sqlfluff:
-      glob: 'db/**/*.sql'
+      glob: "db/**/*.sql"
       run: sqlfluff lint {staged_files}
     shellcheck:
-      glob: 'scripts/**/*.sh'
+      glob: "scripts/**/*.sh"
       run: shellcheck {staged_files}
     shfmt:
-      glob: 'scripts/**/*.sh'
+      glob: "scripts/**/*.sh"
       run: shfmt -d -i 2 -ci -bn {staged_files}
 
 pre-push:

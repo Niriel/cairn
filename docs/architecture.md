@@ -134,13 +134,23 @@ The trade we accept by keying on username + password:
 - We still avoid "Sign in with Google/Apple/Facebook," which conflicts with the privacy stance.
 - The flow works identically in every browser and needs no extra app on the user's phone.
 
-The cost: a user who sets no recovery e-mail and forgets their password has no self-serve way back in. That is by design at this scale; operator-assisted reset is the fallback (see _Open questions_).
+The cost: a user who sets no recovery e-mail and forgets their password has no self-serve way back in. That is by design at this scale; an operator-assisted reset is a later `admin`-schema concern, deliberately deferred (see _Considered and rejected_).
 
 > The numbered magic-link "Authentication flow" walkthrough further down (the click-the-link / six-digit-OTP steps under _Request flow_) describes the **legacy** magic-link sign-in path. It is retained as-is pending its removal in a later step and is superseded as a sign-in surface by the username + password flow described here.
 
 The six-digit OTP code that the legacy magic-link e-mail carries is likewise **superseded as a sign-in surface** by username + password; its removal rides with the legacy-flow retirement, not with this change.
 
 E-mail still has a production role as **recovery and verification mail** (password reset, recovery-address confirmation). For sending that mail in production we use a transactional e-mail provider — likely [Postmark](https://postmarkapp.com/) or an EU equivalent. In local development, [Mailpit](https://github.com/axllent/mailpit) catches outgoing mail in a fake inbox.
+
+#### Password recovery is Cairn-orchestrated, not GoTrue's `/recover`
+
+Because the GoTrue login identifier is the non-deliverable `<uid>@cairn.internal`, GoTrue's built-in `/recover` endpoint cannot reach the user — it would mail the internal address, which is never deliverable. So Cairn owns the whole recovery flow at the BFF, and GoTrue's own recovery surface goes unused.
+
+Setting a recovery address is a **send-then-confirm** flow: a signed-in user submits a candidate address, the BFF mails a 6-digit code to it, and only a correct code activates the address in `user_settings.recovery_email`. A pending (unconfirmed) address is never stored there — it lives in a recovery-token record until confirmed — so `recovery_email IS NOT NULL` means exactly "has a proven, usable recovery address." Direct PostgREST writes to `recovery_email` are blocked (the column-level `UPDATE` grant; see `docs/data-model.md`); only the confirm RPC, running as owner, writes it.
+
+A signed-out reset is requested by **username** (never by a supplied address): the BFF resolves the username to the account, mails a 6-digit reset code **only to that account's on-file `recovery_email`**, and the browser receives a constant response regardless of whether the account or a recovery address exists (the anti-enumeration discipline of `plans/0302_signin_anti_enumeration`). Completing the reset sets the password through a **token-gated `SECURITY DEFINER` database function that writes `auth.users.encrypted_password` via pgcrypto** (`crypt(p_new_password, gen_salt('bf'))`) — the same house pattern as `adopt_stable_identity` — so the BFF holds **no GoTrue admin/service-role key**. The reset mints no session; the user signs in normally afterwards.
+
+This gives the BFF two new capabilities it did not have: **SMTP** (the same configuration GoTrue uses — Mailpit in dev, the configured provider in prod), and a **scoped, low-privilege database role** that the two reset RPCs (the username→address lookup that mints the token, and the password-set) are granted to — neither `anon` nor `authenticated` can call them. That keeps the private recovery address off the anonymously-reachable PostgREST surface and the password write off the public surface. The verify-flow RPCs, by contrast, run under the user's own session and are granted to `authenticated`.
 
 ### JWT storage: a revocable, rotating session behind a cookie-shaping BFF
 
@@ -343,7 +353,7 @@ An earlier draft made GoTrue's login identifier a **synthetic deterministic e-ma
 
 These are not v1 problems but are worth flagging:
 
-- **Lost-password recovery for accounts with no recovery e-mail.** Since e-mail is optional (see _Authentication_ above), a user who never sets a recovery address and then forgets their password has no self-serve way back in — by design. The default fallback is operator-assisted reset via an admin RPC. Open: add that admin reset path now, or defer it until someone actually locks themselves out?
+- **Operator-assisted reset for accounts with no recovery e-mail.** _Deferred._ The self-serve recovery mechanism is now built (Cairn-orchestrated send-then-confirm + token-gated pgcrypto reset; see _Authentication_ above). Since e-mail is optional, a user who never proved a recovery address and then forgets their password still has no self-serve way back in — by design. An operator-assisted reset via an `admin`-schema RPC is the eventual fallback, deliberately deferred until someone actually locks themselves out rather than built speculatively now.
 - **Multi-device session management.** A user with several browsers / devices currently has independent session cookies. Revoking a session from a lost device is not yet designed.
 - **Soft-delete garbage collection.** v1 ships a per-list trash and a per-user list trash (see `ui.md`); deletions are recoverable forever and never hard-delete from the UI. At Cairn's scale that's free, but a server-side job to permanently remove items soft-deleted longer than N days is worth keeping in mind.
 - **Export.** Users should be able to export their data. Postgres makes this trivial server-side; the UX needs designing.

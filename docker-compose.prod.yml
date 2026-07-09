@@ -61,11 +61,31 @@ services:
       POSTGREST_URL: http://postgrest:3000
       PORT: "3002"
       COOKIE_SECURE: "true"
+      # The BFF sends recovery mail itself (GoTrue can't reach the non-deliverable
+      # <uid>@cairn.internal identity), so it reads the same SMTP_* env as the
+      # gotrue service above. Dev points these at Mailpit; prod at the real relay.
+      SMTP_HOST: ${SMTP_HOST}
+      SMTP_PORT: "${SMTP_PORT}"
+      SMTP_USER: ${SMTP_USER}
+      SMTP_PASS: ${SMTP_PASS}
+      SMTP_FROM: ${SMTP_FROM}
+      # Pre-minted role JWT carrying {"role":"cairn_auth_bff"}, signed with the
+      # GoTrue JWT_SECRET — the scoped credential for the signed-out reset RPCs
+      # (request_password_reset / reset_password), which are granted ONLY to that
+      # role. High-value secret (a reset-takeover primitive): env-only, never
+      # logged, rotatable. Mint with scripts/mint-bff-jwt.sh (see .env.prod.example).
+      AUTH_BFF_DB_JWT: ${AUTH_BFF_DB_JWT}
     depends_on:
       - gotrue
       - postgrest
     healthcheck:
-      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3002/healthz', r => process.exit(r.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))"]
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "require('http').get('http://localhost:3002/healthz', r => process.exit(r.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))",
+        ]
       interval: 5s
       timeout: 3s
       retries: 3

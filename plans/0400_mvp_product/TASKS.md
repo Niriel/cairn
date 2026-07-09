@@ -25,6 +25,7 @@ them.
 **Prerequisites:** `0400_mvp_product` branch exists and is checked out.
 
 **Decisions:**
+
 - Sub-branch is cut from `0400_mvp_product`, not from `main`.
 - The plan covers: `Avatar.svelte` (initials-disc only, no photo branch),
   a `Profile` reactive store that fetches `display_name` from PostgREST,
@@ -33,6 +34,7 @@ them.
   the existing `profiles` table.
 
 **Steps:**
+
 1. `git checkout -b 0401_avatar_settings 0400_mvp_product`
 2. Invoke `/write-plan` to create `plans/0401_avatar_settings/` with its
    REQUIREMENTS.md, PLAN.md, and TASKS.md.
@@ -60,6 +62,7 @@ component and the Settings screen; the authenticated layout stub may be
 introduced here.
 
 **Decisions:**
+
 - Sub-branch cut from the updated `0400_mvp_product` (post-0401 merge).
 - The plan covers: `create_list(name, description)` security-definer RPC +
   pgTAP, `/(app)/+layout.svelte` route guard, Lists overview screen (fetch
@@ -68,6 +71,7 @@ introduced here.
 - Existing primitives used: `Accordion`, `Fab`, `Sheet`, `TopBar`.
 
 **Steps:**
+
 1. `git checkout -b 0402_lists_screen 0400_mvp_product`
 2. Invoke `/write-plan` to create `plans/0402_lists_screen/` with its three files.
 3. Implement the sub-plan task by task.
@@ -98,6 +102,7 @@ on top of it.
 screen and the authenticated layout.
 
 **Decisions:**
+
 - Sub-branch cut from the updated `0400_mvp_product` (post-0402 merge).
 - The plan covers: extend `TopBar` with a `left` snippet and `sub` text prop;
   redesign `ListsScreen` rows (div-based, Newsreader 17 px bold name,
@@ -108,6 +113,7 @@ screen and the authenticated layout.
   (no data yet).
 
 **Steps:**
+
 1. `git checkout -b 0403_lists_screen_polish 0400_mvp_product`
 2. Invoke `/write-plan` to create `plans/0403_lists_screen_polish/` with its three files.
 3. Implement the sub-plan task by task.
@@ -136,6 +142,7 @@ from.
 polished Lists screen.
 
 **Decisions:**
+
 - Sub-branch cut from the updated `0400_mvp_product` (post-0403 merge).
 - The plan covers: Items screen (`/(app)/lists/[list_id]/`), `VoteControl`
   (±1 nudge, ±3 clamp, upsert/delete via PostgREST), item accordion (one open
@@ -147,6 +154,7 @@ polished Lists screen.
   already in place from step 1.
 
 **Steps:**
+
 1. `git checkout -b 0404_items_screen 0400_mvp_product`
 2. Invoke `/write-plan` to create `plans/0404_items_screen/` with its three files.
 3. Implement the sub-plan task by task.
@@ -170,12 +178,14 @@ integration branch before it lands on `main`.
 **Prerequisites:** Tasks 1.1, 2.1, 3.1, 4.1 all merged into `0400_mvp_product`.
 
 **Decisions:**
+
 - Run the full E2E suite (sign in → lists → items → vote → edit → delete →
   settings → sign out) before merging.
 - Tick step 4's checkbox in `plans/0000_implementation_order.md` as part of
   the merge commit.
 
 **Steps:**
+
 1. On `0400_mvp_product`, run `./scripts/check.sh --e2e` — must be green.
 2. Edit `plans/0000_implementation_order.md`: change `4. [ ]` to `4. [x]`.
 3. Commit: `chore(plan): tick step 4 in implementation order`.

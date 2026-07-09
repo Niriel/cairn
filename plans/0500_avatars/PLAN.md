@@ -7,6 +7,7 @@ Edit Profile screen, closing the loop started in step 4's Settings screen.
 ## Context
 
 The stack after step 4:
+
 - **DB:** `profiles` has `display_name` but no `avatar_version`. The `<Avatar>`
   component branches on `display_name` for initials — there is no photo path.
 - **Settings screen:** shows a profile chip (avatar + display name) but the
@@ -15,6 +16,7 @@ The stack after step 4:
 - **Docker Compose:** Postgres, PostgREST, GoTrue, Caddy, Mailpit — no sidecar.
 
 Three things must land before any later step can reference a photo:
+
 1. The `avatar_version` column and its RPCs (`bump_avatar_version`,
    `clear_avatar`, `set_display_name`).
 2. The upload sidecar that writes the file and calls PostgREST.
@@ -98,7 +100,7 @@ sidecar involvement.
 ### New files — DB
 
 - **`db/migrations/0007_avatars.sql`** — `ALTER TABLE profiles ADD COLUMN
-  avatar_version`, `bump_avatar_version()`, `clear_avatar()`,
+avatar_version`, `bump_avatar_version()`, `clear_avatar()`,
   `set_display_name()`, trigger rebind (see Decisions).
 - **`db/tests/avatars.sql`** — pgTAP for R1–R4 and R12.
 

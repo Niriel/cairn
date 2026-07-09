@@ -58,13 +58,13 @@ Read everything in the plan directory (`REQUIREMENTS.md`,
   functions in `design/cairn-screens.jsx` and `design/cairn-ui.jsx`
   — compare the plan's **layout, structure, proportions, and copy**
   against the design mockups. The JSX is a layout/structure reference
-  only; its raw colors and typography are *not* the source of truth.
+  only; its raw colors and typography are _not_ the source of truth.
   Colors and type come from the official design tokens and global CSS
   (`tokens.css`, `typography.css`, and the conventions in `docs/ui.md`).
   So flag two kinds of discrepancy: (a) the plan's layout/structure/copy
   diverges from the JSX; and (b) the plan hard-codes a color or font
   value (lifted from the JSX or invented) where it should reference an
-  official token / global rule. Also check for inconsistencies *within*
+  official token / global rule. Also check for inconsistencies _within_
   the JSX itself (e.g., two mocks of the same screen disagree on
   ordering or copy) — the plan must pick a canonical answer when
   the design is ambiguous.
@@ -72,7 +72,7 @@ Read everything in the plan directory (`REQUIREMENTS.md`,
 ### What to look for
 
 Use your judgement — anything that would slow down, mislead, or
-burn an executor is fair game. The categories below are *examples*,
+burn an executor is fair game. The categories below are _examples_,
 not a closed checklist; raise whatever you spot that doesn't fit
 them.
 
@@ -95,7 +95,7 @@ fact, so a thin one is still worth raising.
   injection vectors (SQL, command, template) in migrations or
   scripts, secrets committed to the repo, side-channels (timing,
   error-message oracles, status-code differences), and tests
-  that only prove the positive case when the policy *is* the
+  that only prove the positive case when the policy _is_ the
   boundary.
 - **Privacy issues** — anything that risks leaking personal data
   or violating the project's privacy contract as expressed in
@@ -125,7 +125,7 @@ fact, so a thin one is still worth raising.
   contradictory invariants.
 - **Missing tests** — features the plan adds without
   corresponding test coverage, given the project's TDD stance.
-  RLS policies without paired pgTAP tests (positive *and*
+  RLS policies without paired pgTAP tests (positive _and_
   negative) are always a concern.
 - **TDD violations** — places in `TASKS.md` where green steps
   would land before red.
@@ -138,9 +138,9 @@ fact, so a thin one is still worth raising.
 - **Doc divergence** — places where the plan diverges from
   `docs/*.md` without a Phase 0 to reconcile them. Cairn is
   pre-alpha; `docs/*.md` are still living specifications, not
-  frozen prose. When a plan's design choice is *better* than the
+  frozen prose. When a plan's design choice is _better_ than the
   doc, the right fix is often to **edit the doc** (or add a
-  *Phase 0* to the plan that edits the doc as its first step)
+  _Phase 0_ to the plan that edits the doc as its first step)
   rather than to wedge a contradiction. As the codebase grows,
   more of what the docs describe is already implemented in code
   — changing a doc then implies changing code, migrations, or
@@ -151,12 +151,12 @@ fact, so a thin one is still worth raising.
   what the plan specifies and the **layout** the JSX in `design/`
   shows: incorrect padding/margin/proportion values, missing or
   extra UI elements, incorrect copy, structural differences in
-  component layout. Colors and typography are *not* judged against
+  component layout. Colors and typography are _not_ judged against
   the JSX — they come from the official tokens and global CSS
   (`tokens.css`, `typography.css`, `docs/ui.md`). Instead, raise the
   inverse here: a plan that hard-codes a color or font value (whether
   lifted from the JSX or invented) where it should reference an
-  official token / global rule. Also raise inconsistencies *within*
+  official token / global rule. Also raise inconsistencies _within_
   the JSX (two mockups of the same screen that contradict each other)
   when the plan hasn't resolved the ambiguity — the executor will make
   an arbitrary choice.
@@ -182,7 +182,7 @@ fact, so a thin one is still worth raising.
   is created by a later task. SvelteKit's generated route-id
   union doesn't include `/foo` until the route exists, so
   `resolve('/foo')` fails type-check, and `svelte/no-navigation-
-  without-resolve` blocks the bare string. Similar shapes:
+without-resolve` blocks the bare string. Similar shapes:
   importing a type/symbol from a module created later in the
   plan, RLS tests written against a column added in a later
   migration, a Playwright spec asserting a route mounted by a
@@ -293,10 +293,11 @@ For each concern, top to bottom:
        changes nothing about the code, and the task block is
        the historical record of what was done. If a concern
        calls for behaviour that contradicts a `[x]` task,
-       capture the correction as a *new* requirement plus a
-       *new* task in a *new* phase appended to the bottom of
+       capture the correction as a _new_ requirement plus a
+       _new_ task in a _new_ phase appended to the bottom of
        `TASKS.md`. Adding new tasks is welcome; rewriting
        completed ones is not.
+
      - **a `docs/*.md` file** — for concerns where the
        underlying gap is in the living spec rather than this
        plan. Cairn is pre-alpha; the docs are still alive, and
@@ -305,17 +306,18 @@ For each concern, top to bottom:
        what the docs describe is already shipped, so a doc edit
        may also imply a code/migration/test change.
      - **a Phase 0 in the plan** — for concerns where the
-       *plan* depends on a *doc* edit happening first as part
+       _plan_ depends on a _doc_ edit happening first as part
        of executing the plan. Add (or extend) a "Phase 0 — doc
        reconciliation" section near the top of `PLAN.md`'s
        Phase structure (and a matching Phase 0 in `TASKS.md`)
        listing the doc edits that must land before the rest of
        the plan executes. Use this when the doc is the thing
-       being *taught* by the plan's execution, not just
+       being _taught_ by the plan's execution, not just
        referenced. If Phase 0 itself contains `[x]` tasks
        (i.e., the doc reconciliation already shipped), apply
        the same frozen-tasks rule — extend Phase 0 only with
        new tasks, don't rewrite completed ones.
+
    - **accept** — record in the plan that this was considered
      and is intentional, so future runs don't re-raise it. The
      home is `REQUIREMENTS.md`'s Non-requirements section
@@ -337,6 +339,7 @@ For each concern, top to bottom:
      framed as a single question with the new options that emerged
      from the chat. Never auto-re-issue the original four-option
      prompt at the end of every assistant turn.
+
 3. Carry out the action, then tick the concern's checkbox from
    `[ ]` to `[x]` in `CONCERNS.md`. Don't delete it, don't
    renumber the remaining entries — the numbering stays stable

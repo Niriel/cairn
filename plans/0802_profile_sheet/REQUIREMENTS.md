@@ -13,7 +13,7 @@ A `FOR DELETE` policy named `invitations_delete` on `public.invitations` with
 `USING (created_by = public.uid())` restricts direct deletes to the row's
 creator. An invitee cannot delete a row they received; an outsider cannot
 delete any row they cannot even see. The policy is the DB-level gate for the
-*Cancel pending invite* action in the profile sheet.
+_Cancel pending invite_ action in the profile sheet.
 
 ## R2. DELETE grant on `invitations`
 
@@ -28,7 +28,7 @@ A new file at `web/src/lib/invite/state/invitations.svelte.ts` exposes:
 
 - `invitations` — reactive `$state` object with a `sent: SentEntry[]`
   collection (entries: `{ id, listId, targetUserId | null, targetEmail | null,
-  createdAt }`).
+createdAt }`).
 - `loadSent()` — async function; `GET /invitations?created_by=eq.<my-uid>`,
   populates `invitations.sent`.
 - `pendingInviteFor(listId: string, userId: string): string | null` — pure
@@ -48,11 +48,11 @@ with props:
 
 ```ts
 type Props = {
-  userId: string;
-  displayName: string;
-  avatarVersion: number;
-  pendingInvitationId?: string | null;
-  onclose: () => void;
+	userId: string;
+	displayName: string;
+	avatarVersion: number;
+	pendingInvitationId?: string | null;
+	onclose: () => void;
 };
 ```
 
@@ -71,20 +71,21 @@ does not manage its own open state). It renders:
    render depends on the viewer's current relationship to `userId` (derived
    from `relationships.circle` / `relationships.blocked`):
 
-| Row                    | Shown when                                       |
-|------------------------|--------------------------------------------------|
-| Add to your circle     | `userId` not in `circle` and not `blocked`       |
-| Remove from your circle| `userId` is in `circle`                          |
-| Block `{displayName}`  | `userId` not blocked (always, unless blocked)    |
-| Unblock                | `userId` is blocked                              |
-| Cancel pending invite  | `pendingInvitationId` is non-null                |
+| Row                     | Shown when                                    |
+| ----------------------- | --------------------------------------------- |
+| Add to your circle      | `userId` not in `circle` and not `blocked`    |
+| Remove from your circle | `userId` is in `circle`                       |
+| Block `{displayName}`   | `userId` not blocked (always, unless blocked) |
+| Unblock                 | `userId` is blocked                           |
+| Cancel pending invite   | `pendingInvitationId` is non-null             |
 
 Action semantics:
+
 - **Add to your circle** — quiet; calls `addCircleById(userId)`.
 - **Remove from your circle** — quiet; calls `removeFromCircle(userId)`.
 - **Unblock** — quiet; calls `unblock(userId)`.
-- **Block** — opens an inline confirmation prompt: *"Block {displayName}? They
-  won't be able to invite you to any list."* with `[Cancel]` / `[Block]` button
+- **Block** — opens an inline confirmation prompt: _"Block {displayName}? They
+  won't be able to invite you to any list."_ with `[Cancel]` / `[Block]` button
   pair (Block on the right — committal per button-pair convention). Confirmed
   Block calls `block(userId)`.
 - **Cancel pending invite** — quiet; calls `cancelInvitation(pendingInvitationId)`,

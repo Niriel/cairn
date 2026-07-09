@@ -27,15 +27,18 @@ accurate before Phase 1 executes.
 **Prerequisites:** None.
 
 **Decisions:**
+
 - Edit the bullet at `docs/architecture.md` that begins "Caddy is omitted on the
   laptop" to reflect that Caddy is now in the dev compose for avatar static serving,
   exposed on host port 8080. The rest of the section's characterisation (TLS
   meaningless on loopback, web app runs via `pnpm dev`) remains true.
 
 **Files:**
+
 - `docs/architecture.md` (modify)
 
 **Steps:**
+
 1. In `docs/architecture.md` Local development parity, replace the bullet
    "**Caddy is omitted on the laptop**; backend services are reached directly on
    `localhost` ports. TLS is meaningless on loopback."
@@ -52,6 +55,7 @@ accurate before Phase 1 executes.
 **Completed:** 2026-05-24T20:24:56Z
 
 **Why:** Two docs are now stale as a result of this plan:
+
 - `docs/development.md` still describes the stack as having four backend
   services and says Caddy is absent from the dev loop — both are now false.
 - `docs/deployment.md` calls the sidecar service `avatars` with
@@ -63,6 +67,7 @@ accurate before Phase 1 executes.
 so there are no moving targets to chase.)
 
 **Decisions:**
+
 - `docs/development.md` intro paragraph: remove "the absence of the reverse
   proxy on loopback" and replace with a note that Caddy runs in dev compose
   (port 8080) for avatar static serving — the SvelteKit dev server still
@@ -88,10 +93,12 @@ so there are no moving targets to chase.)
   lockfile.
 
 **Files:**
+
 - `docs/development.md` (modify)
 - `docs/deployment.md` (modify)
 
 **Steps:**
+
 1. In `docs/development.md` line 5, replace:
    "TLS, the mail provider, and the absence of the reverse proxy on loopback
    (the SvelteKit dev server fills its routing role locally)."
@@ -148,6 +155,7 @@ else in Phase 1 builds on this scaffold.
 **Prerequisites:** Branch `0502_avatar_sidecar` checked out from `0500_avatars`.
 
 **Decisions:**
+
 - The Express app is exported from `src/index.ts` as `export { app }` so
   supertest can import it without starting a server. The `src/server.ts`
   entry point does the `listen`.
@@ -169,7 +177,7 @@ else in Phase 1 builds on this scaffold.
   are written. Allows overriding in tests.
 - `vitest` config lives in `package.json` under `"vitest"` key (no separate
   `vitest.config.ts` needed for a simple setup). Add `"setupFiles":
-  ["./test/setup.ts"]` inside the `"vitest"` block — this file runs before any
+["./test/setup.ts"]` inside the `"vitest"` block — this file runs before any
   test module is imported and sets required env vars (see step 4).
 - Corepack/pnpm in Docker: `node:20-alpine` does not ship pnpm. Add
   `RUN corepack enable` as the first `RUN` in the build stage. Also add
@@ -177,6 +185,7 @@ else in Phase 1 builds on this scaffold.
   pnpm version, e.g. `"pnpm@10.11.0"`) so corepack activates the correct version.
 
 **Files:**
+
 - `sidecar/package.json` (create)
 - `sidecar/tsconfig.json` (create)
 - `sidecar/Dockerfile` (create)
@@ -188,11 +197,12 @@ else in Phase 1 builds on this scaffold.
 - `sidecar/test/healthz.test.ts` (create)
 
 **Steps:**
+
 1. Create `sidecar/` directory.
 2. Write `sidecar/package.json` with `name: "cairn-avatar-sidecar"`,
    `type: "module"`, all dependencies listed in Decisions, a
    `"test": "vitest run"` script plus `"build": "tsc"` script, `"main":
-   "dist/server.js"`, `"packageManager": "pnpm@10.11.0"` (or current stable),
+"dist/server.js"`, `"packageManager": "pnpm@10.11.0"` (or current stable),
    and a `"vitest": { "setupFiles": ["./test/setup.ts"] }` block.
 3. Write `sidecar/tsconfig.json` per Decisions (ES2022, Node16, strict, outDir
    `dist/`, include `src/**/*.ts`).
@@ -202,11 +212,13 @@ else in Phase 1 builds on this scaffold.
    `"packageManager"`. The runtime stage does not need corepack.
 
    Create `sidecar/test/setup.ts`:
+
    ```ts
-   process.env.GOTRUE_JWT_SECRET = 'test-secret-at-least-32-characters-long';
-   process.env.POSTGREST_URL = 'http://postgrest:3000';
-   process.env.AVATARS_DIR = '/tmp/cairn-test-avatars';
+   process.env.GOTRUE_JWT_SECRET = "test-secret-at-least-32-characters-long";
+   process.env.POSTGREST_URL = "http://postgrest:3000";
+   process.env.AVATARS_DIR = "/tmp/cairn-test-avatars";
    ```
+
    Vitest loads this file before any test module is imported (via `setupFiles`
    in `package.json`). Without it, the top-level guard in `src/middleware/auth.ts`
    throws at import time and all subsequent tests fail immediately.
@@ -232,6 +244,7 @@ else in Phase 1 builds on this scaffold.
 **Completed:** 2026-05-24T20:30:26Z
 
 **Notes:**
+
 - The task spec said to put `setupFiles` in `package.json` under a `"vitest"` key. Vitest v2 does not read that field — `setupFiles` was silently ignored and the module-load guard in `auth.ts` threw before any test ran. Fixed by adding `vitest.config.ts` with the `test.setupFiles` entry, and removed the dead `"vitest"` block from `package.json`.
 
 **Why:** Every protected route (R3, R4) needs bearer-token verification and
@@ -241,9 +254,10 @@ own task keeps 1.3 (the complex upload route) focused on image processing.
 **Prerequisites:** Task 1.1 (Express app scaffold exists).
 
 **Decisions:**
+
 - Middleware function: `requireAuth` in `src/middleware/auth.ts`. It reads
   `Authorization: Bearer <token>`, calls `jose.jwtVerify(token, secret,
-  { algorithms: ['HS256'] })`, checks the UUID regex
+{ algorithms: ['HS256'] })`, checks the UUID regex
   `/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i` on the
   `sub` claim, then sets `req.uid = sub` and calls `next()`.
 - On any failure (missing header, bad signature, expired token, UUID mismatch)
@@ -258,17 +272,20 @@ own task keeps 1.3 (the complex upload route) focused on image processing.
   mock the crypto path — they test the actual behaviour.
 
 **Files:**
+
 - `sidecar/src/middleware/auth.ts` (create)
 - `sidecar/src/types/express.d.ts` (create) — `declare global { namespace Express { interface Request { uid: string } } }`
 - `sidecar/test/auth.test.ts` (create)
 
 **Steps:**
+
 1. Create `sidecar/src/types/express.d.ts` with the Request extension for
    `uid`.
 2. Create `sidecar/src/middleware/auth.ts` per Decisions. Guard the secret at
    module load:
    ```ts
-   if (!process.env.GOTRUE_JWT_SECRET) throw new Error('GOTRUE_JWT_SECRET is required');
+   if (!process.env.GOTRUE_JWT_SECRET)
+   	throw new Error("GOTRUE_JWT_SECRET is required");
    const secret = new TextEncoder().encode(process.env.GOTRUE_JWT_SECRET);
    ```
    Using `process.env.X!` alone does NOT throw — it silently encodes `"undefined"`.
@@ -297,6 +314,7 @@ before the implementation is written, per the TDD convention.
 `POSTGREST_URL` env var must be documented (set in test as a mock URL).
 
 **Decisions:**
+
 - Multer configured with `limits: { fileSize: 8 * 1024 * 1024 }` and storage
   `multer.memoryStorage()` so the file bytes land in `req.file.buffer`.
   Multer emits error code `LIMIT_FILE_SIZE` when the limit is exceeded; the
@@ -310,8 +328,8 @@ before the implementation is written, per the TDD convention.
   `src/lib/validate.ts`.
 - Resize: `await sharp(buffer).resize(256, 256, { fit: 'cover' }).webp({ quality: 80 }).toBuffer()`.
 - Atomic write: write to `path.join(avatarsDir, \`${uid}.webp.tmp\`)`, then
-  `await fs.rename(tmp, dest)`. The avatarsDir is sourced from
-  `process.env.AVATARS_DIR` (default `/srv/cairn/avatars`).
+`await fs.rename(tmp, dest)`. The avatarsDir is sourced from
+`process.env.AVATARS_DIR`(default`/srv/cairn/avatars`).
 - PostgREST call: `fetch(\`${process.env.POSTGREST_URL}/rpc/bump_avatar_version\`,
   { method: 'POST', headers: { Authorization: \`Bearer ${token}\`,
   'Content-Type': 'application/json' }, body: '{}' })`. The bearer token
@@ -327,13 +345,13 @@ before the implementation is written, per the TDD convention.
   **ESM default-export shape is required:** `sharp` is imported as a default
   export (`import sharp from 'sharp'`), so the factory must use a `default` key:
   ```ts
-  vi.mock('sharp', () => ({
-    default: vi.fn().mockReturnValue({
-      metadata: vi.fn().mockResolvedValue({ width: 5000, height: 5000 }),
-      resize: vi.fn().mockReturnThis(),
-      webp: vi.fn().mockReturnThis(),
-      toBuffer: vi.fn().mockResolvedValue(Buffer.alloc(100)),
-    }),
+  vi.mock("sharp", () => ({
+  	default: vi.fn().mockReturnValue({
+  		metadata: vi.fn().mockResolvedValue({ width: 5000, height: 5000 }),
+  		resize: vi.fn().mockReturnThis(),
+  		webp: vi.fn().mockReturnThis(),
+  		toBuffer: vi.fn().mockResolvedValue(Buffer.alloc(100)),
+  	}),
   }));
   ```
   Without the `default:` wrapper, `import sharp from 'sharp'` resolves to
@@ -355,6 +373,7 @@ before the implementation is written, per the TDD convention.
   `{ width: 100, height: 100 }` (valid dimensions) so the bounds check passes.
 
 **Files:**
+
 - `sidecar/src/lib/validate.ts` (create)
 - `sidecar/src/routes/avatars.ts` (create)
 - `sidecar/test/validate.test.ts` (create) — the three security-gate tests (R7)
@@ -363,16 +382,17 @@ before the implementation is written, per the TDD convention.
 - `sidecar/src/index.ts` (modify) — mount the avatars router at `/avatars`
 
 **Steps:**
+
 1. Create `sidecar/src/lib/validate.ts` with two exported async functions:
    - `checkMagicBytes(buffer: Buffer): Promise<void>` — uses `fileTypeFromBuffer`,
      throws with code `'INVALID_FORMAT'` if not an allowed mime.
    - `checkDecodedBounds(buffer: Buffer): Promise<void>` — uses
      `sharp(buffer).metadata()`, throws with code `'IMAGE_TOO_LARGE'` if either
      dimension exceeds 4096.
-   Use `Object.assign(new Error('…'), { code: 'INVALID_FORMAT' as const })` (and
-   similarly `IMAGE_TOO_LARGE`) — the `NodeJS.ErrnoException` pattern. This lets
-   the error handler type its argument as `err: NodeJS.ErrnoException` and access
-   `err.code` without a cast; plain `Error` has no `.code` property in TypeScript.
+     Use `Object.assign(new Error('…'), { code: 'INVALID_FORMAT' as const })` (and
+     similarly `IMAGE_TOO_LARGE`) — the `NodeJS.ErrnoException` pattern. This lets
+     the error handler type its argument as `err: NodeJS.ErrnoException` and access
+     `err.code` without a cast; plain `Error` has no `.code` property in TypeScript.
 2. RED — Write `sidecar/test/validate.test.ts` with `vi.mock('sharp', ...)` at
    the top (per Decisions) and three `describe` groups. Each test must include
    a valid signed JWT in `Authorization: Bearer <token>` — use `jose.SignJWT`
@@ -386,9 +406,9 @@ before the implementation is written, per the TDD convention.
      `checkMagicBytes` and reaches `checkDecodedBounds`; assert HTTP 422.
    - **"body > 8 MB"**: POST a multipart field with `Buffer.alloc(9 * 1024 * 1024)`;
      assert HTTP 413.
-   Also write `sidecar/test/delete.test.ts` with two `describe` groups. Both use
-   `vi.mock('node:fs/promises', ...)` — the route imports `unlink` from
-   `'node:fs/promises'`, so the mock must target that specifier (not `'fs'`):
+     Also write `sidecar/test/delete.test.ts` with two `describe` groups. Both use
+     `vi.mock('node:fs/promises', ...)` — the route imports `unlink` from
+     `'node:fs/promises'`, so the mock must target that specifier (not `'fs'`):
    - **"file exists"**: mock `unlink` to resolve; `DELETE /avatars/me` with a
      valid JWT; assert HTTP 200.
    - **"file does not exist"**: mock `unlink` to reject with `{ code: 'ENOENT' }`;
@@ -411,6 +431,7 @@ before the implementation is written, per the TDD convention.
      different name); assert HTTP 400.
 
    All tests must fail (routes don't exist) — confirm red.
+
 3. Create `sidecar/src/routes/avatars.ts`:
    - Import `requireAuth`, `checkMagicBytes`, `checkDecodedBounds`, `multer`,
      `sharp`, `path`, and `{ rename, writeFile, unlink }` from `'node:fs/promises'`.
@@ -418,7 +439,7 @@ before the implementation is written, per the TDD convention.
      `vi.mock('node:fs/promises', ...)` in tests intercepts the right module.
      Use global `fetch` (built into Node 20 — no `node-fetch` needed).
    - Configure multer: `const upload = multer({ storage: multer.memoryStorage(),
-     limits: { fileSize: 8 * 1024 * 1024 } })`. Apply to the POST handler as
+limits: { fileSize: 8 * 1024 * 1024 } })`. Apply to the POST handler as
      `upload.single('file')` so only the `file` field is accepted (per R5).
    - `POST /` handler: run `requireAuth`, then multer, then guard
      `if (!req.file) return res.status(400).json({ error: 'No file uploaded' })`,
@@ -448,6 +469,7 @@ single-command gauntlet (R10).
 **Prerequisites:** Task 1.3 (sidecar `pnpm test` is green).
 
 **Decisions:**
+
 - Insert the sidecar step after the `web: unit tests` step and before the
   optional `--e2e` block. Follows the same `ok` / `fail` pattern as every
   other step.
@@ -459,11 +481,14 @@ single-command gauntlet (R10).
   must pass both.
 
 **Files:**
+
 - `scripts/check.sh` (modify)
 
 **Steps:**
+
 1. Open `scripts/check.sh`. Locate the `==> web: unit tests` block.
 2. After that block, insert:
+
    ```bash
    echo "==> sidecar: install (frozen)"
    if (cd sidecar && pnpm install --frozen-lockfile) >/dev/null; then ok "sidecar pnpm install"; else fail "sidecar pnpm install"; fi
@@ -471,6 +496,7 @@ single-command gauntlet (R10).
    echo "==> sidecar: unit tests"
    if (cd sidecar && pnpm test) >/dev/null; then ok "sidecar vitest"; else fail "sidecar vitest"; fi
    ```
+
 3. Run `shellcheck scripts/check.sh` and `shfmt -d -i 2 -ci -bn scripts/`
    and fix any findings.
 4. Run `./scripts/check.sh` (without `--e2e`) and confirm all steps pass,
@@ -495,6 +521,7 @@ and Caddy (read-only, added in 2.2). (R8)
 **Prerequisites:** Task 1.1 (Dockerfile exists at `sidecar/Dockerfile`).
 
 **Decisions:**
+
 - Service name: `sidecar`. Build context: `./sidecar`. Exposed on port 3001
   inside the compose network (not exposed on the host by default; Caddy reaches
   it via the compose DNS name `sidecar`).
@@ -515,7 +542,13 @@ and Caddy (read-only, added in 2.2). (R8)
   use a Node one-liner rather than `CMD-SHELL curl`:
   ```yaml
   healthcheck:
-    test: ["CMD", "node", "-e", "require('http').get('http://localhost:3001/healthz', r => process.exit(r.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))"]
+    test:
+      [
+        "CMD",
+        "node",
+        "-e",
+        "require('http').get('http://localhost:3001/healthz', r => process.exit(r.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))",
+      ]
     interval: 5s
     timeout: 3s
     retries: 3
@@ -524,9 +557,11 @@ and Caddy (read-only, added in 2.2). (R8)
   `postgres_data:`).
 
 **Files:**
+
 - `docker-compose.yml` (modify)
 
 **Steps:**
+
 1. Add a `healthcheck:` to the existing `postgrest` service block in
    `docker-compose.yml`:
    ```yaml
@@ -557,13 +592,14 @@ production and lets the 0503 Playwright tests hit real avatar URLs. (R9)
 **Prerequisites:** Task 2.1 (named `avatars` volume exists in compose).
 
 **Decisions:**
+
 - `caddy/Caddyfile` listens on `:80` (no TLS in local dev) and uses two
   distinct matchers on the `/avatars` prefix (per `plans/0500_avatars/PLAN.md`):
   (1) a named matcher `@sidecar_writes { method POST DELETE; path /avatars* }`
   with a `reverse_proxy sidecar:3001` directive — routes POST and DELETE to the
   sidecar; (2) a `handle_path /avatars/*` block with `file_server` and a
   `header` directive that sets `Cache-Control "public, max-age=31536000,
-  immutable"` — serves static WebP files for GET requests. A single
+immutable"` — serves static WebP files for GET requests. A single
   `handle_path` block cannot serve both roles: `file_server` returns 405 for
   POST and DELETE.
 - The `caddy` docker-compose service uses a fully pinned image tag matching the
@@ -589,12 +625,15 @@ production and lets the 0503 Playwright tests hit real avatar URLs. (R9)
 - `caddy/` directory must be created as part of this task.
 
 **Files:**
+
 - `caddy/Caddyfile` (create)
 - `docker-compose.yml` (modify — add `caddy` service)
 
 **Steps:**
+
 1. Create `caddy/` directory.
 2. Write `caddy/Caddyfile`:
+
    ```
    :80 {
        @sidecar_writes {
@@ -610,6 +649,7 @@ production and lets the 0503 Playwright tests hit real avatar URLs. (R9)
        }
    }
    ```
+
 3. Add the `caddy` service to `docker-compose.yml` per Decisions. No
    `depends_on` is needed — the named volume exists as soon as compose starts.
 4. Run `docker compose config` to validate the updated compose file.

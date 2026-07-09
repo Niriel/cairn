@@ -1,24 +1,24 @@
 {
-  "files.eol": "\n",
-  "files.trimTrailingWhitespace": true,
-  "files.insertFinalNewline": true,
-  "editor.formatOnSave": true,
-  "editor.defaultFormatter": "esbenp.prettier-vscode",
-  "[svelte]": { "editor.defaultFormatter": "svelte.svelte-vscode" },
-  "[sql]": { "editor.defaultFormatter": "dorzey.vscode-sqlfluff" },
-  "[shellscript]": { "editor.defaultFormatter": "foxundermoon.shell-format" },
-  "[markdown]": { "editor.defaultFormatter": "esbenp.prettier-vscode" },
-  "eslint.validate": ["javascript", "typescript", "svelte"],
-  "eslint.useFlatConfig": true,
-  "eslint.workingDirectories": [{ "pattern": "web" }],
-  "sqlfluff.dialect": "postgres",
-  "sqlfluff.linter.run": "onType",
-  "cSpell.enableFiletypes": ["svelte"],
-  "window.titleBarStyle": "custom",
-  "workbench.colorCustomizations": {
-    "titleBar.activeBackground": "#6e4e27",
-    "titleBar.activeForeground": "#f6f1e9",
-    "titleBar.inactiveBackground": "#6e4e27bf",
-    "titleBar.inactiveForeground": "#f6f1e9bf"
-  }
+	"files.eol": "\n",
+	"files.trimTrailingWhitespace": true,
+	"files.insertFinalNewline": true,
+	"editor.formatOnSave": true,
+	"editor.defaultFormatter": "esbenp.prettier-vscode",
+	"[svelte]": { "editor.defaultFormatter": "svelte.svelte-vscode" },
+	"[sql]": { "editor.defaultFormatter": "dorzey.vscode-sqlfluff" },
+	"[shellscript]": { "editor.defaultFormatter": "foxundermoon.shell-format" },
+	"[markdown]": { "editor.defaultFormatter": "esbenp.prettier-vscode" },
+	"eslint.validate": ["javascript", "typescript", "svelte"],
+	"eslint.useFlatConfig": true,
+	"eslint.workingDirectories": [{ "pattern": "web" }],
+	"sqlfluff.dialect": "postgres",
+	"sqlfluff.linter.run": "onType",
+	"cSpell.enableFiletypes": ["svelte"],
+	"window.titleBarStyle": "custom",
+	"workbench.colorCustomizations": {
+		"titleBar.activeBackground": "#6e4e27",
+		"titleBar.activeForeground": "#f6f1e9",
+		"titleBar.inactiveBackground": "#6e4e27bf",
+		"titleBar.inactiveForeground": "#f6f1e9bf"
+	}
 }

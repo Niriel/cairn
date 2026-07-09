@@ -43,7 +43,7 @@ accepted as a sign-in identifier. On success a session is established via the
 auth BFF (R15): the browser holds nothing but the `cairn_session` HttpOnly
 cookie, and JavaScript never sees a token — the HttpOnly / no-token-in-JS
 contract from `docs/architecture.md` "JWT storage" survives. What that cookie
-*carries*, and how the session is refreshed and revoked, is redefined by the
+_carries_, and how the session is refreshed and revoked, is redefined by the
 session-security work (R14): it is no longer a long-lived access JWT. The route
 guard and the PostgREST cookie→bearer attachment for `/api` are unchanged; what
 changes is the credential that opens a session **and** the session model behind
@@ -110,7 +110,7 @@ A user who provided a recovery e-mail can request a password reset; the reset
 link/code is sent to that address and lets them set a new password, after which
 they sign in normally (R3). The request step must not reveal whether a given
 username or e-mail corresponds to an account, beyond what is already public
-(usernames are public; the *existence of a recovery e-mail* is not). A user
+(usernames are public; the _existence of a recovery e-mail_ is not). A user
 with no recovery e-mail on file cannot self-serve here.
 
 ## R10. People are added by username, not e-mail (→ 2005)
@@ -178,7 +178,7 @@ server-side from it on demand, never the durable cookie value. Refresh uses
 invalidates the old one, and replay of an already-rotated token revokes the
 whole token family as a theft signal. This is the single largest security
 delta in step 20 and is independent of usernames — the gap exists in
-production today. It changes *what the cookie holds and how it is refreshed*,
+production today. It changes _what the cookie holds and how it is refreshed_,
 not whether JavaScript can read it: the HttpOnly contract (R3) holds.
 
 ## R15. The browser talks to a Cairn-shaped auth BFF, not GoTrue's wire protocol (→ 2002, 2003)
@@ -234,7 +234,7 @@ Username + password is a brute-forceable credential in a way magic-link was
 not, so the BFF throttles repeated sign-in failures **per account and per
 source IP** (backoff or temporary lockout). Sign-in failures keep a constant
 shape — a wrong password and an unknown username return the same error, so the
-response does not reveal *which* factor failed (usernames are public per R1, so
+response does not reveal _which_ factor failed (usernames are public per R1, so
 this is hygiene, not an enumeration boundary). This supersedes the prior "no
 rate-limiting beyond GoTrue defaults" non-requirement, which no longer holds
 once passwords are the credential.
@@ -263,7 +263,7 @@ land first; DDL/behaviour doc edits ride with their migration.
 - **OAuth / "Sign in with Google/Apple".** Already rejected in
   `docs/architecture.md` → "Considered and rejected"; unaffected here.
 - **Gating general account use behind e-mail confirmation.** Recovery-e-mail
-  *ownership* is verified on set/change (R13), but there is no
+  _ownership_ is verified on set/change (R13), but there is no
   e-mail-confirmation gate on registering or using Cairn — accounts work with no
   e-mail at all (R4).
 - **Username history, reserved-name registry, or anti-impersonation beyond
@@ -271,7 +271,7 @@ land first; DDL/behaviour doc edits ride with their migration.
   protection, no "@admin"-style reserved list in this step.
 - **Elaborate password-strength policy / breach-list checks.** A sane minimum
   length is fine; a composition policy or a breached-password check is a
-  hardening follow-up, not a gate. (Brute-force *rate-limiting* is **no longer**
+  hardening follow-up, not a gate. (Brute-force _rate-limiting_ is **no longer**
   excluded — it is now required by R18, because passwords make the account
   brute-forceable in a way magic-link was not.)
 - **MFA / second factor, passkeys / WebAuthn, step-up auth.** A single

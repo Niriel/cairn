@@ -13,6 +13,7 @@ first.
 ### Migration file: `0008_relationships.sql`
 
 Structure:
+
 1. `CREATE TABLE public.relationships` with the six columns, PK, and
    two-column check constraint.
 2. `ALTER TABLE … ENABLE ROW LEVEL SECURITY`.
@@ -32,6 +33,7 @@ Structure:
 ### Trigger binding names
 
 Follow the `t05_` / `t20_` prefix convention from existing tables:
+
 - `t05_set_timestamps` — BEFORE INSERT OR UPDATE
 - `t20_set_modified_at` — BEFORE UPDATE OF status
 

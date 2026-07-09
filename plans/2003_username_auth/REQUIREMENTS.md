@@ -75,15 +75,16 @@ establishes a session. The browser never sees a token, a `grant_type`, or the
 (R2); if no account matches, fails; otherwise performs the GoTrue password grant
 against `<uid>@cairn.internal` with the supplied password; on success plants the
 revocable dual-cookie session (the `__Host-cairn_session` rotating refresh token
-+ the short-lived `__Host-cairn_access` JWT, exactly as 2002's
-`plantSession` does) and returns a tokenless `{ user }` (R7); on failure clears
-nothing and returns a **constant-shape** error — a wrong password and an unknown
-username return the same status and body, so the response never reveals which
-factor failed (parent R18; hygiene, since usernames are public). The endpoint
-runs behind 2002's CSRF gate (`X-Cairn-Auth` required) and per-account /
-per-IP rate-limiter; the handler **records** each attempt's outcome
-(`recordFailure` on a failed grant or unknown username, `recordSuccess` on a
-successful grant) — 2002's skeleton did neither.
+
+- the short-lived `__Host-cairn_access` JWT, exactly as 2002's
+  `plantSession` does) and returns a tokenless `{ user }` (R7); on failure clears
+  nothing and returns a **constant-shape** error — a wrong password and an unknown
+  username return the same status and body, so the response never reveals which
+  factor failed (parent R18; hygiene, since usernames are public). The endpoint
+  runs behind 2002's CSRF gate (`X-Cairn-Auth` required) and per-account /
+  per-IP rate-limiter; the handler **records** each attempt's outcome
+  (`recordFailure` on a failed grant or unknown username, `recordSuccess` on a
+  successful grant) — 2002's skeleton did neither.
 
 ## R5. Registration creates an account from username + password
 
@@ -92,7 +93,7 @@ account. Registration is **open** (no invite gate) — Cairn's alpha posture kee
 GoTrue signup enabled; the BFF performs the signup and GoTrue's
 `GOTRUE_DISABLE_SIGNUP` remains the operator's on/off switch. Note a doc-vs-reality drift: the live box already runs `DISABLE_SIGNUP=false`
 (confirmed), so the open register surface works in prod — but
-`docker-compose.prod.yml` *defaults* the switch the other way
+`docker-compose.prod.yml` _defaults_ the switch the other way
 (`GOTRUE_DISABLE_SIGNUP: "${DISABLE_SIGNUP:-true}"`, overridden by the prod `.env`)
 and `docs/development.md` still documents prod as signup-disabled / invite-only.
 Those stale doc/compose-default claims are reconciled to the open-alpha posture in
@@ -176,7 +177,7 @@ helper is documented. Additionally, the registration-posture claims that this
 sub-step contradicts — `docs/development.md`'s "prod is `GOTRUE_DISABLE_SIGNUP=true`
 / invite-only" note and the `docs/deployment.md` pre-deploy auth checklist — are
 corrected to the open-alpha posture (R5), and the wrong "`docs/invites.md` confirms
-open signup" citation is dropped (`invites.md` covers the invite-*acceptance*
+open signup" citation is dropped (`invites.md` covers the invite-_acceptance_
 policy, not signup-openness). Narrative claims land first (Phase 0); the precise
 `set_username` RPC-list / DDL-behaviour wording rides with the migration that
 implements it (R3), so reviewers see the spec change beside the code.
@@ -188,7 +189,7 @@ implements it (R3), so reviewers see the spec change beside the code.
   screen collects username + password only; recovery-e-mail capture lives in
   Settings later. A "forgot password?" link may be a non-functional placeholder
   or omitted until 2004. **Accepted alpha risk:** this means 2003 ships open
-  registration as the primary surface with *no* recovery path of any kind —
+  registration as the primary surface with _no_ recovery path of any kind —
   neither self-serve nor operator reset (the parent's operator-reset admin RPC is
   an Open question, not built here) — so a user who forgets their password loses
   the account until 2004 lands. This is a conscious trade-off for the alpha, not

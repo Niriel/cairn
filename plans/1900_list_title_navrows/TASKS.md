@@ -29,6 +29,7 @@ Reconcile the doc before the code lands so spec and implementation agree.
 **Prerequisites:** None.
 
 **Decisions:**
+
 - Edit only the **Lists-screen row** bullet under "Public marker (members
   only)". Leave the Items-screen-TopBar bullet and the rest of the section
   unchanged.
@@ -41,9 +42,11 @@ Reconcile the doc before the code lands so spec and implementation agree.
   description is fine.
 
 **Files:**
+
 - `docs/ui.md` (modify — the "Public marker (members only)" Lists-screen bullet)
 
 **Steps:**
+
 1. In `docs/ui.md`, replace the Lists-screen bullet
    ("**Lists-screen row:** the globe sits immediately after the list name…")
    with wording that places the globe in the nav-row trailing slot, just before
@@ -70,6 +73,7 @@ lead-less row won't type-check or render.
 **Prerequisites:** None.
 
 **Decisions:**
+
 - Change the prop type `lead: Snippet` → `lead?: Snippet`.
 - Guard the render: replace the unconditional `{@render lead()}` with
   `{#if lead}{@render lead()}{/if}`.
@@ -79,10 +83,12 @@ lead-less row won't type-check or render.
   sub, optional trailing, and the always-present `chevron-right` icon.
 
 **Files:**
+
 - `web/src/lib/shared/components/NavRow.svelte` (modify)
 - `web/src/lib/shared/components/NavRow.test.ts` (modify)
 
 **Steps:**
+
 1. RED — In `NavRow.test.ts`, add a case: render `NavRow` with `title` and an
    `onclick` but **no** `lead` snippet; assert rendering does not throw, the
    title text is present (`.nav-row-title`), and the `chevron-right` icon renders
@@ -113,13 +119,14 @@ button into the extra-info block beneath the title, pinned top-end.
 **Prerequisites:** Task 1.1 (`NavRow` accepts no `lead`).
 
 **Decisions:**
+
 - **Markup.** In `web/src/lib/list/components/ListsScreen.svelte`, inside each
   `<li class="row" data-test="list-row-{item.id}">`, replace the current
   `.row-top` (title `<Button>` + inline `MoreButton`) with:
   - A `NavRow` with `title={item.name}`, `data-test="list-nav-{item.id}"`,
     `onclick={() => void goto(resolve(`/lists/${item.id}`))}`, and **no** `lead`.
     For the public marker, **always declare** the `trailing` snippet and guard
-    its *body* — do **not** wrap the `{#snippet}` declaration in `{#if}`, which
+    its _body_ — do **not** wrap the `{#snippet}` declaration in `{#if}`, which
     in Svelte 5 makes it a local snippet that never reaches `NavRow`. Pattern
     (mirrors `PrivacyScreen.svelte`, which guards its trailing Badge the same
     way):
@@ -155,7 +162,7 @@ button into the extra-info block beneath the title, pinned top-end.
   description/meta with the title text; the bottom restores inter-row breathing
   room; the wide right `2.5rem` lets the ellipsizing description and the metadata
   clear the absolutely-positioned More button. **Accepted trade-off:** that
-  right inset also gutters the metadata line and every line of an *expanded*
+  right inset also gutters the metadata line and every line of an _expanded_
   (multi-line) description, not just the first line under the button — eyeball it
   in the verify step. **Avoid a doubled top gap:** `.desc` currently carries
   `margin-top: 0.5rem`, which would stack with this rule's `padding-top: 0.5rem`
@@ -169,7 +176,7 @@ button into the extra-info block beneath the title, pinned top-end.
   full-bleed solid per-row divider; do not re-inset it.
 - **CSS — `.more`.** Wrap the `MoreButton` in `<span class="more">…</span>` and
   position **the span** top-end: `position: absolute; top: 0.375rem;
-  right: 0.375rem;`. Do **not** pass `class="more"` to `MoreButton` directly:
+right: 0.375rem;`. Do **not** pass `class="more"` to `MoreButton` directly:
   it spreads `{...rest}` into `IconButton`, which renders
   `<button class="icon-btn" {...rest}>`, and a forwarded `class` (Svelte's
   last-wins spread) would clobber `icon-btn` and drop its `padding: 4px`. Keep
@@ -187,7 +194,7 @@ button into the extra-info block beneath the title, pinned top-end.
   `.name` removes its `white-space: normal; overflow-wrap: anywhere;`, so the
   title would inherit the `<Button>` base `white-space: nowrap` (no ellipsis) and
   a long list name would overflow into the chevron. Add `white-space: normal;
-  overflow-wrap: anywhere;` to `.nav-row-title` in `NavRow.svelte` so long names
+overflow-wrap: anywhere;` to `.nav-row-title` in `NavRow.svelte` so long names
   wrap as they do today — harmless to the short fixed Settings/Privacy labels.
   **Also** add `align-items: flex-start` to the nav-row button (it inherits
   `align-items: center` from `Button.svelte`): without it, a wrapped multi-line
@@ -200,7 +207,7 @@ button into the extra-info block beneath the title, pinned top-end.
   they regress. Both rules must live in `NavRow.svelte` (scoped styles in
   `ListsScreen.svelte` cannot reach NavRow's internals), hence `NavRow.svelte` is
   in this task's Files.
-- **Test — assert the nav-row affordance.** The new chevron/nav-row *is* the
+- **Test — assert the nav-row affordance.** The new chevron/nav-row _is_ the
   feature, so add a `ListsScreen.test.ts` case asserting each row renders a
   `.nav-row` wrapper (e.g. `getByDataTest('list-row-'+id).querySelector('.nav-row')`
   is non-null). `NavRow`/`Button`/`Icon` are **not** mocked in this file, so the
@@ -217,6 +224,7 @@ button into the extra-info block beneath the title, pinned top-end.
 `<style>`; `design/cairn-screens.jsx` ListsScreen for the row shape.
 
 **Files:**
+
 - `web/src/lib/list/components/ListsScreen.svelte` (modify)
 - `web/src/lib/shared/components/NavRow.svelte` (modify — add the `.nav-row-title`
   wrap rule)
@@ -224,6 +232,7 @@ button into the extra-info block beneath the title, pinned top-end.
   assertion; also adjust if the DOM-move breaks a query)
 
 **Steps:**
+
 1. RED — Run `cd web && pnpm test src/lib/list/components/ListsScreen.test.ts`
    first to capture the current green baseline (the selectors must keep passing
    after the change). These existing cases are the regression guard: click
@@ -276,6 +285,7 @@ button into the extra-info block beneath the title, pinned top-end.
 **Verify:** `cd web && pnpm test src/lib/list/components/ListsScreen.test.ts` · `pnpm check` · `pnpm test:e2e items.spec.ts` (work box only)
 
 **Notes:**
+
 - **Side work:** removed the now-unused `Button` import from
   `ListsScreen.svelte` — the title button is now the `NavRow`'s inner button,
   so the direct `Button` import was dead and would have failed ESLint.

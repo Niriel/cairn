@@ -14,7 +14,8 @@ tokens wired up, no theme system, and no shared primitives. Master-plan
 steps 3 through 12 all reference primitives that don't exist yet: auth
 screens need `TopBar` and `Button`, the MVP list view needs `Accordion`
 and `Snackbar`, settings needs `Sheet`, and every screen needs theme
-+ font-size to be in place at root.
+
+- font-size to be in place at root.
 
 The visual target is the JSX in `design/` — most notably
 `design/cairn-ui.jsx`, which carries the canonical token table
@@ -124,7 +125,7 @@ today's two consumers. (R11)
 docs describe two accordion-ish patterns: the items-screen item panel
 (one-at-a-time, listed at `docs/ui.md:146` as a dismissible overlay
 that pushes history) and the lists-screen list-description expand
-(`docs/ui.md:33`, where *multiple* expansions are allowed
+(`docs/ui.md:33`, where _multiple_ expansions are allowed
 simultaneously). A single primitive serving both shapes can't quietly
 default — defaulting to `true` would silently break list descriptions
 (one back press collapsing all open ones); defaulting to `false`
@@ -141,6 +142,7 @@ two shapes drift further apart then the split happens then. (R11, R13)
 ### New files
 
 **Conventions & docs (lands first in Phase 0):**
+
 - **`docs/frontend-layout.md`** — living spec for R1–R5 (per-domain
   shape, three-tier split, filename rules, mock placement, testing
   rules). Worked example: "Adding a new domain."
@@ -151,6 +153,7 @@ two shapes drift further apart then the split happens then. (R11, R13)
   slash commands).
 
 **Web source — global infrastructure:**
+
 - `web/src/lib/test/render.ts` — wraps `@testing-library/svelte`
   render; exports `getByDataTest(name)`.
 - `web/src/lib/shared/styles/tokens.css` — CSS custom properties
@@ -167,6 +170,7 @@ two shapes drift further apart then the split happens then. (R11, R13)
 
 **Web source — primitives** (each with `.test.ts` and, where used
 from more than one test, a `__mocks__/` counterpart):
+
 - `web/src/lib/basic/model/icon-paths.ts`
 - `web/src/lib/basic/components/Icon.svelte`
 - `web/src/lib/basic/components/Button.svelte`

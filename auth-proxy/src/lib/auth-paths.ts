@@ -16,14 +16,18 @@ export const PUBLIC_AUTH_PATHS = [
 	'/auth/register',
 	'/auth/login',
 	'/auth/check',
-	'/auth/callback'
+	'/auth/callback',
+	'/auth/forgot-password',
+	'/auth/reset-password'
 ] as const;
 
 export const SIGNED_IN_REDIRECT_PATHS = [
 	'/auth/signin',
 	'/auth/register',
 	'/auth/login',
-	'/auth/check'
+	'/auth/check',
+	'/auth/forgot-password',
+	'/auth/reset-password'
 ] as const;
 
 export const BEARER_AUTH_PATHS = ['/auth/user'] as const;

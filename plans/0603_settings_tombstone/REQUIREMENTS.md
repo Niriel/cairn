@@ -30,7 +30,7 @@ A new module `web/src/lib/shared/model/constants.ts` exports a single
 named constant:
 
 ```ts
-export const TOMBSTONE_UID = '00000000-0000-0000-0000-000000000000';
+export const TOMBSTONE_UID = "00000000-0000-0000-0000-000000000000";
 ```
 
 The value matches the sentinel UUID used as the `default` for every
@@ -119,7 +119,7 @@ lines 1543–1556.
   that the `tg_set_attribution_items` trigger blocks tombstone
   PATCHes — it does not. `docs/data-model.md:632, 636` explicitly
   documents that the freeze gate is `if new.created_by is distinct
-  from '00000000-…'`, so a client *can* deliberately PATCH
+from '00000000-…'`, so a client _can_ deliberately PATCH
   `created_by = '00000000-…'` and the tombstone UID will stick — the
   doc calls this "vandalism, not privilege escalation". A future
   Playwright spec could seed via PATCH.)

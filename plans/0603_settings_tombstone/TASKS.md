@@ -5,7 +5,7 @@
 - **`.claude/skills/writing-tasks.md`** — self-contained briefing format; RED-before-GREEN within each task.
 - **`docs/frontend-layout.md` → "Domain folder shape"** — `model/` is for non-reactive pure TS; `shared/` is the right tier for cross-domain code.
 - **`docs/ui.md` → "Settings"** and **"Account deletion screen"** — canonical Settings section list and the tombstone gray-disc + muted-italic visual.
-- **`docs/data-model.md`** lines 118, 146, 175, 620, 631–638 — confirms `'00000000-0000-0000-0000-000000000000'` is the tombstone UUID and explains the per-rule trigger freeze that blocks *non-tombstone* PATCHes (the gate deliberately lets `created_by = '00000000-…'` through; see `REQUIREMENTS.md` → Non-requirements → "Playwright tombstone e2e").
+- **`docs/data-model.md`** lines 118, 146, 175, 620, 631–638 — confirms `'00000000-0000-0000-0000-000000000000'` is the tombstone UUID and explains the per-rule trigger freeze that blocks _non-tombstone_ PATCHes (the gate deliberately lets `created_by = '00000000-…'` through; see `REQUIREMENTS.md` → Non-requirements → "Playwright tombstone e2e").
 - **`design/cairn-screens.jsx`** — `SettingsScreen` (lines 1084–1247, Recovery section at 1219–1224); `ItemsScreenTombstone` (lines 1502–1575, italic attribution at 1552–1556).
 - **`plans/0600_soft_delete_ux/REQUIREMENTS.md`** R9, R10, R11 — the parent contracts this sub-plan refines.
 
@@ -34,6 +34,7 @@ already exists (from 0602). `goto(resolve('/settings/deleted-lists'))`
 will type-check.
 
 **Decisions:**
+
 - Add a new `<section class="preference-group">` between the existing
   Text-size section and the Sign-out section. The existing
   `.preference-group h2` rule already produces the
@@ -81,16 +82,18 @@ will type-check.
   Account/Sign-out all sit in continuous natural flow. Removing the
   `margin-top: auto` puts Sign-out back in natural flow directly below
   Recovery, matching the design's stacking. Keep the `padding: 0 18px
-  24px` rule unchanged so the bottom breathing room before the screen edge is preserved.
+24px` rule unchanged so the bottom breathing room before the screen edge is preserved.
   (The 24px is static padding, not `env(safe-area-inset-bottom)` —
   proper safe-area treatment for the bottom of Settings is out of
   scope here.)
 
 **Files:**
+
 - `web/src/lib/settings/components/SettingsScreen.svelte` (modify)
 - `web/src/lib/settings/components/SettingsScreen.test.ts` (modify)
 
 **Steps:**
+
 1. RED — In `SettingsScreen.test.ts`, add two new tests inside the
    existing `describe('SettingsScreen', () => { … })` block:
    - `(j) Recovery row renders` — queryByDataTest('settings-deleted-lists')
@@ -99,7 +102,7 @@ will type-check.
      after `await fireEvent.click(getByDataTest('settings-deleted-lists'))`,
      `vi.mocked(goto)` is called once with `vi.mocked(resolve)('/settings/deleted-lists')`.
      Use the same pattern as the existing test `(i) clicking profile chip
-     navigates to /profile`.
+navigates to /profile`.
 2. RED — Run `cd web && pnpm test -- SettingsScreen` and confirm the
    two new tests fail (the row doesn't exist yet).
 3. GREEN — In `SettingsScreen.svelte`, after the existing
@@ -138,10 +141,11 @@ proliferating across the codebase.
 **Prerequisites:** None.
 
 **Decisions:**
+
 - Create `web/src/lib/shared/model/constants.ts` with exactly one
   export:
   ```ts
-  export const TOMBSTONE_UID = '00000000-0000-0000-0000-000000000000';
+  export const TOMBSTONE_UID = "00000000-0000-0000-0000-000000000000";
   ```
   No JSDoc, no other constants. Future shared constants can live in
   the same file; for now `TOMBSTONE_UID` is the only one.
@@ -178,11 +182,13 @@ proliferating across the codebase.
 cross-domain code.
 
 **Files:**
+
 - `web/src/lib/shared/model/constants.ts` (create)
 - `web/src/lib/shared/components/Avatar.svelte` (modify)
 - `web/src/lib/shared/components/Avatar.test.ts` (modify)
 
 **Steps:**
+
 1. RED — In `Avatar.test.ts`, add three tests inside the existing
    `describe('Avatar', () => { … })` block:
    - `(i) tombstone uid renders empty gray disc` — render with
@@ -191,15 +197,15 @@ cross-domain code.
      `textContent` is empty, and `querySelector('img')` is `null`.
    - `(j) tombstone takes precedence over positive avatarVersion` —
      render with `uid: '00000000-0000-0000-0000-000000000000', displayName:
-     'Anything', avatarVersion: 5`; assert `querySelector('img')` is
+'Anything', avatarVersion: 5`; assert `querySelector('img')` is
      null and `data-tombstone="true"` is set.
    - `(k) tombstone takes precedence over non-empty displayName` —
      render with `uid: '00000000-0000-0000-0000-000000000000', displayName:
-     'Alice'`; assert `container.textContent?.trim()` is empty (no
+'Alice'`; assert `container.textContent?.trim()` is empty (no
      initials).
-   Use the literal UUID string in the tests (don't import
-   `TOMBSTONE_UID` — the tests verify the *contract* of the literal
-   value, not the constant module).
+     Use the literal UUID string in the tests (don't import
+     `TOMBSTONE_UID` — the tests verify the _contract_ of the literal
+     value, not the constant module).
 2. RED — Run `cd web && pnpm test -- Avatar` and confirm the three
    new tests fail (the tombstone branch doesn't exist yet).
 3. GREEN — Create `web/src/lib/shared/model/constants.ts` with the
@@ -208,7 +214,7 @@ cross-domain code.
    - Add `import { TOMBSTONE_UID } from '$lib/shared/model/constants';`
      at the top of the existing `<script lang="ts">` block (lines
      1-38 today — the block exists but has no `import` statements yet;
-     do *not* add a second `<script>` block).
+     do _not_ add a second `<script>` block).
    - Add `const isTombstone = $derived(uid === TOMBSTONE_UID);` next
      to the existing `$derived` declarations.
    - Convert the existing `{#if showPhoto}…{:else}…{/if}` into a flat
@@ -242,6 +248,7 @@ already-present `created_by` / `modified_by` UID.
 exporting `TOMBSTONE_UID`).
 
 **Decisions:**
+
 - Detect tombstone status in the template via Svelte's `class:` shorthand,
   not via derived script state. The relevant `<strong>` elements live
   inside the `{#each items.rows as item}` block at
@@ -260,10 +267,10 @@ exporting `TOMBSTONE_UID`).
 - New CSS rule:
   ```css
   .attribution strong.tombstone {
-    font-style: italic;
-    font-weight: normal;
-    color: var(--stone-lt);
-    font-family: 'Newsreader Variable', Georgia, serif;
+  	font-style: italic;
+  	font-weight: normal;
+  	color: var(--stone-lt);
+  	font-family: "Newsreader Variable", Georgia, serif;
   }
   ```
   The override of `font-weight: normal` is intentional — the existing
@@ -288,10 +295,12 @@ exporting `TOMBSTONE_UID`).
   this addition is non-breaking.
 
 **Files:**
+
 - `web/src/lib/item/components/ItemsScreen.svelte` (modify)
 - `web/src/lib/item/components/ItemsScreen.test.ts` (modify)
 
 **Steps:**
+
 1. RED — In `ItemsScreen.test.ts`, add two new tests inside the
    existing `describe('ItemsScreen', () => { … })` block. Both tests
    need an item open in the accordion. The existing fixtures
@@ -311,11 +320,11 @@ exporting `TOMBSTONE_UID`).
      it directly because the test fixture bypasses `fetchItems`).
      Open the row, then assert:
      `getByDataTest('attribution-creator-item-1').classList.contains('tombstone')`
-     is `false` *and*
+     is `false` _and_
      `getByDataTest('attribution-editor-item-1').classList.contains('tombstone')`
      is `true`.
-   Use the literal UUID in the fixtures (don't import
-   `TOMBSTONE_UID` — the tests pin down the value).
+     Use the literal UUID in the fixtures (don't import
+     `TOMBSTONE_UID` — the tests pin down the value).
 2. RED — Run `cd web && pnpm test -- ItemsScreen` and confirm the
    two new tests fail (the `data-test` attributes don't exist yet,
    so `getByDataTest` throws).

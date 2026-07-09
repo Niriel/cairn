@@ -5,6 +5,7 @@ Sub-plan 3 of the step-8 orchestration. After 0801 (privacy settings + relations
 ## Context
 
 After 0801 and 0802 merge into `0800_invites_circles_ui`, the branch carries:
+
 - `web/src/lib/privacy/state/relationships.svelte.ts` — circle, blocked, loadRelationships, addCircleById, block, unblock.
 - `web/src/lib/profile/components/ProfileSheet.svelte` — state-driven action sheet.
 - `web/src/lib/invite/state/invitations.svelte.ts` — `sent`, `loadSent`, `pendingInviteFor`, `cancelInvitation`.
@@ -18,7 +19,7 @@ The `send_invitation`, `accept_invitation`, and `decline_invitation` RPCs landed
 
 **Extend the existing module, don't split it.** The `invitations.svelte.ts` module already exists with the `sent` / `pendingInviteFor` surface (0802). Adding the inbox, send, accept, and decline channels to the same file keeps the reactive state co-located — the banner, inbox screen, and picker all read from one place. The alternative (separate `inbox.svelte.ts`) would require callers to subscribe to two modules and keep them in sync after an accept/decline.
 
-**Inviter captured before the RPC.** `accept_invitation` hard-deletes the invitation row inside the same transaction, so the client cannot fetch the inviter after the call returns. `acceptInvitation` reads `{ inviterUid, inviterName }` from the inbox entry *before* calling the RPC, adds the pair to `postAcceptPrompts`, and returns it for navigation. Both the banner's Accept path and the inbox screen's Accept path drive this through the same function (R2).
+**Inviter captured before the RPC.** `accept_invitation` hard-deletes the invitation row inside the same transaction, so the client cannot fetch the inviter after the call returns. `acceptInvitation` reads `{ inviterUid, inviterName }` from the inbox entry _before_ calling the RPC, adds the pair to `postAcceptPrompts`, and returns it for navigation. Both the banner's Accept path and the inbox screen's Accept path drive this through the same function (R2).
 
 **Post-accept prompt in `(app)/+layout.svelte`.** The prompt must appear regardless of which screen the user lands on after accepting (ItemsScreen when navigating into the list). The `(app)/+layout.svelte` is the natural host — it wraps all authenticated routes and currently renders only `{@render children()}`. Adding a `PostAcceptPromptSheet` there keeps the overlay logic out of individual screen components.
 

@@ -310,9 +310,9 @@ The deliberate user-visible changes are:
      neutral/ink tone (`--ink`) per `docs/ui.md` "Empty-state
      copy and style" (illustrated variant pins
      `background: var(--ink); color: var(--paper)`).
-   Exploration may overturn either default with rationale; the
-   final reconciliation table is the source of truth for Phase 3
-   mappings.
+     Exploration may overturn either default with rationale; the
+     final reconciliation table is the source of truth for Phase 3
+     mappings.
 3. **`.panel-btn` shape decision.** Today's `.panel-btn`
    (`ItemsScreen.svelte:514`) is `border-radius: 10px` — a rounded
    rectangle, not the "outlined, capsule-shaped" pill that R1
@@ -338,7 +338,7 @@ product. The parent plan's task 1.1 Verify line specifies a
 manual walkthrough of the touched flows (sign in, create list,
 rename, edit description, add item, edit notes, invite by
 e-mail, add to circle by e-mail) — every form should look and
-behave identically to pre-refactor *except* at the locations
+behave identically to pre-refactor _except_ at the locations
 named above.
 
 ## R11. Tier convention — primitives live in `basic/`

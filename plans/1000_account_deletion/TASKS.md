@@ -6,7 +6,7 @@
   surface, and user-facing copy. Source of truth for every task here.
 - **`docs/ui.md`** — full-screen-vs-sheet, destructive rows, button-pair
   order, delete-account visual treatment.
-- **`docs/testing.md`** — three test layers; pgTAP needs positive *and*
+- **`docs/testing.md`** — three test layers; pgTAP needs positive _and_
   negative cases for the new RPC.
 - **`docs/quality.md`** — "Navigating to a not-yet-created SvelteKit route"
   escape pattern (relevant to the Settings row → delete route coupling).
@@ -29,6 +29,7 @@ precisely because export doesn't exist yet.
 **Prerequisites:** None.
 
 **Decisions:**
+
 - Reword the "Export before delete — done." bullet to state that export is a
   later step (step 12) and that the delete screen's "Want a copy first?"
   panel is present but its Download action is disabled until export lands.
@@ -36,9 +37,11 @@ precisely because export doesn't exist yet.
   the model, the function body, and the copy.
 
 **Files:**
+
 - `docs/account-deletion.md` (modify)
 
 **Steps:**
+
 1. Edit the "Future work" section's first bullet (currently "**Export before
    delete — done.**") to describe the real state: export is step 12; the
    delete screen carries the courtesy panel but its action is disabled
@@ -66,17 +69,18 @@ attribution/personal FKs already exist from
 `auth.users` stub already covers the needed columns; do **not** modify it.
 
 **Decisions:**
+
 - Function: `public.delete_account() RETURNS void LANGUAGE plpgsql SECURITY
-  DEFINER SET search_path = public, auth`. Body verbatim shape from
+DEFINER SET search_path = public, auth`. Body verbatim shape from
   `docs/account-deletion.md` → "The `delete_account` function".
 - **Guards first** (match `create_list()`'s idiom): `uid := public.uid()`;
   if `NULL` → `RAISE EXCEPTION 'not authenticated' USING errcode = '28000'`;
   if `uid = '00000000-0000-0000-0000-000000000000'` → `RAISE EXCEPTION
-  'cannot delete the tombstone user' USING errcode = '28000'`.
-- **Order is load-bearing:** delete sole-member lists *first*
+'cannot delete the tombstone user' USING errcode = '28000'`.
+- **Order is load-bearing:** delete sole-member lists _first_
   (`DELETE FROM public.lists l WHERE NOT EXISTS (SELECT 1 FROM
-  public.list_members lm WHERE lm.list_id = l.id AND lm.deleted_at IS NULL
-  AND lm.user_id <> uid)`), *then* `DELETE FROM auth.users WHERE id = uid`.
+public.list_members lm WHERE lm.list_id = l.id AND lm.deleted_at IS NULL
+AND lm.user_id <> uid)`), _then_ `DELETE FROM auth.users WHERE id = uid`.
   Deleting the auth row first would empty `list_members` via cascade and
   mis-classify shared lists.
 - Grants: `REVOKE ALL ON FUNCTION public.delete_account() FROM public;` then
@@ -95,20 +99,22 @@ set-default assertion pattern and the cross-actor seeding caveat
 (membership `user_id` cascade fires before `created_by` set-default).
 
 **Files:**
+
 - `db/tests/rpc_delete_account.sql` (create)
 - `db/migrations/0014_delete_account.sql` (create)
 
 **Steps:**
+
 1. RED — Write `db/tests/rpc_delete_account.sql`. Positive (Alice deletes):
    her sole-member list + its items/votes are gone; a shared list with Bob
    survives; Alice's membership + votes on it are gone; a surviving item's
    `created_by` that pointed at Alice is now the tombstone UUID; her
    `profiles` and `user_settings` rows are gone; the tombstone `profiles`
    row still exists. Cross-actor: an item whose `modified_by` pointed at a
-   *different, non-deleted* user is unchanged. Negative: `anon` →
+   _different, non-deleted_ user is unchanged. Negative: `anon` →
    `throws_ok(…, '42501', …)`; empty JWT claims → `throws_ok(…, '28000',
-   'not authenticated')`; tombstone-`sub` claim → `throws_ok(…, '28000',
-   'cannot delete the tombstone user')`.
+'not authenticated')`; tombstone-`sub` claim → `throws_ok(…, '28000',
+'cannot delete the tombstone user')`.
 2. RED — `./scripts/test-db.sh`; confirm the new file is red (function
    absent).
 3. GREEN — Write `db/migrations/0014_delete_account.sql` per Decisions.
@@ -130,6 +136,7 @@ shared prop is cleaner than forking a destructive row component.
 **Prerequisites:** None.
 
 **Decisions:**
+
 - Add optional prop `tone?: 'ink' | 'destructive'` (default `'ink'`) to
   `NavRow` and forward it to the inner `Button` (which already supports
   `tone="destructive"`).
@@ -143,11 +150,13 @@ shared prop is cleaner than forking a destructive row component.
 `web/src/lib/basic/components/Button.svelte`.
 
 **Files:**
+
 - `web/src/lib/shared/components/NavRow.svelte` (modify)
 - `web/src/lib/shared/components/NavRow.test.ts` (create or modify — colocate
   next to the component)
 
 **Steps:**
+
 1. RED — Add/extend a Vitest asserting a `NavRow` rendered with
    `tone="destructive"` carries the destructive treatment (e.g. the inner
    Button receives `tone="destructive"` / the destructive class is present),
@@ -182,8 +191,9 @@ target route is created here as a minimal stub so `resolve()` /
 prefer the per-line escape instead; the stub is the cleaner option here.)
 
 **Decisions:**
+
 - New row in the Account section of
-  `web/src/lib/settings/components/SettingsScreen.svelte`, *below* the
+  `web/src/lib/settings/components/SettingsScreen.svelte`, _below_ the
   existing "Sign out" `NavRow`:
   ```svelte
   <NavRow title="Delete account" data-test="delete-account" tone="destructive"
@@ -203,12 +213,14 @@ prefer the per-line escape instead; the stub is the cleaner option here.)
 (Account section ~lines 154–160), `web/src/lib/shared/components/AppTopBar.svelte`.
 
 **Files:**
+
 - `web/src/lib/settings/components/SettingsScreen.svelte` (modify)
 - `web/src/lib/settings/components/SettingsScreen.test.ts` (modify)
 - `web/src/routes/(app)/settings/delete-account/+page.svelte` (create)
 - `web/src/lib/account/components/DeleteAccountScreen.svelte` (create — stub)
 
 **Steps:**
+
 1. RED — Extend `SettingsScreen.test.ts`: assert `delete-account` row is
    present and clicking it calls `goto` with the delete-account route (mock
    `$app/navigation`, mirroring the existing `signout` test). Run
@@ -242,15 +254,17 @@ the RPC → sidecar → session-cookie sequence, and show an inline confirmation
 that hands off to sign-out.
 
 **Prerequisites:** Task 1.1 (`delete_account()` RPC exists), Task 2.2 (route
-+ stub screen exist). Existing helpers to reuse:
-`pgPost`/error types in `web/src/lib/shared/http/postgrest.ts`; `signOut()`
-and `AUTH_BASE` in `web/src/lib/shared/state/session.svelte.ts`; the
-fire-and-forget `fetch('/avatars/me', { method: 'DELETE' }).catch(() => {})`
-pattern from `web/src/routes/(app)/profile/+page.svelte` (`removeAvatar`);
-`Button`, `AppTopBar`, and the `$lib/test/render` + `$lib/test/handlers`
-MSW setup.
+
+- stub screen exist). Existing helpers to reuse:
+  `pgPost`/error types in `web/src/lib/shared/http/postgrest.ts`; `signOut()`
+  and `AUTH_BASE` in `web/src/lib/shared/state/session.svelte.ts`; the
+  fire-and-forget `fetch('/avatars/me', { method: 'DELETE' }).catch(() => {})`
+  pattern from `web/src/routes/(app)/profile/+page.svelte` (`removeAvatar`);
+  `Button`, `AppTopBar`, and the `$lib/test/render` + `$lib/test/handlers`
+  MSW setup.
 
 **Decisions:**
+
 - Build out `web/src/lib/account/components/DeleteAccountScreen.svelte`
   (replacing the Phase 2 stub). Full-screen page, `AppTopBar` with back
   arrow (back uses `history.back()` per the back-stack convention), title
@@ -260,9 +274,9 @@ MSW setup.
   or inline styles.
 - **Copy (R6)**, plain British English, they/them, "e-mail" hyphenated, in
   order: hero question + short italic subtitle; then three labelled blocks —
-  *what's permanently removed* (e-mail, profile, votes), *what stays on
-  shared lists* (items they added, name → "Deleted user"), *what's deleted
-  with them* (sole-member lists); then a "This can't be undone." line.
+  _what's permanently removed_ (e-mail, profile, votes), _what stays on
+  shared lists_ (items they added, name → "Deleted user"), _what's deleted
+  with them_ (sole-member lists); then a "This can't be undone." line.
 - **Export panel (R8):** render the "Want a copy of your data first?" card
   with its Download button **disabled** ("coming soon"); add a
   `TODO(step-12)` to wire it to the export hub. Non-blocking.
@@ -270,9 +284,9 @@ MSW setup.
   `Button` (`tone="destructive"`) stays `disabled` until the trimmed value
   `=== 'delete'`, and is also disabled while the request is in flight.
 - **Teardown (R9), on confirm, in order:** (1) `pgPost('/rpc/delete_account',
-  {})`; on success → (2) `void fetch('/avatars/me', { method: 'DELETE'
-  }).catch(() => {})`; (3) clear the cookie via `fetch(`${AUTH_BASE}/session`,
-  { method: 'DELETE', credentials: 'same-origin' })`; (4) show the
+{})`; on success → (2) `void fetch('/avatars/me', { method: 'DELETE'
+}).catch(() => {})`; (3) clear the cookie via `fetch(`${AUTH_BASE}/session`,
+{ method: 'DELETE', credentials: 'same-origin' })`; (4) show the
   confirmation view. On RPC error: show the message inline, stay signed in,
   skip steps 2–4.
 - **Confirmation (R10):** swap to an inline view ("Your account has been
@@ -291,12 +305,14 @@ button + full-screen treatment; `web/src/routes/(app)/profile/+page.svelte`
 for the avatar-delete call shape.
 
 **Files:**
+
 - `web/src/lib/account/components/DeleteAccountScreen.svelte` (modify —
   replace stub)
 - `web/src/lib/account/components/DeleteAccountScreen.test.ts` (create)
 - `web/src/lib/test/handlers.ts` (modify)
 
 **Steps:**
+
 1. RED — Write `DeleteAccountScreen.test.ts`: (a) the destructive button is
    disabled until `delete` is typed; (b) a confirmed press calls
    `POST /rpc/delete_account`; (c) on success the confirmation view renders;
@@ -308,11 +324,12 @@ for the avatar-delete call shape.
 **Verify:** `pnpm test` · `pnpm check` · `pnpm lint`
 
 **Notes:**
+
 - **Side work:** `AUTH_BASE` in `session.svelte.ts` was module-private; exported
   it (the task's Prerequisites named it as a helper to reuse). No behaviour change.
 - **User corrections (copy):** the three consequence blocks address the user
   directly, so they're second person ("Your e-mail… every vote you've cast",
-  "Items you added…", "Lists where you were the only remaining member") — *not*
+  "Items you added…", "Lists where you were the only remaining member") — _not_
   they/them. The they/them convention is for third parties, not second-person
   address. Block-3 heading is "What's deleted with **your account**" — you delete
   the account, not the user.
@@ -331,6 +348,7 @@ per the project rules it gets a Playwright touch before the PR.
 **Prerequisites:** Tasks 1.1, 2.1, 2.2, 3.1 (full flow exists end to end).
 
 **Decisions:**
+
 - Model on `web/e2e/items.spec.ts` + the Mailpit magic-link helper
   (`web/e2e/helpers/mailpit.ts`): sign in a throwaway, unique-per-run user,
   go to Settings → Delete account, type `delete`, press the destructive
@@ -343,11 +361,13 @@ per the project rules it gets a Playwright touch before the PR.
 **Reference:** `web/e2e/items.spec.ts`, `web/e2e/helpers/mailpit.ts`.
 
 **Files:**
+
 - `web/e2e/delete-account.spec.ts` (create)
 - `web/src/lib/account/components/DeleteAccountScreen.svelte` (modify — only
   if extra `data-test` hooks are needed)
 
 **Steps:**
+
 1. RED — Write the spec per Decisions. Run `cd web && pnpm test:e2e` (or
    `./scripts/check.sh --e2e`); confirm it fails for the right reason if any
    hook is missing.
@@ -356,6 +376,7 @@ per the project rules it gets a Playwright touch before the PR.
 **Verify:** `./scripts/check.sh --e2e`
 
 **Notes:**
+
 - No `data-test` hooks were missing — the Phase 3 screen already carried every
   selector (`delete-account`, `delete-account-input`, `-confirm`, `-done`,
   `-signout`), so `DeleteAccountScreen.svelte` was not touched. The spec is the
@@ -380,14 +401,17 @@ once the plan is merged.
 `./scripts/check.sh --e2e` green.
 
 **Decisions:**
+
 - Flip step 10's checkbox from `[ ]` to `[x]` in
   `plans/0000_implementation_order.md`. Do this as the final commit (or at
   merge time) per the project convention.
 
 **Files:**
+
 - `plans/0000_implementation_order.md` (modify)
 
 **Steps:**
+
 1. Change step 10 to `[x]`.
 
 **Verify:** `git diff plans/0000_implementation_order.md`

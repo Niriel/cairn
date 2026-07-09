@@ -17,7 +17,7 @@ Two gaps remain before the sheet can be wired into a real screen:
 1. **DB gap.** Migration 0009 closed direct `INSERT`/`DELETE` on `invitations`
    to application code — the `invitations_select` policy lets callers read
    their own rows but there is no `FOR DELETE` policy and no `DELETE` grant.
-   The sheet's *Cancel pending invite* action needs both.
+   The sheet's _Cancel pending invite_ action needs both.
 
 2. **State gap.** The `invitations.svelte.ts` module doesn't exist yet. The
    sheet needs to know which pending invitation id corresponds to a given
@@ -85,7 +85,7 @@ it does not belong in any one domain folder (multiple domains need it). A new
 ### New files
 
 - **`db/migrations/0011_invitations_delete.sql`** — `CREATE POLICY
-  invitations_delete` + `GRANT DELETE ON invitations TO authenticated`.
+invitations_delete` + `GRANT DELETE ON invitations TO authenticated`.
 - **`db/tests/invitations_delete.sql`** — pgTAP for the new policy: positive
   (inviter can delete own row) and negative (invitee and outsider cannot).
 - **`web/src/lib/invite/state/invitations.svelte.ts`** — sent-invites slice:

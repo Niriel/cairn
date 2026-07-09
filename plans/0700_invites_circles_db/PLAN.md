@@ -10,11 +10,12 @@ on top of what step 7 establishes.
 ## Context
 
 After step 6 the stack has:
+
 - **DB:** `lists`, `list_members`, `items`, `votes`, `profiles`, `user_settings`
   (with `invite_policy`), soft-delete views, full RLS, all triggers. The `public`
   schema is missing the Tier 3 tables only.
 - **`invite_policy`:** already on `user_settings` (`'everybody' | 'circle' |
-  'nobody'`, default `'everybody'`). No `relationships` or `invitations` table
+'nobody'`, default `'everybody'`). No `relationships` or `invitations` table
   exists yet.
 - **Web app:** has no invite or circle UI. Step 8 builds those screens.
 - **pgTAP:** `schema_shape.sql` and `grants.sql` know nothing yet about the
@@ -29,7 +30,7 @@ maps to a sub-plan.
 
 **Orchestration via sub-branches, not a single large branch.** The two layers
 have distinct test surfaces — `relationships` can be fully tested in isolation
-before the invite RPCs that *read* it are written — and splitting keeps each PR
+before the invite RPCs that _read_ it are written — and splitting keeps each PR
 focused. `0700_invites_circles_db` itself contains no implementation, only the
 plan files and the merge commits. Same pattern as `0500_avatars` and
 `0600_soft_delete_ux`.
@@ -121,12 +122,12 @@ main
 - **`db/migrations/0008_relationships.sql`** — `relationships` table, four RLS
   policies, `add_circle_by_email()`, `add_circle_by_id()`, `tg_set_timestamps`
   and `tg_set_modified_at` bindings, `GRANT SELECT, INSERT, UPDATE, DELETE ON
-  public.relationships TO authenticated`.
+public.relationships TO authenticated`.
 - **`db/migrations/0009_invitations.sql`** — `invitations` table, two unique
   indexes, `invitations_select` RLS policy, `send_invitation()`,
   `accept_invitation()`, `decline_invitation()`, `tg_set_timestamps` binding,
   `tg_block_declines_invitations` trigger function + `AFTER INSERT OR UPDATE OF
-  status ON relationships` binding (R10 — block auto-decline; lives here, not in
+status ON relationships` binding (R10 — block auto-decline; lives here, not in
   0008, because `invitations` does not exist until this migration runs),
   `GRANT SELECT ON public.invitations TO authenticated`.
 

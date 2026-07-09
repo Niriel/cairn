@@ -80,7 +80,7 @@ alongside `POSTGREST_URL` so operators know what to set on the VPS.
 ### New files
 
 - **`sidecar/package.json`** — dependencies: express, sharp, jose, file-type,
-  multer; devDependencies: typescript, vitest, supertest, @types/*.
+  multer; devDependencies: typescript, vitest, supertest, @types/\*.
 - **`sidecar/tsconfig.json`** — Node 20 target, strict mode, outDir `dist/`.
 - **`sidecar/Dockerfile`** — multi-stage: build stage (`node:20-alpine`) +
   runtime stage (same base, copies `dist/` and `node_modules/`).
@@ -98,8 +98,8 @@ alongside `POSTGREST_URL` so operators know what to set on the VPS.
 - **`sidecar/test/validate.test.ts`** — vitest + supertest security-gate
   tests (R7): wrong magic bytes → 415, image bomb → 422, body > 8 MB → 413.
 - **`caddy/Caddyfile`** — Caddy configuration: `@sidecar_writes` method matcher
-  + `reverse_proxy sidecar:3001` for POST/DELETE, plus `handle_path /avatars/*`
-  file_server for GET with `Cache-Control: immutable` header.
+  - `reverse_proxy sidecar:3001` for POST/DELETE, plus `handle_path /avatars/*`
+    file_server for GET with `Cache-Control: immutable` header.
 
 ### Modified files
 
