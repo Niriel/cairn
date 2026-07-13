@@ -329,7 +329,7 @@ DECLARE
 BEGIN
   SELECT id INTO v_uid
   FROM public.profiles
-  WHERE lower(username) = lower(p_username);
+  WHERE lower(username) = lower(public.normalize_username(p_username));
 
   IF v_uid IS NULL THEN
     RETURN NULL;
@@ -409,7 +409,7 @@ DECLARE
 BEGIN
   SELECT id INTO v_uid
   FROM public.profiles
-  WHERE lower(username) = lower(p_username);
+  WHERE lower(username) = lower(public.normalize_username(p_username));
 
   IF v_uid IS NULL THEN
     RETURN 'invalid';

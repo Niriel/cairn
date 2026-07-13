@@ -14,7 +14,7 @@
 
 BEGIN;
 
-SELECT plan(80);
+SELECT plan(81);
 
 -- ---------------------------------------------------------------------
 -- Tables (6) — every new table introduced by 0004 must exist.
@@ -236,6 +236,10 @@ SELECT has_function(
 SELECT has_function(
   'public', 'set_username', ARRAY['text'],
   'public.set_username(text) exists'
+);
+SELECT has_function(
+  'public', 'normalize_username', ARRAY['text'],
+  'public.normalize_username(text) exists'
 );
 
 -- ---------------------------------------------------------------------

@@ -11,7 +11,7 @@
 
 BEGIN;
 
-SELECT plan(6);
+SELECT plan(8);
 
 \i /db/tests/fixtures/users_alice_bob_carol.sql
 
@@ -52,6 +52,23 @@ SELECT is(
   (SELECT count(*)::int FROM public.resolve_username('NoSuchUser')),
   0,
   'resolve_username returns zero rows for an unknown handle'
+);
+
+-- (c2) a pasted '@' sigil resolves the same as the bare handle — the public
+-- identity is shown/copied as '@AliceHandle' but stored as 'AliceHandle', so
+-- resolve_username peels the leading '@' (via normalize_username) before the
+-- lookup. This is the sign-in half of the shared "@ is optional" contract.
+SELECT is(
+  (SELECT id FROM public.resolve_username('@AliceHandle')),
+  'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'::uuid,
+  'resolve_username peels a leading @ (''@AliceHandle'' resolves to Alice)'
+);
+-- (c3) the peel and the case-fold compose: '@laracroft' finds stored
+-- 'LaraCroft'.
+SELECT is(
+  (SELECT id FROM public.resolve_username('@laracroft')),
+  'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb'::uuid,
+  'resolve_username peels @ and folds case together (''@laracroft'' → Bob)'
 );
 
 -- (d) the resolver is callable by anon — sign-in runs before any session.

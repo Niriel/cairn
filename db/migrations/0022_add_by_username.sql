@@ -7,8 +7,10 @@
 -- The public identity is the username (profiles.username, unique on
 -- lower(username) since 0019); resolving it against public.profiles
 -- replaces the old auth.users e-mail lookup. Both resolvers peel a
--- single leading '@' first, since the handle is shown and pasted as
--- '@name' but stored without the sigil. A username miss is public, so
+-- single leading '@' first via public.normalize_username (0020), since
+-- the handle is shown and pasted as '@name' but stored without the
+-- sigil — the same helper sign-in and password reset resolve through,
+-- so '@' is optional on input everywhere. A username miss is public, so
 -- it raises 'no such user' rather than folding into the silent-fail
 -- path. Single BEGIN; … COMMIT; so a mid-migration abort leaves no
 -- half-applied state.
@@ -54,12 +56,12 @@ BEGIN
   IF p_user_id IS NOT NULL THEN
     target := p_user_id;
   ELSIF p_username IS NOT NULL THEN
-    -- The public identity is shown and copied as '@handle', so peel a
-    -- single leading '@' before resolving — usernames are stored
-    -- without it (profiles_username_format forbids '@'), and a pasted
-    -- sigil would otherwise be a spurious 'no such user'.
+    -- normalize_username peels a single leading '@': the public identity
+    -- is shown and copied as '@handle', but usernames are stored without
+    -- it (profiles_username_format forbids '@'). Shared with sign-in and
+    -- password reset so '@' is optional on input everywhere.
     SELECT id INTO target FROM public.profiles
-    WHERE lower(username) = lower(regexp_replace(p_username, '^@', ''));
+    WHERE lower(username) = lower(public.normalize_username(p_username));
     IF target IS NULL THEN
       RAISE EXCEPTION 'no such user';
     END IF;
@@ -188,11 +190,12 @@ DECLARE
   me     uuid := public.uid();
   target uuid;
 BEGIN
-  -- Peel a single leading '@': the public identity is shown and copied
-  -- as '@handle', but usernames are stored without it
-  -- (profiles_username_format forbids '@'). Mirrors send_invitation.
+  -- normalize_username peels a single leading '@' (the public identity is
+  -- shown and copied as '@handle', but usernames are stored without it —
+  -- profiles_username_format forbids '@'). Same helper as send_invitation,
+  -- sign-in, and password reset.
   SELECT id INTO target FROM public.profiles
-  WHERE lower(username) = lower(regexp_replace(p_username, '^@', ''));
+  WHERE lower(username) = lower(public.normalize_username(p_username));
   IF target IS NULL THEN
     RAISE EXCEPTION 'no such user';
   END IF;
