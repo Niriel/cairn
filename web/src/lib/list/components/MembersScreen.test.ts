@@ -16,6 +16,7 @@ vi.mock('$lib/shared/http/postgrest');
 import * as pgMod from '$lib/shared/http/postgrest';
 import { loadSent } from '$lib/invite/state/invitations.svelte';
 import { profile } from '$lib/shared/state/profile.svelte';
+import { TOMBSTONE_UID } from '$lib/shared/model/constants';
 
 import MembersScreen from './MembersScreen.svelte';
 
@@ -24,12 +25,18 @@ const ALICE_UID = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
 const BOB_UID = 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb';
 const CAROL_UID = 'cccccccc-cccc-cccc-cccc-cccccccccccc';
 
-function row(userId: string, displayName: string, createdAt: string, createdBy: string) {
+function row(
+	userId: string,
+	displayName: string,
+	createdAt: string,
+	createdBy: string,
+	username = displayName.toLowerCase()
+) {
 	return {
 		user_id: userId,
 		created_at: createdAt,
 		lists: { created_by: createdBy, name: "Alice's list" },
-		profiles: { display_name: displayName, avatar_version: 0 }
+		profiles: { display_name: displayName, avatar_version: 0, username }
 	};
 }
 
@@ -141,5 +148,29 @@ describe('MembersScreen', () => {
 		await fireEvent.click(getByDataTest('members-refresh'));
 		await tick();
 		expect(vi.mocked(pgMod.pgGet).mock.calls.length).toBe(callsBefore + 1);
+	});
+
+	test('(i) a member row renders the @username handle', async () => {
+		const { getByDataTest } = await renderWith([
+			row(ALICE_UID, 'Alice', '2026-05-01T10:00:00Z', ALICE_UID),
+			row(BOB_UID, 'Bob', '2026-05-02T10:00:00Z', ALICE_UID)
+		]);
+		const r = getByDataTest(`member-row-${BOB_UID}`);
+		expect(r.querySelector('.identity-handle')?.textContent).toBe('@bob');
+	});
+
+	test('(j) the members select embeds username', async () => {
+		await renderWith([row(ALICE_UID, 'Alice', '2026-05-01T10:00:00Z', ALICE_UID)]);
+		const url = vi.mocked(pgMod.pgGet).mock.calls[0][0];
+		expect(url).toContain('profiles!user_id(display_name,avatar_version,username)');
+	});
+
+	test('(k) a tombstone member row suppresses the handle', async () => {
+		const { getByDataTest } = await renderWith([
+			row(ALICE_UID, 'Alice', '2026-05-01T10:00:00Z', ALICE_UID),
+			row(TOMBSTONE_UID, 'Deleted user', '2026-05-02T10:00:00Z', ALICE_UID)
+		]);
+		const r = getByDataTest(`member-row-${TOMBSTONE_UID}`);
+		expect(r.querySelector('.identity-handle')).toBeNull();
 	});
 });

@@ -24,6 +24,7 @@ import {
 	unblock
 } from '$lib/privacy/state/relationships.svelte';
 import { profile } from '$lib/shared/state/profile.svelte';
+import { TOMBSTONE_UID } from '$lib/shared/model/constants';
 
 import ProfileSheet from './ProfileSheet.svelte';
 
@@ -45,7 +46,14 @@ const BLOCKED_ENTRY = {
 };
 
 function defaultProps(overrides: Record<string, unknown> = {}) {
-	return { userId: USER_ID, displayName: 'Bob', avatarVersion: 0, onclose: vi.fn(), ...overrides };
+	return {
+		userId: USER_ID,
+		displayName: 'Bob',
+		username: 'bob',
+		avatarVersion: 0,
+		onclose: vi.fn(),
+		...overrides
+	};
 }
 
 beforeEach(() => {
@@ -195,6 +203,26 @@ describe('(j) Cancel invite', () => {
 		await fireEvent.click(getByDataTest('cancel-invite'));
 		expect(vi.mocked(cancelInvitation)).toHaveBeenCalledWith('inv-1');
 		expect(onclose).toHaveBeenCalled();
+	});
+});
+
+// ---------------------------------------------------------------------------
+// (l) Username handle
+// ---------------------------------------------------------------------------
+describe('(l) Username handle', () => {
+	test('renders @username on .identity-handle beneath the display name', () => {
+		const { getByDataTest } = render(ProfileSheet, defaultProps());
+		const handle = getByDataTest('profile-handle');
+		expect(handle.textContent).toBe('@bob');
+		expect(handle.classList.contains('identity-handle')).toBe(true);
+	});
+
+	test('suppresses the handle for the tombstone uid', () => {
+		const { queryByDataTest } = render(
+			ProfileSheet,
+			defaultProps({ userId: TOMBSTONE_UID, displayName: 'Deleted user', username: 'deleted' })
+		);
+		expect(queryByDataTest('profile-handle')).toBeNull();
 	});
 });
 

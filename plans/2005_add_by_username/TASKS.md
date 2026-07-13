@@ -617,10 +617,10 @@ avatar bounces to Settings) so they can share it (parent R6; sub-plan R8).
   non-signed-in session so it matches NavRow's `handle?: string` prop type; reset
   `session.current` in the test's `afterEach` since the mock is a shared `$state`.
 
-### [ ] 3.2 `@username` on the members screen and profile sheet
+### [x] 3.2 `@username` on the members screen and profile sheet
 
 **Created:** 2026-07-09T09:46:23Z
-**Completed:**
+**Completed:** 2026-07-13T10:45:17Z
 
 **Why:** Two members with the same display name must be distinguishable, and the
 profile sheet is the action hub where the handle should be **prominent** (parent
@@ -663,6 +663,31 @@ R6).
 5. GREEN — `pnpm lint` · `pnpm check` · `pnpm test` → green.
 
 **Verify:** `pnpm lint` · `pnpm check` · `pnpm test` (in `web/`)
+
+**Notes:**
+
+- Green: `pnpm lint` (eslint clean), `pnpm check` (0 errors), `pnpm test` (821
+  Vitest tests, +5). RED confirmed first — the three positive assertions failed
+  (no `.identity-handle`, select missing `username`, no `profile-handle`); the
+  two tombstone-suppression cases were green pre-impl (nothing rendered).
+- `pnpm lint` is eslint-only here; ran `prettier --check` on the four edited
+  files separately (clean).
+- **The tombstone guard on the members screen is defensively unreachable.**
+  `delete_account` (`db/migrations/0014_delete_account.sql`) cascade-deletes a
+  user's `list_members` rows, so a `TOMBSTONE_UID` member can never actually
+  appear on the members screen (unlike item attribution, which is reassigned to
+  the tombstone via `SET DEFAULT` — that's Task 3.3's surface). I still added the
+  `m.user_id !== TOMBSTONE_UID` guard + a test per the Decision's "suppress the
+  handle for the tombstone user" instruction; it's a cheap, correct guard even if
+  the state is not currently reachable. The ProfileSheet guard (`userId ===
+  TOMBSTONE_UID`) is likewise defensive since the sheet is only opened from a
+  member row.
+- ProfileSheet's `username` prop is optional (`username?: string`) with a
+  `{#if username && !isTombstone}` render guard, matching the existing optional
+  props; MembersScreen always passes the NOT NULL `m.profiles.username`.
+- Profile-sheet handle is "prominent" by placement only (own centred line
+  directly under the name) — it keeps the muted `.identity-handle` colour per
+  `docs/ui.md`, not a bolder/darker treatment.
 
 ### [ ] 3.3 `@username` in vote attribution and item created/modified attribution
 
