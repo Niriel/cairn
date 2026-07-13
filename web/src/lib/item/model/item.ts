@@ -9,6 +9,8 @@ export type Item = {
 	modified_by: string;
 	created_by_name: string;
 	modified_by_name: string | null;
+	created_by_username: string | null;
+	modified_by_username: string | null;
 	score: number;
 	created_at: string;
 	modified_at: string;
@@ -28,13 +30,14 @@ export type ItemRanked = {
 	score: number;
 	created_at: string;
 	modified_at: string;
-	created_by_profile: { display_name: string } | null;
-	modified_by_profile: { display_name: string } | null;
+	created_by_profile: { display_name: string; username: string } | null;
+	modified_by_profile: { display_name: string; username: string } | null;
 };
 
 export type MemberVote = {
 	user_id: string;
 	display_name: string;
+	username: string | null;
 	avatar_version: number;
 	value: number;
 };
@@ -43,19 +46,19 @@ export type VoteRow = {
 	item_id: string;
 	user_id: string;
 	value: number;
-	profile: { display_name: string; avatar_version: number } | null;
+	profile: { display_name: string; avatar_version: number; username: string } | null;
 };
 
 export async function fetchItems(listId: string, uid: string): Promise<Item[]> {
 	const ranked = await pgGet<ItemRanked[]>(
-		`/items_ranked?list_id=eq.${listId}&select=*,created_by_profile:profiles!created_by(display_name),modified_by_profile:profiles!modified_by(display_name)&order=score.desc,created_at.asc`
+		`/items_ranked?list_id=eq.${listId}&select=*,created_by_profile:profiles!created_by(display_name,username),modified_by_profile:profiles!modified_by(display_name,username)&order=score.desc,created_at.asc`
 	);
 
 	const ids = ranked.map((r) => r.id).join(',');
 	const votes =
 		ids.length > 0
 			? await pgGet<VoteRow[]>(
-					`/votes?item_id=in.(${ids})&select=item_id,user_id,value,profile:profiles!user_id(display_name,avatar_version)`
+					`/votes?item_id=in.(${ids})&select=item_id,user_id,value,profile:profiles!user_id(display_name,avatar_version,username)`
 				)
 			: [];
 
@@ -82,6 +85,8 @@ export async function fetchItems(listId: string, uid: string): Promise<Item[]> {
 			modified_by: r.modified_by,
 			created_by_name: r.created_by_profile?.display_name ?? 'Unknown',
 			modified_by_name: wasEdited ? (r.modified_by_profile?.display_name ?? null) : null,
+			created_by_username: r.created_by_profile?.username ?? null,
+			modified_by_username: wasEdited ? (r.modified_by_profile?.username ?? null) : null,
 			score: r.score,
 			created_at: r.created_at,
 			modified_at: r.modified_at,
@@ -89,6 +94,7 @@ export async function fetchItems(listId: string, uid: string): Promise<Item[]> {
 			member_votes: itemVotes.map((v) => ({
 				user_id: v.user_id,
 				display_name: v.profile?.display_name ?? 'Unknown',
+				username: v.profile?.username ?? null,
 				avatar_version: v.profile?.avatar_version ?? 0,
 				value: v.value
 			}))
@@ -98,7 +104,7 @@ export async function fetchItems(listId: string, uid: string): Promise<Item[]> {
 
 export async function addItem(listId: string, name: string, notes?: string): Promise<Item> {
 	const row = await pgPost<ItemRanked>(
-		'/items?select=*,created_by_profile:profiles!created_by(display_name),modified_by_profile:profiles!modified_by(display_name)',
+		'/items?select=*,created_by_profile:profiles!created_by(display_name,username),modified_by_profile:profiles!modified_by(display_name,username)',
 		{ list_id: listId, name, notes: notes ?? null },
 		{ headers: { Prefer: 'return=representation' } }
 	);
@@ -111,6 +117,8 @@ export async function addItem(listId: string, name: string, notes?: string): Pro
 		modified_by: row.modified_by,
 		created_by_name: row.created_by_profile?.display_name ?? 'Unknown',
 		modified_by_name: null,
+		created_by_username: row.created_by_profile?.username ?? null,
+		modified_by_username: null,
 		score: row.score,
 		created_at: row.created_at,
 		modified_at: row.modified_at,

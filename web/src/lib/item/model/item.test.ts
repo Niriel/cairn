@@ -19,15 +19,15 @@ const STUB_RANKED: ItemRanked = {
 	score: 2,
 	created_at: '2026-01-01T00:00:00Z',
 	modified_at: '2026-01-02T00:00:00Z',
-	created_by_profile: { display_name: 'Alice' },
-	modified_by_profile: { display_name: 'Alice' }
+	created_by_profile: { display_name: 'Alice', username: 'alice' },
+	modified_by_profile: { display_name: 'Alice', username: 'alice' }
 };
 
 const STUB_VOTE: VoteRow = {
 	item_id: ITEM_ID,
 	user_id: TEST_UID,
 	value: 1,
-	profile: { display_name: 'Alice', avatar_version: 0 }
+	profile: { display_name: 'Alice', avatar_version: 0, username: 'alice' }
 };
 
 describe('fetchItems', () => {
@@ -46,13 +46,46 @@ describe('fetchItems', () => {
 		expect(items[0].member_votes[0].display_name).toBe('Alice');
 	});
 
+	test('(h) the mapper carries usernames from the profile embeds', async () => {
+		server.use(
+			http.get('*/api/items_ranked', () => HttpResponse.json([STUB_RANKED])),
+			http.get('*/api/votes', () => HttpResponse.json([STUB_VOTE]))
+		);
+		const items = await fetchItems(LIST_ID, TEST_UID);
+		expect(items[0].created_by_username).toBe('alice');
+		expect(items[0].modified_by_username).toBe('alice');
+		expect(items[0].member_votes[0].username).toBe('alice');
+	});
+
+	test('(i) the items_ranked and votes selects embed username', async () => {
+		let rankedUrl = '';
+		let votesUrl = '';
+		server.use(
+			http.get('*/api/items_ranked', ({ request }) => {
+				rankedUrl = request.url;
+				return HttpResponse.json([STUB_RANKED]);
+			}),
+			http.get('*/api/votes', ({ request }) => {
+				votesUrl = request.url;
+				return HttpResponse.json([STUB_VOTE]);
+			})
+		);
+		await fetchItems(LIST_ID, TEST_UID);
+		const ranked = decodeURIComponent(rankedUrl);
+		expect(ranked).toContain('created_by_profile:profiles!created_by(display_name,username)');
+		expect(ranked).toContain('modified_by_profile:profiles!modified_by(display_name,username)');
+		expect(decodeURIComponent(votesUrl)).toContain(
+			'profile:profiles!user_id(display_name,avatar_version,username)'
+		);
+	});
+
 	test('(g) modified_by_name is null when modified_at equals created_at', async () => {
 		const sameTimestamp = '2026-01-01T00:00:00Z';
 		const unedited: ItemRanked = {
 			...STUB_RANKED,
 			created_at: sameTimestamp,
 			modified_at: sameTimestamp,
-			modified_by_profile: { display_name: 'Alice' }
+			modified_by_profile: { display_name: 'Alice', username: 'alice' }
 		};
 		server.use(
 			http.get('*/api/items_ranked', () => HttpResponse.json([unedited])),
@@ -77,6 +110,8 @@ describe('addItem', () => {
 		);
 		const result = await addItem(LIST_ID, 'New item');
 		expect(result.name).toBe('New item');
+		expect(result.created_by_username).toBe('alice');
+		expect(result.modified_by_username).toBeNull();
 	});
 });
 

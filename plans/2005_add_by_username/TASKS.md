@@ -689,10 +689,10 @@ R6).
   directly under the name) — it keeps the muted `.identity-handle` colour per
   `docs/ui.md`, not a bolder/darker treatment.
 
-### [ ] 3.3 `@username` in vote attribution and item created/modified attribution
+### [x] 3.3 `@username` in vote attribution and item created/modified attribution
 
 **Created:** 2026-07-09T09:46:23Z
-**Completed:**
+**Completed:** 2026-07-13T11:01:43Z
 
 **Why:** Vote chips and the "Added by … / Last edited by …" line show bare display
 names; identical names must be disambiguated by handle (parent R6).
@@ -736,6 +736,38 @@ names; identical names must be disambiguated by handle (parent R6).
 5. GREEN — `pnpm lint` · `pnpm check` · `pnpm test` → green.
 
 **Verify:** `pnpm lint` · `pnpm check` · `pnpm test` (in `web/`)
+
+**Notes:**
+
+- Green: `pnpm lint` (eslint clean), `pnpm check` (0 errors), `pnpm test` (827
+  Vitest, +6), Prettier clean. RED confirmed first — 6 assertions failed (mapper
+  usernames, the two `select=` strings, `addItem` username, voter chip, creator
+  line, editor line); the tombstone-suppression case passed pre-impl.
+- **Side work beyond the Files list — a real code path changed.** The optimistic
+  self-vote entry in `items.svelte.ts` (`upsertVote`) builds a `MemberVote`
+  inline; it now populates `username: s.user.username` from the signed-in session
+  (the display name already came from the `profile` store, but the username lives
+  only on the session). Without it the optimistic entry wouldn't type-check and
+  would drop the caller's handle until a refetch. Also had to add the two new
+  `Item` fields to three sibling fixtures that were not in the Files list —
+  `DeleteItemSheet.test.ts`, `AddEditItemSheet.test.ts`,
+  `ItemsScreen.history-guard.test.ts` — and `username` to the `ItemRanked`/
+  `VoteRow` stubs in `item.test.ts` (the `(g)` unedited stub) and
+  `items.test.ts` (`RANKED_A`). All mechanical; `pnpm test` (esbuild, no
+  type-check) stayed green through RED, but `pnpm check` flagged them.
+- `created_by_username` / `modified_by_username` / `member_votes[].username` are
+  all `string | null` (null when the profile embed is absent or the item was
+  never edited), mirroring the existing `_name` fallbacks; the render guards on
+  both `!== TOMBSTONE_UID` **and** a truthy handle.
+- **Visual tension worth a look (flagging, not a blocker).** `.identity-handle`
+  is fixed at the 1 rem floor (`typography.css`), but the vote chips and the
+  attribution line are `.fine` (0.8 rem), so the handle renders *larger* than the
+  name it disambiguates in these two spots. I followed the task Decision and
+  `docs/ui.md` (both name these as `.identity-handle` render locations)
+  literally, but the doc's "never shrink below the 1 rem floor" rule was written
+  against 1 rem-name contexts (members, profile) and reads oddly inside 0.8 rem
+  attribution. Might warrant a `.fine`-scoped size override or a doc note in a
+  later visual-polish pass — surfacing for a decision rather than deviating now.
 
 ### [ ] 3.4 `@username` on circle rows and invite-picker rows
 
