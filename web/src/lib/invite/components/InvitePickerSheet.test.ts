@@ -154,8 +154,8 @@ describe('InvitePickerSheet', () => {
 		expect(getByDataTest('invite-picker-toast').textContent).toContain("Couldn't send invite");
 	});
 
-	test('(e5) an unknown handle shows "No such username"', async () => {
-		vi.mocked(sendInvitation).mockRejectedValue(new Error('No such username'));
+	test('(e5) an unknown handle shows "No one on Cairn has that username"', async () => {
+		vi.mocked(sendInvitation).mockRejectedValue(new Error('No one on Cairn has that username'));
 		const { getByDataTest } = await renderSheet();
 		await fireEvent.input(getByDataTest('invite-picker-username-input'), {
 			target: { value: 'ghost' }
@@ -163,6 +163,8 @@ describe('InvitePickerSheet', () => {
 		await fireEvent.click(getByDataTest('invite-picker-username-send'));
 		await tick();
 		await tick();
-		expect(getByDataTest('invite-picker-toast').textContent).toContain('No such username');
+		expect(getByDataTest('invite-picker-toast').textContent).toContain(
+			'No one on Cairn has that username'
+		);
 	});
 });

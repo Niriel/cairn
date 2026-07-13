@@ -215,11 +215,11 @@ describe('sendInvitation', () => {
 		);
 	});
 
-	test('(i7) ApiError P0001/no such user maps to "No such username"', async () => {
+	test('(i7) ApiError P0001/no such user maps to "No one on Cairn has that username"', async () => {
 		const err = Object.assign(new Error('no such user'), { code: 'P0001' });
 		vi.mocked(pgMod.pgPost).mockRejectedValue(err);
 		await expect(invMod.sendInvitation(LIST_ID, { username: 'ghost' })).rejects.toThrow(
-			'No such username'
+			'No one on Cairn has that username'
 		);
 	});
 

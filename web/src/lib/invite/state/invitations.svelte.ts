@@ -127,7 +127,8 @@ export async function sendInvitation(
 				throw new Error("They're already on this list.", { cause: err });
 			// A username miss is public (usernames are not private), so it
 			// surfaces distinctly rather than behind the generic string.
-			if (msg === 'no such user') throw new Error('No such username', { cause: err });
+			if (msg === 'no such user')
+				throw new Error('No one on Cairn has that username', { cause: err });
 		}
 		throw new Error("Couldn't send invite", { cause: err });
 	}

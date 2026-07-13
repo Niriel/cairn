@@ -91,9 +91,9 @@
 		if (!value) return;
 		try {
 			// Usernames are public, so the wrapper distinguishes the three
-			// outcomes for us: it resolves on success, and throws "No such
-			// username" / "Couldn't send invite" for the miss and the
-			// generic (block/policy) failures respectively.
+			// outcomes for us: it resolves on success, and throws "No one on
+			// Cairn has that username" / "Couldn't send invite" for the miss
+			// and the generic (block/policy) failures respectively.
 			await sendInvitation(listId, { username: value });
 			username = '';
 			toastMessage = 'Invite sent';
