@@ -329,10 +329,36 @@ settings layout — record the layout spec before writing screen tasks).
 
 ## Phase 5 — 2005: add-by-username + disambiguation
 
-### [ ] 5.1 Plan and implement sub-step 2005 (add people by username; show @username)
+### [x] 5.1 Plan and implement sub-step 2005 (add people by username; show @username)
 
 **Created:** 2026-06-15T17:24:58Z
-**Completed:**
+**Completed:** 2026-07-13T13:48:09Z
+
+**Notes:** Sub-plan `plans/2005_add_by_username/` planned and implemented task by
+task (Phase 0 doc reconciliation → DB migration `0022` → RPC wrappers + username
+fields → `@username` rendering → Playwright), then merged `--no-ff` into
+`2000_username_identity` (merge commit `7b62ca5`).
+
+- DB: `send_invitation` and `add_circle_by_username` resolve a public username to
+  a user id (the e-mail RPCs / `invitations.target_email` retired); a "no such
+  username" miss is truthful while block/policy outcomes stay behind the generic
+  string. A shared `normalize_username` peels a leading `@` across all five
+  resolvers. `@username` renders on the profile sheet (prominent), members, vote
+  - item attribution, and circle + invite-picker rows via a new
+    `.identity-handle` role.
+- **Absorbed a follow-up e2e-suite repair (`plans/2010_e2e_username_auth/`, merged
+  into 2005 first, commit `c669971`).** Running the full suite surfaced that seven
+  specs still used the retired magic-link login (broken since 2003's
+  `/auth/signin` redirect) plus a latent `block.spec.ts` list-capture bug and a
+  `password-recovery` stable-address throttle; all fixed. Not part of the 2005
+  contract, but it's what actually got `check.sh --e2e` to green.
+- **Verify:** the non-e2e gauntlet is green on the merged parent (`./scripts/check.sh`
+  passes; it also ran as the earlier stages of `check.sh --e2e`). The e2e suite is
+  **108/108 on chromium + firefox**. **WebKit is not run** on this box — `check.sh
+--e2e` invokes all three projects and WebKit fails at `browserType.launch`
+  ("Host system is missing dependencies to run browsers"), the standing
+  machine-conditional rule (`docs/testing.md`; same note as 2002/2003/2004). The
+  23 webkit failures are launch failures, not regressions.
 
 **Why:** Replaces the confusing add-by-e-mail surface with add-by-username and
 makes usernames visible so non-unique display names are always resolvable
