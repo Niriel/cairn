@@ -179,6 +179,49 @@ SELECT is(
   'B3: re-call returns the same uuid (idempotent)'
 );
 
+-- B4: a pasted '@' sigil resolves the same as the bare handle — the
+-- public identity is shown/copied as '@BobHandle', but stored as
+-- 'BobHandle', so send_invitation must peel the leading '@'.
+RESET ROLE;
+DELETE FROM public.invitations;
+DELETE FROM public.relationships;
+DELETE FROM public.list_members
+WHERE NOT (
+  list_id = '22222222-2222-2222-2222-222222222222'
+  AND user_id = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'
+);
+UPDATE public.user_settings SET invite_policy = 'everybody'
+WHERE
+  id IN (
+    'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+    'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
+    'cccccccc-cccc-cccc-cccc-cccccccccccc'
+  );
+SELECT set_config(
+  'request.jwt.claims',
+  '{"sub":"aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"}',
+  TRUE
+);
+SET LOCAL ROLE authenticated;
+
+SELECT public.send_invitation(
+  '22222222-2222-2222-2222-222222222222',
+  p_username := '@BobHandle'
+);
+
+RESET ROLE;
+SELECT is(
+  (
+    SELECT count(*)::int FROM public.invitations
+    WHERE
+      created_by = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'
+      AND target_user_id = 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb'
+      AND list_id = '22222222-2222-2222-2222-222222222222'
+  ),
+  1,
+  'B4: send_invitation peels a leading @ (''@BobHandle'' resolves to Bob)'
+);
+
 
 -- ===================================================================
 -- C. send_invitation — inviter-membership check (1).

@@ -4,7 +4,7 @@
 -- (tg_freeze_relationships_pk), and the created_at-freeze half of
 -- tg_set_timestamps for this table.
 --
--- 28 assertions, A–L. See PLAN.md / TASKS.md (plan
+-- 29 assertions, A–L. See PLAN.md / TASKS.md (plan
 -- 0701_relationships) for the per-assertion rationale.
 --
 -- Cross-scenario cleanup convention: each numbered scenario below
@@ -18,7 +18,7 @@
 
 BEGIN;
 
-SELECT plan(28);
+SELECT plan(29);
 
 \i /db/tests/fixtures/users_alice_bob_carol.sql
 
@@ -166,7 +166,7 @@ SELECT is(
 );
 
 -- ===================================================================
--- C. add_circle_by_username — mutual outcome (3).
+-- C. add_circle_by_username — mutual outcome (4).
 -- ===================================================================
 
 RESET ROLE;
@@ -225,6 +225,33 @@ SELECT is(
   ),
   2,
   'C3: idempotent re-call leaves both rows with status = circle'
+);
+
+-- C4: a pasted '@' sigil resolves the same as the bare handle — the
+-- public identity is shown/copied as '@BobHandle' but stored as
+-- 'BobHandle', so add_circle_by_username must peel the leading '@'.
+RESET ROLE;
+DELETE FROM public.relationships;
+SELECT set_config(
+  'request.jwt.claims',
+  '{"sub":"aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"}',
+  TRUE
+);
+SET LOCAL ROLE authenticated;
+
+SELECT public.add_circle_by_username('@BobHandle');
+
+RESET ROLE;
+SELECT is(
+  (
+    SELECT count(*)::int FROM public.relationships
+    WHERE
+      user_id = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'
+      AND other_user_id = 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb'
+      AND status = 'circle'
+  ),
+  1,
+  'C4: add_circle_by_username peels a leading @ (''@BobHandle'' resolves to Bob)'
 );
 
 -- ===================================================================
