@@ -93,9 +93,15 @@ gauntlet) also passes, since the only edits are to test files.
   stops the specs from _using_ magic-link for their own login; it does not touch
   the login surface itself.
 - **`auth.spec.ts` and `password-recovery.spec.ts`** — they legitimately
-  exercise the magic-link and recovery-mail flows (via the mailpit helper) and
-  pass. They are untouched, and the `web/e2e/helpers/mailpit.ts` helper stays for
-  them.
+  exercise the magic-link and recovery-mail flows (via the mailpit helper). Their
+  flows are not migrated, and the `web/e2e/helpers/mailpit.ts` helper stays for
+  them. **Exception (added during Task 3.1, user-directed):** the full-suite run
+  surfaced `password-recovery.spec.ts` failing because it keyed its recovery
+  address off the run-stable `test.info().testId`, which trips the shared stack's
+  per-address OTP throttle across repeated runs. The one narrow fix applied was to
+  derive that address from the unique-per-run `username` instead; the recovery
+  _flow_ and the mailpit helper are otherwise untouched. `auth.spec.ts` remains
+  entirely untouched.
 - **New product behaviour or new e2e coverage** — beyond restoring the existing
   assertions and the deterministic list-capture fix in `block.spec.ts`, no new
   scenarios are added here.

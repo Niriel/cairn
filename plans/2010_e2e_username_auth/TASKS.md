@@ -96,7 +96,7 @@ idiom.
 **Notes:**
 
 - Green: all 5 specs pass on chromium + firefox (50/50 = 25 tests × 2), `pnpm
-  lint` clean, `tsc -p e2e/tsconfig.json` + prettier clean. RED confirmed first
+lint` clean, `tsc -p e2e/tsconfig.json` + prettier clean. RED confirmed first
   (all 5 failed at the magic-link `beforeAll`). Welcome banner still renders for
   a `register()`ed user, as predicted (R3).
 - Prefixes used: `avataruser`, `exportuser`, `itemsuser`, `publicuser`,
@@ -267,14 +267,13 @@ the same robustness to`sharedListId` if it shares the fragility.
 
 - **Diagnosis confirmed it's a spec capture bug, not a product bug** (escalation
   guard cleared). A one-line `console.log('DIAG', { sharedListId, bobListId,
-  sameList })` in the setup printed `sameList: true` — `bobListId` had captured
-  the *shared* list id (Alice's own), so step (b) invited Alice to a list she is
+sameList })` in the setup printed `sameList: true` — `bobListId` had captured
+  the _shared_ list id (Alice's own), so step (b) invited Alice to a list she is
   already on, hence "They're already on this list." `send_invitation`'s
   membership-vs-block ordering is fine.
 - Fix: capture `bobListId` by name —
-  `.filter({ hasText: \`Bob's list ${runId}\` })` + `await
-  expect(bobRow).toBeVisible()` before reading `data-test` — instead of
-  `.first()`. `sharedListId`'s `.first()` capture is left as-is: it's read when
+  `.filter({ hasText: \`Bob's list ${runId}\` })`+`await
+  expect(bobRow).toBeVisible()`before reading`data-test`— instead of`.first()`. `sharedListId`'s `.first()` capture is left as-is: it's read when
   Alice has exactly one list, so there is no ambiguity or race there.
 - Green: 4/4 on chromium + firefox; (b) now asserts the generic "Couldn't send
   invite" (the anti-enumeration outcome, reached via the block path). Removed the
@@ -282,10 +281,10 @@ the same robustness to`sharedListId` if it shares the fragility.
 
 ## Phase 3 — full-suite green gate
 
-### [ ] 3.1 Whole suite green on chromium + firefox, and `check.sh`
+### [x] 3.1 Whole suite green on chromium + firefox, and `check.sh`
 
 **Created:** 2026-07-13T12:52:56Z
-**Completed:**
+**Completed:** 2026-07-13T13:37:40Z
 
 **Why:** The individual tasks verify their own specs, but the merge-readiness
 contract (and the `2005` merge gate, task 5.1) is the _whole_ suite green on the
@@ -321,6 +320,31 @@ interference.
 3. Record the result (pass counts per browser; WebKit skipped) in Notes.
 
 **Verify:** `cd web && pnpm exec playwright test --project=chromium --project=firefox` · `./scripts/check.sh`
+
+**Notes:**
+
+- **Green gate met:** full suite **108 passed / 0 failed** on chromium + firefox;
+  `./scripts/check.sh` "all checks passed". **WebKit deliberately not run**
+  (missing system libs on this Fedora box — `docs/testing.md` /
+  [[playwright-webkit-fedora]]).
+- **Deviation — a third spec needed a fix (user-directed, scope addition).** The
+  first full-suite run was 105/3, with all 3 failures in `password-recovery.spec.ts`
+  — a spec this plan had listed as an untouched non-requirement. Diagnosis: not
+  mail delivery (the verify mail arrives) — `waitForRecoveryCode` returned a code
+  from an _older_ mail while the `recovery-email-code` field never rendered,
+  because the spec keyed its recovery address off `test.info().testId`, which is
+  **stable across runs**. Reusing one address on the shared dev stack across this
+  session's many runs tripped the per-address OTP send throttle, so the
+  set-recovery call didn't advance the UI. Not caused by this plan's changes (no
+  product/spec/helper edits to recovery; it passed during the 2005 4.1 run and
+  broke on accumulated state). The user chose to fix it: derive the recovery
+  address from the unique-per-run `username` (mirroring the existing
+  `uniqueUsername` idiom) in both tests that set a recovery e-mail. The
+  anti-enumeration `probe` address (which never receives mail) was left on the
+  stable id. After the fix, `password-recovery` is 3/3 and the whole suite is
+  green. This edits `web/e2e/password-recovery.spec.ts` — beyond 3.1's stated
+  "verification only, no Files" shape; see the REQUIREMENTS non-requirement note.
+- No cross-spec-DB flakiness observed on the final run.
 
 ## Merge / hand-off
 
