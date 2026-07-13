@@ -85,12 +85,19 @@ describe('PrivacyScreen', () => {
 		userSettings.invitePolicy = 'everybody';
 		relationships.loaded = true;
 		relationships.circle = [
-			{ otherUserId: 'u1', displayName: 'Bob', avatarVersion: 0, createdAt: '2026-01-01T00:00:00Z' }
+			{
+				otherUserId: 'u1',
+				displayName: 'Bob',
+				username: 'bob',
+				avatarVersion: 0,
+				createdAt: '2026-01-01T00:00:00Z'
+			}
 		];
 		relationships.blocked = [
 			{
 				otherUserId: 'u2',
 				displayName: 'Carol',
+				username: 'carol',
 				avatarVersion: 0,
 				createdAt: '2026-01-01T00:00:00Z'
 			}

@@ -769,10 +769,10 @@ names; identical names must be disambiguated by handle (parent R6).
   attribution. Might warrant a `.fine`-scoped size override or a doc note in a
   later visual-polish pass — surfacing for a decision rather than deviating now.
 
-### [ ] 3.4 `@username` on circle rows and invite-picker rows
+### [x] 3.4 `@username` on circle rows and invite-picker rows
 
 **Created:** 2026-07-09T09:46:23Z
-**Completed:**
+**Completed:** 2026-07-13T12:13:30Z
 
 **Why:** The circle-management rows and the invite picker's tappable circle /
 co-member rows show display names that must be disambiguated (parent R6).
@@ -821,6 +821,33 @@ loads).
 4. GREEN — `pnpm lint` · `pnpm check` · `pnpm test` → green.
 
 **Verify:** `pnpm lint` · `pnpm check` · `pnpm test` (in `web/`)
+
+**Notes:**
+
+- Green: `pnpm lint` (eslint clean), `pnpm check` (0 errors), `pnpm test` (832
+  Vitest, +5), Prettier clean. RED confirmed first — 5 assertions failed (mapped
+  circle/blocked username, the relationships select embed, the CircleScreen row
+  handle, the picker circle + co-member row handles).
+- **Side work beyond the Files list — the co-member data source is the `lists`
+  state.** The picker's co-member rows are built from `lists.items[].list_members[]
+  .profiles`, so rendering their handle required `username` on `list.ts`'s
+  `list_members.profiles` type and in the `lists.svelte.ts` `/lists?select=` embed
+  (`profiles(display_name,avatar_version,username)`). Neither file was in the
+  Files list but both are the "co-member row data source" the Decision names.
+- **Widening `CircleEntry`/`BlockedEntry`/`list.ts` rippled into five sibling
+  test fixtures** not in the Files list — `ProfileSheet.test.ts`,
+  `PrivacyScreen.test.ts`, `BlockedScreen.test.ts`,
+  `PostAcceptPromptSheet.test.ts` (each seeds circle/blocked entries) — all
+  needed `username` added to type-check. Mechanical; surfaced by `pnpm check`,
+  not `pnpm test`.
+- `BlockedEntry` now carries `username` per the Decision, but the **blocked
+  screen does not render a handle** — it isn't in `docs/ui.md`'s render-location
+  list (members, profile sheet, vote/item attribution, invite-picker, circle).
+  The type field is there for consistency; no blocked-row rendering was added.
+- Made the picker's `.info` a flex column (it was a bare `flex:1;min-width:0`
+  child) so the name / `@handle` / sub stack on separate lines — matching the
+  members-screen and CircleScreen `.row-text` pattern. Without it the new inline
+  handle span would have shared a line with the sub caption.
 
 ## Phase 4 — Playwright
 

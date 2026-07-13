@@ -28,6 +28,7 @@ const DAVE_UID = 'dddddddd-dddd-dddd-dddd-dddddddddddd';
 const BOB_CIRCLE = {
 	otherUserId: BOB_UID,
 	displayName: 'Bob',
+	username: 'bob',
 	avatarVersion: 0,
 	createdAt: '2026-05-01T10:00:00Z'
 };
@@ -65,6 +66,13 @@ describe('InvitePickerSheet', () => {
 		expect(queryByDataTest(`invite-picker-circle-row-${BOB_UID}`)).not.toBeNull();
 	});
 
+	test('(a-handle) a circle row renders the @username handle', async () => {
+		relationships.circle = [BOB_CIRCLE];
+		const { getByDataTest } = await renderSheet();
+		const row = getByDataTest(`invite-picker-circle-row-${BOB_UID}`);
+		expect(row.querySelector('.identity-handle')?.textContent).toBe('@bob');
+	});
+
 	test('(b) circle section omits a user who is already a member of the target list', async () => {
 		relationships.circle = [BOB_CIRCLE];
 		const { queryByDataTest } = await renderSheet([BOB_UID]);
@@ -100,8 +108,14 @@ describe('InvitePickerSheet', () => {
 				item_count: 0,
 				is_public: false,
 				list_members: [
-					{ user_id: BOB_UID, profiles: { display_name: 'Bob', avatar_version: 0 } },
-					{ user_id: DAVE_UID, profiles: { display_name: 'Dave', avatar_version: 0 } }
+					{
+						user_id: BOB_UID,
+						profiles: { display_name: 'Bob', avatar_version: 0, username: 'bob' }
+					},
+					{
+						user_id: DAVE_UID,
+						profiles: { display_name: 'Dave', avatar_version: 0, username: 'dave' }
+					}
 				]
 			}
 		];
@@ -111,6 +125,28 @@ describe('InvitePickerSheet', () => {
 		expect(queryByDataTest(`invite-picker-comember-row-${BOB_UID}`)).toBeNull();
 		// Dave shows up only in co-members
 		expect(queryByDataTest(`invite-picker-comember-row-${DAVE_UID}`)).not.toBeNull();
+	});
+
+	test('(d-handle) a co-member row renders the @username handle', async () => {
+		lists.items = [
+			{
+				id: 'list-x',
+				name: 'X',
+				description: null,
+				modified_at: '2026-05-01T00:00:00Z',
+				item_count: 0,
+				is_public: false,
+				list_members: [
+					{
+						user_id: DAVE_UID,
+						profiles: { display_name: 'Dave', avatar_version: 0, username: 'dave' }
+					}
+				]
+			}
+		];
+		const { getByDataTest } = await renderSheet();
+		const row = getByDataTest(`invite-picker-comember-row-${DAVE_UID}`);
+		expect(row.querySelector('.identity-handle')?.textContent).toBe('@dave');
 	});
 
 	test('(e) by-username Send button calls sendInvitation with { username }', async () => {

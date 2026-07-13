@@ -30,6 +30,7 @@
 	type CoMember = {
 		userId: string;
 		displayName: string;
+		username: string;
 		avatarVersion: number;
 		sharedCount: number;
 	};
@@ -65,6 +66,7 @@
 					byUser.set(m.user_id, {
 						userId: m.user_id,
 						displayName: m.profiles.display_name,
+						username: m.profiles.username,
 						avatarVersion: m.profiles.avatar_version,
 						sharedCount: 1
 					});
@@ -132,6 +134,7 @@
 							/>
 							<div class="info">
 								<h3 class="name">{row.displayName}</h3>
+								<span class="handle identity-handle">@{row.username}</span>
 								<span class="sub caption">In your circle</span>
 							</div>
 							{#if invitedIds.has(row.otherUserId)}
@@ -167,6 +170,7 @@
 							/>
 							<div class="info">
 								<h3 class="name">{row.displayName}</h3>
+								<span class="handle identity-handle">@{row.username}</span>
 								<span class="sub caption">On {row.sharedCount} of your other lists</span>
 							</div>
 							{#if invitedIds.has(row.userId)}
@@ -252,8 +256,11 @@
 	.info {
 		flex: 1;
 		min-width: 0;
+		display: flex;
+		flex-direction: column;
 	}
 
+	.handle,
 	.sub {
 		margin-top: 0.125rem;
 	}

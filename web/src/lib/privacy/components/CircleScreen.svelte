@@ -70,6 +70,7 @@
 								/>
 								<div class="row-text">
 									<h3 class="display-name">{entry.displayName}</h3>
+									<span class="handle identity-handle">@{entry.username}</span>
 									<span class="sub caption">{addedAtLabel(entry.createdAt)}</span>
 								</div>
 								<Button
@@ -156,6 +157,7 @@
 		flex-direction: column;
 	}
 
+	.handle,
 	.sub {
 		margin-top: 0.125rem;
 	}

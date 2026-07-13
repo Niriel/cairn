@@ -13,14 +13,14 @@ const CIRCLE_ROW = {
 	other_user_id: OTHER_UID,
 	status: 'circle',
 	created_at: '2026-04-12T10:00:00Z',
-	profiles: { display_name: 'Bob', avatar_version: 0 }
+	profiles: { display_name: 'Bob', avatar_version: 0, username: 'bob' }
 };
 
 const BLOCKED_ROW = {
 	other_user_id: STRANGER_UID,
 	status: 'blocked',
 	created_at: '2026-03-01T10:00:00Z',
-	profiles: { display_name: 'Stranger', avatar_version: 0 }
+	profiles: { display_name: 'Stranger', avatar_version: 0, username: 'stranger' }
 };
 
 let profileMod: typeof import('$lib/shared/state/profile.svelte');
@@ -43,6 +43,27 @@ describe('loadRelationships', () => {
 		expect(relsMod.relationships.blocked).toHaveLength(1);
 		expect(relsMod.relationships.blocked[0].otherUserId).toBe(STRANGER_UID);
 		expect(relsMod.relationships.loaded).toBe(true);
+	});
+
+	test('(a2) carries username onto the mapped circle and blocked entries', async () => {
+		server.use(http.get('*/api/relationships', () => HttpResponse.json([CIRCLE_ROW, BLOCKED_ROW])));
+		await relsMod.loadRelationships();
+		expect(relsMod.relationships.circle[0].username).toBe('bob');
+		expect(relsMod.relationships.blocked[0].username).toBe('stranger');
+	});
+
+	test('(a3) the relationships select embeds username', async () => {
+		let url = '';
+		server.use(
+			http.get('*/api/relationships', ({ request }) => {
+				url = request.url;
+				return HttpResponse.json([]);
+			})
+		);
+		await relsMod.loadRelationships();
+		expect(decodeURIComponent(url)).toContain(
+			'profiles!other_user_id(display_name,avatar_version,username)'
+		);
 	});
 });
 

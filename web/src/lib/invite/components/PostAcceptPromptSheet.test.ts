@@ -60,6 +60,7 @@ describe('PostAcceptPromptSheet', () => {
 			{
 				otherUserId: BOB_UID,
 				displayName: 'Bob',
+				username: 'bob',
 				avatarVersion: 0,
 				createdAt: '2026-05-01T00:00:00Z'
 			}

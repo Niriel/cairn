@@ -34,6 +34,7 @@ const SELF_ID = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
 const CIRCLE_ENTRY = {
 	otherUserId: USER_ID,
 	displayName: 'Bob',
+	username: 'bob',
 	avatarVersion: 0,
 	createdAt: '2026-05-01T10:00:00Z'
 };
@@ -41,6 +42,7 @@ const CIRCLE_ENTRY = {
 const BLOCKED_ENTRY = {
 	otherUserId: USER_ID,
 	displayName: 'Bob',
+	username: 'bob',
 	avatarVersion: 0,
 	createdAt: '2026-05-01T10:00:00Z'
 };

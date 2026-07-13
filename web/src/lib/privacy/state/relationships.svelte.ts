@@ -10,6 +10,7 @@ function toCircleEntry(row: RelationshipRow): CircleEntry {
 	return {
 		otherUserId: row.other_user_id,
 		displayName: row.profiles.display_name,
+		username: row.profiles.username,
 		avatarVersion: row.profiles.avatar_version,
 		createdAt: row.created_at
 	};
@@ -19,6 +20,7 @@ function toBlockedEntry(row: RelationshipRow): BlockedEntry {
 	return {
 		otherUserId: row.other_user_id,
 		displayName: row.profiles.display_name,
+		username: row.profiles.username,
 		avatarVersion: row.profiles.avatar_version,
 		createdAt: row.created_at
 	};
@@ -42,7 +44,7 @@ export async function loadRelationships(): Promise<void> {
 	relationships.loading = true;
 	try {
 		const rows = await pgGet<RelationshipRow[]>(
-			`/relationships?user_id=eq.${me}&select=other_user_id,status,created_at,profiles!other_user_id(display_name,avatar_version)`
+			`/relationships?user_id=eq.${me}&select=other_user_id,status,created_at,profiles!other_user_id(display_name,avatar_version,username)`
 		);
 		relationships.circle = rows.filter((r) => r.status === 'circle').map(toCircleEntry);
 		relationships.blocked = rows.filter((r) => r.status === 'blocked').map(toBlockedEntry);

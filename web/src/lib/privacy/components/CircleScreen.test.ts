@@ -19,6 +19,7 @@ const { relationships, addCircleByUsername, removeFromCircle } =
 const BOB: CircleEntry = {
 	otherUserId: 'bob-uid',
 	displayName: 'Bob',
+	username: 'bob',
 	avatarVersion: 0,
 	createdAt: '2026-04-12T10:00:00Z'
 };
@@ -42,6 +43,14 @@ describe('CircleScreen', () => {
 		relationships.circle = [BOB];
 		const { queryByDataTest } = render(CircleScreen);
 		expect(queryByDataTest(`circle-row-${BOB.otherUserId}`)).not.toBeNull();
+	});
+
+	test('(b2) circle row renders the @username handle', () => {
+		relationships.loaded = true;
+		relationships.circle = [BOB];
+		const { getByDataTest } = render(CircleScreen);
+		const row = getByDataTest(`circle-row-${BOB.otherUserId}`);
+		expect(row.querySelector('.identity-handle')?.textContent).toBe('@bob');
 	});
 
 	test('(c) Remove button calls removeFromCircle with correct id', async () => {
