@@ -851,10 +851,10 @@ loads).
 
 ## Phase 4 — Playwright
 
-### [ ] 4.1 Add-by-username happy path + truthful miss (e2e)
+### [x] 4.1 Add-by-username happy path + truthful miss (e2e)
 
 **Created:** 2026-07-09T09:46:23Z
-**Completed:**
+**Completed:** 2026-07-13T12:40:47Z
 
 **Why:** The user-visible add-by-username flow crosses the DB, BFF/PostgREST, and
 UI layers; a Playwright touch proves it end-to-end against the real stack (parent
@@ -892,6 +892,46 @@ known usernames from 2003's `scripts/seed.sh` / `DevShortcuts`.
    machine-conditional rule, `docs/testing.md`); note this in the task's Notes.
 
 **Verify:** `cd web && pnpm test:e2e` (chromium + firefox) · `./scripts/check.sh`
+
+**Notes:**
+
+- The add-by-username **happy path** and success toast already existed in
+  `invites.spec.ts` (added when the 2.1 follow-up migrated it onto username
+  auth). This task **extended** that spec with the two surfaces the task
+  actually calls for: `(e)` Bob's `@username` visible on the members screen and
+  prominently on the profile sheet (`data-test="profile-handle"`), and `(f)` the
+  truthful miss — a nonexistent handle yields the toast "No one on Cairn has
+  that username" (distinct from the generic "Couldn't send invite" a block/policy
+  yields, which `block.spec.ts` covers). Did **not** touch `privacy.spec.ts`
+  (the circle add-by-username path is unit-covered in `CircleScreen.test.ts`; the
+  Files list marked it optional).
+- **Green where it counts:** the whole `invites.spec.ts` passes **12/12 on
+  chromium + firefox** (6 tests × 2 projects) run in isolation, and the two new
+  tests also passed within the full-suite run. **WebKit not run** (missing system
+  libs on this Fedora box — standing machine-conditional rule, `docs/testing.md`
+  / [[playwright-webkit-fedora]]). `./scripts/check.sh` (non-e2e gauntlet) is
+  fully green.
+- **Pre-existing e2e breakage surfaced by the full-suite run (NOT from this task
+  — deferred by user decision to a follow-up commit).** `pnpm test:e2e
+  --project=chromium --project=firefox` over the whole suite has **16 failures /
+  8 specs**, in two buckets:
+  1. **7 stale magic-link specs** — `avatar`, `delete-account`, `export`,
+     `imprint`, `items`, `public-list`, `welcome`. They still `goto('/')`
+     expecting `/auth/login` and fill `login-email`, but since **2003** the root
+     redirects to `/auth/signin` and that field is gone. Broken since the
+     username-auth migration; never moved onto `e2e/helpers/auth.ts`. (`auth.spec.ts`
+     legitimately exercises both flows and passes.)
+  2. **`block.spec.ts (b)`** — migrated in the 2.1 follow-up but, per that note,
+     never executed until now. Fails because its `bobListId` capture
+     (`[data-test^="list-nav-"].first()`) resolves to the **shared** list — where
+     Alice is already a member — so the toast reads "They're already on this
+     list." instead of the expected "Couldn't send invite." Looks like a spec
+     capture bug (use a name-scoped locator, not `.first()`), though a product
+     issue isn't fully ruled out.
+  These block the merge (5.1, which needs `./scripts/check.sh --e2e` green). The
+  user confirmed they accumulated while working from a laptop that can't run
+  e2e, and wants them fixed as a **follow-up** (likely the next commit) — track:
+  migrate the 7 magic-link specs onto username auth + fix `block.spec.ts (b)`.
 
 ## Merge (orchestration task 5.1)
 

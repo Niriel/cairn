@@ -6,8 +6,11 @@ import { register, uniqueUsername } from './helpers/auth';
 // from the Members screen, and invites Bob by username. Bob — registered with
 // a known handle so Alice can type it — signs in, sees the single-invite
 // banner, accepts, lands on the list, and is prompted to add Alice to his
-// circle. (Usernames are public, so the picker reports the outcome plainly;
-// there is no e-mail and no anti-enumeration hedge on this path.)
+// circle. Once Bob is a member his @username disambiguates him on the members
+// screen and profile sheet, and typing a handle that resolves to no account
+// gets the truthful "No one on Cairn has that username" miss. (Usernames are
+// public, so the picker reports the outcome plainly; there is no e-mail and no
+// anti-enumeration hedge on this path.)
 
 const PASSWORD = 'cairn-e2e-pw';
 
@@ -86,5 +89,35 @@ test.describe.serial('invite flow', () => {
 	test('(d) banner is gone after the only pending invite is accepted', async () => {
 		await bob.goto('/lists');
 		await expect(bob.locator('[data-test="invites-banner"]')).not.toBeVisible();
+	});
+
+	test("(e) Bob's @username shows on the members screen and, prominently, the profile sheet", async () => {
+		// Bob is now a member (he accepted in (b)), so his handle disambiguates
+		// him wherever he appears — the members row and the profile sheet.
+		await alice.goto(`/lists/${listId}/members`);
+		await expect(alice.locator('[data-test="members-screen"]')).toBeVisible();
+		await expect(alice.locator('[data-test="members-screen"]')).toContainText(`@${bobUsername}`);
+
+		// Tapping Bob's row (the non-self, enabled member row) opens his sheet,
+		// where the handle sits on its own line under the display name.
+		await alice.locator('[data-test^="member-row-"]:not([disabled])').first().click();
+		await expect(alice.locator('[data-test="profile-sheet"]')).toBeVisible();
+		await expect(alice.locator('[data-test="profile-handle"]')).toHaveText(`@${bobUsername}`);
+	});
+
+	test('(f) typing a nonexistent handle shows the truthful miss, not the generic failure', async () => {
+		await alice.goto(`/lists/${listId}/members`);
+		await alice.locator('[data-test="members-add"]').click();
+		await expect(alice.locator('[data-test="invite-picker"]')).toBeVisible();
+
+		// A handle that resolves to no account: usernames are public, so the
+		// picker is truthful about the miss (distinct from the generic
+		// "Couldn't send invite" a block or restrictive policy yields).
+		await alice.locator('[data-test="invite-picker-username-input"]').fill(uniqueUsername('ghost'));
+		await alice.locator('[data-test="invite-picker-username-send"]').click();
+
+		const toast = alice.locator('[data-test="invite-picker-toast"]');
+		await expect(toast).toBeVisible();
+		await expect(toast).toContainText('No one on Cairn has that username');
 	});
 });
