@@ -129,7 +129,7 @@ DB/RLS change for reads.
 - **`web/src/lib/invite/state/invitations.svelte.ts`** — `sendInvitation(listId,
   { username })` posting `{p_list_id, p_username}` (keep the `{ userId }`
   overload); inspect the return so uuid → "Invite sent", `null` → "Couldn't send
-  invite", P0001 `'no such user'` → "No such username"; drop the now-dead
+  invite", P0001 `'no such user'` → "No one on Cairn has that username"; drop the now-dead
   `target_email`/`targetEmail` field + mapping (`:27`, `:55`).
 - **`web/src/lib/privacy/state/relationships.svelte.ts`** — rename
   `addCircleByEmail`→`addCircleByUsername(username)` posting `{p_username}` (keep
@@ -166,7 +166,7 @@ Phase 0 and R10.
 client → /rpc/send_invitation {p_list_id, p_username}
   inviter not a live member          → RAISE 'not a list member'  (checked first)
   resolve p_username → target      [lower(username) index on profiles]
-    miss             → RAISE 'no such user' (P0001)   → UI "No such username"
+    miss             → RAISE 'no such user' (P0001)   → UI "No one on Cairn has that username"
     self             → RAISE 'self-invite'            → UI clear error
     already member   → RAISE 'already a member'        → UI message
     existing pending → RETURN existing uuid (idempotent) → UI "Invite sent"

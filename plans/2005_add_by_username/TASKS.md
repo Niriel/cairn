@@ -380,7 +380,7 @@ username.
   p_username}`; keep the existing `{ userId }` overload (`{p_list_id, p_user_id}`)
   for tap-to-invite. Distinguish outcomes from the RPC result: a returned **uuid**
   → success ("Invite sent"); a **`null`** body → "Couldn't send invite"; an
-  `ApiError` with `P0001` message `'no such user'` → "No such username". This
+  `ApiError` with `P0001` message `'no such user'` → "No one on Cairn has that username". This
   replaces today's single hedged "If they have a Cairn account…" message. Keep the
   existing `'self-invite'` / `'already a member'` mappings.
 - **Drop dead `target_email`:** it lives on the **sent** types, not the inbox —
@@ -431,7 +431,7 @@ username.
 - Green: `pnpm lint`, `pnpm check` (0 errors), and `pnpm test` (813 Vitest
   tests) all pass. RED confirmed first (7 failures across the two files).
 - Wrapper now maps three outcomes: resolves on a uuid, throws
-  "Couldn't send invite" on `null`, and throws "No such username" on
+  "Couldn't send invite" on `null`, and throws "No one on Cairn has that username" on
   `P0001 'no such user'`; the existing self-invite / already-a-member
   mappings are unchanged. Dropped `targetEmail` from `SentEntry` /
   `RawSentRow` / the `loadSent` mapping (inert — nothing consumed it).
@@ -456,11 +456,28 @@ username.
   suite (WebKit can't run on this box; the others need the full stack up).
   Recommend the user either widen Task 4.1 or add a task to migrate
   invites/privacy/block e2e onto username auth + the username invite field.
+- **RESOLVED (2026-07-13, code-review follow-up):** all three specs were
+  migrated onto username auth. Extracted `uniqueUsername` / `register` /
+  `signInWithPassword` into `web/e2e/helpers/auth.ts` (shared with
+  `auth.spec.ts`), replaced the magic-link sign-in + invite-by-e-mail with
+  register-by-username + the `invite-picker-username-*` field, and rewrote the
+  assertions ("Invite sent"; the blocked send now shows the generic
+  "Couldn't send invite", which is the surviving anti-enumeration property).
+  Specs type-check (`tsc -p e2e/tsconfig.json`) and lint clean but were **not
+  executed** (no local stack / WebKit) — running `pnpm test:e2e` is the
+  outstanding verification.
+- **Also resolved (same follow-up):** the review found the leading-`@` peel had
+  been special-cased into `send_invitation` / `add_circle_by_username` (0022)
+  only, diverging from sign-in (`resolve_username`, 0020) and password reset
+  (0021), which did not peel. Consolidated into one `public.normalize_username`
+  helper (0020) that all five resolvers call, so `@` is optional on input
+  everywhere. Covered by `db/tests/normalize_username.sql` plus peel assertions
+  in `resolve_username.sql` / `recovery_reset.sql` (and the existing B4/C4).
 
-### [ ] 2.2 Circle wrapper + `CircleScreen` add-by-username field
+### [x] 2.2 Circle wrapper + `CircleScreen` add-by-username field
 
 **Created:** 2026-07-09T09:46:23Z
-**Completed:**
+**Completed:** 2026-07-13T09:36:58Z
 
 **Why:** The circle-management screen must add people by username (parent R10),
 keeping its helpful inline errors.
@@ -516,6 +533,22 @@ add-card at `web/src/lib/privacy/components/CircleScreen.svelte:89`.
 5. GREEN — `pnpm lint` · `pnpm check` · `pnpm test` → green.
 
 **Verify:** `pnpm lint` · `pnpm check` · `pnpm test` (in `web/`)
+
+**Notes:**
+
+- Done as part of a code-review follow-up (alongside the two picker findings
+  below), not via `/work`. Implemented exactly per Decisions: wrapper renamed
+  to `addCircleByUsername` posting `{p_username}` to `/rpc/add_circle_by_username`
+  (`AddCircleResult` shape unchanged); `CircleScreen` add-card is now "Username"
+  / `@username` placeholder with the e-mail input attributes dropped; inline
+  errors remapped to "No one on Cairn has that username" / "That's your own username"; explainer
+  point retitled "Adding by username is two-way". Mock + both test files updated
+  in lockstep (relationships `(b)` now asserts the `{p_username}` body).
+- Green: full `./scripts/check.sh` passes (prettier, eslint, sqlfluff,
+  shellcheck, shfmt, svelte-check 0 errors, pgTAP 776, Vitest 813, plus sidecar
+  + auth-proxy). E2E not run (no local stack / WebKit).
+- Closes the DB↔frontend gap the 0022 migration opened: `add_circle_by_email`
+  was dropped in `b5ab1c5` but the circle UI still called it until now.
 
 ## Phase 3 — `@username` rendering
 
@@ -751,7 +784,7 @@ known usernames from 2003's `scripts/seed.sh` / `DevShortcuts`.
 **Steps:**
 
 1. RED — Write the spec: add-by-username success + `@username` visible + the
-   nonexistent-handle "No such username" assertion.
+   nonexistent-handle "No one on Cairn has that username" assertion.
 2. RED — `cd web && pnpm test:e2e` → red (or run against the failing pre-impl
    state if authored before the UI lands).
 3. GREEN — With Phases 1–3 in place, `pnpm test:e2e` → green on chromium +

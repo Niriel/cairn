@@ -44,7 +44,7 @@ the swap; only the input key changes from e-mail to username.
 Because usernames are public (the register screen already reveals taken handles
 and `resolve_username` is `anon`-callable), a typed username that resolves to no
 account is answered **truthfully and distinguishably**: `send_invitation` raises
-a `'no such user'` exception (SQLSTATE `P0001`) — the UI shows "No such username"
+a `'no such user'` exception (SQLSTATE `P0001`) — the UI shows "No one on Cairn has that username"
 — and `add_circle_by_username` does the same (as its predecessor did).
 
 Failures that would leak the target's **private settings** stay generic, exactly
@@ -124,7 +124,7 @@ by e-mail" card drop their e-mail text fields (and the `type=email` /
 `inputmode=email` / `autocomplete=email` attributes) and become username fields
 with username-appropriate label, placeholder (`@username`), and helper copy. The
 invite picker surfaces the three R3 outcomes; the circle screen maps
-`'no-such-user'` → "No such username" and `'self'` → "That's your own username"
+`'no-such-user'` → "No one on Cairn has that username" and `'self'` → "That's your own username"
 inline, keeping its generic snackbar for unknown failures.
 
 ## R10. The specification docs are reconciled
