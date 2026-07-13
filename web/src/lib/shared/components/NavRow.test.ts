@@ -93,4 +93,14 @@ describe('NavRow', () => {
 		expect(container.querySelector('.nav-row-title')?.textContent).toBe('My list');
 		expect(container.querySelector('[data-test="chevron-right"]')).not.toBeNull();
 	});
+
+	test('(m) renders the handle as @handle on .identity-handle when supplied', () => {
+		const { container } = render(NavRow, { lead, title: 'Alice', handle: 'alice' });
+		expect(container.querySelector('.identity-handle')?.textContent).toBe('@alice');
+	});
+
+	test('(n) no handle element when handle is omitted', () => {
+		const { container } = render(NavRow, { lead, title: 'Alice' });
+		expect(container.querySelector('.identity-handle')).toBeNull();
+	});
 });

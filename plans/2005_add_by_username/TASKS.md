@@ -552,10 +552,10 @@ add-card at `web/src/lib/privacy/components/CircleScreen.svelte:89`.
 
 ## Phase 3 — `@username` rendering
 
-### [ ] 3.1 `.identity-handle` CSS role + own `@username` in Settings
+### [x] 3.1 `.identity-handle` CSS role + own `@username` in Settings
 
 **Created:** 2026-07-09T09:46:23Z
-**Completed:**
+**Completed:** 2026-07-13T10:08:35Z
 
 **Why:** Every `@username` surface needs one shared visual treatment, and the user
 needs to see their own handle (there is no self-profile screen — tapping your own
@@ -600,6 +600,22 @@ avatar bounces to Settings) so they can share it (parent R6; sub-plan R8).
 4. GREEN — `pnpm lint` · `pnpm check` · `pnpm test` → green.
 
 **Verify:** `pnpm lint` · `pnpm check` · `pnpm test` (in `web/`)
+
+**Notes:**
+
+- Green: `pnpm lint` (eslint clean), `pnpm check` (0 errors / 0 warnings), and
+  `pnpm test` (816 Vitest tests) all pass. RED confirmed first: NavRow `(m)` and
+  SettingsScreen `(g-2)` failed for the right reason (no `@handle` rendered); the
+  negative NavRow `(n)` was already green (no handle element pre-impl).
+- `pnpm lint` is **eslint-only** here — Prettier is a separate script, so I ran
+  `prettier --check` on the five edited files separately (clean).
+- Added a local `.nav-row-handle` layout class alongside `.nav-row-sub` for the
+  `margin-top: 0.125rem` spacing (layout local, visual global per `docs/ui.md`);
+  the `.identity-handle` global role carries colour/weight/scale. This is a small
+  addition beyond the literal Decision, following the existing `sub` row pattern.
+- `SettingsScreen`'s derived `username` returns `undefined` (not `null`) on a
+  non-signed-in session so it matches NavRow's `handle?: string` prop type; reset
+  `session.current` in the test's `afterEach` since the mock is a shared `$state`.
 
 ### [ ] 3.2 `@username` on the members screen and profile sheet
 

@@ -9,7 +9,7 @@
 	import { profile } from '$lib/shared/state/profile.svelte';
 	import { preferences } from '$lib/shared/state/preferences.svelte';
 	import type { FontSize, Theme } from '$lib/shared/state/preferences.svelte';
-	import { signOut } from '$lib/shared/state/session.svelte';
+	import { session, signOut } from '$lib/shared/state/session.svelte';
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { invitations } from '$lib/invite/state/invitations.svelte';
@@ -28,6 +28,13 @@
 		{ value: 'l', label: 'L', px: 18 },
 		{ value: 'xl', label: 'XL', px: 21 }
 	];
+
+	// The display name lives in the profile store, but the username is only in
+	// the session (there is no self-profile screen; own handle surfaces here so
+	// the user can share it). Narrow on status to reach `.user`.
+	const username = $derived(
+		session.current.status === 'signed-in' ? session.current.user.username : undefined
+	);
 </script>
 
 <div class="screen">
@@ -45,6 +52,7 @@
 				{:else}
 					<NavRow
 						title={profile.displayName}
+						handle={username}
 						data-test="profile-chip"
 						onclick={() => goto(resolve('/profile'))}
 					>

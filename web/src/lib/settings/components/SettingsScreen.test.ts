@@ -3,7 +3,7 @@ import { afterEach, describe, expect, test, vi } from 'vitest';
 
 import { preferences } from '$lib/shared/state/preferences.svelte';
 import { profile } from '$lib/shared/state/profile.svelte';
-import { signOut } from '$lib/shared/state/session.svelte';
+import { session, signOut } from '$lib/shared/state/session.svelte';
 import { invitations } from '$lib/invite/state/invitations.svelte';
 import { render } from '$lib/test/render';
 
@@ -31,6 +31,7 @@ afterEach(() => {
 	preferences.fontSize = 'm';
 	profile.displayName = null;
 	invitations.inbox = [];
+	session.current = { status: 'unknown' };
 });
 
 describe('SettingsScreen', () => {
@@ -83,6 +84,13 @@ describe('SettingsScreen', () => {
 		expect(queryByDataTest('profile-chip-skeleton')).toBeNull();
 		// Avatar mock renders displayName as text content
 		expect(queryByDataTest('profile-avatar')?.textContent).toContain('Alice');
+	});
+
+	test('(g-2) profile chip renders the own @username from the session', () => {
+		profile.displayName = 'Alice';
+		session.current = { status: 'signed-in', user: { id: 'u-alice', username: 'alice' } };
+		const { getByDataTest } = render(SettingsScreen);
+		expect(getByDataTest('profile-chip').textContent).toContain('@alice');
 	});
 
 	test('(h) profile chip shows skeleton when displayName is null', () => {

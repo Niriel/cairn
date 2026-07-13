@@ -9,6 +9,10 @@
 		lead?: Snippet;
 		title: string;
 		sub?: string;
+		/* A person's public @username, rendered beneath the title on the muted
+		   .identity-handle role (the @ is added here). For identity chips only;
+		   distinct from `sub`, which is a generic caption. */
+		handle?: string;
 		onclick?: () => void;
 		trailing?: Snippet;
 		/* 'destructive' renders the row in --ember (for "Delete account" and
@@ -18,7 +22,7 @@
 		'data-test'?: string;
 	};
 
-	let { lead, title, sub, onclick, trailing, tone = 'ink', ...rest }: Props = $props();
+	let { lead, title, sub, handle, onclick, trailing, tone = 'ink', ...rest }: Props = $props();
 </script>
 
 <!-- The .nav-row div is inert layout; the <Button> inside is the full-width
@@ -29,6 +33,7 @@
 		{#if lead}<span class="nav-row-lead">{@render lead()}</span>{/if}
 		<span class="nav-row-text">
 			<span class="nav-row-title row-title">{title}</span>
+			{#if handle}<span class="nav-row-handle identity-handle">@{handle}</span>{/if}
 			{#if sub}<span class="nav-row-sub caption">{sub}</span>{/if}
 		</span>
 		{#if trailing}<span class="nav-row-trailing">{@render trailing()}</span>{/if}
@@ -67,6 +72,7 @@
 		overflow-wrap: anywhere;
 	}
 
+	.nav-row-handle,
 	.nav-row-sub {
 		margin-top: 0.125rem;
 	}

@@ -107,6 +107,16 @@ dl {
 	color: var(--ink);
 }
 
+/* A person's public @username, rendered beside or beneath their display name.
+   Muted and lighter than .identity-name — set apart by colour (--stone) and
+   weight, not by shrinking below the 1rem caption floor. NOT .mono: a handle is
+   an identity string, not a tabular numeric. The @ is part of the rendered text. */
+.identity-handle {
+	font-size: 1rem;
+	font-weight: 400;
+	color: var(--stone);
+}
+
 /* Default body copy. */
 .body {
 	font-size: 1rem;
