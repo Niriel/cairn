@@ -10,12 +10,13 @@
 	import { profile } from '$lib/shared/state/profile.svelte';
 	import { pgGet } from '$lib/shared/http/postgrest';
 	import { timeAgo } from '$lib/shared/model/time-ago';
+	import { TOMBSTONE_UID } from '$lib/shared/model/constants';
 
 	type MemberRow = {
 		user_id: string;
 		created_at: string;
 		lists: { created_by: string; name: string };
-		profiles: { display_name: string; avatar_version: number };
+		profiles: { display_name: string; avatar_version: number; username: string };
 	};
 
 	type Props = { listId: string };
@@ -42,7 +43,7 @@
 		loading = true;
 		try {
 			rows = await pgGet<MemberRow[]>(
-				`/list_members?list_id=eq.${listId}&deleted_at=is.null&select=user_id,created_at,lists(created_by,name),profiles!user_id(display_name,avatar_version)`
+				`/list_members?list_id=eq.${listId}&deleted_at=is.null&select=user_id,created_at,lists(created_by,name),profiles!user_id(display_name,avatar_version,username)`
 			);
 		} finally {
 			loading = false;
@@ -96,6 +97,9 @@
 								/>
 								<div class="info">
 									<span class="name row-title">{m.profiles.display_name}</span>
+									{#if m.user_id !== TOMBSTONE_UID}
+										<span class="handle identity-handle">@{m.profiles.username}</span>
+									{/if}
 									<span class="sub caption">{subLine(m)}</span>
 								</div>
 								{#if m.user_id !== profile.uid}
@@ -127,6 +131,7 @@
 	<ProfileSheet
 		userId={m.user_id}
 		displayName={m.profiles.display_name}
+		username={m.profiles.username}
 		avatarVersion={m.profiles.avatar_version}
 		pendingInvitationId={pendingInviteFor(listId, m.user_id)}
 		onclose={() => (openProfile = null)}
@@ -178,6 +183,7 @@
 		flex-direction: column;
 	}
 
+	.handle,
 	.sub {
 		margin-top: 0.125rem;
 	}

@@ -66,7 +66,12 @@ test('full recovery: set recovery e-mail, reset password, sign in with the new o
 	const username = uniqueUsername();
 	const oldPassword = 'cairn-old-pw';
 	const newPassword = 'cairn-new-pw';
-	const recoveryEmail = `recovery+${test.info().testId}@example.test`;
+	// Derive the recovery address from the unique-per-run username, not the
+	// stable test.info().testId: the latter reuses one address across every run,
+	// which trips the per-address OTP send throttle on the shared dev stack (the
+	// set-recovery call then never advances to the code field). Unique per run
+	// keeps the flow clean. Recovery e-mails need not be unique across accounts.
+	const recoveryEmail = `recovery+${username}@example.test`;
 
 	// Register, then set + verify a recovery e-mail.
 	await register(page, username, oldPassword);
@@ -106,7 +111,8 @@ test('full recovery: set recovery e-mail, reset password, sign in with the new o
 test('a bad reset code is rejected inline and does not change the password', async ({ page }) => {
 	const username = uniqueUsername('badcode');
 	const password = 'cairn-keep-pw';
-	const recoveryEmail = `recovery+${test.info().testId}@example.test`;
+	// Unique-per-run recovery address (see the note in the full-recovery test).
+	const recoveryEmail = `recovery+${username}@example.test`;
 
 	await register(page, username, password);
 	await setAndConfirmRecoveryEmail(page, recoveryEmail);

@@ -36,9 +36,9 @@
 	</div>
 
 	<div class="explainer-point">
-		<h3 class="point-title">Adding by e-mail is two-way.</h3>
+		<h3 class="point-title">Adding by username is two-way.</h3>
 		<p class="point-body caption">
-			If you add Bob's e-mail here, you go on their circle too — unless they've blocked you, in
+			If you add Bob's username here, you go on their circle too — unless they've blocked you, in
 			which case only your side is updated. Either of you can remove the other at any time.
 		</p>
 	</div>

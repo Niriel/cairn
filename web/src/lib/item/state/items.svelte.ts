@@ -60,6 +60,7 @@ export async function upsertVote(itemId: string, value: number): Promise<void> {
 				{
 					user_id: uid,
 					display_name: profile.displayName ?? 'Unknown',
+					username: s.user.username,
 					avatar_version: profile.avatarVersion,
 					value
 				}

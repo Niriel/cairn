@@ -23,6 +23,8 @@ const ITEM: Item = {
 	modified_by: 'user-1',
 	created_by_name: 'Alice',
 	modified_by_name: null,
+	created_by_username: 'alice',
+	modified_by_username: null,
 	score: 0,
 	created_at: '2026-01-01T00:00:00Z',
 	modified_at: '2026-01-01T00:00:00Z',

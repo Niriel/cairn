@@ -16,6 +16,7 @@ const { relationships, unblock } = await import('$lib/privacy/state/relationship
 const CAROL: BlockedEntry = {
 	otherUserId: 'carol-uid',
 	displayName: 'Carol',
+	username: 'carol',
 	avatarVersion: 0,
 	createdAt: '2026-03-01T10:00:00Z'
 };

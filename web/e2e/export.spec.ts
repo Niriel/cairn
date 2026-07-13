@@ -2,31 +2,21 @@ import { readFile } from 'node:fs/promises';
 
 import { expect, test, type Page } from '@playwright/test';
 
-import { waitForMagicLink } from './helpers/mailpit';
+import { register, uniqueUsername } from './helpers/auth';
 
 // Data-export happy path: a throwaway user signs in, walks Settings → Download
 // my data, prepares the archive, and downloads a real ZIP. A separate check
 // confirms the delete-account courtesy nudge links to the same hub. The user
 // is unique per run so nothing here disturbs other specs.
 
+const PASSWORD = 'cairn-e2e-pw';
+
 test.describe.serial('data export flow', () => {
 	let page: Page;
-	let email: string;
 
 	test.beforeAll(async ({ browser }) => {
 		page = await browser.newPage();
-
-		const runId = Date.now().toString(36);
-		email = `alice+export-${runId}@example.test`;
-
-		await page.goto('/');
-		await expect(page).toHaveURL(/\/auth\/login$/);
-		await page.locator('[data-test="login-email"]').fill(email);
-		await page.locator('[data-test="login-submit"]').click();
-		await expect(page).toHaveURL(/\/auth\/check$/);
-		const { link } = await waitForMagicLink(email);
-		await page.goto(link);
-		await expect(page).toHaveURL(/\/lists$/);
+		await register(page, uniqueUsername('exportuser'), PASSWORD);
 	});
 
 	test.afterAll(async () => {

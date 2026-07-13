@@ -2,6 +2,7 @@ import { expect, test } from '@playwright/test';
 import type { BrowserContext, Page } from '@playwright/test';
 
 import { CSRF_HEADER } from '../src/lib/shared/model/auth-paths';
+import { register, signInWithPassword, uniqueUsername } from './helpers/auth';
 import { waitForMagicLink } from './helpers/mailpit';
 
 // Magic-link happy path + sign-out, end to end against the real backend
@@ -18,32 +19,6 @@ const ACCESS_COOKIE = 'cairn_access';
 
 async function cookieNamed(context: BrowserContext, name: string) {
 	return (await context.cookies()).find((c) => c.name === name);
-}
-
-// A username that satisfies the `^[A-Za-z0-9]{3,30}$` rule and is unique per
-// run, so repeated runs against the shared dev DB never collide on the
-// case-fold uniqueness index.
-function uniqueUsername(prefix = 'e2e'): string {
-	return `${prefix}${Date.now().toString(36)}${Math.floor(Math.random() * 1e6).toString(36)}`;
-}
-
-// Register a fresh account through the real /auth/register flow and land
-// signed-in on /lists.
-async function register(page: Page, username: string, password: string): Promise<void> {
-	await page.goto('/auth/register');
-	await page.locator('[data-test="register-username"]').fill(username);
-	await page.locator('[data-test="register-password"]').fill(password);
-	await page.locator('[data-test="register-submit"]').click();
-	await expect(page).toHaveURL(/\/lists$/);
-}
-
-// Sign in through the real /auth/signin flow and land signed-in on /lists.
-async function signInWithPassword(page: Page, username: string, password: string): Promise<void> {
-	await page.goto('/auth/signin');
-	await page.locator('[data-test="signin-username"]').fill(username);
-	await page.locator('[data-test="signin-password"]').fill(password);
-	await page.locator('[data-test="signin-submit"]').click();
-	await expect(page).toHaveURL(/\/lists$/);
 }
 
 // Sign out via the settings screen and land on the signed-out surface

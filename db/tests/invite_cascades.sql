@@ -5,9 +5,9 @@
 --     invitations to the user that no longer match the new policy.
 --   * t30_enforce_fifo_cap — BEFORE INSERT on invitations; evicts
 --     the oldest pending row when a 21st arrives for the same
---     target_user_id. Email-keyed rows (target_user_id IS NULL) are
---     uncapped. (Added by task 1.2; this file's plan reserves slots
---     for it but its assertions only land once 1.2 runs.)
+--     target_user_id. (Migration 0022 retired the email-keyed path,
+--     so every invitation now carries a non-NULL target_user_id and
+--     the trigger's WHEN gate is always satisfied.)
 --
 -- See plans/0801_privacy_circle_blocked/TASKS.md tasks 1.1 / 1.2 for
 -- the per-assertion rationale.
@@ -26,7 +26,7 @@
 
 BEGIN;
 
-SELECT plan(10);
+SELECT plan(9);
 
 \i /db/tests/fixtures/users_alice_bob_carol.sql
 \i /db/tests/fixtures/list_solo_alice.sql
@@ -364,36 +364,6 @@ SELECT is(
   ),
   1,
   'G1: 21st insert to Bob does NOT touch an unrelated target''s invites'
-);
-
--- ===================================================================
--- H. Email-keyed inserts (target_user_id IS NULL) are uncapped — the
--- trigger's WHEN clause exempts them.
--- ===================================================================
-
-RESET ROLE;
-DELETE FROM public.invitations;
-
--- 21 email-keyed invitations to the same address across 21 distinct
--- lists. invitations_target_email_uniq is per (list_id, lower(email)),
--- so 21 distinct lists comfortably hold 21 rows.
-INSERT INTO public.invitations
-(list_id, created_by, target_user_id, target_email)
-SELECT
-  ('40000000-0000-0000-0000-' || lpad(n::text, 12, '0'))::uuid AS list_id,
-  'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'::uuid AS created_by,
-  NULL::uuid AS target_user_id,
-  'guest@test'::text AS target_email
-FROM generate_series(1, 21) AS n;
-
--- H1: all 21 email-keyed rows coexist — no eviction.
-SELECT is(
-  (
-    SELECT count(*)::int FROM public.invitations
-    WHERE target_user_id IS NULL AND lower(target_email) = 'guest@test'
-  ),
-  21,
-  'H1: 21 email-keyed invites to the same address all coexist (uncapped)'
 );
 
 -- ===================================================================

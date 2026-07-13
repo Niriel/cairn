@@ -123,7 +123,30 @@ $$;
 REVOKE EXECUTE ON FUNCTION public.adopt_stable_identity() FROM public;
 GRANT EXECUTE ON FUNCTION public.adopt_stable_identity() TO authenticated;
 
--- 3. resolve_username — turn a typed username into the account's
+-- 3. normalize_username — the read-side peel shared by every resolver that
+-- turns a *typed* username into an account. The public identity is shown and
+-- copied as '@handle', but usernames are STORED without the sigil
+-- (set_username's ^[A-Za-z0-9]{3,30}$ check forbids '@'), so a single leading
+-- '@' is peeled here before any lower(username) lookup. Centralising it in one
+-- function keeps the "@ is optional on input" contract identical at sign-in
+-- (resolve_username, below), password reset (0021), and invite / circle-add
+-- (0022) — one home for the rule rather than the same regexp copied into each
+-- resolver. IMMUTABLE + STRICT: a pure function of its argument (NULL in →
+-- NULL out, matching a miss). Internal-only — every caller is SECURITY DEFINER
+-- and reaches it as owner, so EXECUTE is revoked from PUBLIC and granted to no
+-- role.
+CREATE FUNCTION public.normalize_username(p_username text)
+RETURNS text
+LANGUAGE sql
+IMMUTABLE
+STRICT
+AS $$
+  SELECT regexp_replace(p_username, '^@', '');
+$$;
+
+REVOKE EXECUTE ON FUNCTION public.normalize_username(text) FROM public;
+
+-- 4. resolve_username — turn a typed username into the account's
 -- (id, username) via the case-fold lower(username) index. Sign-in (the BFF)
 -- runs before any session exists, so the resolver must work for an
 -- unauthenticated caller — hence SECURITY DEFINER granted to anon. Returns
@@ -148,7 +171,7 @@ SET search_path = public
 AS $$
   SELECT id, username
   FROM public.profiles
-  WHERE lower(username) = lower(p_username);
+  WHERE lower(username) = lower(public.normalize_username(p_username));
 $$;
 
 -- Same explicit revoke-then-grant idiom as the functions above so the grant
@@ -159,7 +182,7 @@ $$;
 REVOKE EXECUTE ON FUNCTION public.resolve_username(text) FROM public;
 GRANT EXECUTE ON FUNCTION public.resolve_username(text) TO anon, authenticated;
 
--- 4. export_my_data — revise the user sub-document forward to the username.
+-- 5. export_my_data — revise the user sub-document forward to the username.
 -- The GoTrue identity must never surface in the UI or an export, and under
 -- the stable identity auth.users.email is the meaningless <uid>@cairn.internal,
 -- so the canonical data.json must not carry it. This is byte-for-byte the 0018

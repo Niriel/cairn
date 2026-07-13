@@ -22,7 +22,7 @@ const RANKED_A: ItemRanked = {
 	score: 3,
 	created_at: '2026-01-01T00:00:00Z',
 	modified_at: '2026-01-01T00:00:00Z',
-	created_by_profile: { display_name: 'Alice' },
+	created_by_profile: { display_name: 'Alice', username: 'alice' },
 	modified_by_profile: null
 };
 

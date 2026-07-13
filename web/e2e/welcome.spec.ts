@@ -1,27 +1,19 @@
 import { expect, test, type Page } from '@playwright/test';
 
-import { waitForMagicLink } from './helpers/mailpit';
+import { register, uniqueUsername } from './helpers/auth';
 
 // Welcome-banner touch: a freshly-signed-up user keeps the default name
 // ('New user') until they personalise their profile. On the lists screen
 // they should see a welcome banner whose button takes them to /profile.
 
+const PASSWORD = 'cairn-e2e-pw';
+
 test.describe.serial('welcome banner', () => {
 	let page: Page;
-	let email: string;
 
 	test.beforeAll(async ({ browser }) => {
-		const runId = Date.now().toString(36);
-		email = `newbie+welcome-${runId}@example.test`;
-
 		page = await browser.newPage();
-		await page.goto('/');
-		await expect(page).toHaveURL(/\/auth\/login$/);
-		await page.locator('[data-test="login-email"]').fill(email);
-		await page.locator('[data-test="login-submit"]').click();
-		const link = (await waitForMagicLink(email)).link;
-		await page.goto(link);
-		await expect(page).toHaveURL(/\/lists$/);
+		await register(page, uniqueUsername('welcomeuser'), PASSWORD);
 	});
 
 	test.afterAll(async () => {

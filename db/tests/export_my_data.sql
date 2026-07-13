@@ -14,10 +14,10 @@
 --     identity the caller's own GoTrue e-mail is the meaningless
 --     <uid>@cairn.internal, so the user block carries the public
 --     `username` instead and the e-mail is dropped outright. Co-members
---     render by display name only, and the email-keyed invite's
---     target_email (the invitee's e-mail) is excluded. We assert the
---     user block has no `email` key and the document text never contains
---     a co-member's or invitee's e-mail.
+--     render by display name only, and every invitation is user-keyed
+--     (the target_email column was retired by 0022). We assert the user
+--     block has no `email` key and the document text never contains a
+--     co-member's e-mail.
 --
 -- Scoping is exercised with deliberately awkward fixtures: a trashed
 -- list the caller is still a member of (carries through), a
@@ -112,9 +112,9 @@ INSERT INTO public.list_members (list_id, user_id) VALUES
 ('99999999-9999-9999-9999-999999999999', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa')
 ON CONFLICT (list_id, user_id) DO NOTHING;
 
--- Invitations: a user-keyed sent invite (Alice → Carol), a received
--- invite (Bob → Alice), and an email-keyed sent invite (Alice →
--- dave@test, no claiming user) to exercise the target_email exclusion.
+-- Invitations: a user-keyed sent invite (Alice → Carol) and a received
+-- invite (Bob → Alice). Every invitation is user-keyed post-0022 — the
+-- email-keyed path (and target_email column) is gone.
 INSERT INTO public.invitations (list_id, created_by, target_user_id) VALUES
 (
   '11111111-1111-1111-1111-111111111111',
@@ -126,12 +126,6 @@ INSERT INTO public.invitations (list_id, created_by, target_user_id) VALUES
   '88888888-8888-8888-8888-888888888888',
   'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
   'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'
-);
-INSERT INTO public.invitations (list_id, created_by, target_email) VALUES
-(
-  '11111111-1111-1111-1111-111111111111',
-  'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
-  'dave@test'
 );
 
 -- Capture the document once (claims still = Alice; the function is
@@ -306,7 +300,7 @@ SELECT is(
   'export: invitations_received renders the inviter (Bob) by display name'
 );
 
--- ── (f) no foreign e-mail leaks; email-keyed invite by list name ───
+-- ── (f) no foreign e-mail leaks; every sent invite is user-keyed ───
 SELECT ok(
   (SELECT _doc.j::text NOT LIKE '%bob@test%' FROM _doc),
   'export: no co-member e-mail (bob@test) appears anywhere in the document'
@@ -315,18 +309,20 @@ SELECT ok(
   (SELECT _doc.j::text NOT LIKE '%carol@test%' FROM _doc),
   'export: no co-member e-mail (carol@test) appears anywhere in the document'
 );
+-- Post-0022 there is no target_email to leak; assert the invitations
+-- sub-documents carry no e-mail-shaped value at all.
 SELECT ok(
-  (SELECT _doc.j::text NOT LIKE '%dave@test%' FROM _doc),
-  'export: the email-keyed invite''s target_email (dave@test) is excluded'
+  (SELECT (_doc.j -> 'invitations_sent')::text NOT LIKE '%@%' FROM _doc),
+  'export: invitations_sent carries no e-mail-shaped value'
 );
 SELECT is(
   (
     SELECT count(*)::int
     FROM _doc, jsonb_array_elements(_doc.j -> 'invitations_sent') AS s (elem)
-    WHERE NOT (s.elem ? 'invitee_display_name')
+    WHERE s.elem ? 'invitee_display_name'
   ),
   1,
-  'export: the unclaimed email-keyed sent invite renders without an invitee name'
+  'export: every sent invite is user-keyed and renders an invitee name (Carol)'
 );
 SELECT ok(
   (

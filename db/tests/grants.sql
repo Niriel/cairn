@@ -30,7 +30,7 @@
 
 BEGIN;
 
-SELECT plan(91);
+SELECT plan(93);
 
 -- ===================================================================
 -- A. Positive matrix for `authenticated`
@@ -206,9 +206,9 @@ SELECT ok(
 );
 SELECT ok(
   has_function_privilege(
-    'authenticated', 'public.add_circle_by_email(text)', 'EXECUTE'
+    'authenticated', 'public.add_circle_by_username(text)', 'EXECUTE'
   ),
-  'authenticated has EXECUTE on public.add_circle_by_email(text)'
+  'authenticated has EXECUTE on public.add_circle_by_username(text)'
 );
 SELECT ok(
   has_function_privilege(
@@ -484,9 +484,9 @@ SELECT ok(
 );
 SELECT ok(
   NOT has_function_privilege(
-    'anon', 'public.add_circle_by_email(text)', 'EXECUTE'
+    'anon', 'public.add_circle_by_username(text)', 'EXECUTE'
   ),
-  'anon has no EXECUTE on public.add_circle_by_email(text)'
+  'anon has no EXECUTE on public.add_circle_by_username(text)'
 );
 SELECT ok(
   NOT has_function_privilege(
@@ -529,6 +529,22 @@ SELECT ok(
     'anon', 'public.decline_invitation(uuid)', 'EXECUTE'
   ),
   'anon has no EXECUTE on public.decline_invitation(uuid)'
+);
+
+-- normalize_username is an internal helper: every caller is a SECURITY DEFINER
+-- resolver that reaches it as owner, so no external role should hold a direct
+-- EXECUTE (the CREATE-time REVOKE FROM public is the load-bearing line).
+SELECT ok(
+  NOT has_function_privilege(
+    'anon', 'public.normalize_username(text)', 'EXECUTE'
+  ),
+  'anon has no EXECUTE on public.normalize_username(text)'
+);
+SELECT ok(
+  NOT has_function_privilege(
+    'authenticated', 'public.normalize_username(text)', 'EXECUTE'
+  ),
+  'authenticated has no EXECUTE on public.normalize_username(text)'
 );
 
 SELECT finish();

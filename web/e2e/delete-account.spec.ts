@@ -1,6 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 
-import { waitForMagicLink } from './helpers/mailpit';
+import { register, uniqueUsername } from './helpers/auth';
 
 // Account-deletion happy path: a throwaway user signs in, walks Settings →
 // Delete account, types the `delete` confirmation, presses the destructive
@@ -8,24 +8,14 @@ import { waitForMagicLink } from './helpers/mailpit';
 // login screen. The user is unique per run so the deletion can't disturb other
 // specs.
 
+const PASSWORD = 'cairn-e2e-pw';
+
 test.describe.serial('delete account flow', () => {
 	let page: Page;
-	let email: string;
 
 	test.beforeAll(async ({ browser }) => {
 		page = await browser.newPage();
-
-		const runId = Date.now().toString(36);
-		email = `alice+delete-${runId}@example.test`;
-
-		await page.goto('/');
-		await expect(page).toHaveURL(/\/auth\/login$/);
-		await page.locator('[data-test="login-email"]').fill(email);
-		await page.locator('[data-test="login-submit"]').click();
-		await expect(page).toHaveURL(/\/auth\/check$/);
-		const { link } = await waitForMagicLink(email);
-		await page.goto(link);
-		await expect(page).toHaveURL(/\/lists$/);
+		await register(page, uniqueUsername('deluser'), PASSWORD);
 	});
 
 	test.afterAll(async () => {
@@ -51,8 +41,8 @@ test.describe.serial('delete account flow', () => {
 		await expect(page.locator('[data-test="delete-account-done"]')).toBeVisible();
 	});
 
-	test('(d) "Back to sign in" returns to the login screen', async () => {
+	test('(d) "Back to sign in" returns to the sign-in screen', async () => {
 		await page.locator('[data-test="delete-account-signout"]').click();
-		await expect(page).toHaveURL(/\/auth\/login$/);
+		await expect(page).toHaveURL(/\/auth\/signin$/);
 	});
 });

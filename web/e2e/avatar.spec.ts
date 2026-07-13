@@ -3,12 +3,14 @@ import { fileURLToPath } from 'node:url';
 
 import { expect, test, type Page } from '@playwright/test';
 
-import { waitForMagicLink } from './helpers/mailpit';
+import { register, uniqueUsername } from './helpers/auth';
 
 const FIXTURE = path.resolve(
 	path.dirname(fileURLToPath(import.meta.url)),
 	'fixtures/test-avatar.jpg'
 );
+
+const PASSWORD = 'cairn-e2e-pw';
 
 test.describe.serial('avatar flow', () => {
 	let page: Page;
@@ -19,18 +21,7 @@ test.describe.serial('avatar flow', () => {
 		}
 
 		page = await browser.newPage();
-
-		const runId = Date.now().toString(36);
-		const email = `alice+avatar-${runId}@example.test`;
-
-		await page.goto('/');
-		await expect(page).toHaveURL(/\/auth\/login$/);
-		await page.locator('[data-test="login-email"]').fill(email);
-		await page.locator('[data-test="login-submit"]').click();
-		await expect(page).toHaveURL(/\/auth\/check$/);
-		const { link } = await waitForMagicLink(email);
-		await page.goto(link);
-		await expect(page).toHaveURL(/\/lists$/);
+		await register(page, uniqueUsername('avataruser'), PASSWORD);
 	});
 
 	test.afterAll(async () => {

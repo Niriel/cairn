@@ -26,7 +26,7 @@
 
 BEGIN;
 
-SELECT plan(24);
+SELECT plan(26);
 
 \i /db/tests/fixtures/users_alice_bob_carol.sql
 
@@ -63,6 +63,27 @@ SELECT is(
   ),
   1,
   'request_password_reset creates a reset_password token'
+);
+
+-- ===================================================================
+-- (a2) The '@' sigil is optional on input: '@alice' resolves the same as
+--      'alice' at both reset RPCs, via the shared normalize_username helper —
+--      the password-reset half of the "@ is optional everywhere" contract.
+-- ===================================================================
+RESET ROLE;
+DELETE FROM auth_private.recovery_tokens;
+UPDATE auth.users SET encrypted_password = NULL
+WHERE id = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
+SET LOCAL ROLE cairn_auth_bff;
+SELECT is(
+  public.request_password_reset('@alice', 'hash-correct'),
+  'alice@example.test',
+  'request_password_reset peels a leading @ (''@alice'' resolves to Alice)'
+);
+SELECT is(
+  public.reset_password('@alice', 'hash-correct', 'newpassword123'),
+  'ok',
+  'reset_password peels a leading @ (''@alice'' resolves to Alice)'
 );
 
 -- ===================================================================
