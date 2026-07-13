@@ -203,10 +203,10 @@ involved.
 
 ## Phase 2 — fix the blocked-invite capture
 
-### [ ] 2.1 Make `block.spec.ts` (b) target the right list
+### [x] 2.1 Make `block.spec.ts` (b) target the right list
 
 **Created:** 2026-07-13T12:52:56Z
-**Completed:**
+**Completed:** 2026-07-13T13:15:51Z
 
 **Why:** `block.spec.ts` was migrated onto username auth in the `2005` task 2.1
 follow-up but never executed until now. Step (b) — Bob (whom Alice has blocked)
@@ -262,6 +262,23 @@ the same robustness to`sharedListId` if it shares the fragility.
    asserting the generic "Couldn't send invite" toast.
 
 **Verify:** `cd web && pnpm exec playwright test block.spec.ts --project=chromium --project=firefox` · `pnpm lint`
+
+**Notes:**
+
+- **Diagnosis confirmed it's a spec capture bug, not a product bug** (escalation
+  guard cleared). A one-line `console.log('DIAG', { sharedListId, bobListId,
+  sameList })` in the setup printed `sameList: true` — `bobListId` had captured
+  the *shared* list id (Alice's own), so step (b) invited Alice to a list she is
+  already on, hence "They're already on this list." `send_invitation`'s
+  membership-vs-block ordering is fine.
+- Fix: capture `bobListId` by name —
+  `.filter({ hasText: \`Bob's list ${runId}\` })` + `await
+  expect(bobRow).toBeVisible()` before reading `data-test` — instead of
+  `.first()`. `sharedListId`'s `.first()` capture is left as-is: it's read when
+  Alice has exactly one list, so there is no ambiguity or race there.
+- Green: 4/4 on chromium + firefox; (b) now asserts the generic "Couldn't send
+  invite" (the anti-enumeration outcome, reached via the block path). Removed the
+  diagnostic log. eslint/prettier/`tsc -p e2e/tsconfig.json`/`pnpm lint` clean.
 
 ## Phase 3 — full-suite green gate
 

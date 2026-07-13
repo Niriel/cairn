@@ -65,7 +65,14 @@ test.describe.serial('block flow', () => {
 		await bob.locator('[data-test="lists-fab"]').click();
 		await bob.locator('[data-test="create-list-name"]').fill(`Bob's list ${runId}`);
 		await bob.locator('[data-test="create-list-submit"]').click();
-		const bobRow = bob.locator('[data-test^="list-nav-"]').first();
+		// Capture by name, not position: after accepting the shared list Bob is a
+		// member of two lists, and reading `.first()` raced onto the shared list
+		// (which Alice owns, so she is a member) — sending the step-(b) invite to a
+		// list Alice is already on. Filtering by the just-created name is stable.
+		const bobRow = bob
+			.locator('[data-test^="list-nav-"]')
+			.filter({ hasText: `Bob's list ${runId}` });
+		await expect(bobRow).toBeVisible();
 		bobListId = (await bobRow.getAttribute('data-test'))!.replace('list-nav-', '');
 
 		// Capture Bob's uid from the shared list's members page (skip Alice's
