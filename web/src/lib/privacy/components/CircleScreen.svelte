@@ -8,14 +8,14 @@
 	import {
 		relationships,
 		loadRelationships,
-		addCircleByEmail,
+		addCircleByUsername,
 		removeFromCircle
 	} from '$lib/privacy/state/relationships.svelte';
 	import { addedAtLabel } from '$lib/privacy/model/relationship';
 	import CircleExplainerSheet from './CircleExplainerSheet.svelte';
 
 	let explainerOpen = $state(false);
-	let emailInput = $state('');
+	let usernameInput = $state('');
 	let addError = $state<string | null>(null);
 	let snackbarOpen = $state(false);
 
@@ -26,13 +26,13 @@
 	async function handleAdd() {
 		addError = null;
 		snackbarOpen = false;
-		const result = await addCircleByEmail(emailInput);
+		const result = await addCircleByUsername(usernameInput);
 		if (result.ok) {
-			emailInput = '';
+			usernameInput = '';
 		} else if (result.reason === 'no-such-user') {
-			addError = "This e-mail isn't on Cairn — invite them to a list instead.";
+			addError = 'No one on Cairn has that username';
 		} else if (result.reason === 'self') {
-			addError = "That's your own e-mail address.";
+			addError = "That's your own username";
 		} else {
 			snackbarOpen = true;
 		}
@@ -88,17 +88,14 @@
 
 		<div class="add-card card-dashed">
 			<div class="field">
-				<Label for="circle-add-input">E-mail address</Label>
+				<Label for="circle-add-input">Username</Label>
 				<div class="add-input-row">
 					<div class="add-input-wrap">
 						<TextInput
 							id="circle-add-input"
 							data-test="circle-add-input"
-							type="email"
-							autocomplete="email"
-							inputmode="email"
-							placeholder="friend@example.net"
-							bind:value={emailInput}
+							placeholder="@username"
+							bind:value={usernameInput}
 						/>
 					</div>
 					<Button variant="rect" tone="ink" data-test="circle-add-btn" onclick={handleAdd}

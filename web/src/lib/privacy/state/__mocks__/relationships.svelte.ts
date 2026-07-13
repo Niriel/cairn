@@ -15,8 +15,8 @@ export const relationships = $state<{
 });
 
 export const loadRelationships = vi.fn(async (): Promise<void> => {});
-export const addCircleByEmail = vi.fn(
-	(_email: string): Promise<AddCircleResult> => Promise.resolve({ ok: true as const })
+export const addCircleByUsername = vi.fn(
+	(_username: string): Promise<AddCircleResult> => Promise.resolve({ ok: true as const })
 );
 export const addCircleById = vi.fn(async (_otherUserId: string): Promise<void> => {});
 export const removeFromCircle = vi.fn(async (_otherUserId: string): Promise<void> => {});

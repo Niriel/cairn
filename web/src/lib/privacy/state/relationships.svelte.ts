@@ -52,11 +52,11 @@ export async function loadRelationships(): Promise<void> {
 	}
 }
 
-export async function addCircleByEmail(email: string): Promise<AddCircleResult> {
+export async function addCircleByUsername(username: string): Promise<AddCircleResult> {
 	const me = profile.uid;
 	if (!me) return { ok: false, reason: 'unknown' };
 	try {
-		await pgPost('/rpc/add_circle_by_email', { p_email: email });
+		await pgPost('/rpc/add_circle_by_username', { p_username: username });
 		await loadRelationships();
 		return { ok: true };
 	} catch (err) {
