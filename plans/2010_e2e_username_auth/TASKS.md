@@ -28,10 +28,10 @@ start on this Fedora box). A single spec:
 
 ## Phase 1 — migrate the magic-link specs onto username auth
 
-### [ ] 1.1 Swap the five straight-swap specs onto `register()`
+### [x] 1.1 Swap the five straight-swap specs onto `register()`
 
 **Created:** 2026-07-13T12:52:56Z
-**Completed:**
+**Completed:** 2026-07-13T13:04:18Z
 
 **Why:** `avatar`, `export`, `items`, `public-list`, and `welcome` each log in
 through the retired magic-link flow (`goto('/')` expecting `/auth/login`, filling
@@ -93,10 +93,32 @@ idiom.
 
 **Verify:** `cd web && pnpm exec playwright test avatar.spec.ts export.spec.ts items.spec.ts public-list.spec.ts welcome.spec.ts --project=chromium --project=firefox` · `pnpm lint`
 
-### [ ] 1.2 Migrate `delete-account` and fix its post-deletion route
+**Notes:**
+
+- Green: all 5 specs pass on chromium + firefox (50/50 = 25 tests × 2), `pnpm
+  lint` clean, `tsc -p e2e/tsconfig.json` + prettier clean. RED confirmed first
+  (all 5 failed at the magic-link `beforeAll`). Welcome banner still renders for
+  a `register()`ed user, as predicted (R3).
+- Prefixes used: `avataruser`, `exportuser`, `itemsuser`, `publicuser`,
+  `welcomeuser`. `items`/`public-list` kept their `runId` (list-name suffix);
+  `avatar`/`export`/`welcome` dropped `runId`+`email` entirely.
+- **Unanticipated fix beyond the login swap — `public-list.spec.ts` clipboard
+  permission.** The plan called these "straight swaps," but once login worked,
+  `public-list` (b) failed on **chromium only**: `ListOverflowSheet.handleCopyLink`
+  awaits `navigator.clipboard.writeText`, which headless chromium rejects without
+  the `clipboard-write` permission (firefox is permissive and passed). This is a
+  test-environment gap, not a product bug — the app copies fine in a real
+  browser. Fixed in the spec by creating an explicit context and granting
+  `['clipboard-read','clipboard-write']`, guarded by
+  `browser.browserType().name() === 'chromium'` (the tokens are chromium-only, so
+  granting them on firefox would throw). Surfaced now only because the spec
+  previously died at login before ever reaching the copy step. Worth watching for
+  the same class of permission gap in other specs as they come back online.
+
+### [x] 1.2 Migrate `delete-account` and fix its post-deletion route
 
 **Created:** 2026-07-13T12:52:56Z
-**Completed:**
+**Completed:** 2026-07-13T13:07:38Z
 
 **Why:** `delete-account.spec.ts` logs in via magic-link (broken since 2003) and,
 in its last step, asserts that "Back to sign in" returns to `/auth/login` — a
@@ -134,10 +156,17 @@ uniqueUsername('deluser'), PASSWORD);` and remove the `mailpit` import + dead
 
 **Verify:** `cd web && pnpm exec playwright test delete-account.spec.ts --project=chromium --project=firefox` · `pnpm lint`
 
-### [ ] 1.3 Migrate `imprint` to the current pre-auth landing
+**Notes:**
+
+- Green: 8/8 on chromium + firefox; eslint/prettier/`tsc -p e2e/tsconfig.json`
+  clean. RED confirmed first. Post-deletion "Back to sign in" lands on
+  **`/auth/signin`** (the `signout` handler + route guard), as the plan
+  predicted — assertion pinned to that.
+
+### [x] 1.3 Migrate `imprint` to the current pre-auth landing
 
 **Created:** 2026-07-13T12:52:56Z
-**Completed:**
+**Completed:** 2026-07-13T13:10:29Z
 
 **Why:** `imprint.spec.ts` verifies the imprint page is reachable pre-auth from
 the login footer. It navigates `goto('/')` → expects `/auth/login` → clicks
