@@ -1,45 +1,34 @@
 import { expect, test, type Page } from '@playwright/test';
 
-import { waitForMagicLink } from './helpers/mailpit';
+import { register, uniqueUsername } from './helpers/auth';
 
-// Invite flow end-to-end: Alice creates a list, opens the picker from the
-// Members screen, and sends an invite to Bob by e-mail. Bob signs in,
-// sees the single-invite banner, accepts, lands on the list, and is
-// prompted to add Alice to his circle.
+// Invite flow end-to-end: Alice registers, creates a list, opens the picker
+// from the Members screen, and invites Bob by username. Bob — registered with
+// a known handle so Alice can type it — signs in, sees the single-invite
+// banner, accepts, lands on the list, and is prompted to add Alice to his
+// circle. (Usernames are public, so the picker reports the outcome plainly;
+// there is no e-mail and no anti-enumeration hedge on this path.)
+
+const PASSWORD = 'cairn-e2e-pw';
 
 test.describe.serial('invite flow', () => {
 	let alice: Page;
 	let bob: Page;
 	let runId: string;
-	let aliceEmail: string;
-	let bobEmail: string;
+	let bobUsername: string;
 	let listId: string;
 
 	test.beforeAll(async ({ browser }) => {
 		runId = Date.now().toString(36);
-		aliceEmail = `alice+invites-${runId}@example.test`;
-		bobEmail = `bob+invites-${runId}@example.test`;
+		bobUsername = uniqueUsername('invbob');
 
 		alice = await browser.newPage();
 		bob = await browser.newPage();
 
-		// Sign Alice in.
-		await alice.goto('/');
-		await expect(alice).toHaveURL(/\/auth\/login$/);
-		await alice.locator('[data-test="login-email"]').fill(aliceEmail);
-		await alice.locator('[data-test="login-submit"]').click();
-		await expect(alice).toHaveURL(/\/auth\/check$/);
-		const aliceLink = (await waitForMagicLink(aliceEmail)).link;
-		await alice.goto(aliceLink);
-		await expect(alice).toHaveURL(/\/lists$/);
-
-		// Sign Bob in (creates his profile so the invite-by-email resolves).
-		await bob.goto('/');
-		await bob.locator('[data-test="login-email"]').fill(bobEmail);
-		await bob.locator('[data-test="login-submit"]').click();
-		const bobLink = (await waitForMagicLink(bobEmail)).link;
-		await bob.goto(bobLink);
-		await expect(bob).toHaveURL(/\/lists$/);
+		// Register both accounts. Bob needs a known username so Alice can invite
+		// him by it; Alice just needs to be signed in to own a list.
+		await register(alice, uniqueUsername('invalice'), PASSWORD);
+		await register(bob, bobUsername, PASSWORD);
 
 		// Alice creates a list.
 		await alice.locator('[data-test="lists-fab"]').click();
@@ -56,21 +45,20 @@ test.describe.serial('invite flow', () => {
 		await bob.close();
 	});
 
-	test('(a) Alice invites Bob by e-mail from the picker', async () => {
+	test('(a) Alice invites Bob by username from the picker', async () => {
 		await alice.goto(`/lists/${listId}/members`);
 		await expect(alice.locator('[data-test="members-screen"]')).toBeVisible();
 		await alice.locator('[data-test="members-add"]').click();
 		await expect(alice.locator('[data-test="invite-picker"]')).toBeVisible();
 
-		await alice.locator('[data-test="invite-picker-email-input"]').fill(bobEmail);
-		await alice.locator('[data-test="invite-picker-email-send"]').click();
+		await alice.locator('[data-test="invite-picker-username-input"]').fill(bobUsername);
+		await alice.locator('[data-test="invite-picker-username-send"]').click();
 
-		// Anti-enumeration toast — same message regardless of whether the
-		// e-mail belongs to a Cairn account. Crucially, no echo of bobEmail.
+		// The handle resolved to a real account that accepts invites, so the
+		// picker reports the send plainly.
 		const toast = alice.locator('[data-test="invite-picker-toast"]');
 		await expect(toast).toBeVisible();
-		await expect(toast).toContainText('If they have a Cairn account');
-		await expect(toast).not.toContainText(bobEmail);
+		await expect(toast).toContainText('Invite sent');
 	});
 
 	test('(b) Bob sees the single-invite banner and accepts', async () => {
