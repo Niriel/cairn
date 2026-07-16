@@ -3,11 +3,12 @@
 # git checkout.
 #
 # WHAT IT DOES
-#   Runs `docker compose ... build web`, which executes `pnpm install &&
-#   pnpm build` inside the `web` image (see web/Dockerfile) and bakes a
-#   fresh, content-hashed static bundle into the image. It does NOT touch
-#   the running container — the live site keeps serving the old bundle
-#   until you swap the image in.
+#   Runs `docker compose ... build` — rebuilds EVERY locally-built image
+#   (the pgTAP postgres, sidecar, auth-proxy, and web) from the current
+#   checkout. Building all of them, not just web, is deliberate: a release
+#   must never ship a stale image for a service whose source changed — the
+#   "we forgot to rebuild auth-proxy" class of bug. It does NOT touch the
+#   running containers; swap-image.sh puts the fresh images into service.
 #
 # WHEN TO USE
 #   On the production VPS, as step 2 of a release — AFTER `git pull` (and
@@ -17,8 +18,8 @@
 #   new Settings row, …) never appears until it is rebuilt here and then
 #   swapped in. See docs/deployment.md → "A release is: pull, restart".
 #
-#   Rebuilds the `web` service by default. Pass service names to build
-#   others, e.g. `./scripts/rebuild.sh auth-proxy`.
+#   Rebuilds all built images by default. Pass service names to build a
+#   subset, e.g. `./scripts/rebuild.sh web`.
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
@@ -36,6 +37,6 @@ fi
 
 COMPOSE=(docker compose -f docker-compose.yml -f docker-compose.prod.yml --env-file .env.prod)
 
-"${COMPOSE[@]}" build "${@:-web}"
+"${COMPOSE[@]}" build "$@"
 
-echo "rebuild: built '${*:-web}'. Run ./scripts/swap-image.sh to put it into service."
+echo "rebuild: built '${*:-all images}'. Run ./scripts/swap-image.sh to put them into service."

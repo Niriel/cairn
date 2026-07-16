@@ -249,21 +249,30 @@ ssh cairn@<vps>
 cd cairn
 git pull
 ./scripts/migrate.sh       # if there are new migrations
-./scripts/rebuild.sh       # rebuild the static bundle from the fresh checkout
-./scripts/swap-image.sh    # bring the rebuilt image into service
+./scripts/rebuild.sh       # rebuild ALL images from the fresh checkout
+./scripts/swap-image.sh    # recreate ALL containers with the new images/config
 ```
 
-The last two steps wrap the prod `docker compose … build web` / `up -d`
-invocations so the long `-f … -f … --env-file .env.prod` incantation lives in
-one place; both refuse to run unless `.env.prod` is present (their "you're on
-the prod box" guard). They are deliberately separate commands — **`git pull`
-alone changes only the source on disk; the live site keeps serving the old
-bundle until `rebuild.sh` bakes a new one and `swap-image.sh` swaps it in.**
-Forgetting the rebuild is the usual reason a freshly-merged screen or Settings
-row "doesn't show up" after a deploy. See the header comments in
-`scripts/rebuild.sh` and `scripts/swap-image.sh` for the full rationale.
+The last two steps wrap the prod `docker compose … build` / `up -d
+--force-recreate` invocations so the long `-f … -f … --env-file .env.prod`
+incantation lives in one place; both refuse to run unless `.env.prod` is present
+(their "you're on the prod box" guard). They are deliberately separate commands —
+**`git pull` alone changes only the source on disk; the live site keeps serving
+the old images until `rebuild.sh` bakes fresh ones and `swap-image.sh` swaps them
+in.** Forgetting the rebuild is the usual reason a freshly-merged change "doesn't
+show up" after a deploy. See the header comments in `scripts/rebuild.sh` and
+`scripts/swap-image.sh` for the full rationale.
 
-`swap-image.sh` runs `docker compose up -d`, which only restarts containers whose configuration or image has changed, so this is fast — the database, auth, and API stay running while the web bundle swaps in.
+Both are **whole-stack by design**: `rebuild.sh` rebuilds every locally-built
+image (postgres/pgTAP, sidecar, auth-proxy, web), and `swap-image.sh` runs
+`docker compose up -d --force-recreate`, recreating **every** container — the
+database included. That costs a few seconds of full-stack restart per release,
+deliberately traded for never shipping a half-updated stack: Compose does not
+notice an edit behind a bind mount (the Caddyfile is the classic trap — same
+mount, changed contents, looks unchanged to `up -d`), so a targeted swap can
+silently leave Caddy on the old config or a service on a stale image. Rebuilding
+and recreating everything removes the "which container didn't pick up the change?"
+failure mode entirely.
 
 The web bundle is built inside the `web` container (the Dockerfile runs `pnpm install && pnpm build`). This means a release is reproducible from the git checkout alone — no separate build pipeline, no artifact store, no host-side Node install. If `git pull` brings down web changes, the rebuild includes them; if it doesn't, the existing image is reused.
 

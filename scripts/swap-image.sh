@@ -2,10 +2,14 @@
 # swap-image.sh — bring freshly-built production images into service.
 #
 # WHAT IT DOES
-#   Runs `docker compose ... up -d`. Compose recreates only the containers
-#   whose image or config actually changed, so a rebuilt `web` bundle swaps
-#   in while postgres / postgrest / gotrue keep running untouched — the data
-#   layer never restarts just to ship a frontend change.
+#   Runs `docker compose ... up -d --force-recreate` — recreates EVERY
+#   container, not just the ones Compose thinks changed. This is deliberate:
+#   Compose does NOT notice edits behind a bind mount (the Caddyfile is the
+#   classic trap — a changed file on the same mount looks unchanged), so a
+#   plain `up -d` can silently leave Caddy on the old config, or a container
+#   on an old image / stale env. Recreating everything costs a few seconds of
+#   full-stack restart — the database included — and buys never having to
+#   guess which container missed the update.
 #
 # WHEN TO USE
 #   On the production VPS, as the final step of a release — AFTER
@@ -34,7 +38,7 @@ fi
 
 COMPOSE=(docker compose -f docker-compose.yml -f docker-compose.prod.yml --env-file .env.prod)
 
-"${COMPOSE[@]}" up -d "$@"
+"${COMPOSE[@]}" up -d --force-recreate "$@"
 
 echo "swap-image: containers reconciled. Check status with:"
 echo "  ${COMPOSE[*]} ps"
