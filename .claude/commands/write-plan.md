@@ -95,15 +95,15 @@ Create it: `mkdir plans/<NNNN>_<slug>/`.
 ### 4. Write the three files
 
 In this order: `REQUIREMENTS.md` → `PLAN.md` → `TASKS.md`. Follow
-the format in the three writing-* skills.
+the format in the three writing-\* skills.
 
-- **`REQUIREMENTS.md`** captures the *what* — numbered `R1`,
+- **`REQUIREMENTS.md`** captures the _what_ — numbered `R1`,
   `R2`, … requirements plus a Non-requirements section. See
   `.claude/skills/writing-requirements.md`.
-- **`PLAN.md`** captures the *why and how for humans* —
+- **`PLAN.md`** captures the _why and how for humans_ —
   Context, Decisions, Architecture, Phase structure,
   References. See `.claude/skills/writing-plan.md`.
-- **`TASKS.md`** captures the *how for the LLM executor* —
+- **`TASKS.md`** captures the _how for the LLM executor_ —
   self-contained task blocks with RED-before-GREEN steps. A task is
   a **commit unit**: tests and the implementation they cover belong
   in the same task. RED steps come first within the task; they are
@@ -120,7 +120,7 @@ the three files. Do not commit yet — the user reviews first.
 If any decision in `PLAN.md` reads "the doc doesn't address
 this," "the doc says X but X is wrong," or otherwise diverges
 from `docs/*.md`, that's a sign the docs need reconciling
-*before* implementation. Cairn is pre-alpha and the docs are
+_before_ implementation. Cairn is pre-alpha and the docs are
 canonical for downstream steps; if implementation silently
 diverges, later plans reference a stale spec and the divergence
 compounds.
@@ -161,15 +161,15 @@ Note which tasks in `TASKS.md` are marked `[x]` — those are
 
 ### What's frozen, what's editable, what's appended
 
-| Element                                          | Allowed? |
-|--------------------------------------------------|----------|
-| Existing requirements (`R1`, `R2`, …)            | **Edit in place** — for wording fixes, scope narrowing, or PR-driven corrections. Numbers stay stable; never renumber. |
-| New requirements                                 | **Append** at the next number (e.g. `R13` if `R12` was last). |
-| Non-requirements section                         | **Edit / append** — move dismissed concerns here with rationale. |
-| Existing phases in `PLAN.md`                     | **Frozen** — historical record. |
-| Existing tasks in `TASKS.md` marked `[ ]`        | **Frozen by default.** If a not-yet-started task needs changing, prefer adding a new task in a new phase that supersedes it. Touch only for typo-level fixes. |
-| Existing tasks in `TASKS.md` marked `[x]`        | **Frozen, hard.** The code that implements them shipped; editing the task changes nothing about the code. If a `[x]` task's decisions turn out wrong, capture the correction as a *new* requirement plus a *new* task in a *new* phase. |
-| New phases in `PLAN.md` and `TASKS.md`           | **Append** at the bottom. Phase numbers continue from the last existing phase. Task numbers within a new phase start at `N.1`. |
+| Element                                   | Allowed?                                                                                                                                                                                                                                |
+| ----------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Existing requirements (`R1`, `R2`, …)     | **Edit in place** — for wording fixes, scope narrowing, or PR-driven corrections. Numbers stay stable; never renumber.                                                                                                                  |
+| New requirements                          | **Append** at the next number (e.g. `R13` if `R12` was last).                                                                                                                                                                           |
+| Non-requirements section                  | **Edit / append** — move dismissed concerns here with rationale.                                                                                                                                                                        |
+| Existing phases in `PLAN.md`              | **Frozen** — historical record.                                                                                                                                                                                                         |
+| Existing tasks in `TASKS.md` marked `[ ]` | **Frozen by default.** If a not-yet-started task needs changing, prefer adding a new task in a new phase that supersedes it. Touch only for typo-level fixes.                                                                           |
+| Existing tasks in `TASKS.md` marked `[x]` | **Frozen, hard.** The code that implements them shipped; editing the task changes nothing about the code. If a `[x]` task's decisions turn out wrong, capture the correction as a _new_ requirement plus a _new_ task in a _new_ phase. |
+| New phases in `PLAN.md` and `TASKS.md`    | **Append** at the bottom. Phase numbers continue from the last existing phase. Task numbers within a new phase start at `N.1`.                                                                                                          |
 
 ### 2. Update `REQUIREMENTS.md`
 

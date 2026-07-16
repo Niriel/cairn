@@ -16,10 +16,12 @@
 	import Avatar from '$lib/shared/components/Avatar.svelte';
 	import ButtonPair from '$lib/shared/components/ButtonPair.svelte';
 	import { profile } from '$lib/shared/state/profile.svelte';
+	import { TOMBSTONE_UID } from '$lib/shared/model/constants';
 
 	type Props = {
 		userId: string;
 		displayName: string;
+		username?: string;
 		avatarVersion?: number;
 		pendingInvitationId?: string | null;
 		onclose: () => void;
@@ -28,12 +30,14 @@
 	let {
 		userId,
 		displayName,
+		username,
 		avatarVersion = 0,
 		pendingInvitationId = null,
 		onclose
 	}: Props = $props();
 
 	const isSelf = $derived(userId === profile.uid);
+	const isTombstone = $derived(userId === TOMBSTONE_UID);
 	const isInCircle = $derived(
 		relationships.loaded && relationships.circle.some((e) => e.otherUserId === userId)
 	);
@@ -60,6 +64,9 @@
 
 	<Avatar uid={userId} {displayName} size={68} {avatarVersion} />
 	<h2 class="name identity-name">{displayName}</h2>
+	{#if username && !isTombstone}
+		<p class="handle identity-handle" data-test="profile-handle">@{username}</p>
+	{/if}
 
 	{#if relationships.loaded}
 		{#if isInCircle}
@@ -187,6 +194,14 @@
 	.name {
 		text-align: center;
 		margin: 0.75rem 0 0;
+	}
+
+	/* The handle sits directly under the display name — its own centred line.
+	   Prominent by placement (the profile sheet is where you confirm who a
+	   person is), not by overriding the muted .identity-handle colour. */
+	.handle {
+		text-align: center;
+		margin: 0.25rem 0 0;
 	}
 
 	/* The state label is centred block text, not a pill — its sage/ember colour

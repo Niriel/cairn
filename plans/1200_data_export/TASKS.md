@@ -38,6 +38,7 @@ undecided doc.
 **Prerequisites:** None.
 
 **Decisions:**
+
 - Option B: items the caller added carry an `all_votes` array of every
   vote, rendered `{ user_display_name, value }` (display name only).
 - Rationale to record: the live UI already shows the item author these
@@ -50,10 +51,12 @@ undecided doc.
   Task 1.1's pgTAP is written against a documented shape.
 
 **Files:**
+
 - `docs/data-export.md` (modify)
 - `docs/open-questions.md` (modify)
 
 **Steps:**
+
 1. In `docs/data-export.md` § "Open question — vote scope", rewrite the
    section to state that Option B is **decided** (date 2026-06-12), keep
    the one-paragraph rationale, and drop the "Flag for a deliberate call"
@@ -90,9 +93,10 @@ per-user document as JSONB; the web layer is just packaging on top.
 from migrations 0004–0017.
 
 **Decisions:**
+
 - Model the body on `admin.inspect_user` (`0017_admin.sql:185`):
   top-level `jsonb_build_object` of nested subqueries, `SECURITY
-  DEFINER`, `SET search_path = public, auth`.
+DEFINER`, `SET search_path = public, auth`.
 - **Guards first**, mirroring `delete_account()` (0014):
   `uid IS NULL` → `RAISE … USING errcode = '28000'` ('not
   authenticated'); `uid = '00000000-0000-0000-0000-000000000000'` →
@@ -118,7 +122,7 @@ from migrations 0004–0017.
 - **Invitations are an allowlist, not `to_jsonb(i)` / `jsonb_agg(i)`**
   (R4): each row carries the list name + `list_id`, `created_at`, and the
   other party as a **display name** where one exists. There is **no
-  `status` column** on `invitations` — accept/decline *delete* the row
+  `status` column** on `invitations` — accept/decline _delete_ the row
   (`0011_invitations_delete.sql`), so every surviving invite is pending;
   do **not** select `i.status` (it does not exist) and do not synthesise
   a status key. `invitations.target_email` (`0009_invitations.sql:33`) is
@@ -134,15 +138,17 @@ allowlist test; `db/tests/rpc_delete_account.sql` for guard + grant
 assertions and the `list_shared_alice_bob` fixture usage.
 
 **Files:**
+
 - `db/migrations/0018_data_export.sql` (create)
 - `db/tests/export_my_data.sql` (create)
 
 **Steps:**
+
 1. RED — Create `db/tests/export_my_data.sql` with `plan(N)`. `\i
-   /db/tests/fixtures/list_shared_alice_bob.sql` (Alice+Bob on list
+/db/tests/fixtures/list_shared_alice_bob.sql` (Alice+Bob on list
    `11111111`; claims = Alice). As the test superuser, seed: **distinct
    `profiles.display_name` for Alice/Bob/Carol** (`UPDATE public.profiles
-   SET display_name = 'Alice'/'Bob'/'Carol' WHERE id = …`) so the
+SET display_name = 'Alice'/'Bob'/'Carol' WHERE id = …`) so the
    display-name assertions below are non-vacuous — the signup default is
    the shared placeholder `'New user'`; an item on the shared list
    `created_by` Alice (the **live** item the vote/Option-B asserts use);
@@ -160,7 +166,7 @@ assertions and the `list_shared_alice_bob` fixture usage.
    (`deleted_at` set) that Alice **is** a member of (to prove trashed
    lists carry through, R2); and sentinel values in
    every `auth.users` credential/token column on Alice (copy the `UPDATE
-   auth.users SET encrypted_password='SENTINEL-…', …` block from
+auth.users SET encrypted_password='SENTINEL-…', …` block from
    `admin_inspect.sql`). Capture `public.export_my_data()` into a temp
    table under Alice's claims. Assert:
    (a) `user->>'email'` = Alice's, `user->>'display_name'` present,
@@ -186,7 +192,7 @@ assertions and the `list_shared_alice_bob` fixture usage.
    (g) guards: claims unset → `28000`; claims = tombstone → `28000`
    (use `throws_ok` with `SET LOCAL ROLE authenticated` + `set_config`);
    (h) grant matrix: `has_function_privilege('authenticated',
-   'public.export_my_data()', 'EXECUTE')` true; `anon` and `public`
+'public.export_my_data()', 'EXECUTE')` true; `anon` and `public`
    false.
 2. RED — Run `./scripts/test-db.sh` and confirm `export_my_data.sql`
    reports red (function does not exist).
@@ -215,6 +221,7 @@ UI that satisfies GDPR portability.
 from `web/src/lib/shared/http/postgrest.ts`.
 
 **Decisions:**
+
 - `types.ts` mirrors `data-export.md` § "`data.json` shape":
   `ExportDocument`, `ExportUser`, `ExportList`, `ExportMember`,
   `ExportItem`, `ExportVote`, `ExportRelationship`, `ExportInvitation`.
@@ -223,8 +230,8 @@ from `web/src/lib/shared/http/postgrest.ts`.
   `archive` must read absent as "no co-author votes", never error on it.
   `ExportInvitation` has **no `status` field** (invites are pending-only).
 - `export.svelte.ts` exposes runes state: `status` (`'idle' |
-  'packaging' | 'ready' | 'error'`), `result` (`{ blob, fileName } |
-  null`), `error` (string | null), and `prepare()`, `download()`,
+'packaging' | 'ready' | 'error'`), `result` (`{ blob, fileName } |
+null`), `error` (string | null), and `prepare()`, `download()`,
   `reset()`.
 - For this task `prepare()` calls `pgPost<ExportDocument>('/rpc/export_my_data', {})`,
   and (no ZIP yet) sets `result` to a `Blob` of the pretty-printed JSON
@@ -235,13 +242,15 @@ from `web/src/lib/shared/http/postgrest.ts`.
 - Module is reactive via runes; do not wrap a `Map`/`Set` in `$state`.
 
 **Files:**
+
 - `web/src/lib/export/model/types.ts` (create)
 - `web/src/lib/export/state/export.svelte.ts` (create)
 - `web/src/lib/export/state/export.test.ts` (create)
 
 **Steps:**
+
 1. RED — Write `export.test.ts`: with MSW stubbing `POST
-   */rpc/export_my_data` to return a fixture `ExportDocument`,
+*/rpc/export_my_data` to return a fixture `ExportDocument`,
    `prepare()` transitions `idle → packaging → ready` and populates
    `result.fileName === 'data.json'`; on a 500 it transitions to
    `'error'` with a message; `reset()` returns to `idle`. Use the MSW
@@ -264,19 +273,20 @@ minimal hub from this task, a user can already prepare and download their
 **Prerequisites:** Task 2.1 (`export.svelte.ts`, `types.ts`).
 
 **Decisions:**
+
 - New `<section class="preference-group">` in `SettingsScreen.svelte`
   titled "Privacy & data". The artboard
   (`design/cairn-export-screens.jsx` § 1) and `docs/ui.md` § Settings show
   it **immediately adjacent to Recovery**, but the live screen has
   "Appearance" and "Text size" sitting between "People" and "Recovery"
   (current order: Profile, People, Appearance, Text size, Recovery,
-  Account). **Insert it immediately *before* the "Recovery" section**
+  Account). **Insert it immediately _before_ the "Recovery" section**
   (i.e. after "Text size"), so Privacy & data → Recovery → Account form
   the contiguous data/account cluster the artboard depicts. One
   `NavRow`: title "Download my data", `lead` `<Icon name="download"
-  size={20} />`, `sub` "A copy of everything Cairn stores",
+size={20} />`, `sub` "A copy of everything Cairn stores",
   `data-test="settings-download-data"`, `onclick={() =>
-  goto(resolve('/settings/data-export'))}`.
+goto(resolve('/settings/data-export'))}`.
 - New route `web/src/routes/(app)/settings/data-export/+page.svelte`
   renders `ExportHubScreen`. A minimal `ExportHubScreen` for this task:
   `AppTopBar` "Download my data", explanation copy, a "Prepare my
@@ -288,6 +298,7 @@ minimal hub from this task, a user can already prepare and download their
   (same task as the Settings edit), and the `ExportHubScreen` it imports.
 
 **Files:**
+
 - `web/src/lib/settings/components/SettingsScreen.svelte` (modify)
 - `web/src/lib/settings/components/SettingsScreen.test.ts` (modify)
 - `web/src/lib/export/components/ExportHubScreen.svelte` (create)
@@ -296,6 +307,7 @@ minimal hub from this task, a user can already prepare and download their
 - `web/src/routes/(app)/settings/data-export/page.test.ts` (create)
 
 **Steps:**
+
 1. RED — Extend `SettingsScreen.test.ts`: a row with
    `data-test="settings-download-data"` renders, and clicking it calls
    `goto` with the resolved `/settings/data-export` path (mock
@@ -313,6 +325,7 @@ minimal hub from this task, a user can already prepare and download their
 **Verify:** `cd web && pnpm lint && pnpm check && pnpm test`
 
 **Notes:**
+
 - User refined the hub UI directly during the task: the "What's inside"
   / "Two formats" labels became `<h2>` (matching a parallel `Label`→`<h2>`
   swap they made in `DeleteAccountScreen.svelte`), the formats list became a
@@ -342,6 +355,7 @@ renderers — so the consumer is never written against a missing module.
 **Prerequisites:** Task 2.1 (`types.ts`).
 
 **Decisions:**
+
 - Pure functions in `render-html.ts`: `renderDataHtml(doc)`,
   `renderReadmeHtml(doc)`, `renderReadmeMarkdown(doc)`. All return
   strings; **no `<script>`** in any output.
@@ -353,10 +367,12 @@ renderers — so the consumer is never written against a missing module.
 - READMEs explain what each file is and that JSON is canonical.
 
 **Files:**
+
 - `web/src/lib/export/model/render-html.ts` (create)
 - `web/src/lib/export/model/render-html.test.ts` (create)
 
 **Steps:**
+
 1. RED — Write `render-html.test.ts`: output of each renderer contains
    the user's display name and a list/item name; `renderDataHtml` output
    contains **no** `<script` substring; a name containing `<b>` is
@@ -381,6 +397,7 @@ renderers `buildArchive` imports — landed first so this task has no
 missing import to stub).
 
 **Decisions:**
+
 - Add `jszip` to `web/package.json` `dependencies` (the user approved a
   runtime dep over a hand-rolled encoder).
 - `exportFileName(doc)` → `cairn-export-{yyyymmdd}-{shortid}.zip`, where
@@ -395,11 +412,13 @@ missing import to stub).
   HTML/README content comes from Task 3.1's renderers (already landed).
 
 **Files:**
+
 - `web/package.json` (modify)
 - `web/src/lib/export/model/archive.ts` (create)
 - `web/src/lib/export/model/archive.test.ts` (create)
 
 **Steps:**
+
 1. GREEN-first (dependency) — `cd web && pnpm add jszip`.
 2. RED — Write `archive.test.ts`: `exportFileName` matches
    `/^cairn-export-\d{8}-[a-z0-9]+\.zip$/` and embeds the
@@ -425,6 +444,7 @@ build the idle/packaging/ready (and error) states the design specifies.
 **Prerequisites:** Tasks 2.1, 2.2, 3.1, 3.2.
 
 **Decisions:**
+
 - In `export.svelte.ts`, `prepare()` now: `status='packaging'` → call
   the RPC → `buildArchive(doc, [])` (avatars added in Phase 4) →
   `result = { blob, fileName: exportFileName(doc) }` → `status='ready'`;
@@ -447,7 +467,7 @@ build the idle/packaging/ready (and error) states the design specifies.
   artboard's auto-save copy "Your browser is saving the file now."
   (`cairn-export-screens.jsx:172`) assumes the file downloads on entering
   `ready`; we use a button instead, so the ready sub-copy must match a
-  *click-to-save* flow — use "Your archive is ready to download." rather
+  _click-to-save_ flow — use "Your archive is ready to download." rather
   than "saving now". Keep the artboard's italic note pair: "Open the
   README.html first — it explains what each file is." + "Your archive is
   valid until you close this page." The filename-chip file-size (artboard
@@ -458,12 +478,14 @@ build the idle/packaging/ready (and error) states the design specifies.
   via tokens and global classes (`docs/ui.md`).
 
 **Files:**
+
 - `web/src/lib/export/state/export.svelte.ts` (modify)
 - `web/src/lib/export/state/export.test.ts` (modify)
 - `web/src/lib/export/components/ExportHubScreen.svelte` (modify)
 - `web/src/lib/export/components/ExportHubScreen.test.ts` (modify)
 
 **Steps:**
+
 1. RED — Update `export.test.ts`: after `prepare()`, `result.fileName`
    matches the `cairn-export-…zip` pattern and `result.blob` is a
    non-empty Blob (MSW returns a fixture document). Update
@@ -490,6 +512,7 @@ photos at export time, without letting a missing avatar break the export.
 **Prerequisites:** Task 3.3 (`prepare()` builds the ZIP).
 
 **Decisions:**
+
 - In `prepare()`, before `buildArchive`, gather avatar bytes: fetch
   `/avatars/{uid}.webp` for the caller (`doc.user.id`) → `avatar.webp`,
   and for each **distinct** co-member `id` across `doc.lists[].members`
@@ -502,10 +525,12 @@ photos at export time, without letting a missing avatar break the export.
   cache-buster, and "no picture" simply 404s (`docs/avatars.md`).
 
 **Files:**
+
 - `web/src/lib/export/state/export.svelte.ts` (modify)
 - `web/src/lib/export/state/export.test.ts` (modify)
 
 **Steps:**
+
 1. RED — Extend `export.test.ts` with MSW handlers for `*/avatars/*`:
    the caller's avatar returns 200 with bytes → archive contains
    `avatar.webp`; one co-member returns 200 → archive contains
@@ -519,6 +544,7 @@ photos at export time, without letting a missing avatar break the export.
 **Verify:** `cd web && pnpm lint && pnpm check && pnpm test`
 
 **Notes:**
+
 - The dedup uses a plain array + `includes` rather than a `Set`: in a
   `.svelte.ts` file ESLint's `svelte/prefer-svelte-reactivity` flags any
   mutable `Set`, and `SvelteSet` is the wrong tool for a transient,
@@ -542,19 +568,22 @@ button already exists, disabled, with a `TODO(step-12)`.
 `resolve()` type-checks).
 
 **Decisions:**
+
 - In `DeleteAccountScreen.svelte`, remove `disabled` from the
   `delete-account-export-download` `Button`, add `onclick={() =>
-  goto(resolve('/settings/data-export'))}`, and remove **both** stale
+goto(resolve('/settings/data-export'))}`, and remove **both** stale
   step-12 comments: the explanatory comment above the card ("Download is
   disabled until export lands (step 12)", ~line 72) and the inline
   `TODO(step-12)` (~line 79). Independent flow — back returns to this
   screen; the delete gate is untouched.
 
 **Files:**
+
 - `web/src/lib/account/components/DeleteAccountScreen.svelte` (modify)
 - `web/src/lib/account/components/DeleteAccountScreen.test.ts` (modify)
 
 **Steps:**
+
 1. RED — Update `DeleteAccountScreen.test.ts`: the existing assertion
    that `delete-account-export-download` is `disabled` is replaced by one
    asserting it is **enabled** and that clicking it calls `goto` with the
@@ -566,6 +595,7 @@ button already exists, disabled, with a `TODO(step-12)`.
 **Verify:** `cd web && pnpm lint && pnpm check && pnpm test`
 
 **Notes:**
+
 - User-directed visual refinements to the courtesy-nudge card during the
   task: the Download button is now `tone="sage"` (green, matching the
   invite-banner Accept), `leadingIcon="download"`, full-width, and moved
@@ -586,6 +616,7 @@ download a valid archive, and that the delete-account link reaches the hub.
 **Prerequisites:** Tasks 2.2, 3.3, 4.1, 5.1.
 
 **Decisions:**
+
 - Follow `web/e2e/delete-account.spec.ts`: Mailpit sign-in via
   `waitForMagicLink` (`web/e2e/helpers/mailpit.ts`), then drive the UI.
 - Capture the download with Playwright's `page.waitForEvent('download')`
@@ -595,9 +626,11 @@ download a valid archive, and that the delete-account link reaches the hub.
   resilient (don't over-specify byte counts).
 
 **Files:**
+
 - `web/e2e/export.spec.ts` (create)
 
 **Steps:**
+
 1. Sign in via Mailpit; go to `/settings`; click
    `settings-download-data`; expect URL `/settings/data-export`.
 2. Click "Prepare my download"; wait for the ready state (filename chip
@@ -611,6 +644,7 @@ download a valid archive, and that the delete-account link reaches the hub.
 **Verify:** `cd web && pnpm test:e2e export` · `./scripts/check.sh --e2e`
 
 **Notes:**
+
 - No ZIP-reader dep was needed: the download assertion reads the saved
   file with `node:fs/promises` and checks the `PK` (`0x50 0x4b`) local-
   file-header magic bytes + non-empty length, which is enough to prove a

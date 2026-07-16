@@ -10,11 +10,14 @@
 --     credential/recovery-token column (copied from admin_inspect.sql)
 --     and assert each key is ABSENT. A denylist body that forgot a
 --     column would leak the sentinel and fail here.
---   * No e-mail but the caller's own appears anywhere in the document
---     — co-members render by display name only, and the email-keyed
---     invite's target_email (the invitee's e-mail, not the caller's)
---     is excluded. We assert the document text never contains a
---     co-member's or invitee's e-mail.
+--   * No e-mail appears anywhere in the document. Under the stable
+--     identity the caller's own GoTrue e-mail is the meaningless
+--     <uid>@cairn.internal, so the user block carries the public
+--     `username` instead and the e-mail is dropped outright. Co-members
+--     render by display name only, and every invitation is user-keyed
+--     (the target_email column was retired by 0022). We assert the user
+--     block has no `email` key and the document text never contains a
+--     co-member's e-mail.
 --
 -- Scoping is exercised with deliberately awkward fixtures: a trashed
 -- list the caller is still a member of (carries through), a
@@ -22,11 +25,11 @@
 -- member of (excluded). Vote scope is Option B: every vote on an item
 -- the caller added is included, by display name.
 --
--- 32 assertions — see the inline section headers.
+-- 33 assertions — see the inline section headers.
 
 BEGIN;
 
-SELECT plan(32);
+SELECT plan(33);
 
 -- Shared list 11111111 (Alice + Bob) and the three-user fixture.
 -- Claims are left set to Alice by the fixture.
@@ -40,6 +43,11 @@ UPDATE public.profiles SET display_name = 'Bob'
 WHERE id = 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb';
 UPDATE public.profiles SET display_name = 'Carol'
 WHERE id = 'cccccccc-cccc-cccc-cccc-cccccccccccc';
+
+-- A known username on Alice so the user-block username assertion is
+-- non-vacuous (the signup default is a provisional u<hex> handle).
+UPDATE public.profiles SET username = 'AliceHandle'
+WHERE id = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
 
 -- Sentinel secrets on Alice so the allowlist test is non-vacuous.
 UPDATE auth.users SET
@@ -104,9 +112,9 @@ INSERT INTO public.list_members (list_id, user_id) VALUES
 ('99999999-9999-9999-9999-999999999999', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa')
 ON CONFLICT (list_id, user_id) DO NOTHING;
 
--- Invitations: a user-keyed sent invite (Alice → Carol), a received
--- invite (Bob → Alice), and an email-keyed sent invite (Alice →
--- dave@test, no claiming user) to exercise the target_email exclusion.
+-- Invitations: a user-keyed sent invite (Alice → Carol) and a received
+-- invite (Bob → Alice). Every invitation is user-keyed post-0022 — the
+-- email-keyed path (and target_email column) is gone.
 INSERT INTO public.invitations (list_id, created_by, target_user_id) VALUES
 (
   '11111111-1111-1111-1111-111111111111',
@@ -119,12 +127,6 @@ INSERT INTO public.invitations (list_id, created_by, target_user_id) VALUES
   'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
   'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'
 );
-INSERT INTO public.invitations (list_id, created_by, target_email) VALUES
-(
-  '11111111-1111-1111-1111-111111111111',
-  'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
-  'dave@test'
-);
 
 -- Capture the document once (claims still = Alice; the function is
 -- SECURITY DEFINER so the role does not matter for content).
@@ -133,9 +135,13 @@ SELECT public.export_my_data() AS j;
 
 -- ── (a) user allowlist: shape ──────────────────────────────────────
 SELECT is(
-  (SELECT j -> 'user' ->> 'email' FROM _doc),
-  'alice@test',
-  'export: user carries the caller''s own email'
+  (SELECT j -> 'user' ->> 'username' FROM _doc),
+  'AliceHandle',
+  'export: user carries the caller''s username (the public identity)'
+);
+SELECT ok(
+  (SELECT NOT jsonb_exists(j -> 'user', 'email') FROM _doc),
+  'export: user omits the GoTrue e-mail entirely'
 );
 SELECT is(
   (SELECT j -> 'user' ->> 'display_name' FROM _doc),
@@ -294,7 +300,7 @@ SELECT is(
   'export: invitations_received renders the inviter (Bob) by display name'
 );
 
--- ── (f) no foreign e-mail leaks; email-keyed invite by list name ───
+-- ── (f) no foreign e-mail leaks; every sent invite is user-keyed ───
 SELECT ok(
   (SELECT _doc.j::text NOT LIKE '%bob@test%' FROM _doc),
   'export: no co-member e-mail (bob@test) appears anywhere in the document'
@@ -303,18 +309,20 @@ SELECT ok(
   (SELECT _doc.j::text NOT LIKE '%carol@test%' FROM _doc),
   'export: no co-member e-mail (carol@test) appears anywhere in the document'
 );
+-- Post-0022 there is no target_email to leak; assert the invitations
+-- sub-documents carry no e-mail-shaped value at all.
 SELECT ok(
-  (SELECT _doc.j::text NOT LIKE '%dave@test%' FROM _doc),
-  'export: the email-keyed invite''s target_email (dave@test) is excluded'
+  (SELECT (_doc.j -> 'invitations_sent')::text NOT LIKE '%@%' FROM _doc),
+  'export: invitations_sent carries no e-mail-shaped value'
 );
 SELECT is(
   (
     SELECT count(*)::int
     FROM _doc, jsonb_array_elements(_doc.j -> 'invitations_sent') AS s (elem)
-    WHERE NOT (s.elem ? 'invitee_display_name')
+    WHERE s.elem ? 'invitee_display_name'
   ),
   1,
-  'export: the unclaimed email-keyed sent invite renders without an invitee name'
+  'export: every sent invite is user-keyed and renders an invitee name (Carol)'
 );
 SELECT ok(
   (

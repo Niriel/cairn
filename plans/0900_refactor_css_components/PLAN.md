@@ -12,7 +12,7 @@ each carry a coherent slice of the refactor.
 After step 8 the web app has the full product surface for v1: lists,
 items, votes, settings, avatars, soft-delete, invites, circles,
 blocks, and members. Every screen reaches for the same handful of
-shapes — and reaches *past* the existing primitives every time
+shapes — and reaches _past_ the existing primitives every time
 because `<Button>` covers only the filled-rectangle role and there
 is no `<TextInput>` / `<Textarea>` / `<Label>` at all. The result is
 a slow drift: each screen copy-pastes a slightly different shape of
@@ -31,7 +31,7 @@ The numbers below are from the planning-time audit.
 - **Inputs.** No shared input primitive at all. ~11 raw `<input>` /
   `<textarea>` sites repeat the same
   `padding: 12px 14px; border: 1px solid var(--rule);
-  border-radius: 12px; font-size: 16px; …` block, each with its own
+border-radius: 12px; font-size: 16px; …` block, each with its own
   label / hint / error scaffold.
 - **Icon colour wrappers.** `Icon.svelte` strokes with
   `currentColor` and has no `color` prop. The audit found one
@@ -58,10 +58,10 @@ on the consolidated primitives rather than retrofitting them.
 ## Decisions
 
 **Orchestration in two sub-plans, not four and not a single
-branch.** The natural cleavage line is *form primitives* (buttons
+branch.** The natural cleavage line is _form primitives_ (buttons
 and inputs are both form-shape primitives, both live under
 `basic/components/`, and their migration touches roughly the same
-screens) versus *icon colour + semantic HTML* (which both pull in
+screens) versus _icon colour + semantic HTML_ (which both pull in
 the same screen files because both edits are about how the screen
 markup reads). Four sub-plans would be too granular — the
 form-primitive halves can't ship cleanly without each other, and
@@ -172,8 +172,7 @@ main
 
 ### New files
 
-- **`web/src/lib/basic/components/TextInput.svelte`** (lands in
-  0901) — single-line text input primitive.
+- **`web/src/lib/basic/components/TextInput.svelte`** (lands in 0901) — single-line text input primitive.
 - **`web/src/lib/basic/components/TextInput.test.ts`** (0901) —
   Vitest coverage.
 - **`web/src/lib/basic/components/Textarea.svelte`** (0901) —
@@ -237,7 +236,7 @@ representative paths:
   throughout. These should be `<hr>` elements — the separator
   belongs to the document flow, not the element's box. The global
   `hr` reset rule (`border: none; border-top: 1px solid var(--rule);
-  margin: 0`) was added in 0901. The 0902 sweep replaces every
+margin: 0`) was added in 0901. The 0902 sweep replaces every
   remaining `border-bottom`-as-separator with an explicit `<hr>`
   and removes the now-dead CSS rules.
 

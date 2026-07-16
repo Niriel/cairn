@@ -10,7 +10,7 @@ import DeleteAccountScreen from './DeleteAccountScreen.svelte';
 // TopBar pulls in profile state and router chrome we don't need here; Icon is
 // pure decoration. Button stays REAL so its `disabled` state is asserted
 // truthfully. session.svelte stays REAL so AUTH_BASE resolves to '/auth' and
-// the MSW `*/auth/session` handler matches.
+// the MSW `*/auth/signout` handler matches.
 vi.mock('$lib/shared/components/TopBar.svelte');
 vi.mock('$lib/basic/components/Icon.svelte');
 vi.mock('$app/navigation');

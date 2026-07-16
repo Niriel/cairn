@@ -26,6 +26,7 @@ sheet. Downstream sub-plans reference the doc; the edit must land first.
 **Prerequisites:** `0600_soft_delete_ux` branch exists and is checked out.
 
 **Decisions:**
+
 - Remove the "Editing and deleting lists" bullet entirely from the "Not
   decided" section.
 - In the "Trash & undo" section, add one sentence after the first paragraph of
@@ -35,16 +36,18 @@ sheet. Downstream sub-plans reference the doc; the edit must land first.
 - No other doc changes in this phase — each sub-plan's tasks carry the detail.
 
 **Files:**
+
 - `docs/ui.md` (modify)
 
 **Steps:**
+
 1. Edit `docs/ui.md` "Not decided" section: delete the bullet
-   *"Editing and deleting lists…"* (the whole bullet, not just part of it).
+   _"Editing and deleting lists…"_ (the whole bullet, not just part of it).
 2. Edit `docs/ui.md` "Trash & undo" → "Trash screen" subsection: after the
-   sentence *"Each list has a **Trash** entry in its overflow menu (the
-   long-press / `⋮` sheet)."*, replace the parenthetical `(the long-press /
-   ⋮ sheet)` with `(the `⋮` sheet reachable from each list row on the Lists
-   screen and from the Items screen TopBar)` — or equivalent natural phrasing.
+   sentence _"Each list has a **Trash** entry in its overflow menu (the
+   long-press / `⋮` sheet)."_, replace the parenthetical `(the long-press /
+⋮ sheet)` with `(the `⋮` sheet reachable from each list row on the Lists
+screen and from the Items screen TopBar)` — or equivalent natural phrasing.
 3. Commit: `docs(ui): resolve list-editing affordance — ⋮ overflow sheet`.
 
 **Verify:** `grep -n "Editing and deleting lists" docs/ui.md` returns no match.
@@ -66,6 +69,7 @@ executors and future readers.
 task-0.1 doc update.
 
 **Decisions:**
+
 - Replace the stale parenthetical entirely, not just the word "long-press" — the
   parenthetical structure ("The kebab on individual list rows is unchanged — that's
   still the per-list long-press menu.") implies the affordance was already decided
@@ -74,9 +78,11 @@ task-0.1 doc update.
   undo" for the full spec — matching the style of the surrounding paragraph.
 
 **Files:**
+
 - `docs/ui.md` (modify)
 
 **Steps:**
+
 1. In `docs/ui.md` "Settings" section, replace the parenthetical sentence
    "(The kebab on individual list rows is unchanged — that's still the per-list
    long-press menu.)" with: "Each list row also has a ⋮ button that opens a
@@ -106,6 +112,7 @@ can pass `svelte-check`.
 update. `0601_list_overflow` is cut from `0600_soft_delete_ux`.
 
 **Decisions:**
+
 - Sub-branch is cut from `0600_soft_delete_ux`, not from `main`.
 - Scope: `ListOverflowSheet.svelte` (rename, edit description, view trash,
   delete list); per-row `⋮` button in `ListsScreen.svelte`; wiring of the
@@ -127,7 +134,7 @@ update. `0601_list_overflow` is cut from `0600_soft_delete_ux`.
      form, which the doc prohibits). Update `Snackbar.test.ts` if the
      computed positions are asserted.
   3. Create `UndoSnackbar.svelte` (props: `message: string`, `onUndo: () =>
-     void`; owns the 6-second timer, emits `dismiss` event) as a wrapper
+void`; owns the 6-second timer, emits `dismiss` event) as a wrapper
      around `Snackbar.svelte` that passes `actionLabel="UNDO"` and the
      leading trash icon snippet. Svelte compiles nesting away — there is no
      runtime overhead for the wrapper.
@@ -145,12 +152,13 @@ update. `0601_list_overflow` is cut from `0600_soft_delete_ux`.
   `UndoSnackbar.svelte`, use the R4 values — do **not** copy the existing
   values:
 
-  | Property | Existing code | R4 spec (use this) |
-  |---|---|---|
-  | snackbar `padding` | `14px 16px` | `12px 14px` |
-  | item name `font-weight` | `500` | `600` |
-  | UNDO label `font-size` | `13px` | `12px` |
-  | UNDO label `padding` | `0 4px` | `4px 8px` |
+  | Property                | Existing code | R4 spec (use this) |
+  | ----------------------- | ------------- | ------------------ |
+  | snackbar `padding`      | `14px 16px`   | `12px 14px`        |
+  | item name `font-weight` | `500`         | `600`              |
+  | UNDO label `font-size`  | `13px`        | `12px`             |
+  | UNDO label `padding`    | `0 4px`       | `4px 8px`          |
+
 - **`⋮` button replaces `chevron-right` on list rows.** `design/cairn-screens.jsx`
   `ListsScreen` renders a trailing `chevron-right` on each row. Because tapping
   the row name is the navigate-into-list action (per `docs/ui.md`), the `chevron-right`
@@ -170,6 +178,7 @@ update. `0601_list_overflow` is cut from `0600_soft_delete_ux`.
 
   **Add code comments at both call sites** explaining the asymmetry, because
   the double-back pattern is not obvious to a reader. Something like:
+
   ```ts
   // ItemsScreen — delete closes the sheet (one back) then leaves this
   // route (second back), because the list this screen belongs to no
@@ -180,6 +189,7 @@ update. `0601_list_overflow` is cut from `0600_soft_delete_ux`.
   // on the right screen and the row has been removed from local state.
   onDelete={() => {}}
   ```
+
 - The 0601 sub-plan's TASKS.md must note the toolchain ordering constraint: the
   trash stub route must be created in the same task (or an earlier task) that
   adds `goto('/lists/<id>/trash')` to the overflow sheet. See
@@ -210,6 +220,7 @@ update. `0601_list_overflow` is cut from `0600_soft_delete_ux`.
   (rename/edit/leave/delete/view-trash)").
 
 **Steps:**
+
 1. `git checkout -b 0601_list_overflow 0600_soft_delete_ux`
 2. Invoke `/write-plan` to create `plans/0601_list_overflow/` with its
    REQUIREMENTS.md, PLAN.md, and TASKS.md.
@@ -240,6 +251,7 @@ Settings Recovery section (0603) will link to.
 the minimal trash route stub.
 
 **Decisions:**
+
 - Sub-branch cut from the updated `0600_soft_delete_ux` (post-0601 merge).
 - Scope: fill in `/(app)/lists/[list_id]/trash/+page.svelte` (item trash,
   `items_deleted` view, restore via PATCH); create
@@ -264,6 +276,7 @@ the minimal trash route stub.
   the task Decisions.
 
 **Steps:**
+
 1. `git checkout -b 0602_trash_screens 0600_soft_delete_ux`
 2. Invoke `/write-plan` to create `plans/0602_trash_screens/` with its three files.
 3. Implement the sub-plan task by task.
@@ -307,6 +320,7 @@ the overflow sheet, the trash screens, and the
 `/(app)/settings/deleted-lists/` route that the Settings nav row will target.
 
 **Decisions:**
+
 - Sub-branch cut from the updated `0600_soft_delete_ux` (post-0602 merge).
 - Scope: add Recovery section to `SettingsScreen.svelte` (R9); create
   `web/src/lib/shared/model/constants.ts` and export `TOMBSTONE_UID` (R10);
@@ -325,9 +339,9 @@ the overflow sheet, the trash screens, and the
   the name span. See `design/cairn-screens.jsx` screen 17 for the exact visual.
 - Playwright tombstone e2e: deferred to Phase 4 verification. The
   practical reason is the Playwright memory (Playwright cannot run on
-  this machine). The `tg_set_attribution_items` trigger does *not*
+  this machine). The `tg_set_attribution_items` trigger does _not_
   block tombstone PATCHes — its freeze gate is `if new.created_by is
-  distinct from '00000000-…'`, so a client can deliberately PATCH
+distinct from '00000000-…'`, so a client can deliberately PATCH
   `created_by` to the tombstone UID and have it stick (see
   `docs/data-model.md:632, 636`, where the doc calls this "vandalism,
   not privilege escalation"). A future Playwright spec could seed
@@ -344,6 +358,7 @@ the overflow sheet, the trash screens, and the
   the same task as, or an earlier task than, its first importer.
 
 **Steps:**
+
 1. `git checkout -b 0603_settings_tombstone 0600_soft_delete_ux`
 2. Invoke `/write-plan` to create `plans/0603_settings_tombstone/` with its
    three files.
@@ -367,6 +382,7 @@ renders a gray disc with no initials in the browser.
 **Completed:** 2026-05-27T13:06:34Z
 
 **Notes:**
+
 - `./scripts/check.sh --e2e` was not fully green at completion time: webkit
   can't launch (host missing system libs — `pnpm exec playwright install-deps`),
   and `avatar.spec.ts:50` (upload avatar) plus `items.spec.ts:113` (vote
@@ -383,6 +399,7 @@ branch before it lands on `main`.
 **Prerequisites:** Tasks 1.1, 2.1, 3.1 all merged into `0600_soft_delete_ux`.
 
 **Decisions:**
+
 - Run the full E2E suite before merging — the soft-delete flows (delete item,
   undo, view trash, restore; delete list, undo) must pass alongside the step-4
   and step-5 flows (lists, items, vote, avatar).
@@ -390,6 +407,7 @@ branch before it lands on `main`.
   the merge commit.
 
 **Steps:**
+
 1. On `0600_soft_delete_ux`, run `./scripts/check.sh --e2e` — must be green.
 2. Edit `plans/0000_implementation_order.md`: change `6. [ ]` to `6. [x]`.
 3. Commit: `chore(plan): tick step 6 in implementation order`.

@@ -7,7 +7,10 @@ export type List = {
 	modified_at: string;
 	item_count: number;
 	is_public: boolean;
-	list_members: { user_id: string; profiles: { display_name: string; avatar_version: number } }[];
+	list_members: {
+		user_id: string;
+		profiles: { display_name: string; avatar_version: number; username: string };
+	}[];
 };
 
 export function createList(name: string, description?: string): Promise<List> {

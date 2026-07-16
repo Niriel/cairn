@@ -42,7 +42,7 @@ export type ExportList = {
 
 export type ExportUser = {
 	id: string;
-	email: string;
+	username: string;
 	display_name: string;
 	signed_up_at: string;
 	invite_policy: string;

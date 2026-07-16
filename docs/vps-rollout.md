@@ -1,6 +1,6 @@
 # VPS rollout plan
 
-This is the working plan for bringing up the Hetzner VPS that will host Cairn (and other small apps) under the `lynnscape.eu` domain. It complements `deployment.md`, which describes the *steady state* of Cairn in production. This document is about the *transition* — what needs to happen, in roughly what order, and the loose ends that come with it.
+This is the working plan for bringing up the Hetzner VPS that will host Cairn (and other small apps) under the `lynnscape.eu` domain. It complements `deployment.md`, which describes the _steady state_ of Cairn in production. This document is about the _transition_ — what needs to happen, in roughly what order, and the loose ends that come with it.
 
 The doc is expected to evolve. Add to it as new items surface; strike items as they're done.
 

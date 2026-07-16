@@ -22,7 +22,7 @@ top-right** (`ListsScreen.svelte`) that opens a **bottom-sheet overflow menu**
 View bin, toggle public, Leave, Delete. We adopt that exact pattern for items.
 
 This is a UI-only change: no schema, RLS, trigger, view, or migration work. The
-edit and delete *flows* already exist (`AddEditItemSheet`, `DeleteItemSheet`,
+edit and delete _flows_ already exist (`AddEditItemSheet`, `DeleteItemSheet`,
 and the undo snackbar in `items.svelte` state) and are unchanged — only their
 entry point moves from inline buttons into the overflow sheet.
 
@@ -69,7 +69,7 @@ sheet (R4).** `Sheet` pushes a history guard on mount and `history.back()`s on
 unmount, and the open item row pushes its own guard via `ItemsScreen`'s `openId`
 `$effect`. So while the overflow sheet is open the guard stack is
 `[rowGuard, overflowGuard]`. If `onedit`/`ondelete` nulled both `overflowItem`
-*and* `openId` in one tick, two `pushHistoryGuard` cleanups would fire two
+_and_ `openId` in one tick, two `pushHistoryGuard` cleanups would fire two
 `history.back()` calls — but `back-stack.svelte`'s `suppressNextPopState` is a
 single boolean and absorbs only one, so the second pop is mistaken for a user
 back-press and immediately closes the just-mounted edit/delete sheet. We avoid

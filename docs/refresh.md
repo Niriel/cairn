@@ -10,8 +10,8 @@ Every screen that fetches data follows the same three-part shape:
 
 ```ts
 export const myState = $state<{
-    items: Item[];
-    loading: boolean;
+	items: Item[];
+	loading: boolean;
 }>({ items: [], loading: false });
 ```
 
@@ -21,12 +21,12 @@ When a state module handles several independent fetch operations, scope the flag
 
 ```ts
 export async function loadItems(): Promise<void> {
-    myState.loading = true;
-    try {
-        myState.items = await pgGet<Item[]>('/items');
-    } finally {
-        myState.loading = false;
-    }
+	myState.loading = true;
+	try {
+		myState.items = await pgGet<Item[]>("/items");
+	} finally {
+		myState.loading = false;
+	}
 }
 ```
 
@@ -65,7 +65,7 @@ The disabled button gives visual feedback that a refresh is already in progress,
 Two approaches are in use:
 
 - **Direct call** — the refresh button's `onclick` calls `loadItems()` directly. Simple and correct for screens where no other code needs to trigger a reload. Used by ItemsScreen, TrashScreen, DeletedListsScreen, InvitesInboxScreen.
-- **Signal counter** — the state module exposes a `refreshXxx()` function that increments a private `$state` counter; an `$effect.root` watches the counter and fetches. Useful when multiple callers (a button *and* a route change *and* a session change) all need to trigger the same fetch. Used by ListsScreen (`refreshLists()` + `refreshSignal`).
+- **Signal counter** — the state module exposes a `refreshXxx()` function that increments a private `$state` counter; an `$effect.root` watches the counter and fetches. Useful when multiple callers (a button _and_ a route change _and_ a session change) all need to trigger the same fetch. Used by ListsScreen (`refreshLists()` + `refreshSignal`).
 
 Prefer the direct-call approach unless you need multi-caller coordination.
 
@@ -75,8 +75,8 @@ The loading indicator is a plain `<div class="loading">Loading…</div>`, left-p
 
 ```css
 .loading {
-    padding: 16px 18px;
-    color: var(--stone);
+	padding: 16px 18px;
+	color: var(--stone);
 }
 ```
 
@@ -88,10 +88,10 @@ State module mocks expose the loading flag with its initial value:
 
 ```ts
 export const invitations = $state<{
-    inbox: InboxEntry[];
-    inboxLoading: boolean;
-    // ...
-}>({ inbox: [], inboxLoading: false, /* ... */ });
+	inbox: InboxEntry[];
+	inboxLoading: boolean;
+	// ...
+}>({ inbox: [], inboxLoading: false /* ... */ });
 ```
 
 Component tests that want to assert the loading state set the flag directly before rendering:
@@ -99,5 +99,5 @@ Component tests that want to assert the loading state set the flag directly befo
 ```ts
 invitations.inboxLoading = true;
 const { getByDataTest } = render(InvitesInboxScreen);
-expect(getByDataTest('inbox-loading')).not.toBeNull();
+expect(getByDataTest("inbox-loading")).not.toBeNull();
 ```

@@ -19,22 +19,57 @@ cairn.{$DOMAIN} {
 		Referrer-Policy "no-referrer"
 	}
 
-	# Data plane: /api/* -> PostgREST, prefix stripped. The session cookie is
-	# translated into the Authorization: Bearer header PostgREST expects.
+	# Data plane: /api/* -> PostgREST, prefix stripped. The short-lived access
+	# cookie (not the durable refresh-token cookie) is translated into the
+	# Authorization: Bearer header PostgREST expects. The cookie carries the
+	# __Host- prefix in prod (Secure + Path=/ + no Domain); the auth-proxy plants
+	# that exact name (see auth-proxy/src/lib/cookies.ts).
 	handle_path /api/* {
-		@cookie header_regexp token Cookie cairn_session=([^;]+)
+		@cookie header_regexp token Cookie __Host-cairn_access=([^;]+)
 		request_header @cookie Authorization "Bearer {http.regexp.token.1}"
 		reverse_proxy postgrest:3000
 	}
 
-	# Auth plane: explicit allow-list of GoTrue endpoints -> auth-proxy, with
-	# NO prefix strip. The SvelteKit client routes (/auth/login|check|callback)
-	# are NOT listed here, so they fall through to `web`. A blanket
-	# `handle_path /auth/*` would strip /auth and break both the proxy's
-	# segment matching and the callback page (the subtlest prod-only failure).
-	@gotrue path /auth/magiclink* /auth/verify* /auth/token* /auth/user* /auth/session*
+	# Auth plane: explicit allow-list of the BFF session endpoints -> auth-proxy,
+	# with NO prefix strip. The SvelteKit client routes (/auth/signin|register|
+	# forgot-password|reset-password) are NOT listed here, so they fall through to
+	# `web`. A blanket `handle_path /auth/*` would strip /auth and break both the
+	# proxy's segment matching and the SPA auth pages (the subtlest prod-only
+	# failure).
+	@gotrue path /auth/signout* /auth/refresh*
 	handle @gotrue {
-		reverse_proxy auth-proxy:3002
+		# The auth-proxy's sign-in rate-limiter keys per-IP off X-Real-IP ONLY
+		# (it ignores the spoofable X-Forwarded-For). Caddy does not set
+		# X-Real-IP by default, so set it here to the real socket peer — Caddy
+		# OVERWRITES any client-supplied value, which both gives the limiter a
+		# true client IP and closes the spoof. Without this, X-Real-IP is absent
+		# and clientIp() falls back to Caddy's container IP, collapsing every
+		# client into one shared bucket. See auth-proxy/src/lib/rate-limit.ts.
+		reverse_proxy auth-proxy:3002 {
+			header_up X-Real-IP {remote_host}
+		}
+	}
+
+	# Credential endpoints -> auth-proxy, but ONLY for POST (the precedent is
+	# @avatar_writes' method gate). Several of these are also SvelteKit page
+	# routes: a GET must fall through to `web` so the SPA can serve the sign-in /
+	# register / forgot-password / reset-password screens. Listing them under
+	# @gotrue (all methods) would swallow the GET page — the subtlest prod-only
+	# failure the block above warns about. Same X-Real-IP rationale as @gotrue
+	# (these are the rate-limited paths).
+	#
+	# The recovery endpoints are all POST (the recovery-e-mail removal path is
+	# POST {remove:true}, NOT DELETE, so this method gate covers it). The
+	# /auth/recovery-email* glob also matches /auth/recovery-email/confirm; it is
+	# listed explicitly for clarity.
+	@auth_credentials {
+		method POST
+		path /auth/signin* /auth/register* /auth/recovery-email* /auth/recovery-email/confirm* /auth/forgot-password* /auth/reset-password*
+	}
+	handle @auth_credentials {
+		reverse_proxy auth-proxy:3002 {
+			header_up X-Real-IP {remote_host}
+		}
 	}
 
 	# Avatar writes -> sidecar, prefix preserved (the sidecar routes on
@@ -44,7 +79,7 @@ cairn.{$DOMAIN} {
 		path /avatars*
 	}
 	handle @avatar_writes {
-		@avatar_cookie header_regexp token Cookie cairn_session=([^;]+)
+		@avatar_cookie header_regexp token Cookie __Host-cairn_access=([^;]+)
 		request_header @avatar_cookie Authorization "Bearer {http.regexp.token.1}"
 		reverse_proxy sidecar:3001
 	}
@@ -57,8 +92,7 @@ cairn.{$DOMAIN} {
 		header Cache-Control "public, max-age=31536000, immutable"
 	}
 
-	# Everything else (the SPA, the /auth client routes, and the GoTrue
-	# magic-link template at /gotrue/templates/*) -> the web container.
+	# Everything else (the SPA and the /auth client routes) -> the web container.
 	handle {
 		reverse_proxy web:80
 	}

@@ -1,33 +1,33 @@
 # Testing
 
-Cairn tests in four layers, each catching a different class of bug. This document is the canonical reference for what each layer is for, where the tests live, how to run them, and — just as important — what *not* to put in each layer. `development.md` covers the dev stack itself; this doc assumes that stack is up and running.
+Cairn tests in four layers, each catching a different class of bug. This document is the canonical reference for what each layer is for, where the tests live, how to run them, and — just as important — what _not_ to put in each layer. `development.md` covers the dev stack itself; this doc assumes that stack is up and running.
 
 The guiding principle: **the database is the security boundary**, so the database tests are the load-bearing layer. Vitest and Playwright are excellent and we want both, but if forced to choose one suite to keep, it would be the pgTAP suite. Authorization lives in row-level security; if RLS is wrong, every other layer is a Maginot Line.
 
 ## The four layers
 
-| Layer | Tool | What it catches | Speed |
-| --- | --- | --- | --- |
-| Database | [pgTAP](https://pgtap.org/) + `pg_prove` | RLS policies, triggers, views, constraints | Sub-second per test, ~1s startup |
-| Unit / component | [Vitest](https://vitest.dev/) + [`@testing-library/svelte`](https://testing-library.com/docs/svelte-testing-library/intro/) | Pure-function logic in `src/lib/`, component rendering and interaction | Milliseconds |
-| Sidecar | [Vitest](https://vitest.dev/) + [supertest](https://github.com/ladjs/supertest) | Avatar upload/delete routes: security gates (magic bytes, decoded bounds, size limit), auth middleware, success and error paths | Milliseconds |
-| End-to-end | [Playwright](https://playwright.dev/) | Real user flows across the full stack (browser → Caddy/Vite → PostgREST → Postgres) | Seconds per test |
+| Layer            | Tool                                                                                                                        | What it catches                                                                                                                 | Speed                            |
+| ---------------- | --------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- | -------------------------------- |
+| Database         | [pgTAP](https://pgtap.org/) + `pg_prove`                                                                                    | RLS policies, triggers, views, constraints                                                                                      | Sub-second per test, ~1s startup |
+| Unit / component | [Vitest](https://vitest.dev/) + [`@testing-library/svelte`](https://testing-library.com/docs/svelte-testing-library/intro/) | Pure-function logic in `src/lib/`, component rendering and interaction                                                          | Milliseconds                     |
+| Sidecar          | [Vitest](https://vitest.dev/) + [supertest](https://github.com/ladjs/supertest)                                             | Avatar upload/delete routes: security gates (magic bytes, decoded bounds, size limit), auth middleware, success and error paths | Milliseconds                     |
+| End-to-end       | [Playwright](https://playwright.dev/)                                                                                       | Real user flows across the full stack (browser → Caddy/Vite → PostgREST → Postgres)                                             | Seconds per test                 |
 
-The numbers in the [test pyramid](https://martinfowler.com/articles/practical-test-pyramid.html) sense: many pgTAP tests, many Vitest tests, a handful of Playwright tests. We do not aim for "100% coverage" of any layer — we aim for the *right* tests in each, with deliberate redundancy where the cost of a regression is highest (auth, votes, soft-delete recovery).
+The numbers in the [test pyramid](https://martinfowler.com/articles/practical-test-pyramid.html) sense: many pgTAP tests, many Vitest tests, a handful of Playwright tests. We do not aim for "100% coverage" of any layer — we aim for the _right_ tests in each, with deliberate redundancy where the cost of a regression is highest (auth, votes, soft-delete recovery).
 
 ## Database tests (pgTAP)
 
-`db/tests/*.sql` holds pgTAP tests. They run against a *throwaway test database* — never against the dev database — that is created fresh from the migration files for each run. This is non-negotiable: a test that mutates the dev database is a footgun, and a test that depends on dev seed data is brittle.
+`db/tests/*.sql` holds pgTAP tests. They run against a _throwaway test database_ — never against the dev database — that is created fresh from the migration files for each run. This is non-negotiable: a test that mutates the dev database is a footgun, and a test that depends on dev seed data is brittle.
 
 ### What lives here
 
-- **RLS policies.** For every policy on every table, a positive test ("Alice sees her own list") and a negative test ("Alice does not see Bob's private list"). When a verb is denied by *both* the absence of a `GRANT` *and* the absence of a permissive policy (e.g., `INSERT` on `public.lists`, where creation goes through an RPC instead), test the two layers as **separate assertions** — one `throws_ok` on SQLSTATE `42501` under the role with no grant, and one assertion under a grant-bearing role exercising the missing policy. Conflating them into a single check hides regressions: `GRANT` without a policy returns silent empty results, a policy without `GRANT` returns 401/`42501`, and only the layered tests catch a future change that drops one layer while leaving the other in place.
+- **RLS policies.** For every policy on every table, a positive test ("Alice sees her own list") and a negative test ("Alice does not see Bob's private list"). When a verb is denied by _both_ the absence of a `GRANT` _and_ the absence of a permissive policy (e.g., `INSERT` on `public.lists`, where creation goes through an RPC instead), test the two layers as **separate assertions** — one `throws_ok` on SQLSTATE `42501` under the role with no grant, and one assertion under a grant-bearing role exercising the missing policy. Conflating them into a single check hides regressions: `GRANT` without a policy returns silent empty results, a policy without `GRANT` returns 401/`42501`, and only the layered tests catch a future change that drops one layer while leaving the other in place.
 - **Triggers.** Soft-delete cascades, `updated_at` bumps, audit/attribution rows.
 - **Views.** The shape and filtering of every view exposed via PostgREST.
 - **Constraints and check expressions.** Anywhere we encode an invariant in the schema, a test verifies it actually rejects what it claims to reject.
 - **Stored functions and RPC.** Any function callable via PostgREST.
 
-What does *not* belong here: tests of application behaviour that just happen to touch the database. Those go in Vitest (mocked) or Playwright (real). pgTAP tests should be expressible purely in SQL.
+What does _not_ belong here: tests of application behaviour that just happen to touch the database. Those go in Vitest (mocked) or Playwright (real). pgTAP tests should be expressible purely in SQL.
 
 ### Setup
 
@@ -43,7 +43,7 @@ RUN apt-get update \
  && rm -rf /var/lib/apt/lists/*
 ```
 
-`docker-compose.yml` builds from this Dockerfile instead of pulling `postgres:16` directly. The image is bit-identical between dev and CI; the extension is only loaded into the *test* database, so the dev database never sees it.
+`docker-compose.yml` builds from this Dockerfile instead of pulling `postgres:16` directly. The image is bit-identical between dev and CI; the extension is only loaded into the _test_ database, so the dev database never sees it.
 
 ### Running tests
 
@@ -56,7 +56,7 @@ This script:
 1. Drops and recreates a `cairn_test` database (separate from `cairn`).
 2. Applies every migration in order against `cairn_test`.
 3. Runs `CREATE EXTENSION pgtap` in `cairn_test`.
-4. Loads a *test fixture* (a smaller, deterministic seed than `dev_seed.sql` — see below).
+4. Loads a _test fixture_ (a smaller, deterministic seed than `dev_seed.sql` — see below).
 5. Invokes `pg_prove --ext .sql db/tests/` from inside the postgres container.
 
 The whole run takes a couple of seconds on a laptop. Run it on every schema change. If you change a policy, run it twice — once before to confirm the existing tests pass, once after to confirm the new behaviour is asserted.
@@ -107,7 +107,7 @@ ROLLBACK;
 Three conventions to notice:
 
 - **Every test wraps in `BEGIN ... ROLLBACK`.** No test mutates state another test will see; fixtures load fresh inside each transaction.
-- **Every assertion has a human-readable message.** That's what shows up in `pg_prove` output when something fails at 2 a.m.; future-you will thank present-you for spelling out *what* the assertion meant.
+- **Every assertion has a human-readable message.** That's what shows up in `pg_prove` output when something fails at 2 a.m.; future-you will thank present-you for spelling out _what_ the assertion meant.
 - **Fixture `\i` paths are absolute** — `/db/tests/fixtures/<name>.sql`, not `fixtures/<name>.sql`. `pg_prove` runs inside the postgres container with WORKDIR `/`, not `/db/tests`, so a relative path resolves to `/fixtures/...` and the include fails. The absolute path matches the read-only volume mount in `docker-compose.yml` (`./db:/db`) and is robust regardless of invocation cwd.
 
 The JWT-claim form is also worth noting: `SET LOCAL request.jwt.claims = '{"sub":"<uuid>"}'` — the JSON-object GUC PostgREST v10+ sets per request. The old per-claim form `request.jwt.claim.sub` was removed in PostgREST v10; we run v12, so the JSON form is what `public.uid()` reads from. `SET LOCAL` scopes the GUC to the current transaction, so the surrounding `BEGIN ... ROLLBACK` resets it automatically; subsequent `SET LOCAL` calls within the same transaction overwrite it (e.g., when a test switches from "act as Alice" to "act as Carol" mid-file, as above).
@@ -137,10 +137,10 @@ Tests are colocated with the code they test (`foo.test.ts` next to `foo.ts`). Th
 
 ### What component tests are for
 
-Component tests assert *behaviour visible to a user*, not implementation details:
+Component tests assert _behaviour visible to a user_, not implementation details:
 
 - "When the up-vote button is clicked, the `vote` event is dispatched with the right payload."
-- "When `list.deletedAt` is set, the item shows the *Restore* button instead of *Delete*."
+- "When `list.deletedAt` is set, the item shows the _Restore_ button instead of _Delete_."
 - "The list header has `role='heading'` and `aria-level='1'`."
 
 They are not for asserting that a particular CSS class is present, or that a child component received a particular prop. Those tests break on every refactor and verify nothing a user cares about.
@@ -153,13 +153,13 @@ Assert via `data-test` attributes (or roles, ARIA labels, structural relationshi
 
 ```ts
 // ❌ tautological + i18n-fragile
-expect(container.textContent).toContain('Delete list');
+expect(container.textContent).toContain("Delete list");
 
 // ✅ checks the row is present, regardless of its label string
-expect(getByDataTest('list-overflow-delete')).not.toBeNull();
+expect(getByDataTest("list-overflow-delete")).not.toBeNull();
 ```
 
-The exception is *data* that flows in as a prop or from a fixture (a list name, a user's display name, a timestamp) — that's not a UI label, it's the variable content the component is rendering, and asserting on it is a real check that the data reached the DOM.
+The exception is _data_ that flows in as a prop or from a fixture (a list name, a user's display name, a timestamp) — that's not a UI label, it's the variable content the component is rendering, and asserting on it is a real check that the data reached the DOM.
 
 ### Mocking the API
 
@@ -183,17 +183,17 @@ Vitest's watch mode re-runs only the affected tests in a fraction of a second. L
 
 ### Where tests live and how they're written
 
-The tree shape — which folder a component, runes module, helper, mock, or test belongs in, and what each file is named — is the subject of `docs/frontend-layout.md`. The per-test conventions — `data-test` queries via `web/src/lib/test/render.ts`, the hybrid `__mocks__/` convention, the Svelte 5 runes idiom in mock files, the no-shared-`beforeEach` rule, MSW at the network layer — are the subject of `.claude/skills/writing-tests.md`, which fires whenever a session is editing a `*.test.ts` file. This doc is the *what* and *why* of the Vitest layer; the layout doc is the *where*, and the skill is the *how*.
+The tree shape — which folder a component, runes module, helper, mock, or test belongs in, and what each file is named — is the subject of `docs/frontend-layout.md`. The per-test conventions — `data-test` queries via `web/src/lib/test/render.ts`, the hybrid `__mocks__/` convention, the Svelte 5 runes idiom in mock files, the no-shared-`beforeEach` rule, MSW at the network layer — are the subject of `.claude/skills/writing-tests.md`, which fires whenever a session is editing a `*.test.ts` file. This doc is the _what_ and _why_ of the Vitest layer; the layout doc is the _where_, and the skill is the _how_.
 
 ## End-to-end tests (Playwright)
 
-Playwright drives a real browser against the *fully running* stack — `pnpm dev` (or the production preview build) plus the dockerized backend with seeded data. It catches the bugs that neither pgTAP nor Vitest can: cookie shim regressions, service-worker caching mishaps, real-network race conditions, the gap between what the API returns and what the UI renders.
+Playwright drives a real browser against the _fully running_ stack — `pnpm dev` (or the production preview build) plus the dockerized backend with seeded data. It catches the bugs that neither pgTAP nor Vitest can: cookie shim regressions, service-worker caching mishaps, real-network race conditions, the gap between what the API returns and what the UI renders.
 
 ### What lives here
 
-A small, deliberate set of *user journeys*, not a re-creation of the unit suite:
+A small, deliberate set of _user journeys_, not a re-creation of the unit suite:
 
-- **Auth happy path.** Magic-link login (Mailpit-driven), cookie set, redirected into the app, logged out.
+- **Auth happy path.** Sign in with username + password, cookie set, redirected into the app, signed out. (Password recovery — the one Mailpit-driven auth flow — has its own spec.)
 - **List lifecycle.** Create a list, add items, vote, soft-delete, restore from trash.
 - **Sharing.** Invite by handle, the recipient sees the invite, accepts, both see the list.
 - **Offline read.** Open a list online, go offline, reload, see cached items.
@@ -258,11 +258,11 @@ We do not enforce a coverage percentage in CI. The metric is too easy to game (a
 
 What we do enforce, by review:
 
-- Every RLS policy has at least one positive *and* one negative pgTAP test.
+- Every RLS policy has at least one positive _and_ one negative pgTAP test.
 - Every public function in `src/lib/` has Vitest coverage of its happy path and the obvious edge cases.
 - Every user-visible feature listed in `docs/ui.md` has at least one Playwright touch.
 
-`pnpm test:coverage` produces an HTML report under `web/coverage/` if you want to see what's actually exercised. Useful as a *map*, not a target.
+`pnpm test:coverage` produces an HTML report under `web/coverage/` if you want to see what's actually exercised. Useful as a _map_, not a target.
 
 ## CI
 
@@ -288,6 +288,10 @@ The choice of CI host is deliberately not prescribed here: any runner that can r
 **A Vitest component test passes locally and fails in CI.** Time-of-day or locale dependency. Pin `Intl` formatters and avoid `new Date()` without a fixed argument.
 
 **A Playwright test is flaky.** Almost always one of: (a) waiting for a network response that may have already arrived (use `page.waitForResponse` carefully, or `expect(...).toHaveText` with auto-retry); (b) a real timing bug worth investigating (don't paper over it with `await page.waitForTimeout`).
+
+**WebKit fails to launch (`Host system is missing dependencies`).** Environmental, not a test bug — the WebKit build needs system libraries that this dev box doesn't have, and installing them isn't worth it. Accept it: run `--project=chromium --project=firefox` and say so explicitly — don't report a WebKit pass you didn't get. Chromium + Firefox still validate the journeys; only the iOS-Safari-specific quirks (see "Browsers") go unchecked.
+
+**The clipboard "Copied" assertion (`public-list.spec.ts`) fails headlessly.** Copy-to-clipboard relies on `navigator.clipboard`, which needs a permitted, focused, secure-context browser; some headless/sandboxed environments deny it, so the "Copied" feedback never appears. This is environment-dependent, not an app regression — confirm it passes in `--ui` mode or a real browser before treating it as a real failure. (It also can't be run in isolation with `--grep`: it lives in a `test.describe.serial` block and depends on the preceding "publish" test having opened the overflow menu, so grepping just it yields a "context closed" error.)
 
 **The whole suite is fast locally and slow in CI.** Disk I/O on the runner, usually. Use a tmpfs Postgres data volume in CI.
 

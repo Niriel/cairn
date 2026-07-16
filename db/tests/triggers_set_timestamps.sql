@@ -51,9 +51,9 @@ WHERE id = 'eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee';
 -- ===================================================================
 
 INSERT INTO public.profiles
-(id, display_name, created_at, modified_at) VALUES
+(id, display_name, username, created_at, modified_at) VALUES
 (
-  'eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee', 'Eve',
+  'eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee', 'Eve', 'EveHandle',
   '2020-01-01T00:00:00Z'::timestamptz,
   '2020-01-01T00:00:00Z'::timestamptz
 );

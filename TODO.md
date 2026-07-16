@@ -202,6 +202,42 @@
       `docs/architecture.md` and/or a new auth doc) before any code lands, and
       cross-check `docs/open-questions.md` so this isn't already tracked there.
 
+13. [ ] **Custom session table for automatic theft → family-revoke** —
+        deliberately deferred from plan 2002 (session security). A spike against
+        the installed GoTrue (`supabase/gotrue:v2.158.1`) found that its
+        refresh-token **reuse detection is detection-only**: a replayed
+        already-used token is rejected (`invalid_grant` / "Already Used"), but the
+        rest of the session family is **not** auto-revoked — the legitimate session
+        keeps working after a theft-replay event. So a stolen refresh token, once
+        the attacker has it, is refused on replay but does not by itself burn the
+        victim's live session. For alpha we accept this (the credential lives in an
+        HttpOnly cookie behind `__Host-` + CSRF, and `signout?scope=global` is the
+        manual compromise kill-switch — see `docs/architecture.md` → "JWT storage").
+        To get true automatic family-revoke on reuse, the BFF would track refresh
+        tokens / sessions in a thin Postgres table of its own and revoke the family
+        when it detects a replayed-rotated token, rather than relying on GoTrue
+        native behaviour. Weigh against simply tracking whether a newer GoTrue
+        image implements family-revoke-on-reuse natively before building anything
+        custom. Out of scope until there's a concrete threat driver (data-sensitivity
+        tier, abuse signal).
+
+14. [ ] **Flip the prod signup default to open (`DISABLE_SIGNUP:-false`)** — the
+        prod compose default is fail-closed:
+        `GOTRUE_DISABLE_SIGNUP: "${DISABLE_SIGNUP:-true}"` in
+        `docker-compose.prod.yml`, so signup is _disabled_ unless the prod `.env`
+        explicitly overrides it to `false`. But Cairn's alpha posture is **open**
+        registration (the auth-proxy's `/auth/register`), so the default disagrees
+        with intent and creates a footgun: a deploy whose `.env` omits the line
+        silently closes signups. Fail-closed buys little real safety here — the
+        mass-signup bound is the per-IP register throttle and the password grant is
+        locked to the rate-limited BFF, not `DISABLE_SIGNUP` (which is just an
+        operator on/off switch). Change the default to `${DISABLE_SIGNUP:-false}` so
+        the default matches reality, with an operator setting `=true` to close.
+        Prod-facing (touches `docker-compose.prod.yml`); update the
+        `docs/deployment.md` pre-deploy checklist item to match once it lands.
+        Surfaced during plan `2003_username_auth` task 0.2, which was scoped to
+        doc-only reconciliation and so deliberately left the compose default alone.
+
 ## Docs & copy
 
 13. [ ] **Review the "adding by e-mail is two-way" claim in the circles

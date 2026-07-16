@@ -5,7 +5,7 @@
 - **`docs/data-model.md`** — RLS conventions, `public.is_list_member`,
   `items_ranked` (`security_invoker = TRUE`), the grant matrix, the
   `create_list` RPC pattern.
-- **`docs/testing.md`** — three test layers; pgTAP needs positive *and*
+- **`docs/testing.md`** — three test layers; pgTAP needs positive _and_
   negative cases for any boundary change.
 - **`docs/ui.md`** — TopBar, overflow-sheet button order (destructive last),
   the copy-link convention, public-marker placement.
@@ -33,9 +33,10 @@ first.
 **Prerequisites:** None.
 
 **Decisions:**
+
 - `anon`'s entire surface is one `SECURITY DEFINER` function,
   `public.public_list_view(uuid)`; it still has **no** table/view/other-RPC
-  grant. Document this explicitly, including *why* a direct table grant was
+  grant. Document this explicitly, including _why_ a direct table grant was
   rejected (`items_ranked` is `security_invoker`, so it yields nothing for
   `anon`, and a definer view would leak all lists' scores).
 - `lists.is_public boolean NOT NULL DEFAULT false`; any member may toggle it via
@@ -43,7 +44,7 @@ first.
 - UI: a public marker (globe icon + "Public list" label) after the list name in
   member views only; a publish/unpublish + copy-link action in the overflow
   sheet (destructive actions stay last); a read-only `/p/<list_id>` page. The
-  copy-link is Cairn's **first** clipboard affordance — this doc *establishes*
+  copy-link is Cairn's **first** clipboard affordance — this doc _establishes_
   the convention (label, what's copied, and visible "Copied" feedback); there is
   no pre-existing convention to reference.
 - The "Anonymous users have no access to any table" line lives in
@@ -52,11 +53,13 @@ first.
   never an open question, so there is nothing to "resolve" there.
 
 **Files:**
+
 - `docs/data-model.md` (modify)
 - `docs/architecture.md` (modify)
 - `docs/ui.md` (modify)
 
 **Steps:**
+
 1. In `docs/data-model.md`, add the `is_public` column to the `lists`
    description and a subsection documenting `public_list_view` as the sole anon
    read path (curated payload: id/name/description + items id/name/notes/score
@@ -65,7 +68,7 @@ first.
    the "Anonymous users have no access to any table" line (≈ line 371): `anon`
    still touches **no** table or view, but now has EXECUTE on exactly one
    `SECURITY DEFINER` RPC; everything else stays closed.
-2. In `docs/architecture.md`, *add* a one-line note to the request-flow/`anon`
+2. In `docs/architecture.md`, _add_ a one-line note to the request-flow/`anon`
    description (there is no blanket "no access" statement to amend — only the
    auth-proxy text): `anon` has exactly one read-only RPC; everything else stays
    closed; no Caddy/compose/auth-proxy change is required.
@@ -80,7 +83,7 @@ first.
 **Verify:** `git diff --stat docs/` · manual read-through for consistency.
 
 **Notes:** Step 4 (`open-questions.md`) skipped per the task's conditional —
-the file tracks only *pending* decisions and deletes them once settled, so a
+the file tracks only _pending_ decisions and deletes them once settled, so a
 "decided" note doesn't fit its structure, and public lists were never an open
 question there. Spot-ran `cspell` on the three docs: all 14 flagged words are
 pre-existing (timestamptz, EDPB, narrowings, …) in untouched lines; my added
@@ -102,8 +105,9 @@ construction.
 schema; reuses `public.items_ranked` and the `create_list` RPC pattern).
 
 **Decisions:**
+
 - Column: `ALTER TABLE public.lists ADD COLUMN is_public boolean NOT NULL
-  DEFAULT false;`. **No extra index** — the only public read path is a point
+DEFAULT false;`. **No extra index** — the only public read path is a point
   lookup on the PK (`l.id = p_id`), already served by the primary-key index; a
   partial `(id) WHERE is_public` index would never be chosen by the planner and
   supports no other query (discovery/browse is a non-requirement).
@@ -144,11 +148,13 @@ schema; reuses `public.items_ranked` and the `create_list` RPC pattern).
 shape), `:782` (`items_ranked` definition), `:854` (grant matrix).
 
 **Files:**
+
 - `db/migrations/0015_public_lists.sql` (create)
 - `db/tests/public_lists.sql` (create)
 - `db/tests/fixtures/` (modify — add a public list and a private list)
 
 **Steps:**
+
 1. RED — Create `db/tests/public_lists.sql` with `plan(N)`. As the `anon` role
    (`SET LOCAL ROLE anon`, empty `request.jwt.claims`): (a) `public_list_view`
    of the public fixture returns a non-null object with the right name and
@@ -181,8 +187,9 @@ boundary is an unverified claim.
 **Prerequisites:** Task 1.1 (`is_public` column and `public_list_view` exist).
 
 **Decisions:**
+
 - `grants.sql` already enumerates `anon` negatives — keep them, and add: `anon`
-  *can* `EXECUTE public.public_list_view(uuid)`, but still **cannot** `SELECT`
+  _can_ `EXECUTE public.public_list_view(uuid)`, but still **cannot** `SELECT`
   `lists`/`items`/`items_ranked`/`list_members`/`profiles`/`votes`, and cannot
   execute `create_list` or other RPCs.
 - Member toggle: as a member (set `request.jwt.claims.sub` to a member uuid,
@@ -194,12 +201,14 @@ boundary is an unverified claim.
 (role-switch + `set_config` pattern).
 
 **Files:**
+
 - `db/tests/grants.sql` (modify)
 - `db/tests/public_lists.sql` (modify — add the toggle assertions)
 
 **Steps:**
+
 1. RED — In `grants.sql`, add the positive `has_function_privilege('anon',
-   'public.public_list_view(uuid)', 'execute')` and add the `anon`
+'public.public_list_view(uuid)', 'execute')` and add the `anon`
    no-SELECT negatives for the views (`items_ranked`, `items_deleted`,
    `lists_deleted`) — these aren't currently asserted — alongside the existing
    table/other-RPC negatives. Bump `plan()` **and** update the file's header
@@ -216,6 +225,7 @@ boundary is an unverified claim.
 **Verify:** `./scripts/test-db.sh`
 
 **Notes:**
+
 - No genuine RED phase: as the task itself anticipated (step 4), the boundary
   was already correct from Task 1.1, so all seven new assertions passed on the
   first run with no migration change. The "red" was confined to confirming the
@@ -250,6 +260,7 @@ must be selected wherever a member view renders a list.
 **Prerequisites:** Task 1.1 (column exists).
 
 **Decisions:**
+
 - Add `is_public: boolean` to the `List` type in
   `web/src/lib/list/model/list.ts`.
 - Add `is_public` to the collection `select=` in
@@ -257,11 +268,13 @@ must be selected wherever a member view renders a list.
   `web/src/lib/item/components/ItemsScreen.svelte` (`reloadMeta`).
 
 **Files:**
+
 - `web/src/lib/list/model/list.ts` (modify)
 - `web/src/lib/list/state/lists.svelte.ts` (modify)
 - `web/src/lib/item/components/ItemsScreen.svelte` (modify)
 
 **Steps:**
+
 1. RED — In the relevant `*.test.ts` (e.g. `lists.svelte.ts` state test),
    assert the fetched list exposes `is_public`. Update mocks under
    `web/src/lib/list/components/__mocks__` / state mocks to include the field.
@@ -282,6 +295,7 @@ must be selected wherever a member view renders a list.
 already authorises the write).
 
 **Decisions:**
+
 - Add a `setPublic(listId, value)` action in
   `web/src/lib/list/state/lists.svelte.ts` that `pgPatch`es
   `/lists?id=eq.<id>` with `{ is_public: value }` and updates local state — it
@@ -311,6 +325,7 @@ already authorises the write).
   affordance is the one defined in `docs/ui.md` by Phase 0 (Task 0.1).
 
 **Files:**
+
 - `web/src/lib/list/state/lists.svelte.ts` (modify)
 - `web/src/lib/list/components/ListOverflowSheet.svelte` (modify)
 - `web/src/lib/list/components/ListOverflowSheet.test.ts` (modify)
@@ -319,6 +334,7 @@ already authorises the write).
   refresh `listMeta` after toggle)
 
 **Steps:**
+
 1. RED — In `ListOverflowSheet.test.ts`: with `isPublic={false}` the sheet shows
    "Make public" and no copy-link, and clicking it calls the patch action; with
    `isPublic={true}` it shows "Make private" and a "Copy public link" row that
@@ -333,6 +349,7 @@ already authorises the write).
 **Verify:** `cd web && pnpm test` · `pnpm check` · `pnpm lint`
 
 **Notes:**
+
 - **Icon side work (overlaps Task 2.3's Files):** the overflow rows follow the
   existing icon+label pattern, so they need icons that don't exist yet. Added
   **`globe`** (the exact path Task 2.3 specifies) and **`link`** to
@@ -343,7 +360,7 @@ already authorises the write).
   should just render the marker. `icon-paths.ts` wasn't in this task's declared
   Files but the row pattern made it unavoidable.
 - **Parent-freshness wiring:** added an optional `onpublicchange?: (value:
-  boolean) => void` prop. `ItemsScreen` passes it to update its own `listMeta`
+boolean) => void` prop. `ItemsScreen` passes it to update its own `listMeta`
   (since `setPublic`'s `lists.items` write doesn't touch `listMeta`);
   `ListsScreen` omits it (it passes the same `lists.items` element, mutated in
   place). Used `setPublic`'s `onpublicchange` callback rather than re-running
@@ -362,6 +379,7 @@ list collection and the list-detail header.
 **Prerequisites:** Task 2.1 (`is_public` in the type/queries).
 
 **Decisions:**
+
 - First add a `globe` icon to `ICON_PATHS`
   (`web/src/lib/basic/model/icon-paths.ts`) — there is **no** globe (nor any
   share/link icon) today, and `IconName` is a union of the existing keys, so
@@ -385,6 +403,7 @@ list collection and the list-detail header.
 TopBar conventions.
 
 **Files:**
+
 - `web/src/lib/basic/model/icon-paths.ts` (modify — add `globe`)
 - `web/src/lib/list/components/ListsScreen.svelte` (modify)
 - `web/src/lib/list/components/ListsScreen.test.ts` (modify)
@@ -392,6 +411,7 @@ TopBar conventions.
 - `web/src/lib/item/components/ItemsScreen.test.ts` (modify)
 
 **Steps:**
+
 1. RED — In both component tests: a public list renders the marker with its
    accessible label; a private list does not.
 2. GREEN — Add the gated icon + wrapper + CSS in both components.
@@ -400,12 +420,13 @@ TopBar conventions.
 **Verify:** `cd web && pnpm test` · `pnpm check` · `pnpm lint`
 
 **Notes:**
+
 - **`globe` icon already existed** — it was added in Task 2.2 (the overflow
   publish toggle is its first consumer), so this task's step 1 was a no-op.
 - **User correction — Items-screen placement.** The plan/`docs/ui.md` put the
-  globe immediately after the list name in the Items-screen TopBar *title*. Mid-
+  globe immediately after the list name in the Items-screen TopBar _title_. Mid-
   task the user asked for it in the **sub line** instead: `4 items · 1 member ·
-  🌐 Public` (separator dot + globe + visible "Public" label). The Lists-screen
+🌐 Public` (separator dot + globe + visible "Public" label). The Lists-screen
   row keeps the globe after the name (user confirmed they prefer that). Updated
   `docs/ui.md` to record the per-screen split.
 - **Side work — `TopBar` gained a `subAfter?: Snippet` prop.** The `sub` prop is
@@ -428,11 +449,12 @@ TopBar conventions.
 signed-out (R3, R6).
 
 **Prerequisites:** Task 1.1 (`public_list_view` RPC). Toolchain note: this task
-*creates* the `/p/[list_id]` route; nothing navigates to it via `resolve()`
+_creates_ the `/p/[list_id]` route; nothing navigates to it via `resolve()`
 beforehand, and the copy-link in Task 2.2 builds the URL as a plain string
 (`<origin>/p/<id>`), so there is no not-yet-created-route type error to manage.
 
 **Decisions:**
+
 - Route `web/src/routes/p/[list_id]/+page.svelte`, placed **outside** the
   `(app)` group so it does not inherit the signed-in shell.
 - Allowlist: add `'/p'` to `PUBLIC_CONTENT_PATHS` in
@@ -463,11 +485,13 @@ beforehand, and the copy-link in Task 2.2 builds the URL as a plain string
 `docs/ui.md` (empty/unavailable-state pattern).
 
 **Files:**
+
 - `web/src/routes/p/[list_id]/+page.svelte` (create)
 - `web/src/routes/p/[list_id]/page.test.ts` (create)
 - `web/src/lib/shared/model/public-paths.ts` (modify)
 
 **Steps:**
+
 1. RED — Create `page.test.ts`: mounting with a mocked RPC object renders the
    name and ranked items and exposes no edit affordances; a `null` RPC result
    renders the "list not available" state.
@@ -481,8 +505,9 @@ beforehand, and the copy-link in Task 2.2 builds the URL as a plain string
 **Verify:** `cd web && pnpm test` · `pnpm check` · `pnpm lint`
 
 **Notes:**
+
 - **User correction — masthead is a home link, not inert.** The plan specced a
-  *non-interactive* wordmark with no CTA. Mid-task the user asked for the Cairn
+  _non-interactive_ wordmark with no CTA. Mid-task the user asked for the Cairn
   logo to **link to the home page** as an invitation to join (a signed-out
   visitor following it lands on sign-in/join). Implemented as an `<a href="/">`
   wrapping the wordmark (`data-test="public-home-link"`). The read-only
@@ -497,7 +522,7 @@ beforehand, and the copy-link in Task 2.2 builds the URL as a plain string
   `0016_public_list_item_created_at.sql`** (`CREATE OR REPLACE public_list_view`
   to include each item's `created_at` — grants preserved), a new pgTAP assertion
   (`public_lists.sql` `plan(16)`→`plan(17)`: items carry `created_at`), and a
-  `docs/data-model.md` payload update. A date is *when*, not *who*, so it does
+  `docs/data-model.md` payload update. A date is _when_, not _who_, so it does
   not reopen the no-attribution boundary. Verified with `./scripts/test-db.sh`
   (PASS) and `sqlfluff` (clean) in addition to the web verifier.
 - **Did not** do the manual incognito check (plan step 4) — that live-browser
@@ -513,6 +538,7 @@ beforehand, and the copy-link in Task 2.2 builds the URL as a plain string
 **Prerequisites:** Tasks 2.2, 3.1.
 
 **Decisions:**
+
 - Spec: a member publishes a list and copies the link; a signed-out context
   opens `/p/<id>` and sees the read-only list with no edit controls; a private
   list's id at `/p/` shows "not available".
@@ -522,21 +548,24 @@ beforehand, and the copy-link in Task 2.2 builds the URL as a plain string
   it there.
 
 **Files:**
+
 - `web/e2e/public-list.spec.ts` (create)
 
 **Steps:**
+
 1. Write the spec covering publish → copy link → signed-out read-only view →
    private-id unavailable.
 2. Attempt `cd web && pnpm test:e2e`. On the laptop it won't run — report that
    explicitly in the task `Notes` and leave the spec for CI. On the work box,
    run the chromium + firefox projects (e.g. `--project=chromium
-   --project=firefox`), skip webkit, and report the real result — don't claim a
+--project=firefox`), skip webkit, and report the real result — don't claim a
    pass that didn't run.
 
 **Verify:** `cd web && pnpm test:e2e` (chromium + firefox where supported;
 unrunnable on the laptop — report, don't fake) · `./scripts/check.sh`
 
 **Notes:**
+
 - **Spec written, not run here (machine-conditional, as expected).** Created
   `web/e2e/public-list.spec.ts` — a serial flow: member publishes a list →
   copies the link (asserts the visible "Copied" feedback) → a fresh signed-out
@@ -546,7 +575,7 @@ unrunnable on the laptop — report, don't fake) · `./scripts/check.sh`
   enumerates all 4 tests across chromium/firefox/webkit (so it compiles), and
   `pnpm lint` is clean.
 - **Attempted the run; confirmed unrunnable on this box.** `pnpm exec playwright
-  test --project=chromium` fails immediately with "browsers not installed"
+test --project=chromium` fails immediately with "browsers not installed"
   (`pnpm exec playwright install` never run on the laptop) — the launch dies in
   `beforeAll`, so no assertion executed. Per project memory this is the laptop; the spec is left for the work box / CI (chromium + firefox; skip
   webkit). **No pass is claimed.**

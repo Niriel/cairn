@@ -13,12 +13,13 @@ vi.mock('$lib/shared/components/Snackbar.svelte');
 vi.mock('$lib/shared/components/TopBar.svelte');
 vi.mock('$lib/shared/state/profile.svelte');
 
-const { relationships, addCircleByEmail, removeFromCircle } =
+const { relationships, addCircleByUsername, removeFromCircle } =
 	await import('$lib/privacy/state/relationships.svelte');
 
 const BOB: CircleEntry = {
 	otherUserId: 'bob-uid',
 	displayName: 'Bob',
+	username: 'bob',
 	avatarVersion: 0,
 	createdAt: '2026-04-12T10:00:00Z'
 };
@@ -44,6 +45,14 @@ describe('CircleScreen', () => {
 		expect(queryByDataTest(`circle-row-${BOB.otherUserId}`)).not.toBeNull();
 	});
 
+	test('(b2) circle row renders the @username handle', () => {
+		relationships.loaded = true;
+		relationships.circle = [BOB];
+		const { getByDataTest } = render(CircleScreen);
+		const row = getByDataTest(`circle-row-${BOB.otherUserId}`);
+		expect(row.querySelector('.identity-handle')?.textContent).toBe('@bob');
+	});
+
 	test('(c) Remove button calls removeFromCircle with correct id', async () => {
 		relationships.loaded = true;
 		relationships.circle = [BOB];
@@ -59,18 +68,18 @@ describe('CircleScreen', () => {
 		expect(queryByDataTest('circle-explainer-sheet')).not.toBeNull();
 	});
 
-	test('(e) add-by-email submit calls addCircleByEmail and clears input on success', async () => {
-		vi.mocked(addCircleByEmail).mockResolvedValueOnce({ ok: true });
+	test('(e) add-by-username submit calls addCircleByUsername and clears input on success', async () => {
+		vi.mocked(addCircleByUsername).mockResolvedValueOnce({ ok: true });
 		const { getByDataTest } = render(CircleScreen);
 		const input = getByDataTest('circle-add-input') as HTMLInputElement;
-		await fireEvent.input(input, { target: { value: 'bob@example.test' } });
+		await fireEvent.input(input, { target: { value: 'BobHandle' } });
 		await fireEvent.click(getByDataTest('circle-add-btn'));
-		expect(vi.mocked(addCircleByEmail)).toHaveBeenCalledWith('bob@example.test');
+		expect(vi.mocked(addCircleByUsername)).toHaveBeenCalledWith('BobHandle');
 		expect(input.value).toBe('');
 	});
 
 	test("(f) 'no-such-user' result shows inline error", async () => {
-		vi.mocked(addCircleByEmail).mockResolvedValueOnce({ ok: false, reason: 'no-such-user' });
+		vi.mocked(addCircleByUsername).mockResolvedValueOnce({ ok: false, reason: 'no-such-user' });
 		const { getByDataTest, queryByDataTest } = render(CircleScreen);
 		expect(queryByDataTest('circle-add-error')).toBeNull();
 		await fireEvent.click(getByDataTest('circle-add-btn'));
@@ -78,7 +87,7 @@ describe('CircleScreen', () => {
 	});
 
 	test("(g) 'self' result shows inline error", async () => {
-		vi.mocked(addCircleByEmail).mockResolvedValueOnce({ ok: false, reason: 'self' });
+		vi.mocked(addCircleByUsername).mockResolvedValueOnce({ ok: false, reason: 'self' });
 		const { getByDataTest, queryByDataTest } = render(CircleScreen);
 		expect(queryByDataTest('circle-add-error')).toBeNull();
 		await fireEvent.click(getByDataTest('circle-add-btn'));
@@ -86,7 +95,7 @@ describe('CircleScreen', () => {
 	});
 
 	test("(h) 'unknown' result shows snackbar", async () => {
-		vi.mocked(addCircleByEmail).mockResolvedValueOnce({ ok: false, reason: 'unknown' });
+		vi.mocked(addCircleByUsername).mockResolvedValueOnce({ ok: false, reason: 'unknown' });
 		const { getByDataTest, queryByDataTest } = render(CircleScreen);
 		expect(queryByDataTest('circle-snackbar')).toBeNull();
 		await fireEvent.click(getByDataTest('circle-add-btn'));

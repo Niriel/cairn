@@ -17,6 +17,7 @@ Both buttons use the `rotate-ccw` icon (already in `ICON_PATHS`) at 20 px (sligh
 ## R4. Vitest tests for each screen component
 
 Both `ListsScreen` and `ItemsScreen` must have Vitest component tests that assert:
+
 - The Refresh button renders with the correct `aria-label` and `data-test` attribute.
 - Clicking it calls the refresh function.
 - The button has `disabled` set when the loading flag is true.

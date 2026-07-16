@@ -18,30 +18,13 @@ services:
       # GoTrue reads this without the GOTRUE_ prefix (envconfig quirk).
       API_EXTERNAL_URL: https://cairn.${DOMAIN}/auth
       GOTRUE_SITE_URL: https://cairn.${DOMAIN}
-      GOTRUE_URI_ALLOW_LIST: https://cairn.${DOMAIN}/auth/callback
-      # E-mail action links resolve as externalURL.ResolveReference(URLPath).
-      # The default URLPath is the absolute path "/verify", which DISCARDS the
-      # "/auth" segment of API_EXTERNAL_URL (an absolute-path reference replaces
-      # the base path), yielding https://cairn.<domain>/verify — a path Caddy
-      # routes to the SPA, not the auth-proxy ("Not found: /verify"). Pin the
-      # paths to "/auth/verify" so they resolve to the /auth/verify* prefix the
-      # Caddyfile @gotrue allow-list forwards to the auth-proxy. Magic-link
-      # specifically uses URLPaths.Recovery (GoTrue MagicLinkMail); the others
-      # are set so the invite/confirm/email-change flows route the same way.
-      GOTRUE_MAILER_URLPATHS_INVITE: /auth/verify
-      GOTRUE_MAILER_URLPATHS_CONFIRMATION: /auth/verify
-      GOTRUE_MAILER_URLPATHS_RECOVERY: /auth/verify
-      GOTRUE_MAILER_URLPATHS_EMAIL_CHANGE: /auth/verify
       GOTRUE_DISABLE_SIGNUP: "${DISABLE_SIGNUP:-true}"
-      # Passwordless, magic-link-only: the link delivered to the inbox IS the
-      # proof of e-mail ownership, so a separate confirmation step is redundant.
-      # With autoconfirm OFF, a brand-new e-mail's first /magiclink creates an
-      # unconfirmed user and GoTrue sends a signup-confirmation mail instead of
-      # the magic link — that mail uses GoTrue's built-in default template (the
-      # six-digit OTP) and a type=signup link the /auth/callback rejects
-      # (type !== 'magiclink'). Only the second request, when the user already
-      # exists, sends the real MagicLinkMail. Keep this "true" (matches dev) so
-      # first-time sign-in gets the custom magic-link mail on the first try.
+      # Load-bearing for the password grant, not a dev convenience: the BFF's
+      # /auth/register flow signs up against the non-deliverable
+      # <uid>@cairn.internal identity, so a confirmation e-mail could never be
+      # delivered and clicked. Autoconfirm makes the account immediately usable.
+      # E-mail verification instead happens later and optionally, when a user
+      # proves a recovery address (BFF-orchestrated). Matches dev.
       GOTRUE_MAILER_AUTOCONFIRM: "true"
       GOTRUE_SMTP_HOST: ${SMTP_HOST}
       GOTRUE_SMTP_PORT: "${SMTP_PORT}"
@@ -49,22 +32,40 @@ services:
       GOTRUE_SMTP_PASS: ${SMTP_PASS}
       GOTRUE_SMTP_ADMIN_EMAIL: ${SMTP_FROM}
       GOTRUE_SMTP_SENDER_NAME: Cairn
-      # Internal URL — GoTrue fetches the template container-to-container,
-      # avoiding the cert-not-issued OTP fallback at first send.
-      GOTRUE_MAILER_TEMPLATES_MAGIC_LINK: http://web/gotrue/templates/magic_link.html
     restart: unless-stopped
 
   auth-proxy:
     build: ./auth-proxy
     environment:
       GOTRUE_URL: http://gotrue:9999
+      POSTGREST_URL: http://postgrest:3000
       PORT: "3002"
       COOKIE_SECURE: "true"
-      COOKIE_MAX_AGE: "604800"
+      # The BFF sends recovery mail itself (GoTrue can't reach the non-deliverable
+      # <uid>@cairn.internal identity), so it reads the same SMTP_* env as the
+      # gotrue service above. Dev points these at Mailpit; prod at the real relay.
+      SMTP_HOST: ${SMTP_HOST}
+      SMTP_PORT: "${SMTP_PORT}"
+      SMTP_USER: ${SMTP_USER}
+      SMTP_PASS: ${SMTP_PASS}
+      SMTP_FROM: ${SMTP_FROM}
+      # Pre-minted role JWT carrying {"role":"cairn_auth_bff"}, signed with the
+      # GoTrue JWT_SECRET — the scoped credential for the signed-out reset RPCs
+      # (request_password_reset / reset_password), which are granted ONLY to that
+      # role. High-value secret (a reset-takeover primitive): env-only, never
+      # logged, rotatable. Mint with scripts/mint-bff-jwt.sh (see .env.prod.example).
+      AUTH_BFF_DB_JWT: ${AUTH_BFF_DB_JWT}
     depends_on:
       - gotrue
+      - postgrest
     healthcheck:
-      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3002/healthz', r => process.exit(r.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))"]
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "require('http').get('http://localhost:3002/healthz', r => process.exit(r.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))",
+        ]
       interval: 5s
       timeout: 3s
       retries: 3

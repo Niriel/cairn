@@ -32,13 +32,16 @@ already listed in `docs/frontend-layout.md`. The doc only had `auth/`, `list/`,
 Phase 3's new `profile/` folder has an accurate reference.
 
 **Files:**
+
 - `docs/frontend-layout.md` (modify)
 
 **Steps:**
+
 1. In `docs/frontend-layout.md` "Where things live", update the per-domain
    folder bullet: change `invites/` → `invite/` and add `profile/` to the list.
 
 **Notes:**
+
 - Applied during `/concerns` review on 2026-05-28 before Phase 1 execution.
 
 ---
@@ -50,7 +53,7 @@ Phase 3's new `profile/` folder has an accurate reference.
 **Created:** 2026-05-28T17:27:36Z
 **Completed:** 2026-05-28T17:59:46Z
 
-**Why:** The profile sheet's *Cancel pending invite* action is a direct
+**Why:** The profile sheet's _Cancel pending invite_ action is a direct
 `DELETE /invitations?id=eq.<uuid>`. Migration 0009 granted only `SELECT` on
 `public.invitations` to `authenticated` and left `INSERT`/`DELETE` to RPCs.
 This migration adds the `invitations_delete` policy and the `DELETE` grant;
@@ -62,6 +65,7 @@ migration before this one). The pgTAP fixtures (`users_alice_bob_carol.sql`,
 `list_solo_alice.sql`) are already used by neighbouring test files.
 
 **Decisions:**
+
 - Policy name: `invitations_delete`. Body:
   `CREATE POLICY invitations_delete ON public.invitations FOR DELETE USING (created_by = public.uid())`.
 - Grant: `GRANT DELETE ON public.invitations TO authenticated`.
@@ -85,16 +89,18 @@ every new policy." `docs/invites.md` § "RLS and stored procedures" already
 documents this carve-out (landed in task 0.1).
 
 **Files:**
+
 - `db/migrations/0011_invitations_delete.sql` (create)
 - `db/tests/invitations_delete.sql` (create)
 - `db/tests/grants.sql` (modify — add 1 assertion, bump plan count 83 → 84)
 
 **Steps:**
+
 1. RED — Create `db/tests/invitations_delete.sql` with `no_plan()`:
    - Load `\i /db/tests/fixtures/users_alice_bob_carol.sql` and
      `\i /db/tests/fixtures/list_solo_alice.sql`.
    - Scenario A (positive): As Alice (inviter), `DELETE FROM public.invitations
-     WHERE id = <invite-id>` succeeds — assert the row is gone.
+WHERE id = <invite-id>` succeeds — assert the row is gone.
    - Scenario B (negative): As Bob (invitee on the same row), the delete
      returns no rows (RLS hides the row from Bob's perspective) — assert the
      row still exists after the attempted delete.
@@ -104,12 +110,13 @@ documents this carve-out (landed in task 0.1).
      invite, RESET ROLE, set JWT GUC per fixture pattern from
      `db/tests/invitations.sql`).
 2. RED — Add the one new `grants.sql` assertion (positive: `authenticated has
-   DELETE on public.invitations`) and update `plan(83)` → `plan(84)`. The
+DELETE on public.invitations`) and update `plan(83)` → `plan(84)`. The
    anon negative already exists — do not add a duplicate.
 3. RED — Run `./scripts/test-db.sh` and confirm the new test file reports
    failures (policy does not exist yet). The `grants.sql` count change will
    also fail until the migration runs.
 4. GREEN — Create `db/migrations/0011_invitations_delete.sql`:
+
    ```sql
    -- 0011_invitations_delete.sql — inviter self-cancel RLS policy
    CREATE POLICY invitations_delete ON public.invitations
@@ -117,6 +124,7 @@ documents this carve-out (landed in task 0.1).
 
    GRANT DELETE ON public.invitations TO authenticated;
    ```
+
 5. GREEN — Run `./scripts/test-db.sh` and confirm all assertions pass.
 
 **Verify:** `./scripts/test-db.sh` green.
@@ -130,7 +138,7 @@ documents this carve-out (landed in task 0.1).
 **Created:** 2026-05-28T17:27:36Z
 **Completed:** 2026-05-28T18:10:34Z
 
-**Why:** The profile sheet's *Cancel pending invite* row needs to know the
+**Why:** The profile sheet's _Cancel pending invite_ row needs to know the
 pending invitation id for a given `(listId, userId)` pair (derived from the
 caller's sent invitations) and needs a function to cancel it. This module
 provides both. Creating the file here (rather than in 0803) lets the
@@ -141,17 +149,18 @@ from task 1.1 must exist in the DB for the `cancelInvitation` function to work
 at runtime, but Vitest mocks the HTTP layer so it doesn't affect the test.
 
 **Decisions:**
+
 - File path: `web/src/lib/invite/state/invitations.svelte.ts`.
   `invite/` is the per-domain folder for the invite feature
   (`docs/frontend-layout.md` §"Per-domain folders").
 - The state object uses `$state`:
   ```ts
   export const invitations = $state<{
-    sent: SentEntry[];
+  	sent: SentEntry[];
   }>({ sent: [] });
   ```
   where `SentEntry = { id: string; listId: string; targetUserId: string | null;
-  targetEmail: string | null; createdAt: string }`. Define `SentEntry` inline
+targetEmail: string | null; createdAt: string }`. Define `SentEntry` inline
   in the same file (no separate `model/` file needed for one type at this
   stage).
 - `loadSent()` calls `pgGet<SentEntry[]>('/invitations?created_by=eq.<uid>')`.
@@ -167,11 +176,13 @@ at runtime, but Vitest mocks the HTTP layer so it doesn't affect the test.
   need to be updated in 0803 as well.
 
 **Files:**
+
 - `web/src/lib/invite/state/invitations.svelte.ts` (create)
 - `web/src/lib/invite/state/invitations.test.ts` (create)
 - `web/src/lib/invite/state/__mocks__/invitations.svelte.ts` (create)
 
 **Steps:**
+
 1. RED — Create `web/src/lib/invite/state/invitations.test.ts`:
    ```
    vi.mock('$lib/shared/http/postgrest')
@@ -210,6 +221,7 @@ at runtime, but Vitest mocks the HTTP layer so it doesn't affect the test.
 **Completed:** 2026-05-28T18:23:56Z
 
 **Notes:**
+
 - The `mockImplementation` override for `resolve` in `beforeEach` was removed: `$app/paths`'s `resolve` has a strict union return type, so `(path: string) => path` fails type-check. The factory mock `vi.fn((path: string) => path)` suffices, and `resolve` wasn't needed as an import in assertions.
 - `x-circle` icon not yet in `icon-paths.ts`; used `x` for the cancel-invite row instead (close enough visually).
 
@@ -227,6 +239,7 @@ exist. `$lib/shared/components/ButtonPair.svelte` exists (used for the Block
 confirmation button pair).
 
 **Decisions:**
+
 - The sheet is always `open` when mounted. The caller mounts/unmounts it;
   `open` is hardwired to `true` so the `<Sheet>` component never hides it while
   mounted.
@@ -266,10 +279,12 @@ block confirmation copy. `docs/ui.md` §"Button order in pairs" — Block is the
 committal (right) button in the pair.
 
 **Files:**
+
 - `web/src/lib/profile/components/ProfileSheet.svelte` (create)
 - `web/src/lib/profile/components/ProfileSheet.test.ts` (create)
 
 **Steps:**
+
 1. RED — Create `web/src/lib/profile/components/ProfileSheet.test.ts`:
    ```
    vi.mock('$lib/basic/components/Sheet.svelte')
@@ -315,7 +330,7 @@ committal (right) button in the pair.
      state; click `cancel-invite`; assert `cancelInvitation` called with
      `'inv-1'` and `onclose` prop callback was invoked (R4 requires both).
    - **(k) Relationships not loaded: no action rows.** `relationships.loaded =
-     false`; assert `add-to-circle`, `remove-from-circle`, `block`, `unblock`
+false`; assert `add-to-circle`, `remove-from-circle`, `block`, `unblock`
      all absent.
 2. RED — Run `pnpm test` and confirm the new test file fails (component
    doesn't exist yet).
@@ -343,6 +358,7 @@ state + component — before merging back to `0800_invites_circles_ui`.
 Verify lines green.
 
 **Decisions:**
+
 - No `--e2e` flag here; Playwright specs are not in scope for 0802.
 - After `./scripts/check.sh` is green, merge back:
   `git checkout 0800_invites_circles_ui && git merge --no-ff 0802_profile_sheet`
@@ -350,6 +366,7 @@ Verify lines green.
 **Files:** none
 
 **Steps:**
+
 1. On `0802_profile_sheet`, run `./scripts/check.sh`.
 2. Confirm green.
 3. `git checkout 0800_invites_circles_ui && git merge --no-ff 0802_profile_sheet`.

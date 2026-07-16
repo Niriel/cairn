@@ -38,12 +38,19 @@ services:
       GOTRUE_DB_DRIVER: postgres
       GOTRUE_DB_DATABASE_URL: postgres://gotrue:${GOTRUE_PASSWORD}@postgres:5432/cairn?search_path=auth
       GOTRUE_JWT_SECRET: ${JWT_SECRET}
-      GOTRUE_JWT_EXP: "604800"
+      # Short-lived access JWT (5 min): the BFF mints these on demand from the
+      # durable refresh token, so the bearer's security value is bounded by this
+      # exp, not by the cookie's Max-Age. Refresh-token rotation issues a fresh
+      # refresh token on every exchange and rejects a replayed already-used token.
+      # Reuse interval (seconds) is the grace window for a benign retry of a
+      # just-rotated token; 30 s comfortably covers multi-tab boot + clock skew.
+      # (Reuse detection on this GoTrue is rejection-only, not family-revoke —
+      # see docs/architecture.md "JWT storage".)
+      GOTRUE_JWT_EXP: "300"
+      GOTRUE_SECURITY_REFRESH_TOKEN_ROTATION_ENABLED: "true"
+      GOTRUE_SECURITY_REFRESH_TOKEN_REUSE_INTERVAL: "30"
       GOTRUE_JWT_DEFAULT_GROUP_NAME: authenticated
       GOTRUE_EXTERNAL_EMAIL_ENABLED: "true"
-      # Six-digit OTP to match the frontend's code-entry field; pinned in the
-      # base so both the dev override and the prod overlay inherit it.
-      GOTRUE_MAILER_OTP_LENGTH: "6"
     depends_on:
       postgres:
         condition: service_healthy
@@ -62,7 +69,13 @@ services:
       postgrest:
         condition: service_started
     healthcheck:
-      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3001/healthz', r => process.exit(r.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))"]
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "require('http').get('http://localhost:3001/healthz', r => process.exit(r.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))",
+        ]
       interval: 5s
       timeout: 3s
       retries: 3

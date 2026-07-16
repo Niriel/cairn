@@ -57,6 +57,7 @@ returns the listed status:
   bomb) → HTTP 422.
 
 When all checks pass:
+
 1. Resize to 256×256 WebP at quality 80 using `sharp`.
 2. Write the result to `{avatarsDir}/{uid}.webp.tmp`, then atomically rename
    to `{avatarsDir}/{uid}.webp`. The temp file lives inside the avatars
@@ -109,6 +110,7 @@ These tests run via `pnpm test` inside `sidecar/` and are called from
 
 `caddy/Caddyfile` (created) uses two distinct matchers on the `/avatars`
 prefix (as specified in `plans/0500_avatars/PLAN.md`):
+
 1. A named method matcher `@sidecar_writes { method POST DELETE; path /avatars* }`
    with a `reverse_proxy sidecar:3001` directive — routes upload and delete
    requests to the sidecar.

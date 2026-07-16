@@ -8,30 +8,13 @@ import { http, HttpResponse, type RequestHandler } from 'msw';
 // don't accidentally render an authed view. The `*/path` wildcard-origin
 // pattern is MSW v2's documented cross-origin form and matches regardless of
 // the origin happy-dom resolves a relative `fetch('/auth/user')` against.
-//
-// The `/auth/verify` and `/auth/token` responses mirror the *post-strip* body
-// shape — no `access_token`, no `refresh_token` — because the production Vite
-// proxy strips both fields before the page sees them (R10 / COOKIE_PLANT_PATHS).
-// Keeping the fixture honest means a regression that taught the auth-client to
-// read tokens from the body would still fail under this default.
 export const handlers: RequestHandler[] = [
+	// Boot resolves the session via POST /auth/refresh now (not GET /auth/user).
+	// A 401 here is the authoritative "no session" answer for the fresh-start
+	// default, so unrelated tests render the logged-out view.
+	http.post('*/auth/refresh', () => new HttpResponse(null, { status: 401 })),
 	http.get('*/auth/user', () => new HttpResponse(null, { status: 401 })),
-	http.post('*/auth/magiclink', () => HttpResponse.json({})),
-	http.post('*/auth/verify', () =>
-		HttpResponse.json({
-			token_type: 'bearer',
-			expires_in: 604800,
-			user: { id: '11111111-1111-1111-1111-111111111111', email: 'dev@example.test' }
-		})
-	),
-	http.post('*/auth/token', () =>
-		HttpResponse.json({
-			token_type: 'bearer',
-			expires_in: 604800,
-			user: { id: '11111111-1111-1111-1111-111111111111', email: 'dev@example.test' }
-		})
-	),
-	http.delete('*/auth/session', () => new HttpResponse(null, { status: 204 })),
+	http.post('*/auth/signout', () => new HttpResponse(null, { status: 204 })),
 	// Path-only pattern — MSW v2 query-string wildcard behaviour is unreliable
 	http.get('*/api/profiles', () =>
 		HttpResponse.json(

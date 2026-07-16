@@ -42,7 +42,7 @@ TOCTOU.** Two ways to make step 8's INSERT idempotent under concurrent
 duplicate writes:
 
 - (a) Wrap the INSERT in `BEGIN … EXCEPTION WHEN unique_violation THEN
-  SELECT id INTO invitation_id FROM invitations WHERE …; END;`. The
+SELECT id INTO invitation_id FROM invitations WHERE …; END;`. The
   fallback SELECT reuses the same predicate as the unique indexes.
 - (b) `INSERT … ON CONFLICT DO NOTHING RETURNING id`, then a follow-up
   SELECT when nothing was returned.
@@ -124,7 +124,7 @@ membership row from `list_solo_alice.sql:40–42`, which most
 scenarios then rely on for the inviter-membership guard (step 1 of
 `send_invitation`). The cleanup pattern is therefore: between
 scenarios, delete invitations and relationships in full, but scope
-list_members and user_settings to *test-inserted* rows only.
+list*members and user_settings to \_test-inserted* rows only.
 Equivalently — and the executor should prefer this — re-include the
 fixture at the start of each scenario; the fixture's `ON CONFLICT DO
 NOTHING` guards make re-inclusion idempotent. `user_settings` resets

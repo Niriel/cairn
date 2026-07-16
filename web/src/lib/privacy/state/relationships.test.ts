@@ -13,14 +13,14 @@ const CIRCLE_ROW = {
 	other_user_id: OTHER_UID,
 	status: 'circle',
 	created_at: '2026-04-12T10:00:00Z',
-	profiles: { display_name: 'Bob', avatar_version: 0 }
+	profiles: { display_name: 'Bob', avatar_version: 0, username: 'bob' }
 };
 
 const BLOCKED_ROW = {
 	other_user_id: STRANGER_UID,
 	status: 'blocked',
 	created_at: '2026-03-01T10:00:00Z',
-	profiles: { display_name: 'Stranger', avatar_version: 0 }
+	profiles: { display_name: 'Stranger', avatar_version: 0, username: 'stranger' }
 };
 
 let profileMod: typeof import('$lib/shared/state/profile.svelte');
@@ -44,47 +44,73 @@ describe('loadRelationships', () => {
 		expect(relsMod.relationships.blocked[0].otherUserId).toBe(STRANGER_UID);
 		expect(relsMod.relationships.loaded).toBe(true);
 	});
+
+	test('(a2) carries username onto the mapped circle and blocked entries', async () => {
+		server.use(http.get('*/api/relationships', () => HttpResponse.json([CIRCLE_ROW, BLOCKED_ROW])));
+		await relsMod.loadRelationships();
+		expect(relsMod.relationships.circle[0].username).toBe('bob');
+		expect(relsMod.relationships.blocked[0].username).toBe('stranger');
+	});
+
+	test('(a3) the relationships select embeds username', async () => {
+		let url = '';
+		server.use(
+			http.get('*/api/relationships', ({ request }) => {
+				url = request.url;
+				return HttpResponse.json([]);
+			})
+		);
+		await relsMod.loadRelationships();
+		expect(decodeURIComponent(url)).toContain(
+			'profiles!other_user_id(display_name,avatar_version,username)'
+		);
+	});
 });
 
-describe('addCircleByEmail', () => {
-	test('(b) on success appends to circle', async () => {
+describe('addCircleByUsername', () => {
+	test('(b) on success posts p_username and appends to circle', async () => {
+		let captured: unknown;
 		server.use(
 			http.get('*/api/relationships', () => HttpResponse.json([CIRCLE_ROW])),
-			http.post('*/api/rpc/add_circle_by_email', () => new HttpResponse(null, { status: 204 }))
+			http.post('*/api/rpc/add_circle_by_username', async ({ request }) => {
+				captured = await request.json();
+				return new HttpResponse(null, { status: 204 });
+			})
 		);
-		const result = await relsMod.addCircleByEmail('bob@example.test');
+		const result = await relsMod.addCircleByUsername('BobHandle');
 		expect(result).toEqual({ ok: true });
+		expect(captured).toEqual({ p_username: 'BobHandle' });
 		expect(relsMod.relationships.circle).toHaveLength(1);
 		expect(relsMod.relationships.circle[0].otherUserId).toBe(OTHER_UID);
 	});
 
 	test('(c) on "no such user" error returns {ok: false, reason: "no-such-user"} and does not mutate circle', async () => {
 		server.use(
-			http.post('*/api/rpc/add_circle_by_email', () =>
+			http.post('*/api/rpc/add_circle_by_username', () =>
 				HttpResponse.json({ code: 'P0001', message: 'no such user' }, { status: 400 })
 			)
 		);
-		const result = await relsMod.addCircleByEmail('nobody@example.test');
+		const result = await relsMod.addCircleByUsername('ghost');
 		expect(result).toEqual({ ok: false, reason: 'no-such-user' });
 		expect(relsMod.relationships.circle).toHaveLength(0);
 	});
 
 	test('(c.i) on "cannot add yourself" error returns {ok: false, reason: "self"} and does not mutate circle', async () => {
 		server.use(
-			http.post('*/api/rpc/add_circle_by_email', () =>
+			http.post('*/api/rpc/add_circle_by_username', () =>
 				HttpResponse.json({ code: 'P0001', message: 'cannot add yourself' }, { status: 400 })
 			)
 		);
-		const result = await relsMod.addCircleByEmail('me@example.test');
+		const result = await relsMod.addCircleByUsername('MyOwnHandle');
 		expect(result).toEqual({ ok: false, reason: 'self' });
 		expect(relsMod.relationships.circle).toHaveLength(0);
 	});
 
 	test('(c.ii) on any other error returns {ok: false, reason: "unknown"}', async () => {
 		server.use(
-			http.post('*/api/rpc/add_circle_by_email', () => new HttpResponse(null, { status: 500 }))
+			http.post('*/api/rpc/add_circle_by_username', () => new HttpResponse(null, { status: 500 }))
 		);
-		const result = await relsMod.addCircleByEmail('error@example.test');
+		const result = await relsMod.addCircleByUsername('ErrorHandle');
 		expect(result).toEqual({ ok: false, reason: 'unknown' });
 	});
 });

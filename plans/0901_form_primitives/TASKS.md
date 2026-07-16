@@ -48,6 +48,7 @@ on without re-litigating.
 this is the first task.
 
 **Decisions:**
+
 - Read first, then propose: open
   `web/src/lib/basic/components/Button.svelte` (69 lines) and
   `Button.test.ts` (47 lines) for the current shape, plus one
@@ -116,9 +117,9 @@ this is the first task.
     `expect(button).toHaveClass('tone-destructive')`.
   - `<Button>` renders the tone as `data-tone={tone}`; tests use
     `expect(button.dataset.tone).toBe('destructive')`.
-  Record the choice in PLAN.md Decisions. Class-based is the
-  default — it composes with the existing
-  `class:primary={…}` pattern and keeps tests grep-able.
+    Record the choice in PLAN.md Decisions. Class-based is the
+    default — it composes with the existing
+    `class:primary={…}` pattern and keeps tests grep-able.
 - **Carve-out reminder.** The exploration confirms `UndoSnackbar`
   `.action` button (alongside `Snackbar.action`) stays raw — both
   are single-occurrence snackbar internals (parent plan R7).
@@ -132,10 +133,12 @@ section (lines 354–382) for the rationale behind each deferred
 question.
 
 **Files:**
+
 - `plans/0901_form_primitives/PLAN.md` (modify — amend
   Decisions section)
 
 **Steps:**
+
 1. Read `web/src/lib/basic/components/Button.svelte` and
    `Button.test.ts` end-to-end. Note the current prop shape,
    the CSS values per existing variant, and the assertion at
@@ -152,8 +155,8 @@ question.
    Decisions.
 5. Write the per-button classification table into PLAN.md
    Decisions as a sub-section "Button migration table". Columns:
-   *Today's class*, *File*, *variant*, *tone*, *size*,
-   *leadingIcon*. Rows: every raw `<button>` from the parent
+   _Today's class_, _File_, _variant_, _tone_, _size_,
+   _leadingIcon_. Rows: every raw `<button>` from the parent
    plan's R7 table (including the additional R7 buttons listed
    below the main table).
 6. Write the canonical CSS values per `variant × tone × size`
@@ -194,6 +197,7 @@ final `<Button>` prop names, defaults, and CSS values per
 `variant × tone × size` cell.
 
 **Decisions:**
+
 - Prop shape per amended PLAN.md (defaults: `variant='rect'`,
   `tone='primary'` per the locked-down values from Task 1.1).
 - The no-props-passed call must render today's filled-rectangle
@@ -207,7 +211,7 @@ final `<Button>` prop names, defaults, and CSS values per
   `classList.contains('destructive')`. Rewrite to an equivalent
   assertion under the new API — preferred shape is a `data-test`
   or tone-class check (e.g. `expect(button).toHaveClass('tone-
-  destructive')` if tone renders as a class, or
+destructive')` if tone renders as a class, or
   `expect(button.dataset.tone).toBe('destructive')` if it
   renders as a data attribute). The exact shape is recorded in
   PLAN.md Decisions's "Button CSS values" sub-section.
@@ -226,10 +230,12 @@ final `<Button>` prop names, defaults, and CSS values per
 "Button migration table" and "Button CSS values".
 
 **Files:**
+
 - `web/src/lib/basic/components/Button.svelte` (modify)
 - `web/src/lib/basic/components/Button.test.ts` (modify)
 
 **Steps:**
+
 1. RED — Extend `Button.test.ts` with: (a) the rewritten
    `destructive` assertion (replaces the current
    `classList.contains('destructive')` at lines 27–34); (b)
@@ -238,7 +244,7 @@ final `<Button>` prop names, defaults, and CSS values per
    renders inside the rendered `<button>` with the expected
    gap class or data attribute).
 2. RED — Run `pnpm test --run web/src/lib/basic/components/
-   Button.test.ts` and confirm the new assertions fail (the
+Button.test.ts` and confirm the new assertions fail (the
    new props don't exist yet) and the rewritten assertion
    fails (the old class isn't applied that way under the new
    API).
@@ -249,11 +255,11 @@ final `<Button>` prop names, defaults, and CSS values per
    `leadingIcon` inside the button with the 8 px gap before
    the children slot.
 4. GREEN — Run `pnpm test --run web/src/lib/basic/components/
-   Button.test.ts` and confirm green.
+Button.test.ts` and confirm green.
 5. GREEN — Run `pnpm check` and confirm svelte-check is clean
    on the modified files.
 6. Commit `feat(button): extend with variant, tone, size,
-   leadingIcon`.
+leadingIcon`.
 
 **Verify:** `pnpm lint` · `pnpm check` · `pnpm test`
 
@@ -270,17 +276,18 @@ it.
 final `<TextInput>` prop surface.
 
 **Decisions:**
+
 - Prop shape per amended PLAN.md (canonical: `value` with
   `bind:value`, `type?: 'text' | 'email'` default `'text'`,
   `id?`, `name?`, `placeholder?`, `disabled?`, `required?`,
   `autocomplete?`, `inputmode?`, `data-test?`, plus event
   forwarding `oninput`, `onchange`, `onblur`, `onkeydown`).
 - CSS block (canonical): `padding: 12px 14px; border: 1px solid
-  var(--rule); border-radius: 12px; background: var(--paper);
-  color: var(--ink); font: inherit; font-size: 16px; width:
-  100%; box-sizing: border-box`. Focus state: `border-color:
-  var(--ink); outline: none`. Placeholder: `color:
-  var(--stone)`.
+var(--rule); border-radius: 12px; background: var(--paper);
+color: var(--ink); font: inherit; font-size: 16px; width:
+100%; box-sizing: border-box`. Focus state: `border-color:
+var(--ink); outline: none`. Placeholder: `color:
+var(--stone)`.
 - **No variants** — the `LoginRequest` `paper-alt` fold-in per
   R7 + R10 is the default; the exploration task may have
   reversed this and added `variant="alt"` — read the amended
@@ -299,23 +306,25 @@ final `<TextInput>` prop surface.
 sub-section.
 
 **Files:**
+
 - `web/src/lib/basic/components/TextInput.svelte` (create)
 - `web/src/lib/basic/components/TextInput.test.ts` (create)
 
 **Steps:**
+
 1. RED — Create `TextInput.test.ts` covering the assertions in
    Decisions. Use `@testing-library/svelte` patterns matching
    the existing `Button.test.ts` style.
 2. RED — Run `pnpm test --run web/src/lib/basic/components/
-   TextInput.test.ts` and confirm every assertion fails (the
+TextInput.test.ts` and confirm every assertion fails (the
    file doesn't exist yet).
 3. GREEN — Create `TextInput.svelte` with the prop shape and
    CSS block per Decisions.
 4. GREEN — Run `pnpm test --run web/src/lib/basic/components/
-   TextInput.test.ts` and confirm green.
+TextInput.test.ts` and confirm green.
 5. GREEN — Run `pnpm check` and confirm svelte-check is clean.
 6. Commit `feat(text-input): add primitive with bind:value and
-   event forwarding`.
+event forwarding`.
 
 **Verify:** `pnpm lint` · `pnpm check` · `pnpm test`
 
@@ -332,9 +341,10 @@ EditDescriptionSheet, AddEditItemSheet notes).
 prop shape, easier to mirror).
 
 **Decisions:**
+
 - Prop shape per amended PLAN.md: same prop set as `<TextInput>`
   where applicable, plus `rows?: number` and/or `minHeight?:
-  string`. Exploration task pins which of these is exposed.
+string`. Exploration task pins which of these is exposed.
 - CSS block: same as `<TextInput>` plus `resize: none` and the
   configured min-height / rows. No other variants.
 - The `AddEditItemSheet` notes serif/14 px override is **not** a
@@ -353,21 +363,23 @@ prop shape, easier to mirror).
 sub-section.
 
 **Files:**
+
 - `web/src/lib/basic/components/Textarea.svelte` (create)
 - `web/src/lib/basic/components/Textarea.test.ts` (create)
 
 **Steps:**
+
 1. RED — Create `Textarea.test.ts` mirroring
    `TextInput.test.ts` plus the `rows` / `minHeight` and
    `resize: none` assertions.
 2. RED — Run `pnpm test --run web/src/lib/basic/components/
-   Textarea.test.ts` and confirm failure.
+Textarea.test.ts` and confirm failure.
 3. GREEN — Create `Textarea.svelte` with the prop shape and
    CSS per Decisions.
 4. GREEN — Re-run the test and confirm green.
 5. GREEN — Run `pnpm check`.
 6. Commit `feat(textarea): add primitive with rows/minHeight
-   props`.
+props`.
 
 **Verify:** `pnpm lint` · `pnpm check` · `pnpm test`
 
@@ -390,6 +402,7 @@ wrapping its input.
 migration call site.
 
 **Decisions:**
+
 - Prop shape per amended PLAN.md: `for?: string` (optional;
   emits `for` attribute iff set), `uppercase?: boolean`
   (default `false`; toggles the field-label shape from
@@ -408,14 +421,16 @@ migration call site.
 sub-section.
 
 **Files:**
+
 - `web/src/lib/basic/components/Label.svelte` (create)
 - `web/src/lib/basic/components/Label.test.ts` (create)
 
 **Steps:**
+
 1. RED — Create `Label.test.ts` covering the four assertions in
    Decisions.
 2. RED — Run `pnpm test --run web/src/lib/basic/components/
-   Label.test.ts` and confirm failure.
+Label.test.ts` and confirm failure.
 3. GREEN — Create `Label.svelte` with the prop shape and
    typography per Decisions.
 4. GREEN — Re-run the test and confirm green.
@@ -439,15 +454,16 @@ tone × size` mappings from the table.
 **Prerequisites:** Task 2.1 — `<Button>` extension landed.
 
 **Decisions:**
+
 - Mappings from amended PLAN.md "Button migration table":
   - `AddEditItemSheet.svelte`: `.btn-cancel` →
     `<Button variant="rect" tone="<neutral>" size="md">`;
     `.btn-submit` → `<Button variant="rect" tone="primary"
-    size="md">`. (Exact neutral-tone name per amended
+size="md">`. (Exact neutral-tone name per amended
     Decisions.)
   - `DeleteItemSheet.svelte`: `.btn-cancel` → as above;
     `.btn-delete` → `<Button variant="rect" tone="destructive"
-    size="md">`.
+size="md">`.
 - Carve-outs in these files: none — every raw `<button>` in
   scope migrates.
 - Test rewrites: any assertion in `AddEditItemSheet.test.ts`
@@ -463,6 +479,7 @@ tone × size` mappings from the table.
 `AddEditItemSheet` and `DeleteItemSheet`.
 
 **Files:**
+
 - `web/src/lib/item/components/AddEditItemSheet.svelte` (modify)
 - `web/src/lib/item/components/AddEditItemSheet.test.ts` (modify)
 - `web/src/lib/item/components/__mocks__/AddEditItemSheet.svelte`
@@ -474,8 +491,9 @@ tone × size` mappings from the table.
   (modify only if the mock surfaces a hook the migration changes)
 
 **Steps:**
+
 1. Open each `.svelte` file. Replace every raw `<button class="
-   btn-...">` with the mapped `<Button ...>`. Preserve
+btn-...">` with the mapped `<Button ...>`. Preserve
    `onclick`, `type`, `disabled`, `aria-pressed`, `data-test`
    attributes.
 2. Drop the now-dead button CSS rules from each file's
@@ -487,7 +505,7 @@ tone × size` mappings from the table.
    confirm green on the touched files.
 5. Run `pnpm check` and confirm clean.
 6. Commit `refactor(items): migrate item-sheet buttons to
-   <Button>`.
+<Button>`.
 
 **Verify:** `pnpm lint` · `pnpm check` · `pnpm test --run web/
 src/lib/item/components/`
@@ -511,10 +529,11 @@ single migration commit.
 **Prerequisites:** Task 2.1 — `<Button>` extension landed.
 
 **Decisions:**
+
 - Mappings from amended PLAN.md "Button migration table":
   - `CreateListSheet.svelte`: header buttons (cancel + create)
     → `<Button variant="rect" tone="<neutral|primary>"
-    size="md">`.
+size="md">`.
   - `RenameListSheet.svelte`: same.
   - `EditDescriptionSheet.svelte`: same.
   - `ListOverflowSheet.svelte`: `.row` actions →
@@ -524,7 +543,7 @@ single migration commit.
     buttons (`.confirm-cancel`, `.confirm-leave`,
     `.row-delete`) → mapped per the amended table; expected
     shape `<Button variant="rect" tone="<neutral|destructive>"
-    size="<sm|md>">`.
+size="<sm|md>">`.
 - Carve-outs in these files: none.
 - Test rewrites: same shape as Task 3.1 — class-based queries
   become role/text/`data-test`-based.
@@ -533,6 +552,7 @@ single migration commit.
 list-related sheets.
 
 **Files:**
+
 - `web/src/lib/list/components/CreateListSheet.svelte` (modify)
 - `web/src/lib/list/components/CreateListSheet.test.ts` (modify)
 - `web/src/lib/list/components/RenameListSheet.svelte` (modify)
@@ -549,6 +569,7 @@ list-related sheets.
   `__mocks__/` after editing each source for matching files)
 
 **Steps:**
+
 1. For each `.svelte` file: replace raw `<button>` with the
    mapped `<Button>`. Preserve attribute pass-through.
 2. Drop dead button CSS from each file's `<style>` block.
@@ -557,7 +578,7 @@ list-related sheets.
    confirm green.
 5. Run `pnpm check`.
 6. Commit `refactor(lists): migrate list-sheet buttons to
-   <Button>`.
+<Button>`.
 
 **Verify:** `pnpm lint` · `pnpm check` · `pnpm test --run web/
 src/lib/list/components/`
@@ -568,6 +589,7 @@ src/lib/list/components/`
 **Completed:** 2026-05-29T20:40:27Z
 
 **Notes:**
+
 - `InvitesBanner` single-invite `.btn-decline` and `.btn-accept` are not in the
   migration table and were left as raw buttons.
 - `CircleScreen` `.add-btn` and `.whats-this` are not in the migration table and
@@ -583,6 +605,7 @@ and confirmation actions all in one domain.
 **Prerequisites:** Task 2.1 — `<Button>` extension landed.
 
 **Decisions:**
+
 - Mappings per amended PLAN.md "Button migration table":
   - `InvitePickerSheet.svelte`: `.send-btn` (inline e-mail
     submit) → mapped per table; `.invite-btn` (second shape,
@@ -595,10 +618,10 @@ and confirmation actions all in one domain.
   - `PostAcceptPromptSheet.svelte`: "Not now" (left) →
     `<Button variant="rect" tone="ink" size="md">`; "Add to
     circle" (right) → `<Button variant="rect" tone="primary"
-    size="md">`. Both are bare unstyled `<button>` inside
+size="md">`. Both are bare unstyled `<button>` inside
     `<ButtonPair>` snippets — no class names, no CSS to drop.
   - `CircleExplainerSheet.svelte`: "Got it" → `<Button
-    variant="rect" tone="ink" size="md">`. Drop the scoped
+variant="rect" tone="ink" size="md">`. Drop the scoped
     `button` rule from the file's `<style>` block.
 - Carve-outs: none in these files (the `EmptyState` for
   `BlockedScreen` stays as raw markup in this sub-plan — its
@@ -614,6 +637,7 @@ and confirmation actions all in one domain.
 invite/circle files.
 
 **Files:**
+
 - `web/src/lib/invite/components/InvitePickerSheet.svelte`
   (modify)
 - `web/src/lib/invite/components/InvitePickerSheet.test.ts`
@@ -638,6 +662,7 @@ invite/circle files.
   `__mocks__/` directories after editing each source.
 
 **Steps:**
+
 1. For each `.svelte` file: replace raw `<button>` with the
    mapped `<Button>`. Preserve attribute pass-through.
 2. Drop dead button CSS from each file's `<style>` block.
@@ -645,7 +670,7 @@ invite/circle files.
 4. Run `pnpm test --run` against the touched directories.
 5. Run `pnpm check`.
 6. Commit `refactor(invites): migrate invite/circle buttons to
-   <Button>`.
+<Button>`.
 
 **Verify:** `pnpm lint` · `pnpm check` · `pnpm test`
 
@@ -661,15 +686,16 @@ the avatar-source sheet's row actions — all natural neighbours.
 **Prerequisites:** Task 2.1 — `<Button>` extension landed.
 
 **Decisions:**
+
 - Mappings per amended PLAN.md "Button migration table":
   - `ProfileSheet.svelte`: `.row` actions →
     `<Button variant="text" tone="<neutral>" size="md">`.
   - `web/src/routes/(app)/profile/+page.svelte`:
     `.pill-btn.ink` →
     `<Button variant="pill" tone="<neutral>" size="sm"
-    leadingIcon="…">`; `.pill-btn.ember` →
+leadingIcon="…">`; `.pill-btn.ember` →
     `<Button variant="pill" tone="destructive" size="sm"
-    leadingIcon="…">`. Other raw buttons on the page (if any)
+leadingIcon="…">`. Other raw buttons on the page (if any)
     per the amended table.
   - `AvatarSourceSheet.svelte`: `.row` actions → as above.
 - Carve-outs: hidden `<input type="file">` triggers in
@@ -684,6 +710,7 @@ the avatar-source sheet's row actions — all natural neighbours.
 profile / avatar files.
 
 **Files:**
+
 - `web/src/lib/profile/components/ProfileSheet.svelte` (modify)
 - `web/src/lib/profile/components/ProfileSheet.test.ts` (modify)
 - `web/src/lib/profile/components/__mocks__/ProfileSheet.svelte`
@@ -699,6 +726,7 @@ profile / avatar files.
   the mocks whose source's markup hooks change)
 
 **Notes:**
+
 - `ProfileSheet` action rows had border+border-radius decorating each card row. Preserved with `.action-card` wrapper divs (border, radius, overflow:hidden) and a `.actions` container (margin-top: 18px, flex column, gap: 8px); dropped the old `.action-row` / `.action-row:first-of-type` / `.block-action` CSS.
 - Block action button uses `tone="destructive"` (not `tone="ink"`) to preserve the ember colour — the migration table lists a single `.row actions` → `ink` row but the block action is clearly destructive and a visual regression without it.
 - `AvatarSourceSheet` cancel row loses its muted stone colour (was `.cancel { color: var(--stone) }`) — migration table says `text | ink | md` for all rows.
@@ -706,6 +734,7 @@ profile / avatar files.
 - No test rewrites needed — all tests already used `data-test` / text queries, no class-based queries.
 
 **Steps:**
+
 1. For each `.svelte` file: replace raw `<button>` with the
    mapped `<Button>`. Preserve attribute pass-through.
 2. Drop dead button CSS from each file's `<style>` block.
@@ -716,7 +745,7 @@ profile / avatar files.
 4. Run `pnpm test --run` against the touched directories.
 5. Run `pnpm check`.
 6. Commit `refactor(profile): migrate profile/avatar buttons
-   to <Button>`.
+to <Button>`.
 
 **Verify:** `pnpm lint` · `pnpm check` · `pnpm test`
 
@@ -726,6 +755,7 @@ profile / avatar files.
 **Completed:** 2026-05-29T21:23:04Z
 
 **Notes:**
+
 - Updated `__mocks__/Button.svelte` Props type to match the current API (`variant: 'rect'|'pill'|'text'|'link'`, `tone`, `size`, `leadingIcon`) — the mock was still using the pre-2.1 `'primary'|'ghost'|'destructive'` variant type.
 - `SettingsScreen` `.profile-chip` loses its `padding: 16px 18px` (now `12px 18px` from text|md). Slightly less vertical breathing room around the 44px avatar.
 - `SettingsScreen` `.nav-row > :global(svg:last-of-type)` chevron-right colour rule (`var(--stone-lt)`) is dropped — no clean way to scope it once `.nav-row` class is gone from the button element. Chevron inherits `var(--ink)` from the Button.
@@ -741,10 +771,11 @@ the same files are carve-outs and stay raw.
 **Prerequisites:** Task 2.1 — `<Button>` extension landed.
 
 **Decisions:**
+
 - Mappings per amended PLAN.md "Button migration table":
   - `SettingsScreen.svelte`: `.nav-row` rows → `<Button
-    variant="text" tone="<neutral>" size="md">`. `.profile-
-    chip` (the link to the profile route) → mapped per table.
+variant="text" tone="<neutral>" size="md">`. `.profile-
+chip` (the link to the profile route) → mapped per table.
   - `PrivacyScreen.svelte`: `.nav-row` rows → as above.
 - Carve-outs (stay raw `<button>`):
   - `SettingsScreen.svelte`: `.size-option`, `.theme-option`
@@ -761,6 +792,7 @@ the same files are carve-outs and stay raw.
 `SettingsScreen` and `PrivacyScreen`.
 
 **Files:**
+
 - `web/src/lib/settings/components/SettingsScreen.svelte`
   (modify)
 - `web/src/lib/settings/components/SettingsScreen.test.ts`
@@ -771,6 +803,7 @@ the same files are carve-outs and stay raw.
   only if the privacy mocks surface a hook the migration changes)
 
 **Steps:**
+
 1. For each `.svelte` file: replace the listed raw `<button>`
    with the mapped `<Button>`. Leave the carve-outs alone
    (segmented-control and chooser-grid stay raw).
@@ -778,10 +811,10 @@ the same files are carve-outs and stay raw.
    keep the CSS for the carve-out buttons.
 3. For each `.test.ts` file: rewrite class-based queries.
 4. Run `pnpm test --run web/src/lib/settings/components/
-   web/src/lib/privacy/components/`.
+web/src/lib/privacy/components/`.
 5. Run `pnpm check`.
 6. Commit `refactor(settings): migrate nav-row + profile-chip
-   buttons to <Button>`.
+buttons to <Button>`.
 
 **Verify:** `pnpm lint` · `pnpm check` · `pnpm test`
 
@@ -791,6 +824,7 @@ the same files are carve-outs and stay raw.
 **Completed:** 2026-05-29T21:44:21Z
 
 **Notes:**
+
 - `InvitesInboxScreen` has no `.empty-cta` or `.nav-row` buttons — the empty state is illustration + text only, and the invite-row accept/decline buttons are carve-outs from task 3.3. Nothing to migrate in that file.
 - Added `style?: string` to Button.svelte's Props type (needed for `flex: 1` on panel buttons and `flex: 1; min-width: 0; padding: 0` on the row-nav — both rely on the style passing through `{...rest}` without svelte-check errors).
 - `ItemsScreen` panel buttons use `style="flex: 1"` to preserve equal-width layout inside `.panel-actions { display: flex; gap: 8px }`.
@@ -805,13 +839,14 @@ test of the new `<Button>` API.
 **Prerequisites:** Task 2.1 — `<Button>` extension landed.
 
 **Decisions:**
+
 - Mappings per amended PLAN.md "Button migration table":
   - `ItemsScreen.svelte`: `.panel-btn` → mapped per the
     `.panel-btn` shape decision recorded in Task 1.1 (R10 #3 —
     options were reshape to pill, carve-out, or new variant);
     `.panel-btn.destructive` follows the same decision with the
     destructive tone; `.empty-cta` → `<Button variant="rect"
-    tone="<ink>" size="md" leadingIcon="…">` (illustrated
+tone="<ink>" size="md" leadingIcon="…">` (illustrated
     empty-state CTA pins to `--ink` per `docs/ui.md`
     "Empty-state copy and style"; this is R10's primary-tone
     reconciliation — the `--ink` mapping is the deliberate
@@ -821,12 +856,12 @@ test of the new `<Button>` API.
     mapped per table.
   - `InvitesInboxScreen.svelte`: `.empty-cta` → as above; the
     `.nav-row` (if any) → `<Button variant="text"
-    tone="<neutral>" size="md">`.
+tone="<neutral>" size="md">`.
   - `TrashScreen.svelte`: `.restore` → `<Button variant="pill"
-    tone="ink" size="sm">`. **Note:** `TrashScreen` lives
+tone="ink" size="sm">`. **Note:** `TrashScreen` lives
     in `web/src/lib/item/components/`, not `list/components/`.
   - `DeletedListsScreen.svelte`: `.restore` → `<Button
-    variant="pill" tone="ink" size="sm">`. Same shape as
+variant="pill" tone="ink" size="sm">`. Same shape as
     `TrashScreen`. Lives in `web/src/lib/list/components/`.
 - Carve-outs: the `(see more) / (see less)` expander in
   `ListsScreen.svelte` stays raw. The `.row-icon` colour
@@ -838,6 +873,7 @@ test of the new `<Button>` API.
 screen-level CTAs.
 
 **Files:**
+
 - `web/src/lib/item/components/ItemsScreen.svelte` (modify)
 - `web/src/lib/item/components/ItemsScreen.test.ts` (modify)
 - `web/src/lib/list/components/ListsScreen.svelte` (modify)
@@ -860,6 +896,7 @@ screen-level CTAs.
   only the mocks whose source's markup hooks change.
 
 **Steps:**
+
 1. For each `.svelte` file: replace listed raw `<button>` with
    mapped `<Button>`. Leave the `(see more)` expander alone.
 2. Drop dead button CSS from each file's `<style>` block —
@@ -868,7 +905,7 @@ screen-level CTAs.
 4. Run `pnpm test --run` against the touched directories.
 5. Run `pnpm check`.
 6. Commit `refactor(screens): migrate screen-level CTAs to
-   <Button>`.
+<Button>`.
 
 **Verify:** `pnpm lint` · `pnpm check` · `pnpm test`
 
@@ -886,16 +923,17 @@ plan.
 **Prerequisites:** Task 2.1 — `<Button>` extension landed.
 
 **Decisions:**
+
 - Mapping per amended PLAN.md "Button migration table":
   `LoginRequest.svelte` submit button → `<Button variant="rect"
-  tone="primary" size="md">`. (Already partially migrated
+tone="primary" size="md">`. (Already partially migrated
   in Task 2.1 side work — `variant="primary"` was updated to
   `variant="rect" tone="primary"`. Confirm the CSS block is
   dropped in this task.)
 - `LoginCheck.svelte` `.resend` ("Send again") → `<Button
-  variant="text" tone="primary" size="sm">`. The current
+variant="text" tone="primary" size="sm">`. The current
   `.resend` rule (`background: none; border: none; color:
-  var(--accent)`) maps cleanly to `text / primary / sm`.
+var(--accent)`) maps cleanly to `text / primary / sm`.
   Drop the `.resend` CSS rule from the file's `<style>` block.
 - The email input is **not** migrated here — that's Task 4.2.
 - Test rewrites: any assertion in `LoginRequest.test.ts` or
@@ -906,14 +944,16 @@ plan.
 `LoginRequest` and `LoginCheck`.
 
 **Files:**
+
 - `web/src/lib/auth/components/LoginRequest.svelte` (modify)
 - `web/src/lib/auth/components/LoginRequest.test.ts` (modify)
 - `web/src/lib/auth/components/LoginCheck.svelte` (modify)
 - `web/src/lib/auth/components/LoginCheck.test.ts` (modify)
 
 **Steps:**
+
 1. In `LoginRequest.svelte`: confirm `variant="rect"
-   tone="primary"` is in place (done in Task 2.1); drop any
+tone="primary"` is in place (done in Task 2.1); drop any
    remaining button CSS from the `<style>` block that is now
    owned by `<Button>`.
 2. In `LoginCheck.svelte`: replace the raw `.resend` `<button>`
@@ -945,6 +985,7 @@ from day one (REQUIREMENTS R5).
 task appends two rules.
 
 **Decisions:**
+
 - Append to
   `web/src/lib/shared/styles/typography.css`:
   - `.hint` — 13 px, `var(--stone)`, no margin-top, small
@@ -964,15 +1005,17 @@ task appends two rules.
 REQUIREMENTS R5.
 
 **Files:**
+
 - `web/src/lib/shared/styles/typography.css` (modify)
 
 **Steps:**
+
 1. Open the file. Append the `.hint` and `.hint-error` rules
    per Decisions at the end of the file (preserve existing
    font imports and `--font-size-scale` root rule).
 2. Run `pnpm check` and confirm clean.
 3. Commit `feat(css): add .hint / .hint-error paragraph rule
-   for input rail`.
+for input rail`.
 
 **Verify:** `pnpm lint` · `pnpm check`
 
@@ -990,23 +1033,24 @@ REQUIREMENTS R10 lives here.
 (`<Label>` exists), 4.1 (hint CSS rule lands).
 
 **Decisions:**
+
 - Replace the raw email `<input>` with `<Label>` + `<TextInput
-  type="email">`. If the amended PLAN.md kept the `paper-alt`
+type="email">`. If the amended PLAN.md kept the `paper-alt`
   default (fold in), no variant prop on `<TextInput>` — the
   canonical shape applies. If the amended PLAN.md reversed
   the default and minted `variant="alt"`, pass that variant
   here.
 - **Reconcile the existing `.hint` and `.inline-error` markup
   before lifting the rule.** Today's `LoginRequest.svelte:96–99`
-  carries a `<div class="hint">` *below the submit button* (a
+  carries a `<div class="hint">` _below the submit button_ (a
   centred disclaimer, 12 px, italic-style copy) and a separate
-  `<div class="inline-error">` at line 81 *between input and
-  submit*. Neither matches the input-rail "hint paragraph below
+  `<div class="inline-error">` at line 81 _between input and
+  submit_. Neither matches the input-rail "hint paragraph below
   the input" shape R5 introduces. To avoid the new `.hint` rule
   from Task 4.1 clobbering the existing disclaimer markup with
   different typography, **rename the existing
   `<div class="hint">` to a local class (e.g. `<div
-  class="disclaimer">`) and the `<div class="inline-error">`
+class="disclaimer">`) and the `<div class="inline-error">`
   stays untouched** (it's a single-occurrence error surface,
   not the input-rail error contract). Update the scoped
   `.hint` rule in this file's `<style>` block to target
@@ -1032,10 +1076,12 @@ REQUIREMENTS R10 lives here.
 REQUIREMENTS R8, R14.
 
 **Files:**
+
 - `web/src/lib/auth/components/LoginRequest.svelte` (modify)
 - `web/src/lib/auth/components/LoginRequest.test.ts` (modify)
 
 **Steps:**
+
 1. Rename the existing `<div class="hint">` disclaimer at
    `LoginRequest.svelte:96–99` to `<div class="disclaimer">`
    and rename the scoped `.hint` rule in this file's `<style>`
@@ -1052,10 +1098,10 @@ REQUIREMENTS R8, R14.
    padding rules if present).
 4. Update `LoginRequest.test.ts` per Decisions.
 5. Run `pnpm test --run web/src/lib/auth/components/
-   LoginRequest.test.ts`.
+LoginRequest.test.ts`.
 6. Run `pnpm check`.
 7. Commit `refactor(auth): migrate LoginRequest email input to
-   <TextInput>`.
+<TextInput>`.
 
 **Verify:** `pnpm lint` · `pnpm check` · `pnpm test`
 
@@ -1073,6 +1119,7 @@ commit.
 (`<Textarea>`), 2.4 (`<Label>`), 4.1 (hint CSS).
 
 **Decisions:**
+
 - Mappings:
   - `RenameListSheet.svelte`: name `<input>` → `<Label>` +
     `<TextInput>`.
@@ -1090,6 +1137,7 @@ commit.
 **Reference:** Sub-plan REQUIREMENTS R7.
 
 **Files:**
+
 - `web/src/lib/list/components/RenameListSheet.svelte` (modify)
 - `web/src/lib/list/components/RenameListSheet.test.ts` (modify)
 - `web/src/lib/list/components/CreateListSheet.svelte` (modify)
@@ -1102,6 +1150,7 @@ commit.
   the mocks whose source's markup hooks change)
 
 **Steps:**
+
 1. For each `.svelte` file: replace raw `<input>` / `<textarea>`
    with `<Label>` + `<TextInput>` / `<Textarea>`. Preserve
    `bind:value`, attributes, event handlers.
@@ -1110,7 +1159,7 @@ commit.
 4. Run `pnpm test --run web/src/lib/list/components/`.
 5. Run `pnpm check`.
 6. Commit `refactor(lists): migrate list-sheet inputs to
-   <TextInput> / <Textarea>`.
+<TextInput> / <Textarea>`.
 
 **Verify:** `pnpm lint` · `pnpm check` · `pnpm test --run web/
 src/lib/list/components/`
@@ -1130,6 +1179,7 @@ the rendered `<textarea>` (not a `<Textarea>` variant).
 2.4 (`<Label>`), 4.1 (hint CSS).
 
 **Decisions:**
+
 - Mappings:
   - Name `<input>` → `<Label>` + `<TextInput>`. Standard
     shape.
@@ -1148,6 +1198,7 @@ the rendered `<textarea>` (not a `<Textarea>` variant).
 "Open questions" resolution for the notes override mechanism.
 
 **Files:**
+
 - `web/src/lib/item/components/AddEditItemSheet.svelte` (modify)
 - `web/src/lib/item/components/AddEditItemSheet.test.ts` (modify)
 - `web/src/lib/item/components/__mocks__/AddEditItemSheet.svelte`
@@ -1155,6 +1206,7 @@ the rendered `<textarea>` (not a `<Textarea>` variant).
   changes)
 
 **Steps:**
+
 1. Replace the name `<input>` with `<Label>` + `<TextInput>`.
 2. Replace the notes `<textarea>` with `<Label>` + `<Textarea>`.
    Apply the per-call serif/14 px override per the amended
@@ -1164,10 +1216,10 @@ the rendered `<textarea>` (not a `<Textarea>` variant).
    is still per-call.
 4. Update `AddEditItemSheet.test.ts` per Decisions.
 5. Run `pnpm test --run web/src/lib/item/components/
-   AddEditItemSheet.test.ts`.
+AddEditItemSheet.test.ts`.
 6. Run `pnpm check`.
 7. Commit `refactor(items): migrate AddEditItemSheet inputs to
-   <TextInput> / <Textarea>`.
+<TextInput> / <Textarea>`.
 
 **Verify:** `pnpm lint` · `pnpm check` · `pnpm test`
 
@@ -1185,6 +1237,7 @@ inline-with-submit, circle add-by-email card. Both migrate to
 already migrated).
 
 **Decisions:**
+
 - Mappings:
   - `InvitePickerSheet.svelte`: email row `<input>` →
     `<TextInput type="email">` inline with the submit button
@@ -1201,6 +1254,7 @@ already migrated).
 **Reference:** Sub-plan REQUIREMENTS R7.
 
 **Files:**
+
 - `web/src/lib/invite/components/InvitePickerSheet.svelte`
   (modify)
 - `web/src/lib/invite/components/InvitePickerSheet.test.ts`
@@ -1213,6 +1267,7 @@ already migrated).
   changes)
 
 **Steps:**
+
 1. Replace the `InvitePickerSheet` email `<input>` with
    `<TextInput type="email">` inline with the already-migrated
    submit button. Preserve `bind:value`, placeholder,
@@ -1225,7 +1280,7 @@ already migrated).
 5. Run `pnpm test --run` against the two touched directories.
 6. Run `pnpm check`.
 7. Commit `refactor(invites): migrate email inputs to
-   <TextInput>`.
+<TextInput>`.
 
 **Verify:** `pnpm lint` · `pnpm check` · `pnpm test`
 
@@ -1244,9 +1299,10 @@ final smoke.
 4.1 (hint CSS).
 
 **Decisions:**
+
 - Replace the raw display-name `<input>` with `<Label>` +
   `<TextInput>`. Preserve `bind:value`, the `id="display-
-  name"`, `name`, `autocomplete`, `data-test`, and any event
+name"`, `name`, `autocomplete`, `data-test`, and any event
   handlers.
 - **R10 #4 — border-colour reconciliation.** The existing
   `.name-input` (`profile/+page.svelte:323`) is
@@ -1272,14 +1328,16 @@ final smoke.
 REQUIREMENTS R8.
 
 **Files:**
+
 - `web/src/routes/(app)/profile/+page.svelte` (modify)
 - `web/src/routes/(app)/profile/page.test.ts` (modify if
   present)
 
 **Steps:**
+
 1. Replace the display-name `<input>` at line 191 with
    `<Label for="display-name">` + `<TextInput
-   id="display-name">`. Preserve all other attributes and
+id="display-name">`. Preserve all other attributes and
    handlers.
 2. Drop the `.name-input` CSS from the file's `<style>` block.
 3. If `page.test.ts` exists for this route, update any class-
@@ -1288,7 +1346,7 @@ REQUIREMENTS R8.
    test file exists; otherwise skip.
 5. Run `pnpm check`.
 6. Commit `refactor(profile): migrate display-name input to
-   <TextInput>`.
+<TextInput>`.
 
 **Verify:** `pnpm lint` · `pnpm check` · `pnpm test`
 
@@ -1313,9 +1371,10 @@ visual pattern. Leave it alone.
 `.disclaimer` class introduced).
 
 **Decisions:**
+
 - Append to `web/src/lib/shared/styles/typography.css`:
   `.disclaimer` — `font-size: 12px; color: var(--stone); text-align:
-  center; line-height: 1.5; margin-top: 0; margin-bottom: 0`. Callers
+center; line-height: 1.5; margin-top: 0; margin-bottom: 0`. Callers
   that need vertical spacing add it via a wrapper or a `margin-top` on
   the element itself (LoginRequest's `margin-top: 18px` and
   AvatarCropScreen's `margin-top: 18px` stay as scoped rules or inline
@@ -1331,6 +1390,7 @@ visual pattern. Leave it alone.
 - No Vitest test for this task — CSS-only changes with no logic.
 
 **Files:**
+
 - `web/src/lib/shared/styles/typography.css` (modify)
 - `web/src/lib/auth/components/LoginRequest.svelte` (modify — drop
   scoped typography from `.disclaimer`)
@@ -1338,6 +1398,7 @@ visual pattern. Leave it alone.
   rename `.hint` → `.disclaimer`, drop duplicated typography CSS)
 
 **Steps:**
+
 1. Append the `.disclaimer` rule to `typography.css` per Decisions.
 2. In `LoginRequest.svelte`: drop `font-size`, `color`, `text-align`,
    `line-height` from the scoped `.disclaimer` block, keeping only
@@ -1347,7 +1408,7 @@ visual pattern. Leave it alone.
    drop the typography properties, keeping only layout values.
 4. Run `pnpm check` and confirm clean.
 5. Commit `feat(css): lift .disclaimer to typography.css and sweep
-   call sites`.
+call sites`.
 
 **Verify:** `pnpm lint` · `pnpm check`
 
@@ -1370,6 +1431,7 @@ canonical mix of new primitives.
 **Prerequisites:** Tasks 1.1 through 4.6 all `[x]`.
 
 **Decisions:**
+
 - Run `./scripts/check.sh` for the full gauntlet — sqlfluff,
   shellcheck, shfmt, vitest, pg_prove, prettier, svelte-check,
   and per the `feedback_run_lint` memory **`pnpm lint`
@@ -1396,15 +1458,17 @@ canonical mix of new primitives.
   back. Not in scope here.
 - No git operations in this task — the merge of
   `0901_form_primitives` back into `0900_refactor_css_
-  components` happens in the parent task's `/work` invocation
+components` happens in the parent task's `/work` invocation
   (per parent plan task 1.1 steps 4–5).
 
 **Reference:** Parent plan task 1.1 Verify line.
 
 **Files:**
+
 - (none — this is a verification task)
 
 **Steps:**
+
 1. Run `./scripts/check.sh` and confirm green.
 2. Run the auth e2e:
    `cd web && pnpm exec playwright test e2e/auth.spec.ts`.

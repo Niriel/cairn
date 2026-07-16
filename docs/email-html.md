@@ -5,6 +5,10 @@ works perfectly in Chrome may be silently discarded by Gmail, mangled by
 Outlook, or replaced wholesale by Yahoo Mail. This document records what
 Cairn's emails must do to render acceptably across all of them.
 
+Cairn sends exactly one kind of e-mail: the auth BFF's recovery and
+password-reset code messages (`auth-proxy/src/lib/mail.ts`). Those are the
+templates these rules govern.
+
 ## The fundamental constraint: no shared document
 
 When a web browser renders a page, it owns the whole document. When an email
@@ -29,17 +33,15 @@ centering content, creating a max-width container, building a button.
 ```html
 <!-- Centering + max-width -->
 <table width="100%" cellpadding="0" cellspacing="0" border="0">
-  <tr>
-    <td align="center" style="padding:40px 24px;">
-      <table width="480" cellpadding="0" cellspacing="0" border="0">
-        <tr>
-          <td>
-            Content here.
-          </td>
-        </tr>
-      </table>
-    </td>
-  </tr>
+	<tr>
+		<td align="center" style="padding:40px 24px;">
+			<table width="480" cellpadding="0" cellspacing="0" border="0">
+				<tr>
+					<td>Content here.</td>
+				</tr>
+			</table>
+		</td>
+	</tr>
 </table>
 ```
 
@@ -105,13 +107,11 @@ wrapper `<td>`.
 ```html
 <!-- Correct -->
 <body style="margin:0;padding:0;">
-  <table width="100%" ...>
-    <tr>
-      <td style="font-family:sans-serif;color:#111;padding:40px 24px;">
-        ...
-      </td>
-    </tr>
-  </table>
+	<table width="100%" ...>
+		<tr>
+			<td style="font-family:sans-serif;color:#111;padding:40px 24px;">...</td>
+		</tr>
+	</table>
 </body>
 ```
 
@@ -130,13 +130,13 @@ and padding, and the `<a>` provides only the link and text styling:
 
 ```html
 <table cellpadding="0" cellspacing="0" border="0">
-  <tr>
-    <td bgcolor="#111" style="padding:12px 24px;">
-      <a href="{{ .URL }}" style="color:#fff;text-decoration:none;">
-        <b>Button text</b>
-      </a>
-    </td>
-  </tr>
+	<tr>
+		<td bgcolor="#111" style="padding:12px 24px;">
+			<a href="{{ .URL }}" style="color:#fff;text-decoration:none;">
+				<b>Button text</b>
+			</a>
+		</td>
+	</tr>
 </table>
 ```
 
@@ -146,18 +146,18 @@ works correctly everywhere.
 
 ## What to avoid
 
-| Avoid | Use instead |
-|---|---|
-| `<style>` blocks | Inline `style=""` attributes |
-| CSS `background` alone | `bgcolor` attribute + CSS `background` |
-| `margin` for spacing | `padding` on `<td>` |
-| `display:inline-block` / `flex` / `grid` | `<table>` layout |
-| `border-radius` | Accept square corners |
-| `font-weight:bold` alone | `<b>` tag (+ CSS alongside) |
-| Styles on `<body>` | Styles on the outermost `<td>` |
-| `<p>` for body text spacing | Plain text in `<td>` with `padding-bottom` |
-| External stylesheets | Everything inline |
-| Images without `alt` | Always set `alt=""` at minimum |
+| Avoid                                    | Use instead                                |
+| ---------------------------------------- | ------------------------------------------ |
+| `<style>` blocks                         | Inline `style=""` attributes               |
+| CSS `background` alone                   | `bgcolor` attribute + CSS `background`     |
+| `margin` for spacing                     | `padding` on `<td>`                        |
+| `display:inline-block` / `flex` / `grid` | `<table>` layout                           |
+| `border-radius`                          | Accept square corners                      |
+| `font-weight:bold` alone                 | `<b>` tag (+ CSS alongside)                |
+| Styles on `<body>`                       | Styles on the outermost `<td>`             |
+| `<p>` for body text spacing              | Plain text in `<td>` with `padding-bottom` |
+| External stylesheets                     | Everything inline                          |
+| Images without `alt`                     | Always set `alt=""` at minimum             |
 
 ## Realistic expectations
 
@@ -177,7 +177,7 @@ complexity. Neither is appropriate for Cairn's current needs.
 
 ## Reference
 
-- GoTrue template loading and the dev/prod delivery mechanism:
-  [`docs/gotrue-templates.md`](gotrue-templates.md)
-- Cairn's current magic-link template:
-  [`web/static/gotrue/templates/magic_link.html`](../web/static/gotrue/templates/magic_link.html)
+- The BFF module that composes and sends Cairn's recovery and reset-code mail:
+  [`auth-proxy/src/lib/mail.ts`](../auth-proxy/src/lib/mail.ts)
+- SMTP wiring (Mailpit in dev, the configured provider in prod):
+  [`docs/deployment.md`](deployment.md) → "`.env.prod`" and "Auth surface: pre-deploy checklist"

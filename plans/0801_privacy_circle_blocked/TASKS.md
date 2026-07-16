@@ -4,7 +4,7 @@
 
 - **`.claude/skills/writing-tasks.md`** — TDD ordering, self-
   contained task blocks, route-test filenames drop the `+` prefix.
-- **`.claude/skills/writing-tests.md`** — pgTAP needs positive *and*
+- **`.claude/skills/writing-tests.md`** — pgTAP needs positive _and_
   negative cases; Vitest asserts user-visible behaviour.
 - **`.claude/skills/writing-sql.md`** — `SECURITY DEFINER` +
   `SET search_path = public` convention for trigger functions.
@@ -34,7 +34,7 @@
   `PrivacyScreen`, `CircleScreen`, `BlockedScreen`,
   `CircleExplainerSheet`.
 - **`design/cairn-screens.jsx`** lines 1135–1143 — SettingsScreen
-  *People* section placement reference.
+  _People_ section placement reference.
 
 ## Phase 0 — Doc reconciliation (absorbed from parent plan)
 
@@ -54,7 +54,7 @@ ticking the box to record reality.
 
 **Why:** The parent plan (`plans/0800_invites_circles_ui/`) TASKS 0.1
 specified five paragraph edits across `docs/invites.md`,
-`docs/data-model.md`, and `docs/ui.md` that needed to land *before*
+`docs/data-model.md`, and `docs/ui.md` that needed to land _before_
 any sub-branch was cut, so each sub-plan would find the docs in
 their post-reconciliation state. That commit didn't happen before
 `0801_privacy_circle_blocked` was branched off
@@ -66,10 +66,11 @@ here as Phase 0 so they land before any other 0801 work.
 **Prerequisites:** None — operates only on prose.
 
 **Decisions:**
+
 - Seven paragraph edits total — five verbatim from parent TASKS
   0.1 (steps 1–4 below, plus step 7, the Profile-screen sheet copy)
   and two extras the parent's Phase 0 missed: step 5 (Circle screen
-  *"What is a circle?"* → *"What's this?"* link copy) and step 6
+  _"What is a circle?"_ → _"What's this?"_ link copy) and step 6
   (Circle screen success-toast pronoun rewrite from gendered "Bob"
   references to they/them).
 - Doc-only commit; no code or migration changes. `./scripts/check.sh`
@@ -80,11 +81,13 @@ here as Phase 0 so they land before any other 0801 work.
   here keeps 0801 self-sufficient.
 
 **Files:**
+
 - `docs/invites.md` (modify — two paragraphs)
 - `docs/data-model.md` (modify — one bullet)
 - `docs/ui.md` (modify — three copy strings)
 
 **Steps:**
+
 1. In `docs/invites.md` § "Pending-invite cap", append a paragraph
    after the existing closing-quote sentence:
    > The cap applies to `target_user_id`-keyed pending invitations
@@ -94,9 +97,9 @@ here as Phase 0 so they land before any other 0801 work.
    > an e-mail address evict that address's already-pending sign-up
    > nudges by flooding adjacent typos.
 2. In `docs/invites.md` § "RLS and stored procedures", append after
-   the paragraph that starts *"Insert and delete on `invitations`,
-   …"*:
-   > The one exception is the inviter's own *cancel pending invite*
+   the paragraph that starts _"Insert and delete on `invitations`,
+   …"_:
+   > The one exception is the inviter's own _cancel pending invite_
    > action, which is a direct `DELETE /invitations?id=eq.<uuid>`
    > gated by the `invitations_delete` policy
    > (`USING (created_by = public.uid())`); accept and decline by
@@ -108,13 +111,13 @@ here as Phase 0 so they land before any other 0801 work.
    > - `DELETE /invitations?id=eq.<uuid>` — cancel a pending invite
    >   you created (inviter only; the `invitations_delete` RLS
    >   policy scopes the delete to your own rows). Lands alongside
-   >   the profile-sheet *Cancel pending invite* action in step 8.
+   >   the profile-sheet _Cancel pending invite_ action in step 8.
 4. In `docs/ui.md` § "Circle screen", drop the
-   *"(with confirmation: 'Stop accepting invites from Bob?')"*
-   parenthetical so the line reads *"Each row: avatar, display name,
-   a small action affordance to remove."*
+   _"(with confirmation: 'Stop accepting invites from Bob?')"_
+   parenthetical so the line reads _"Each row: avatar, display name,
+   a small action affordance to remove."_
 5. In `docs/ui.md` § "Circle screen", swap the link copy from
-   *"What is a circle?"* to *"What's this?"* (matches both the
+   _"What is a circle?"_ to _"What's this?"_ (matches both the
    design canvas at `design/cairn-invite-screens.jsx:353` and R2).
 6. In `docs/ui.md` § "Circle screen" — same paragraph that mentions
    the success toast — rewrite the gendered "Bob doesn't exist" /
@@ -124,8 +127,8 @@ here as Phase 0 so they land before any other 0801 work.
    > exist," on "they've blocked you" — to preserve their privacy.
 7. In `docs/ui.md` § "Profile screen (sheet)", rewrite the
    gendered confirmation example. Replacement:
-   > Block and Unblock prompt for confirmation (*"Block {Name}?
-   > They won't be able to invite you to any list."*).
+   > Block and Unblock prompt for confirmation (_"Block {Name}?
+   > They won't be able to invite you to any list."_).
 8. Commit:
    `docs(invites): record email-cap carve-out, inviter-self DELETE, and circle/profile UX reconciliation`.
 
@@ -150,7 +153,7 @@ the task block didn't pre-specify.
 
 **Why:** R7. The Privacy screen lets the user tighten their
 `invite_policy` (e.g. `everybody → circle` or `… → nobody`). Step
-7's RPCs check policy at *insert* time, but they don't sweep
+7's RPCs check policy at _insert_ time, but they don't sweep
 already-pending invitations when the policy changes after the
 fact. Without this trigger, a user who tightens their policy still
 sees stale pending invites in their inbox and can accept them —
@@ -168,10 +171,11 @@ new AFTER trigger — `t20` fires first (BEFORE), row writes, then
 `t40` fires (AFTER).
 
 **Decisions:**
+
 - Function `tg_apply_invite_policy_cascade` is
   `LANGUAGE plpgsql SECURITY DEFINER SET search_path = public`.
 - Trigger fires `AFTER UPDATE OF invite_policy ON public.user_settings
-  FOR EACH ROW WHEN (new.invite_policy IS DISTINCT FROM old.invite_policy)`
+FOR EACH ROW WHEN (new.invite_policy IS DISTINCT FROM old.invite_policy)`
   so a no-change update doesn't run the body.
 - Body branches on `new.invite_policy`:
   - `'nobody'` →
@@ -192,8 +196,8 @@ new AFTER trigger — `t20` fires first (BEFORE), row writes, then
   `BEGIN;`, then function + trigger DDL, then `COMMIT;` — appended
   to in task 1.2 between the function/trigger DDL and the final
   `COMMIT;`). Matches the convention `0009_invitations.sql` opens
-  with — *"single transaction so a mid-migration abort leaves no
-  half-applied state."*
+  with — _"single transaction so a mid-migration abort leaves no
+  half-applied state."_
 - **No `has_trigger` assertion in `db/tests/schema_shape.sql`.**
   The file currently asserts table / column / index / function
   shapes but no triggers (the existing `t40_block_declines_invitations`,
@@ -209,10 +213,12 @@ convention; `db/migrations/0009_invitations.sql:322` for the
 parallel `t40_*` binding on `relationships`.
 
 **Files:**
+
 - `db/migrations/0010_invite_cascades.sql` (create)
 - `db/tests/invite_cascades.sql` (create)
 
 **Steps:**
+
 1. RED — Create `db/tests/invite_cascades.sql` with `BEGIN;` /
    `plan(5);` covering five positive-and-negative cases for the
    cascade trigger: (a) tighten `'everybody' → 'nobody'`
@@ -263,10 +269,11 @@ exists and contains the cascade function. This task appends to
 the same file.
 
 **Decisions:**
+
 - Function `tg_enforce_fifo_cap_invitations` is
   `LANGUAGE plpgsql SECURITY DEFINER SET search_path = public`.
 - Trigger fires `BEFORE INSERT ON public.invitations FOR EACH ROW
-  WHEN (new.target_user_id IS NOT NULL)`. The `WHEN` gate exempts
+WHEN (new.target_user_id IS NOT NULL)`. The `WHEN` gate exempts
   `target_email`-only rows (the email-keyed carve-out from R8).
 - Body:
 
@@ -282,8 +289,9 @@ END IF;
 RETURN NEW;
 ```
 
-  The 20th insert is therefore uncapped (count goes 19 → 20, no
-  eviction); the 21st insert evicts the oldest. Cap is per-target.
+The 20th insert is therefore uncapped (count goes 19 → 20, no
+eviction); the 21st insert evicts the oldest. Cap is per-target.
+
 - Bind as `t30_enforce_fifo_cap` — `t30_*` is the reserved
   future-BEFORE slot per `docs/data-model.md:618`; `t10_*` is the
   per-table attribution slot and isn't reused.
@@ -306,16 +314,17 @@ RETURN NEW;
 reservation.
 
 **Files:**
+
 - `db/migrations/0010_invite_cascades.sql` (modify — append)
 - `db/tests/invite_cascades.sql` (modify — extend)
 
 **Steps:**
+
 1. RED — Extend `db/tests/invite_cascades.sql` (bump `plan(N)` to
    include the new cases) with five assertions: (a) inserts 1
    through 20 for a single `target_user_id` all succeed and leave
    the count climbing from 1 to 20 with no eviction — assert by
-   counting rows after each insert (or just after inserts 1 and
-   20) and by checking the row from insert #1 is still present
+   counting rows after each insert (or just after inserts 1 and 20) and by checking the row from insert #1 is still present
    after insert #20; (b) the 21st insert succeeds with a
    steady-state count of 20, and the row whose `created_at` was
    oldest at the time of the 21st insert is gone (assert by
@@ -327,7 +336,7 @@ reservation.
    `target_user_id` but a different `list_id` is treated as a
    distinct invitation for cap-counting (sanity check on the cap's
    subject — it's per `target_user_id`, not per `(created_by,
-   target_user_id)` pair).
+target_user_id)` pair).
 2. RED — Run `./scripts/test-db.sh` and confirm the new
    assertions report red (function and trigger don't exist yet).
 3. GREEN — Append the `tg_enforce_fifo_cap_invitations` function
@@ -346,7 +355,7 @@ reservation.
 **Completed:** 2026-05-28T14:57:16Z
 
 **Why:** Both `CircleScreen` and `BlockedScreen` need to render
-*"added DD MMM"* / *"blocked DD MMM"* sub-lines (R2, R3) with the
+_"added DD MMM"_ / _"blocked DD MMM"_ sub-lines (R2, R3) with the
 current-year carve-out (full year when the row is older than the
 current calendar year). Factoring the formatter out keeps the two
 screens' tests focused on user-visible behaviour and gives the
@@ -356,6 +365,7 @@ formatter its own unit-test coverage.
 yet; this task creates it.
 
 **Decisions:**
+
 - File `web/src/lib/privacy/model/relationship.ts` exports the
   TypeScript types `RelationshipRow` (raw shape from PostgREST,
   with `other_user_id`, `status`, `created_at`, and the embedded
@@ -376,10 +386,12 @@ yet; this task creates it.
 YYYY` format rule.
 
 **Files:**
+
 - `web/src/lib/privacy/model/relationship.ts` (create)
 - `web/src/lib/privacy/model/relationship.test.ts` (create)
 
 **Steps:**
+
 1. RED — Create `relationship.test.ts` with Vitest cases for both
    helpers: (a) same-year row → short form `"added 12 Apr"`;
    (b) older row → long form `"added 12 Apr 2025"`; (c) edge case
@@ -391,7 +403,7 @@ YYYY` format rule.
    (module doesn't exist yet).
 3. GREEN — Create `relationship.ts` with the type exports and
    both helper functions. Use `Intl.DateTimeFormat('en-GB', {
-   day: 'numeric', month: 'short' })` and the `getFullYear()`
+day: 'numeric', month: 'short' })` and the `getFullYear()`
    comparison.
 4. GREEN — Re-run `pnpm test` and confirm green.
 
@@ -417,6 +429,7 @@ for the count badges.
 **Prerequisites:** Task 2.1 — `relationship.ts` model types exist.
 
 **Decisions:**
+
 - File `web/src/lib/privacy/state/relationships.svelte.ts` uses
   the `.svelte.ts` runes-aware suffix so `$state` reactive
   arrays compile.
@@ -458,7 +471,7 @@ for the count badges.
 - `addCircleById(otherUserId)` calls
   `pgPost('/rpc/add_circle_by_id', { p_other_user_id: otherUserId })`
   and appends on success. On failure (the RPC raises `'no such
-  user'` or `'cannot add yourself'`) the method **re-throws the
+user'` or `'cannot add yourself'`) the method **re-throws the
   underlying `ApiError`** without mutating `circle`; callers
   (0802's `<ProfileSheet>`, 0803's post-accept circle prompt) own
   their own error UX. Vitest covers both raises and a generic
@@ -485,10 +498,12 @@ sees" for the `relationships` endpoint shape and the PostgREST
 `select=…,profiles!other_user_id(…)` embedded-select syntax.
 
 **Files:**
+
 - `web/src/lib/privacy/state/relationships.svelte.ts` (create)
 - `web/src/lib/privacy/state/relationships.test.ts` (create)
 
 **Steps:**
+
 1. RED — Create `relationships.test.ts` with Vitest cases for
    each method: (a) `loadRelationships` populates `circle` and
    `blocked` from a mock response containing one of each;
@@ -545,6 +560,7 @@ home.
 side-by-side in `web/src/lib/privacy/state/`.
 
 **Decisions:**
+
 - File `web/src/lib/privacy/state/user-settings.svelte.ts` uses
   the `.svelte.ts` suffix so `$state` reactive fields compile.
 - The module reads the caller's uid from
@@ -554,7 +570,7 @@ side-by-side in `web/src/lib/privacy/state/`.
   the PATCH itself), the method **re-throws the underlying
   `ApiError`** and leaves `invitePolicy` unchanged. PrivacyScreen
   (Task 6.1) catches the throw, reverts its optimistic selection,
-  and renders a *"Couldn't update privacy setting"* snackbar. The
+  and renders a _"Couldn't update privacy setting"_ snackbar. The
   module is unaware of the snackbar copy; only the throw shape
   lives here.
 - Exports a single reactive store object with fields
@@ -572,7 +588,7 @@ side-by-side in `web/src/lib/privacy/state/`.
   2. `await pgPatch('/user_settings?id=eq.<me>', { invite_policy: next })`
   3. `newCount = (await pgGet(... same as 1 ...)).length`
   4. `tightened = ({ everybody: 0, circle: 1, nobody: 2 })[next] > ({ everybody: 0, circle: 1, nobody: 2 })[prevPolicy]`
-     where `prevPolicy = invitePolicy` *before* the PATCH.
+     where `prevPolicy = invitePolicy` _before_ the PATCH.
   5. On success, set `invitePolicy = next`.
 - The module is unaware of the cascade-feedback copy; only the
   call shape lives here. PrivacyScreen renders the singular /
@@ -588,12 +604,14 @@ side-by-side in `web/src/lib/privacy/state/`.
   for sibling consumers (PrivacyScreen).
 
 **Files:**
+
 - `web/src/lib/privacy/state/user-settings.svelte.ts` (create)
 - `web/src/lib/privacy/state/user-settings.test.ts` (create)
 - `web/src/lib/privacy/state/__mocks__/user-settings.svelte.ts`
   (create)
 
 **Steps:**
+
 1. RED — Create `user-settings.test.ts` with the cases listed in
    Decisions. Mock `postgrest.ts` via `vi.mock`.
 2. RED — Run `pnpm test user-settings.test.ts` and confirm red.
@@ -621,36 +639,37 @@ a tested component rather than co-introducing it.
 **Prerequisites:** Task 2.2 — the privacy domain folder exists.
 
 **Decisions:**
+
 - File
   `web/src/lib/privacy/components/CircleExplainerSheet.svelte`.
   Uses the existing `Sheet.svelte` primitive
   (`$lib/basic/components/Sheet.svelte`) so system-back closes it
   via the back-stack pattern.
-- Title: *"What is a circle?"*. Lead-in paragraph directly
+- Title: _"What is a circle?"_. Lead-in paragraph directly
   under the title:
   > Your circle is a private list of people you'll let invite
-  > you to lists, when your privacy is set to *Your circle*.
+  > you to lists, when your privacy is set to _Your circle_.
 - Body: four explainer points (title + body) verbatim from
   `design/cairn-invite-screens.jsx:857–871`'s `ExplainerPoint`
   calls:
-  1. ***It's yours alone.*** Bob doesn't see whether they're in
+  1. **_It's yours alone._** Bob doesn't see whether they're in
      your circle. You don't see whose circle you're in. Each
      person manages their own.
-  2. ***It only governs invites coming to you.*** It does not
+  2. **_It only governs invites coming to you._** It does not
      affect your ability to invite anyone. If Bob's policy is
-     also *Your circle*, what matters for inviting Bob is
-     whether *you* are in *their* circle — not the other way
+     also _Your circle_, what matters for inviting Bob is
+     whether _you_ are in _their_ circle — not the other way
      around.
-  3. ***Adding by e-mail is two-way.*** If you add Bob's e-mail
+  3. **_Adding by e-mail is two-way._** If you add Bob's e-mail
      here, you go on their circle too — unless they've blocked
      you, in which case only your side is updated. Either of
      you can remove the other at any time.
-  4. ***To stop someone inviting you: block them.*** The block
+  4. **_To stop someone inviting you: block them._** The block
      always wins — it overrides every circle and policy on
      either side.
-- Privacy footer: *"Cairn will never tell anyone whose circle
+- Privacy footer: _"Cairn will never tell anyone whose circle
   they're in. The list above is yours; you're the only one who
-  sees it."*
+  sees it."_
 - Single primary **Got it** button at the bottom; tapping closes
   the sheet.
 - Props: `{ open: boolean, onclose: () => void }` — matches the
@@ -667,16 +686,18 @@ a tested component rather than co-introducing it.
 `docs/ui.md` § "Sheet" for the back-stack pattern.
 
 **Files:**
+
 - `web/src/lib/privacy/components/CircleExplainerSheet.svelte`
   (create)
 - `web/src/lib/privacy/components/CircleExplainerSheet.test.ts`
   (create)
 
 **Steps:**
+
 1. RED — Create `CircleExplainerSheet.test.ts`. Assertions:
-   (a) when `open={true}`, the title *"What is a circle?"*
-   renders; (b) the lead-in paragraph *"Your circle is a private
-   list…"* renders; (c) each of the four explainer point
+   (a) when `open={true}`, the title _"What is a circle?"_
+   renders; (b) the lead-in paragraph _"Your circle is a private
+   list…"_ renders; (c) each of the four explainer point
    **titles** renders verbatim; (d) each of the four explainer
    point **bodies** renders verbatim (one assertion per body);
    (e) the privacy footer text renders; (f) the **Got it**
@@ -708,11 +729,12 @@ route's path, so this route must exist first.
 (BlockedScreen reads `blocked` and calls `unblock`).
 
 **Decisions:**
+
 - Component file
   `web/src/lib/privacy/components/BlockedScreen.svelte`.
-- Renders an `<AppTopBar>` with the title *"Blocked"*.
-- Description text: *"People you've blocked. They can't invite you
-  to any list, regardless of your other privacy settings."*
+- Renders an `<AppTopBar>` with the title _"Blocked"_.
+- Description text: _"People you've blocked. They can't invite you
+  to any list, regardless of your other privacy settings."_
 - On mount, calls `relationships.loadRelationships()` if
   `relationships.loaded === false` — single-fetch pattern.
 - For each row in `relationships.blocked`: render an avatar
@@ -723,12 +745,12 @@ route's path, so this route must exist first.
   and does NOT show a confirmation prompt.
 - Empty state (when `relationships.blocked.length === 0` and
   `loaded === true`): a dashed-border card with the slash icon
-  and the literal copy *"You haven't blocked anyone."* No add
+  and the literal copy _"You haven't blocked anyone."_ No add
   field anywhere on this screen.
 - **Loading gate.** While `relationships.loaded === false`, the
   screen renders only the AppTopBar and the description text —
   no empty-state card, no row list. This avoids a brief flash of
-  *"You haven't blocked anyone."* before the fetch resolves.
+  _"You haven't blocked anyone."_ before the fetch resolves.
 - Route file `web/src/routes/(app)/settings/blocked/+page.svelte`
   is a one-liner that imports and renders `<BlockedScreen />`.
 - Route-colocated test
@@ -742,25 +764,27 @@ section for visual structure and verbatim copy; `docs/ui.md` §
 "Empty states" for the dashed-card pattern.
 
 **Files:**
+
 - `web/src/lib/privacy/components/BlockedScreen.svelte` (create)
 - `web/src/lib/privacy/components/BlockedScreen.test.ts` (create)
 - `web/src/routes/(app)/settings/blocked/+page.svelte` (create)
 - `web/src/routes/(app)/settings/blocked/page.test.ts` (create)
 
 **Steps:**
+
 1. RED — Create `BlockedScreen.test.ts`. Mock the
    `relationships` store via `vi.mock('$lib/privacy/state/relationships.svelte')`.
    Assertions: (a) when `blocked` is empty and `loaded === true`,
-   the dashed empty-state card with *"You haven't blocked
-   anyone."* renders; (a.i) when `loaded === false`, the
+   the dashed empty-state card with _"You haven't blocked
+   anyone."_ renders; (a.i) when `loaded === false`, the
    empty-state card does NOT render even though `blocked` is
    empty (loading gate); (b) when `blocked` has one entry, the row
    renders with avatar, display name, the `blockedAtLabel`
    sub-line, and the Unblock button; (c) tapping Unblock calls
    `relationships.unblock(otherUserId)`; (d) no add field is
    rendered (assert by querying for any `<input>` or "Add"
-   button and confirming absent); (e) the *"They can't invite
-   you to any list…"* description text renders.
+   button and confirming absent); (e) the _"They can't invite
+   you to any list…"_ description text renders.
 2. RED — Create `page.test.ts` for the route file; assert the
    route file renders the `<BlockedScreen>` component (use
    `@testing-library/svelte` `render` on the `+page.svelte`).
@@ -791,17 +815,18 @@ to this route's path.
 (`<CircleExplainerSheet>` exists).
 
 **Decisions:**
+
 - Component file
   `web/src/lib/privacy/components/CircleScreen.svelte`.
-- Renders an `<AppTopBar>` with the title *"Your circle"*.
+- Renders an `<AppTopBar>` with the title _"Your circle"_.
 - Intro paragraph: *"When your privacy is set to *Your circle*,
   these are the only people who can invite you to a list."*
-  followed by a *"What's this?"* link that opens
+  followed by a _"What's this?"_ link that opens
   `<CircleExplainerSheet>` — local `$state` boolean drives the
   one-way `open` prop, with `onclose={() => (explainerOpen = false)}`
   closing it (no `bind:` — `Sheet.svelte`'s prop isn't bindable;
   see Task 3.1 Decisions).
-- Section label: *"People in your circle · {circle.length}"*.
+- Section label: _"People in your circle · {circle.length}"_.
 - **Loading gate.** While `relationships.loaded === false`, the
   section label and the row list are not rendered; the intro
   paragraph and the add-by-email card render unconditionally
@@ -815,21 +840,21 @@ to this route's path.
 - An **Add by e-mail** form rendered as a dashed-border card:
   mail-icon prefix, e-mail `<input type="email">`, primary
   **Add** button. Below the input, a helper paragraph in stone
-  text: *"They'll be added to your circle. If they have you
+  text: _"They'll be added to your circle. If they have you
   blocked, the add still succeeds on your side — but their side
-  stays untouched."*
+  stays untouched."_
 - Form submit calls
   `relationships.addCircleByEmail(email)`. Branch on the result:
   - `{ok: true}` → clear the input.
   - `{ok: false, reason: 'no-such-user'}` → render an inline
-    error below the input *"This e-mail isn't on Cairn —
-    invite them to a list instead."*
+    error below the input _"This e-mail isn't on Cairn —
+    invite them to a list instead."_
   - `{ok: false, reason: 'self'}` → render an inline error
-    below the input *"That's your own e-mail address."* —
+    below the input _"That's your own e-mail address."_ —
     honest carve-out, parallel to `send_invitation`'s
     `'self-invite'`.
   - `{ok: false, reason: 'unknown'}` → surface the generic
-    *"Couldn't add to circle"* toast (use the existing
+    _"Couldn't add to circle"_ toast (use the existing
     `Snackbar` primitive).
 - Route file `web/src/routes/(app)/settings/circles/+page.svelte`
   is a one-liner that imports and renders `<CircleScreen />`.
@@ -842,15 +867,17 @@ dashed-border add-by-email card shape; `docs/ui.md` § "Circle
 screen" for the (now-Phase-0-reconciled) quiet Remove copy.
 
 **Files:**
+
 - `web/src/lib/privacy/components/CircleScreen.svelte` (create)
 - `web/src/lib/privacy/components/CircleScreen.test.ts` (create)
 - `web/src/routes/(app)/settings/circles/+page.svelte` (create)
 - `web/src/routes/(app)/settings/circles/page.test.ts` (create)
 
 **Steps:**
+
 1. RED — Create `CircleScreen.test.ts`. Mock `relationships` via
    `vi.mock`. Assertions: (a) intro paragraph renders;
-   (b) tapping *"What's this?"* sets the explainer's
+   (b) tapping _"What's this?"_ sets the explainer's
    `open={true}` (assert by checking explainer title is now in
    the DOM); (c) section label includes the count from the mock;
    (d) one populated row renders with avatar, display name,
@@ -860,11 +887,11 @@ screen" for the (now-Phase-0-reconciled) quiet Remove copy.
    add-by-email form with a valid e-mail calls
    `relationships.addCircleByEmail(email)` and clears the input
    on success; (g) the `'no-such-user'` reason surfaces the
-   inline error *"This e-mail isn't on Cairn — invite them to a
-   list instead."*; (g.i) the `'self'` reason surfaces the
-   inline error *"That's your own e-mail address."*;
+   inline error _"This e-mail isn't on Cairn — invite them to a
+   list instead."_; (g.i) the `'self'` reason surfaces the
+   inline error _"That's your own e-mail address."_;
    (h) the `'unknown'` reason surfaces a snackbar with
-   *"Couldn't add to circle"*.
+   _"Couldn't add to circle"_.
 2. RED — Create `page.test.ts` smoke check for the route.
 3. RED — Run `pnpm test`; confirm red.
 4. GREEN — Create `CircleScreen.svelte` per Decisions.
@@ -894,68 +921,69 @@ route exists), 5.1 (`/settings/circles` route exists), 2.2
 `setInvitePolicy()`).
 
 **Decisions:**
+
 - Component file
   `web/src/lib/privacy/components/PrivacyScreen.svelte`.
-- Renders an `<AppTopBar>` with the title *"Privacy"*.
+- Renders an `<AppTopBar>` with the title _"Privacy"_.
 - **Section 1 — Who can invite you to lists.** A segmented
   control with three options:
-  - `everybody` — title *"Everybody"*, sub *"Anyone with a Cairn
-    account"*.
-  - `circle` — title *"Your circle"*, sub *"Only people in your
-    circle"*.
-  - `nobody` — title *"Nobody"*, sub *"You can still create lists
-    and invite others"*.
-  Bound to `userSettings.invitePolicy` from
-  `$lib/privacy/state/user-settings.svelte` (created in Task 2.3).
-  On mount, call `userSettings.loadUserSettings()` if
-  `userSettings.loaded === false`. **Loading gate.** Until
-  `userSettings.loaded === true`, the control renders with no
-  option visually selected (indeterminate — neither radio dot
-  filled) and taps are non-interactive (`disabled`); the
-  *"What's a circle?"* link is hidden during load.
-  Selecting an option calls
-  `await userSettings.setInvitePolicy(newValue)` — which wraps
-  the count-fetch / PATCH / count-fetch sequence and returns
-  `{ prevCount, newCount, tightened }`. **Failure path.** If
-  `setInvitePolicy` rejects, the screen catches the error,
-  reverts the segmented-control selection to the pre-tap value
-  (`userSettings.invitePolicy` is unchanged on failure by R10's
-  contract), clears the cascade-feedback note, and surfaces a
-  generic *"Couldn't update privacy setting"* snackbar via the
-  existing `Snackbar` primitive.
-- While `invite_policy === 'circle'`, render a *"What's a
-  circle?"* link below the segmented control. Tapping it sets a
+  - `everybody` — title _"Everybody"_, sub _"Anyone with a Cairn
+    account"_.
+  - `circle` — title _"Your circle"_, sub _"Only people in your
+    circle"_.
+  - `nobody` — title _"Nobody"_, sub _"You can still create lists
+    and invite others"_.
+    Bound to `userSettings.invitePolicy` from
+    `$lib/privacy/state/user-settings.svelte` (created in Task 2.3).
+    On mount, call `userSettings.loadUserSettings()` if
+    `userSettings.loaded === false`. **Loading gate.** Until
+    `userSettings.loaded === true`, the control renders with no
+    option visually selected (indeterminate — neither radio dot
+    filled) and taps are non-interactive (`disabled`); the
+    _"What's a circle?"_ link is hidden during load.
+    Selecting an option calls
+    `await userSettings.setInvitePolicy(newValue)` — which wraps
+    the count-fetch / PATCH / count-fetch sequence and returns
+    `{ prevCount, newCount, tightened }`. **Failure path.** If
+    `setInvitePolicy` rejects, the screen catches the error,
+    reverts the segmented-control selection to the pre-tap value
+    (`userSettings.invitePolicy` is unchanged on failure by R10's
+    contract), clears the cascade-feedback note, and surfaces a
+    generic _"Couldn't update privacy setting"_ snackbar via the
+    existing `Snackbar` primitive.
+- While `invite_policy === 'circle'`, render a _"What's a
+  circle?"_ link below the segmented control. Tapping it sets a
   local `$state` boolean to open `<CircleExplainerSheet>`.
 - **Cascade-feedback note.** The
   `userSettings.setInvitePolicy(next)` call returns
   `{ prevCount, newCount, tightened }`. Compute
   `removed = prevCount - newCount`. If `removed > 0 && tightened`,
   set a local `$state` string with the singular/plural form:
-    - `removed === 1` → *"1 pending invite has been declined to
-      match your new setting."*
-    - `removed > 1` → *"{removed} pending invites have been
-      declined to match your new setting."*
-  If `removed === 0` *or* `!tightened`, set the string to empty —
-  the note doesn't render. The note renders inline directly below
-  the segmented control, above the *"What's a circle?"* link.
-  **Clear the note string on every option click *before* calling
-  `setInvitePolicy(...)`** — that way a still-visible note from a
-  prior tighten doesn't survive a subsequent loosen and mislead
-  the user.
+  - `removed === 1` → _"1 pending invite has been declined to
+    match your new setting."_
+  - `removed > 1` → _"{removed} pending invites have been
+    declined to match your new setting."_
+    If `removed === 0` _or_ `!tightened`, set the string to empty —
+    the note doesn't render. The note renders inline directly below
+    the segmented control, above the _"What's a circle?"_ link.
+    **Clear the note string on every option click _before_ calling
+    `setInvitePolicy(...)`** — that way a still-visible note from a
+    prior tighten doesn't survive a subsequent loosen and mislead
+    the user.
 - **Section 2 — People.** Two NavRows:
-  - *Your circle* — sub-line *"People you'll let invite you"*,
+  - _Your circle_ — sub-line _"People you'll let invite you"_,
     badge with `relationships.circle.length`, navigates to
     `goto(resolve('/settings/circles'))`.
-  - *Blocked* — sub-line *"People who can never invite you"*,
+  - _Blocked_ — sub-line _"People who can never invite you"_,
     badge with `relationships.blocked.length`, navigates to
     `goto(resolve('/settings/blocked'))`.
   - **Loading gate.** Until `relationships.loaded === true`, the
     count badges are hidden (not rendered as `0`). The NavRows
     themselves render unconditionally so the user can navigate
     to Circle / Blocked even mid-load.
-- **Section 3 — Privacy note.** Literal copy: *"Your e-mail
+- **Section 3 — Privacy note.** Literal copy: _"Your e-mail
   address is never shown to other people on Cairn — only your
-  display name and avatar."*
+  display name and avatar."_
 - On mount, call `relationships.loadRelationships()` if
   `loaded === false`.
 - Route file `web/src/routes/(app)/settings/privacy/+page.svelte`
@@ -968,12 +996,14 @@ for verbatim option copy and visual structure; `docs/ui.md` §
 "Privacy screen" for the cascade-feedback note shape.
 
 **Files:**
+
 - `web/src/lib/privacy/components/PrivacyScreen.svelte` (create)
 - `web/src/lib/privacy/components/PrivacyScreen.test.ts` (create)
 - `web/src/routes/(app)/settings/privacy/+page.svelte` (create)
 - `web/src/routes/(app)/settings/privacy/page.test.ts` (create)
 
 **Steps:**
+
 1. RED — Create `PrivacyScreen.test.ts`. Mock `relationships`
    and `userSettings` via
    `vi.mock('$lib/privacy/state/relationships.svelte')` and
@@ -983,28 +1013,28 @@ for verbatim option copy and visual structure; `docs/ui.md` §
    titles and subs; (b) the currently-selected option is
    visually indicated based on the mocked
    `userSettings.invitePolicy`; (c) selecting a different option
-   calls `userSettings.setInvitePolicy(newValue)`; (d) *"What's
-   a circle?"* link visible only when `invitePolicy === 'circle'`
+   calls `userSettings.setInvitePolicy(newValue)`; (d) _"What's
+   a circle?"_ link visible only when `invitePolicy === 'circle'`
    and tapping it opens the explainer; (e) the two NavRows
    render with the count badges reading from the mocked
    relationships; (f) the Privacy note text renders verbatim;
    (g) tightening from `everybody` to `circle` (mock
    `setInvitePolicy` to resolve with
    `{prevCount: 2, newCount: 1, tightened: true}`) shows the
-   inline note *"1 pending invite has been declined to match
-   your new setting."*; (h) `{prevCount: 5, newCount: 0,
-   tightened: true}` shows the plural form
-   *"5 pending invites have been declined to match your new
-   setting."*; (i) `{prevCount: 0, newCount: 0, tightened: true}`
+   inline note _"1 pending invite has been declined to match
+   your new setting."_; (h) `{prevCount: 5, newCount: 0,
+tightened: true}` shows the plural form
+   _"5 pending invites have been declined to match your new
+   setting."_; (i) `{prevCount: 0, newCount: 0, tightened: true}`
    shows no note; (j) any `tightened: false` resolution shows
    no note even if the counts differ; (k) a previously-visible
-   note clears the moment another option is clicked, *before*
+   note clears the moment another option is clicked, _before_
    the next `setInvitePolicy(...)` resolves (so a quick
    loosen-after-tighten doesn't carry the stale note);
    (l) when `setInvitePolicy` rejects (mock it to throw an
    `ApiError`), the segmented-control selection reverts to its
    pre-tap value, the cascade-feedback note is cleared, and a
-   *"Couldn't update privacy setting"* snackbar appears;
+   _"Couldn't update privacy setting"_ snackbar appears;
    (m) before `userSettings.loaded === true`, the segmented
    control renders with no option highlighted (indeterminate)
    and taps are non-interactive; (n) before
@@ -1021,14 +1051,14 @@ for verbatim option copy and visual structure; `docs/ui.md` §
 
 **Verify:** `pnpm lint` · `pnpm check` · `pnpm test`
 
-## Phase 7 — Settings *People* section
+## Phase 7 — Settings _People_ section
 
-### [x] 7.1 Add *People* section to `SettingsScreen.svelte`
+### [x] 7.1 Add _People_ section to `SettingsScreen.svelte`
 
 **Created:** 2026-05-28T12:48:43Z
 **Completed:** 2026-05-28T17:06:48Z
 
-**Why:** R5. Without the *People* section, Privacy/Circle/Blocked
+**Why:** R5. Without the _People_ section, Privacy/Circle/Blocked
 have no entry point from the Settings hub. The section is also
 the home of the Invites NavRow that 0803 wires live; this task
 scaffolds it as a non-interactive `<div>` so the Settings hub
@@ -1038,70 +1068,73 @@ ships in its R14 final shape modulo one swap.
 (the Privacy NavRow resolves to it).
 
 **Decisions:**
+
 - Edit `web/src/lib/settings/components/SettingsScreen.svelte` to
   insert a new `<section class="preference-group">` block
   **between** the `.profile-chip-section` and the existing
-  Appearance section. The section label is *"People"*.
+  Appearance section. The section label is _"People"_.
 - The section has two rows, in this order:
   1. **Invites** — rendered as a `<div class="nav-row" style="cursor: default;">`.
      No `<button>`, no `<a>`, no `onclick`, no `href`. The visual
      shape mirrors the existing `.nav-row` blocks for the **icon
      and two-line text only — the trailing chevron-right is
-     omitted**. A chevron-right would read as *"tap to navigate"*
+     omitted**. A chevron-right would read as _"tap to navigate"_
      and contradict the inert non-interactive shape; the
-     placeholder *"No pending invites"* sub-line is the only
+     placeholder _"No pending invites"_ sub-line is the only
      signal the row is currently quiet. 0803's swap to a live
      NavRow will add the chevron back in the same commit that
      ships the `/settings/invites` route. The sub-line is the
-     literal placeholder *"No pending invites"*. No count badge.
+     literal placeholder _"No pending invites"_. No count badge.
      Icon: **`inbox`** (per `design/cairn-screens.jsx:1138`).
   2. **Privacy** — rendered as a live `<button class="nav-row"
-     onclick={() => goto(resolve('/settings/privacy'))}>`.
-     Sub-line: *"Who can invite you · circle · blocked"*. Icon:
+onclick={() => goto(resolve('/settings/privacy'))}>`.
+     Sub-line: _"Who can invite you · circle · blocked"_. Icon:
      **`shield`** (per `design/cairn-screens.jsx:1141`).
 - Update `SettingsScreen.test.ts` in the same task to assert the
   new structure. Existing assertions about the screen's content
   (profile chip, Appearance, Text size, etc.) stay green; new
   assertions cover:
-  - The *People* section renders directly between the profile
+  - The _People_ section renders directly between the profile
     chip section and the Appearance section (assert by DOM
     order — `querySelectorAll('section.preference-group')`
     should put People first).
-  - The section heading text is *"People"*.
-  - The Invites row's literal *"No pending invites"* sub-line
+  - The section heading text is _"People"_.
+  - The Invites row's literal _"No pending invites"_ sub-line
     renders.
   - The Invites row is rendered as a `<div>`, not a `<button>`
     or `<a>` (assert by `tagName`).
   - The Invites row has **no chevron-right glyph** in its
     rendered children (assert by querying for the chevron-right
     SVG and confirming absent within the Invites row).
-  - The Privacy row's literal *"Who can invite you · circle ·
-    blocked"* sub-line renders.
+  - The Privacy row's literal _"Who can invite you · circle ·
+    blocked"_ sub-line renders.
   - Clicking the Privacy row calls `goto` with
     `resolve('/settings/privacy')` (mock `$app/navigation`).
 
 **Reference:** `design/cairn-screens.jsx:1135-1143` for the
-*People* section placement reference (between profile chip and
+_People_ section placement reference (between profile chip and
 Appearance); `docs/quality.md` § "Navigating to a not-yet-created
 SvelteKit route" for the non-interactive-`<div>` rationale.
 
 **Files:**
+
 - `web/src/lib/settings/components/SettingsScreen.svelte` (modify)
 - `web/src/lib/settings/components/SettingsScreen.test.ts` (modify)
 
 **Steps:**
+
 1. RED — Update `SettingsScreen.test.ts` with the new assertions
-   (DOM-order check, *"People"* heading, Invites `<div>` shape
+   (DOM-order check, _"People"_ heading, Invites `<div>` shape
    with literal sub-line, Privacy `<button>` with literal
    sub-line, click navigation). Existing assertions stay
    untouched.
 2. RED — Run `pnpm test SettingsScreen.test.ts` and confirm red
    on the new cases.
-3. GREEN — Edit `SettingsScreen.svelte` to insert the *People*
+3. GREEN — Edit `SettingsScreen.svelte` to insert the _People_
    `<section class="preference-group">` between profile-chip and
    Appearance. Reuse the existing `.nav-row` CSS for the two
    rows. The Invites row is a `<div class="nav-row"
-   style="cursor: default;">`; the Privacy row is a
+style="cursor: default;">`; the Privacy row is a
    `<button class="nav-row" onclick={...}>`.
 4. GREEN — Re-run `pnpm test`; confirm green on
    `SettingsScreen.test.ts`.

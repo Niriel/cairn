@@ -67,8 +67,8 @@ visible to every authenticated user). `user_settings` is owner-only
 (`id = public.uid()` on every policy) and ships with no INSERT or
 DELETE policy. The split is **structural privacy**, not policy-driven:
 fields that must stay private (today: `invite_policy`; tomorrow: any
-private-and-follow-the-user field) live in `user_settings` *because of
-the table they live in*, not because of policy reasoning.
+private-and-follow-the-user field) live in `user_settings` _because of
+the table they live in_, not because of policy reasoning.
 
 ## R5. Soft-delete model
 
@@ -84,9 +84,9 @@ filter on `deleted_at IS NULL`); the only read path is the trash views
 - `items_ranked` — `WITH (security_invoker = true)`. Inherits the
   caller's RLS, so `items_select`'s `deleted_at IS NULL` filter
   hides soft-deleted items automatically. Defensive `where
-  i.deleted_at is null` in the body too.
+i.deleted_at is null` in the body too.
 - `items_deleted`, `lists_deleted` — both `WITH (security_invoker =
-  false)`. They run as the view owner (`cairn`, exempt from RLS) so
+false)`. They run as the view owner (`cairn`, exempt from RLS) so
   they can read soft-deleted rows the policies hide. Each view body
   adds `and public.is_list_member(<list-id>)` to its `WHERE` —
   this is the **only** authorization gate for the trash, and is
@@ -140,7 +140,7 @@ Stamping rules for `items.modified_by`:
   client value).
 - **UPDATE with content change** (any of `list_id`, `name`, `notes`,
   `deleted_at` differ between OLD and NEW): trigger sets `modified_by
-  := public.uid()` — stamps the editor.
+:= public.uid()` — stamps the editor.
 - **UPDATE without content change but with direct PATCH of
   `modified_by`:** tombstone-gated freeze restores
   `OLD.modified_by` (anti-spoof; the gate lets the cascade-to-
@@ -209,7 +209,7 @@ Every RLS policy ships exactly per the doc's "Row-level security
 policies" section. Highlights:
 
 - `list_members_update` uses `WITH CHECK
-  (public.is_list_member(list_id) OR user_id = public.uid())` — the
+(public.is_list_member(list_id) OR user_id = public.uid())` — the
   `OR user_id = …` clause is load-bearing for self-removal (the
   moment a user sets `deleted_at` on their own membership row,
   `is_list_member()` returns false). The symmetric clause on
@@ -303,6 +303,7 @@ stub at the same time).
 ## R20. Migrate / test scripts updated for the new schema
 
 `scripts/test-db.sh`:
+
 - Applies `db/test-bootstrap.sql` against `cairn_test` before the
   migration loop.
 - Asserts every top-level `db/tests/*.sql` declares `SELECT plan(N)`
@@ -312,6 +313,7 @@ stub at the same time).
   suite with an opaque "no plan declared" pg_prove error).
 
 `scripts/migrate.sh`:
+
 - Inside the migration loop, **only for migrations numbered ≥
   0004**, polls until `auth.users` exists (created by GoTrue's
   startup migration) before applying. Cap configurable via
@@ -355,7 +357,7 @@ full rationale):
 - **Self-include dependencies** (`list_*.sql` fixtures `\i` the
   users fixture as their first non-comment statement; safe to
   re-include because the users INSERTs use `ON CONFLICT DO
-  NOTHING`).
+NOTHING`).
 - **No `BEGIN;`/`COMMIT;` inside fixtures** (each test file owns
   its own `BEGIN ... ROLLBACK`).
 - **Stable UUID literals** — every fixture row uses a literal UUID,
@@ -445,7 +447,7 @@ encode (the trash UI's "deleted by Alice — at the time, +2 from Bob,
 -1 from Carol" rendering depends on it).
 
 `votes_insert` and `votes_update` deliberately do **not** use the
-helper — those policies *want* the recursive `items.deleted_at`
+helper — those policies _want_ the recursive `items.deleted_at`
 filter, since casting or changing a vote on a soft-deleted item is
 what they're closing off. `is_items_list_member` is therefore a
 read-side helper only.
@@ -458,7 +460,7 @@ authenticated, negative for anon).
 ## R26. Self-actor disjunct on `items_select`, `lists_select`, `list_members_select`
 
 Postgres applies a relation's SELECT policies as additional WITH
-CHECK clauses against the *new* row of an UPDATE whenever the
+CHECK clauses against the _new_ row of an UPDATE whenever the
 calling role holds SELECT privilege on the relation. A naive
 `select using (is_list_member(list_id) and deleted_at is null)`
 therefore rejects every PATCH-based soft-delete UPDATE — the
@@ -512,7 +514,7 @@ test 7.
 - **Tier 3 invite-flow tables** — `relationships` (the merged
   circle/blocklist; one row per directed pair, with `status` enum
   `'circle' | 'blocked'`) and `invitations` land in step 6. The
-  `invite_policy` *column* ships now on `user_settings` (per the
+  `invite_policy` _column_ ships now on `user_settings` (per the
   privacy split), and step 6 reads it from there.
 - **Web-side profile/list/item code** — steps 2–4.
 - **Real seed users** — step 3 brings back Alice/Bob seed users
@@ -524,8 +526,8 @@ test 7.
   manual `psql -c "\dt public.*"` step.
 - **`votes` PK freeze** — `votes_update` accepts vote-move between
   lists the caller is already a member of (`PATCH
-  /votes?item_id=eq.X&user_id=eq.<self>` with body `{"item_id":
-  "Y"}`). The surface is narrow (deliberate API misuse, not a
+/votes?item_id=eq.X&user_id=eq.<self>` with body `{"item_id":
+"Y"}`). The surface is narrow (deliberate API misuse, not a
   user-clickable path) and bounded (a member can already cast and
   retract any vote in two requests). Asymmetry with the
   `list_members` PK freeze is deliberate: `list_members` is
@@ -535,7 +537,7 @@ test 7.
   invariants" pass.
 - **`tg_set_attribution_items` tuple-drift regression test.** The
   content-detection tuple (`NEW.list_id, NEW.name, NEW.notes,
-  NEW.deleted_at`) must be extended in lockstep with any future
+NEW.deleted_at`) must be extended in lockstep with any future
   payload column added to `items`, or edits to the new column
   silently no-op `modified_by`. The maintenance contract lives as a
   comment on the trigger function and a mirror in

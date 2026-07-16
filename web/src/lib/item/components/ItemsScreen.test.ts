@@ -38,6 +38,8 @@ const ITEM_1: Item = {
 	modified_by: 'user-1',
 	created_by_name: 'Alice',
 	modified_by_name: null,
+	created_by_username: 'alice',
+	modified_by_username: null,
 	score: 0,
 	created_at: '2026-01-01T00:00:00Z',
 	modified_at: '2026-01-01T00:00:00Z',
@@ -285,7 +287,15 @@ describe('ItemsScreen', () => {
 		items.rows = [
 			{
 				...ITEM_1,
-				member_votes: [{ user_id: 'user-1', display_name: 'Alice', avatar_version: 0, value: 2 }]
+				member_votes: [
+					{
+						user_id: 'user-1',
+						display_name: 'Alice',
+						username: 'alice',
+						avatar_version: 0,
+						value: 2
+					}
+				]
 			}
 		];
 		const { getByDataTest, queryByDataTest } = render(ItemsScreen, { listId: 'test-list-id' });
@@ -342,6 +352,72 @@ describe('ItemsScreen', () => {
 		expect(getByDataTest(`attribution-editor-${ITEM_1.id}`).classList.contains('tombstone')).toBe(
 			true
 		);
+	});
+
+	test('(new-d) a voter chip renders the @username handle', async () => {
+		items.rows = [
+			{
+				...ITEM_1,
+				member_votes: [
+					{
+						user_id: 'user-1',
+						display_name: 'Alice',
+						username: 'alice',
+						avatar_version: 0,
+						value: 2
+					}
+				]
+			}
+		];
+		const { getByDataTest } = render(ItemsScreen, { listId: 'test-list-id' });
+		await tick();
+		await fireEvent.click(getByDataTest(`row-${ITEM_1.id}`));
+		await tick();
+		const handle = getByDataTest('vote-handle-user-1');
+		expect(handle.textContent).toBe('@alice');
+		expect(handle.classList.contains('identity-handle')).toBe(true);
+	});
+
+	test('(new-e) the "Added by" line renders the creator @username', async () => {
+		items.rows = [{ ...ITEM_1, created_by: 'user-1', created_by_username: 'alice' }];
+		const { getByDataTest } = render(ItemsScreen, { listId: 'test-list-id' });
+		await tick();
+		await fireEvent.click(getByDataTest(`row-${ITEM_1.id}`));
+		await tick();
+		expect(getByDataTest(`attribution-creator-handle-${ITEM_1.id}`).textContent).toBe('@alice');
+	});
+
+	test('(new-f) the "Last edited by" line renders the editor @username', async () => {
+		items.rows = [
+			{
+				...ITEM_1,
+				modified_by: 'user-2',
+				modified_by_name: 'Bob',
+				modified_by_username: 'bob',
+				modified_at: '2026-02-01T00:00:00Z'
+			}
+		];
+		const { getByDataTest } = render(ItemsScreen, { listId: 'test-list-id' });
+		await tick();
+		await fireEvent.click(getByDataTest(`row-${ITEM_1.id}`));
+		await tick();
+		expect(getByDataTest(`attribution-editor-handle-${ITEM_1.id}`).textContent).toBe('@bob');
+	});
+
+	test('(new-g) the tombstone creator suppresses the @username handle', async () => {
+		items.rows = [
+			{
+				...ITEM_1,
+				created_by: '00000000-0000-0000-0000-000000000000',
+				created_by_name: 'Deleted user',
+				created_by_username: 'deleted'
+			}
+		];
+		const { getByDataTest, queryByDataTest } = render(ItemsScreen, { listId: 'test-list-id' });
+		await tick();
+		await fireEvent.click(getByDataTest(`row-${ITEM_1.id}`));
+		await tick();
+		expect(queryByDataTest(`attribution-creator-handle-${ITEM_1.id}`)).toBeNull();
 	});
 });
 

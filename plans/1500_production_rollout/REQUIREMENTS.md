@@ -21,7 +21,7 @@ none, and the prod override adds only Caddy's `80`/`443` plus a
 loopback-only `127.0.0.1:5432:5432` Postgres publish for migration (see
 R8); Postgres, PostgREST, GoTrue, the web container, the avatar sidecar,
 and the auth-proxy are reachable only on the internal Docker network. (A
-prod override cannot *remove* a port the base publishes — Compose
+prod override cannot _remove_ a port the base publishes — Compose
 concatenates `ports` lists across files, so `ports: []` is a silent no-op;
 the base must publish nothing rather than rely on the override to
 unexpose.) Routing is path-based on the single origin (no CORS, no

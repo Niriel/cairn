@@ -16,25 +16,26 @@ A TypeScript `Item` type represents a row from `items_ranked` enriched with clie
 
 ```typescript
 export type Item = {
-  id: string;
-  list_id: string;
-  name: string;
-  notes: string | null;
-  created_by: string;       // UUID
-  modified_by: string;      // UUID
-  created_by_name: string;  // display name from joined profile
-  modified_by_name: string | null; // null when never edited
-  score: number;
-  created_at: string;
-  modified_at: string;
-  my_vote: number | null;   // null = no vote; ±1–±3 when voted
-  member_votes: { user_id: string; display_name: string; value: number }[];
+	id: string;
+	list_id: string;
+	name: string;
+	notes: string | null;
+	created_by: string; // UUID
+	modified_by: string; // UUID
+	created_by_name: string; // display name from joined profile
+	modified_by_name: string | null; // null when never edited
+	score: number;
+	created_at: string;
+	modified_at: string;
+	my_vote: number | null; // null = no vote; ±1–±3 when voted
+	member_votes: { user_id: string; display_name: string; value: number }[];
 };
 ```
 
 ## R4. Items state store
 
 A Svelte 5 `$state`-based store `items` in `item/state/items.svelte.ts` holds:
+
 - `rows: Item[]` — the sorted items
 - `loading: boolean`
 - `error: string | null`
@@ -50,11 +51,11 @@ Optimistic vote updates apply immediately (mutate `my_vote` and `score` in the s
 A `VoteControl.svelte` component renders three elements in a row: thumbs-down button, vote indicator, thumbs-up button. Each button is 36×36 px, transparent background, `inkSoft` color. The indicator is 44 px wide, uses JetBrains Mono 16 px, and shows:
 
 | value | display |
-|-------|---------|
+| ----- | ------- |
 | −3    | `---`   |
 | −2    | `--`    |
 | −1    | `-`     |
-|  0    | `=`     |
+| 0     | `=`     |
 | +1    | `+`     |
 | +2    | `++`    |
 | +3    | `+++`   |
@@ -68,6 +69,7 @@ Each item renders as a flex row with `padding: 14px 18px 14px 20px; min-height: 
 ## R7. ItemPanel (accordion expand)
 
 When a row is open, the entire row container (name+vote row and panel) gets `background: var(--paper-alt)`. An `ItemPanel` renders below the name+vote row:
+
 - Top border: `1px dashed var(--rule)`; background: `var(--paper-alt)`; padding: `4px 22px 18px`
 - **Notes** — Newsreader italic 14 px `inkSoft`, only shown when `item.notes` is non-null
 - **Per-member votes** — inline flex, gap 10 px; each entry: `Avatar` (size 18) + display name + vote value (JetBrains Mono, sage/ember/stone). Members with no vote are omitted.

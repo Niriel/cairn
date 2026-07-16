@@ -14,7 +14,7 @@ specified in `docs/admin.md`.
 All admin objects (the audit table and every RPC) live in a schema named
 `admin`. `PGRST_DB_SCHEMAS` stays `public` (no `admin`) in every environment,
 so PostgREST exposes none of it. This structural unreachability is the
-*primary* defence; the per-role grants in R2 are the secondary defence. A
+_primary_ defence; the per-role grants in R2 are the secondary defence. A
 `GET`/`POST` to PostgREST for any admin RPC (e.g. `…/rpc/ban_user`) must 404.
 
 ## R2. Three non-login roles enforce least privilege
@@ -26,7 +26,7 @@ The migration creates three `NOLOGIN` roles:
   is `BYPASSRLS` (the RPCs run with no JWT, so `public.uid()` is `NULL` and
   every `public.*` RLS policy would otherwise deny their reads/writes) and
   holds exactly the table privileges the RPC bodies exercise: `SELECT,
-  UPDATE (banned_until), DELETE` on `auth.users`; `SELECT, UPDATE, DELETE` on
+UPDATE (banned_until), DELETE` on `auth.users`; `SELECT, UPDATE, DELETE` on
   `public.items` and `public.lists`; `SELECT` on `public.list_members`,
   `public.profiles`, `public.user_settings`, `public.votes`.
 - `cairn_admin` — the membership marker operators' personal login roles are
@@ -74,9 +74,10 @@ not bypassed). The read restriction is the `SELECT`-only grant; the
 append-only property is enforced by granting **no** `UPDATE`/`DELETE` to any
 operator role — the table is corrected by appending, never editing. The
 `reason` CHECK is the load-bearing wall: a write with an empty (or
->2000-char) reason is rejected at the database regardless of caller. A pgTAP
-test must read `admin.actions` **as `cairn_readonly`** (not as the test
-superuser) so the zero-rows regression cannot ship green.
+
+> 2000-char) reason is rejected at the database regardless of caller. A pgTAP
+> test must read `admin.actions` **as `cairn_readonly`** (not as the test
+> superuser) so the zero-rows regression cannot ship green.
 
 ## R4. Every destructive RPC requires a non-empty reason and logs atomically
 
@@ -102,7 +103,7 @@ claimed `effective` "should always be `cairn_admin`".)
   snapshots the prior value.
 - `delete_account_as(target, reason)` → **identical end-state to the
   user-initiated `public.delete_account()`** (`db/migrations/0014`): hard-delete
-  lists where the target was the only remaining live member (computed *before*
+  lists where the target was the only remaining live member (computed _before_
   the auth delete), then `DELETE FROM auth.users` so personal data cascades and
   attribution repoints to the tombstone. `payload` records only
   `email_at_time` (not the full account — the audit log is not a recovery
@@ -110,10 +111,10 @@ claimed `effective` "should always be `cairn_admin`".)
   sole-member list-deletion query is `delete_account()`'s exact
   `NOT EXISTS (live member <> target)` form (substituting `p_target` for
   `uid`), not the doc's `EXISTS (target is a member) AND NOT EXISTS (other live
-  member)` variant** — the two diverge on an orphaned list (zero live members,
+member)` variant** — the two diverge on an orphaned list (zero live members,
   reachable once the last member soft-deletes their `list_members` row), which
   `delete_account()` sweeps up but the scoped form leaves behind. Mirroring the
-  shipped query verbatim is the only way the end-states match in *all* cases,
+  shipped query verbatim is the only way the end-states match in _all_ cases,
   not just the tested ones.
 - `moderate_item(target, reason)` → soft-delete the item
   (`deleted_at = clock_timestamp()`, `deleted_by` = tombstone); recoverable by
@@ -154,7 +155,7 @@ tokens than the obvious four (`encrypted_password`, `recovery_token`,
 `email_change_token_current`, `reauthentication_token`, `phone_change_token`,
 …), and every image bump that adds one would silently re-leak it. Since
 `cairn_readonly` has no direct `SELECT` on `auth.users`, `inspect_user` is the
-*only* path that role has to auth data, so a leak there is a leak to a role that
+_only_ path that role has to auth data, so a leak there is a leak to a role that
 must inspect without seeing credentials. Building the document from a safe set
 means a new GoTrue column is excluded by default. The function is `stable` and
 writes no audit row — read-only inspection must stay cheap enough that the
@@ -163,7 +164,7 @@ operator never skips it.
 **The secret-stripping must be tested non-vacuously.** Asserting "key X is
 absent" against the current bootstrap stub (`id, email, created_at` only) passes
 even if every strip were removed, because the columns were never present. The
-test must therefore exercise a stub that *contains* the secret columns seeded
+test must therefore exercise a stub that _contains_ the secret columns seeded
 with sentinel values, and assert both that those keys are **absent** from the
 `auth` sub-document and that an allowed non-secret column (e.g. `email`) is
 **present** — so the assertion can actually fail if the allowlist regresses.
@@ -211,11 +212,11 @@ way.
 ## R10. The CLI is covered by the existing shell lint gauntlet
 
 `scripts/cairn-admin` has no `.sh` extension, so the existing globs miss it
-*unevenly* — and the fix differs per tool:
+_unevenly_ — and the fix differs per tool:
 
 - **`scripts/check.sh` shellcheck** (`shellcheck scripts/*.sh`) — a literal glob;
   **misses** `cairn-admin`. Add the path explicitly.
-- **`scripts/check.sh` shfmt** (`shfmt -d -i 2 -ci -bn scripts/`) — a *directory*
+- **`scripts/check.sh` shfmt** (`shfmt -d -i 2 -ci -bn scripts/`) — a _directory_
   walk, which shfmt resolves by shebang and **already covers** the
   extension-less `cairn-admin` (it has `#!/usr/bin/env bash`). No change strictly
   needed; an explicit path is harmless redundancy.

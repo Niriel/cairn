@@ -14,7 +14,7 @@ After 0601 the integration branch `0600_soft_delete_ux` has:
   `ListsScreen` and the existing TopBar `⋮` on `ItemsScreen`. Tapping
   **View trash** navigates to `/(app)/lists/<id>/trash/` via `goto()`.
 - A minimal empty stub at `web/src/routes/(app)/lists/[list_id]/trash/
-  +page.svelte` (`<div>Trash</div>`), put there so 0601's
++page.svelte` (`<div>Trash</div>`), put there so 0601's
   `goto('/lists/<id>/trash')` would pass `svelte-check`. It needs filling
   in.
 - A unified `UndoSnackbar` component already used by both item-delete
@@ -32,7 +32,7 @@ nothing. The web client reads them via plain `GET /items_deleted` and `GET
 (`restoreItem` in `lib/item/model/item.ts`) is the template; an
 equivalent for lists doesn't exist yet and is added here.
 
-Settings (0603) needs the deleted-lists route to *exist* before its
+Settings (0603) needs the deleted-lists route to _exist_ before its
 Recovery section can `goto()` it without `svelte-check` failing — the same
 toolchain-coupling reason 0601 created the trash route stub. 0602 lands
 both routes, so 0603 just adds the nav row.
@@ -45,10 +45,11 @@ trash screens are different enough that sharing a single generic
 They both have an outer chrome of `TopBar` + description + row list + empty
 state, but the row shape, the data source, and the back-target differ.
 Following the established `web/src/lib/<domain>/components/<Screen>.svelte`
-+ `<domain>/state/<store>.svelte.ts` + `<domain>/model/<types>.ts` layout
-keeps tests per-domain and obeys `docs/frontend-layout.md` — the item
-trash lives under `item/`, the deleted-lists trash lives under `list/`.
-Sibling-domain imports are kept zero.
+
+- `<domain>/state/<store>.svelte.ts` + `<domain>/model/<types>.ts` layout
+  keeps tests per-domain and obeys `docs/frontend-layout.md` — the item
+  trash lives under `item/`, the deleted-lists trash lives under `list/`.
+  Sibling-domain imports are kept zero.
 
 **Client-side batched `display_name` lookup, not PostgREST embedding (R5).**
 Migration 0006 added `profiles` FKs only for `items.created_by`,
@@ -94,7 +95,7 @@ zero rows. Use the default array form and read `rows[0]?.name ?? null`.
 If the list fetch fails or returns no row the screen still renders with
 `sub` empty.
 
-**`refreshLists()` is *not* called on list restore.** When a user restores
+**`refreshLists()` is _not_ called on list restore.** When a user restores
 a list from the deleted-lists screen, the row disappears from that screen.
 The restored list will reappear on the Lists screen on its next
 `loadLists()` (next visit, next refresh signal). Wiring
@@ -110,9 +111,10 @@ development machine (standing project memory). The parent plan's Phase 4
 trash/restore flows get their cross-stack coverage. Vitest screen tests
 here cover row rendering, restore action, error path, and empty state.
 
-**Toolchain coupling check.** Both routes are *created* in this sub-plan,
+**Toolchain coupling check.** Both routes are _created_ in this sub-plan,
 so the only outbound `goto()` from this code is within these two routes
 (neither goes elsewhere new). Inbound:
+
 - 0601 already `goto`s `/lists/<id>/trash` — the route file exists (stub),
   so filling it in won't break the type checker.
 - 0603 will `goto` `/settings/deleted-lists` — the file lands here in
@@ -125,7 +127,7 @@ so the only outbound `goto()` from this code is within these two routes
 ### New files
 
 - **`web/src/lib/shared/model/profile-names.ts`** — `fetchDisplayNames
-  (uids: string[]): Promise<Map<string, string>>` batched lookup helper.
+(uids: string[]): Promise<Map<string, string>>` batched lookup helper.
   Empty-input fast path returns an empty map without a network call.
 - **`web/src/lib/shared/model/profile-names.test.ts`** — Vitest unit
   tests for the helper (empty input, dedupe, fetch failure → throws,
@@ -135,8 +137,8 @@ so the only outbound `goto()` from this code is within these two routes
   `item.ts`.
 - **`web/src/lib/item/state/item-trash.svelte.ts`** — `itemTrash` rune
   store: `{ rows: DeletedItem[]; loading: boolean; error: string | null;
-  listId: string | null; listName: string | null }` + `loadTrash(listId)`
-  + `restoreOne(itemId)`.
+listId: string | null; listName: string | null }` + `loadTrash(listId)`
+  - `restoreOne(itemId)`.
 - **`web/src/lib/item/components/TrashScreen.svelte`** — the per-list
   trash screen.
 - **`web/src/lib/item/components/TrashScreen.test.ts`** — Vitest.
@@ -146,7 +148,7 @@ so the only outbound `goto()` from this code is within these two routes
   `fetchDeletedLists()`, `restoreList(listId)`.
 - **`web/src/lib/list/state/list-trash.svelte.ts`** — `listTrash` rune
   store: `{ rows: DeletedList[]; loading: boolean; error: string | null }`
-  + `loadDeletedLists()` + `restoreOne(listId)`.
+  - `loadDeletedLists()` + `restoreOne(listId)`.
 - **`web/src/lib/list/components/DeletedListsScreen.svelte`** — account
   trash screen.
 - **`web/src/lib/list/components/DeletedListsScreen.test.ts`** — Vitest.
@@ -200,7 +202,7 @@ DeletedListsScreen.svelte (mount)
    "Trash screen" paragraph to switch the attribution-line separator
    from a comma to the bullet (`·`) that the design (`design/cairn-screens.jsx:1298`)
    and this plan's R3/R4 already use. The doc currently reads
-   *"deleted by Bob, 3 May 2026"*; should read *"deleted by Bob · 3 May 2026"*.
+   _"deleted by Bob, 3 May 2026"_; should read _"deleted by Bob · 3 May 2026"_.
 
 1. **Phase 1 — Item trash screen.** Add the shared `fetchDisplayNames`
    helper, the `item-trash` model + state, the `TrashScreen` component,
@@ -214,7 +216,7 @@ DeletedListsScreen.svelte (mount)
 
 `docs/data-model.md`'s `items_deleted` / `lists_deleted` view sections
 already describe the surface this sub-plan implements. The PLAN.md of
-0600 noted PostgREST embedding as the *preferred* path and required
+0600 noted PostgREST embedding as the _preferred_ path and required
 0602 to confirm or fall back; this sub-plan has confirmed (FK is missing
 for `deleted_by`) and falls back to client-side batch lookup per R5. No
 doc edit is needed for that — the parent plan's `PLAN.md` already

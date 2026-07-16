@@ -6,16 +6,16 @@ The feature is a post-`0010_db_foundation` addition — the `profiles` table shi
 
 ## What we settled on
 
-| Decision | Choice |
-|---|---|
-| **Where do bytes live?** | The host filesystem at `/srv/cairn/avatars/{uid}.webp` — one fixed-path file per user, mounted into the Caddy container read-only. |
-| **What's in the row?** | A single `int` column, `profiles.avatar_version`, defaulting to `0`. `0` means "no picture, render initials." Any positive integer is a cache-busting token. |
-| **Who serves the bytes?** | Caddy, with a `handle_path /avatars/* { root * /srv/cairn/avatars }` block. The web app does not. PostgREST does not. |
-| **What URL does the app render?** | `https://cairn.<domain>/avatars/{uid}.webp?v={avatar_version}`. The `?v=` is the cache buster. |
-| **Who resizes?** | A tiny upload sidecar — a single-purpose HTTP service that receives the upload, validates it, resizes to 256×256 WebP, writes the file, and calls a Postgres RPC to bump `avatar_version`. |
-| **What does the user upload?** | A photo (camera or library) cropped client-side to a square preview. The sidecar re-validates and re-resizes server-side. The client crop is UX only — never trusted. |
-| **What size on disk?** | 256×256 WebP, quality 80. Roughly 8–15 KB per face. The PWA never needs a larger size in v1 — the largest on-screen render is the profile sheet's hero avatar at ~128 CSS pixels. |
-| **What's the fallback?** | The same coloured initials disc the app already renders. `avatar_version = 0` skips the `<img>` and renders initials directly. Same path covers the "Deleted user" tombstone (`avatar_version = 0` on the tombstone profile, gray disc, no initials). |
+| Decision                          | Choice                                                                                                                                                                                                                                                |
+| --------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Where do bytes live?**          | The host filesystem at `/srv/cairn/avatars/{uid}.webp` — one fixed-path file per user, mounted into the Caddy container read-only.                                                                                                                    |
+| **What's in the row?**            | A single `int` column, `profiles.avatar_version`, defaulting to `0`. `0` means "no picture, render initials." Any positive integer is a cache-busting token.                                                                                          |
+| **Who serves the bytes?**         | Caddy, with a `handle_path /avatars/* { root * /srv/cairn/avatars }` block. The web app does not. PostgREST does not.                                                                                                                                 |
+| **What URL does the app render?** | `https://cairn.<domain>/avatars/{uid}.webp?v={avatar_version}`. The `?v=` is the cache buster.                                                                                                                                                        |
+| **Who resizes?**                  | A tiny upload sidecar — a single-purpose HTTP service that receives the upload, validates it, resizes to 256×256 WebP, writes the file, and calls a Postgres RPC to bump `avatar_version`.                                                            |
+| **What does the user upload?**    | A photo (camera or library) cropped client-side to a square preview. The sidecar re-validates and re-resizes server-side. The client crop is UX only — never trusted.                                                                                 |
+| **What size on disk?**            | 256×256 WebP, quality 80. Roughly 8–15 KB per face. The PWA never needs a larger size in v1 — the largest on-screen render is the profile sheet's hero avatar at ~128 CSS pixels.                                                                     |
+| **What's the fallback?**          | The same coloured initials disc the app already renders. `avatar_version = 0` skips the `<img>` and renders initials directly. Same path covers the "Deleted user" tombstone (`avatar_version = 0` on the tombstone profile, gray disc, no initials). |
 
 ## Why this shape
 
@@ -90,26 +90,26 @@ The `tg_set_modified_at` trigger on `profiles` should have `avatar_version` adde
 A TypeScript/Node HTTP service (language chosen 2026-05 for stack consistency; see `plans/0500_avatars/PLAN.md`). It exposes exactly three routes — two gated by GoTrue bearer-token verification (`POST /avatars` and `DELETE /avatars/me`), plus one open endpoint for the Docker healthcheck:
 
 - `POST /avatars` — multipart upload. Enforces an **8 MB request-body cap**, validates content-type (`image/jpeg`, `image/png`, `image/webp`, `image/heic`), validates the magic bytes (don't trust the header), checks the **decoded bounds (max 4096×4096)**, resizes to 256×256 WebP quality 80, writes to `/srv/cairn/avatars/{uid}.webp` (atomic rename from a temp file), then calls `POST /rpc/bump_avatar_version` on PostgREST with the user's bearer token. Returns the new version number and the cache-busted URL. **The original bytes are discarded the moment the resize returns** — only the ~10 KB WebP file is kept; nothing else is logged or retained.
-- `DELETE /avatars/me` — unlinks `/srv/cairn/avatars/{uid}.webp` and is best-effort (file may not exist). Called by the web app *after* a successful `clear_avatar` RPC or `delete_account` RPC.
+- `DELETE /avatars/me` — unlinks `/srv/cairn/avatars/{uid}.webp` and is best-effort (file may not exist). Called by the web app _after_ a successful `clear_avatar` RPC or `delete_account` RPC.
 - `GET /healthz` — Docker healthcheck.
 
 The sidecar is the only process that writes to `/srv/cairn/avatars/`. The mount is read-only in Caddy's container and read-write in the sidecar's, so a Caddy compromise can't replace someone's picture.
 
-### Why the 8 MB cap *and* the 4096² decoded-bounds check
+### Why the 8 MB cap _and_ the 4096² decoded-bounds check
 
 Two independent gates, doing different jobs:
 
-- **The 8 MB request-body cap** is the cheap front-line check — it bounds the network workload and the work to even *start* decoding. It's calibrated against phone-camera reality: iPhone HEIC is typically 2–4 MB, an Android JPEG 3–8 MB. A tighter cap (say 1 MB) would force virtually every untouched phone photo through a manual compression step before upload, which is hostile UX; a looser cap buys the user nothing and gives an attacker more room.
+- **The 8 MB request-body cap** is the cheap front-line check — it bounds the network workload and the work to even _start_ decoding. It's calibrated against phone-camera reality: iPhone HEIC is typically 2–4 MB, an Android JPEG 3–8 MB. A tighter cap (say 1 MB) would force virtually every untouched phone photo through a manual compression step before upload, which is hostile UX; a looser cap buys the user nothing and gives an attacker more room.
 - **The 4096×4096 decoded-bounds check** is the load-bearing one. A small file can decode to a huge pixel buffer (image bombs are a real class of exploit: a 200 KB JPEG can blow up to a 100 MP raw image, and `libheif` / `libjpeg-turbo` will dutifully allocate the buffer before anyone notices). The decoded-pixel cap bounds in-memory work independently of file size, which is what actually protects the sidecar from OOM-ing the VPS.
 
-The two gates compose: 8 MB filters the obvious nonsense at HTTP-parse time before any image library sees the bytes; 4096² is what catches the clever cases. Both are checked before resize; whichever rejects first wins, and the rejection is the same generic *"That picture is larger than 8 MB"* / *"Can't read that"* response to the client — we don't tell the attacker which gate caught them.
+The two gates compose: 8 MB filters the obvious nonsense at HTTP-parse time before any image library sees the bytes; 4096² is what catches the clever cases. Both are checked before resize; whichever rejects first wins, and the rejection is the same generic _"That picture is larger than 8 MB"_ / _"Can't read that"_ response to the client — we don't tell the attacker which gate caught them.
 
 The discard-after-resize property closes the third side: no full-resolution copy is ever persisted, logged, or backed up. The only artifact on disk is the 256×256 WebP at ~10 KB, which is what every consumer of `profiles` reads.
 
 Why a sidecar instead of doing the resize in Postgres (`plpython3u`)?
 
 - Postgres should not be in the business of decoding untrusted image bytes. The attack surface of libwebp / libjpeg-turbo / libheif is not where database security ends.
-- `plpython3u` is *untrusted* PL/Python — Postgres documentation pulls no punches about this. Running it in the only process that holds your data is a category error.
+- `plpython3u` is _untrusted_ PL/Python — Postgres documentation pulls no punches about this. Running it in the only process that holds your data is a category error.
 - The image-processing library ecosystem (Pillow, libvips, sharp) is well-trodden in HTTP-server-land. Use it there.
 - A sidecar can be restarted, OOM-killed, or rebuilt without taking the database with it. Resize bugs that crash the process don't crash queries.
 
@@ -136,9 +136,9 @@ The four moments a file at `/srv/cairn/avatars/{uid}.webp` is touched:
 
 ### The orphan sweeper
 
-A small periodic job (cron, every night) walks `/srv/cairn/avatars/`, compares each filename's UUID against the live set of `profiles.id` (live = the row exists *and* `avatar_version > 0`), and unlinks every file that has no matching row. This is the safety net for every "the sidecar call failed" branch above; in steady state it runs and finds nothing to do.
+A small periodic job (cron, every night) walks `/srv/cairn/avatars/`, compares each filename's UUID against the live set of `profiles.id` (live = the row exists _and_ `avatar_version > 0`), and unlinks every file that has no matching row. This is the safety net for every "the sidecar call failed" branch above; in steady state it runs and finds nothing to do.
 
-The sweep does *not* need to consult `auth.users` directly — `profiles` cascades from `auth.users`, so a deleted account already implies a missing profile row, which implies an orphan.
+The sweep does _not_ need to consult `auth.users` directly — `profiles` cascades from `auth.users`, so a deleted account already implies a missing profile row, which implies an orphan.
 
 ## What the user sees
 
@@ -149,11 +149,11 @@ For the full screen flow, see `design/cairn-avatar-screens.jsx`. The high-level 
 3. **Source sheet.** A bottom sheet with **Take photo** and **Choose from library** (and **Cancel**). The sheet uses the platform's native `<input type="file" accept="image/*" capture="user">` for camera and a plain `<input type="file">` for library — no custom permissions handling.
 4. **Crop step.** A square viewport on the picked image with a circular crop overlay (so the user sees what the final disc will look like). Pinch/zoom and drag. A **Use this picture** button on the bottom-right; **Cancel** on the bottom-left. The crop is client-side preview only — server re-validates and re-crops.
 5. **Upload states.** Five small variants captured on canvas:
-   - *Uploading.* Spinner over the avatar slot, **Cancel** button enabled.
-   - *Saved.* Brief check-mark flash, then the new picture is in place.
-   - *Too big.* Inline error: *"That picture is larger than 8 MB. Try another."*
-   - *Wrong format.* Inline error: *"That file isn't a picture we can use."*
-   - *No connection.* Inline error: *"Couldn't reach the server. Try again."* The crop step preserves the user's image so they don't have to re-pick.
+   - _Uploading._ Spinner over the avatar slot, **Cancel** button enabled.
+   - _Saved._ Brief check-mark flash, then the new picture is in place.
+   - _Too big._ Inline error: _"That picture is larger than 8 MB. Try another."_
+   - _Wrong format._ Inline error: _"That file isn't a picture we can use."_
+   - _No connection._ Inline error: _"Couldn't reach the server. Try again."_ The crop step preserves the user's image so they don't have to re-pick.
 
 ## What stays unchanged
 

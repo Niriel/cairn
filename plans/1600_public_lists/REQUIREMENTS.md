@@ -28,7 +28,7 @@ is introduced**. A non-member's attempt to change `is_public` (or any other
 column) is rejected by `lists_update`, exactly as today. The negative case is
 load-bearing and must be tested.
 
-## R3. A single `SECURITY DEFINER` RPC is the *only* anonymous read path
+## R3. A single `SECURITY DEFINER` RPC is the _only_ anonymous read path
 
 Anonymous read access is provided exclusively by one function:
 
@@ -113,7 +113,7 @@ the button-order rule in `docs/ui.md`.
 - **Discovery / public directory** — public lists are unlisted; access is by
   link only. No browse/search of public lists.
 - **Per-link tokens or revocable share links** — the list `id` (a random uuid)
-  *is* the link; unpublishing revokes access. Rotatable tokens are a possible
+  _is_ the link; unpublishing revokes access. Rotatable tokens are a possible
   future refinement, not part of this work.
 - **Exposing the publisher or any member on the public page** — deliberately
   excluded to honour the privacy contract (`docs/invites.md`,

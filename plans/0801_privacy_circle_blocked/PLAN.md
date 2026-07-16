@@ -3,7 +3,7 @@
 The first sub-plan of step 8 (`0800_invites_circles_ui`). Lands the
 settings-side invite-posture surfaces (Privacy, Circle, Blocked, the
 circle explainer), the `relationships.svelte.ts` state module that
-0802 and 0803 both consume, the *People* section scaffold on
+0802 and 0803 both consume, the _People_ section scaffold on
 SettingsScreen, and the two DB triggers (`docs/invites.md` defers
 policy-cascade and 20-invite FIFO cap to step 8). This is the slice
 a user reaches first when shaping who can invite them — and it's the
@@ -21,7 +21,7 @@ FIFO cap. Step 8's UI work is split into three sub-plans
 sub-plans are: `0802_profile_sheet` (`<ProfileSheet>` reads
 `circle` and `blocked` from this plan's state module to render its
 status badge and pick its action rows), and `0803_invite_flow` (the
-invite picker reads `circle` to render its *Your circle* section,
+invite picker reads `circle` to render its _Your circle_ section,
 and the cascade-feedback note on the Privacy screen reflects the
 cascade trigger's footprint).
 
@@ -32,17 +32,15 @@ profile-chip, AppTopBar, Avatar, Sheet, Snackbar, and Icon
 primitives are production-ready. `pgGet`/`pgPost`/`pgPatch`/`pgDelete`
 HTTP wrappers exist in `web/src/lib/shared/http/postgrest.ts`.
 
-The `t10_*` (per-table attribution), `t20_*` (modified_at bump),
-and `t40_*` (AFTER-trigger) slot convention is set in
-`docs/data-model.md` § "Triggers"; this sub-plan slots into the
-`t30_*` (BEFORE-trigger, non-attribution) and `t40_*` rows for the
+The `t10_*` (per-table attribution), `t20_*` (modified*at bump),
+and `t40*\_`(AFTER-trigger) slot convention is set in`docs/data-model.md`§ "Triggers"; this sub-plan slots into the`t30\_\_`(BEFORE-trigger, non-attribution) and`t40\_\*` rows for the
 two new triggers.
 
 ## Decisions
 
 **Cascade-feedback fetch lives in `user-settings.svelte.ts`, not in
 the screen and not in `invitations.svelte.ts`.** The Privacy
-screen's *"{N} pending invites have been declined…"* note (R1)
+screen's _"{N} pending invites have been declined…"_ note (R1)
 reads the inbox count before and after a tighten-PATCH. The parent
 plan's task 1.1 specified reading from
 `invitations.svelte.ts.inbox.length`, which would force this
@@ -57,7 +55,7 @@ PrivacyScreen component. `setInvitePolicy` returns
 `{ prevCount, newCount, tightened }` and the screen handles the
 copy. The parent plan's task 1.1 mention of "reads `prevCount` from
 `invitations.svelte.ts.inbox.length`" is treated as guidance on
-*what* the screen reads, not *where from*.
+_what_ the screen reads, not _where from_.
 
 **Two screens, three routes — but new domain folder `privacy/`,
 not `settings/`.** `web/src/lib/settings/` currently contains only
@@ -79,7 +77,7 @@ and `/settings/blocked`. The SettingsScreen Privacy NavRow resolves
 to `/settings/privacy`. SvelteKit's `resolve()` (and the
 `svelte/no-navigation-without-resolve` ESLint rule) rejects route
 IDs that aren't in `web/src/routes/`. So the phase order is:
-Blocked → Circle → Privacy → Settings *People* section. Each
+Blocked → Circle → Privacy → Settings _People_ section. Each
 phase lands a route before any other code resolves to it. The
 `<CircleExplainerSheet>` is imported by both Privacy and Circle, so
 it lands before either of them. See `docs/quality.md` "Navigating
@@ -132,7 +130,7 @@ happy with the empty page in the meantime). (c) — per-line
 chooses a fourth path documented in `docs/quality.md`: render the
 row as a `<div>` (no `<button>`, no `<a>`, no `onclick`,
 `cursor: default`) styled identically to the live `.nav-row` block,
-visually marked as inert via the *"No pending invites"* sub-line
+visually marked as inert via the _"No pending invites"_ sub-line
 that carries the "nothing to do" signal. `svelte-check` sees no
 route reference at all (no `goto`, no `href`), so there's nothing
 to check. 0803's R14 task swaps the `<div>` for a real
@@ -157,8 +155,8 @@ card render unconditionally — they're invariant to load state.
 re-throw pattern: a network or RLS error from any `pgGet` /
 `pgPost` / `pgPatch` / `pgDelete` propagates as the underlying
 `ApiError` without mutating the reactive state. Screens catch and
-render a generic snackbar (*"Couldn't update privacy setting"* on
-PrivacyScreen; *"Couldn't add to circle"* on CircleScreen's
+render a generic snackbar (_"Couldn't update privacy setting"_ on
+PrivacyScreen; _"Couldn't add to circle"_ on CircleScreen's
 `unknown` branch). Mutating reactive state before the HTTP succeeds
 would leave the UI ahead of the server on failure; re-throwing
 keeps reactive state and durable state in lock-step.
@@ -212,17 +210,17 @@ scope.
   — same shape, `<BlockedScreen>`.
 - **`db/migrations/0010_invite_cascades.sql`** — both new triggers
   (R7, R8), `SECURITY DEFINER` functions with `SET search_path =
-  public`.
+public`.
 - **`db/tests/invite_cascades.sql`** — pgTAP for both triggers, both
   positive and negative cases.
 
 ### Modified files
 
 - **`web/src/lib/settings/components/SettingsScreen.svelte`** — adds
-  the *People* section (Invites non-interactive `<div>` stub +
+  the _People_ section (Invites non-interactive `<div>` stub +
   Privacy NavRow) above Appearance.
 - **`web/src/lib/settings/components/SettingsScreen.test.ts`** —
-  updated in the same task that adds the *People* section.
+  updated in the same task that adds the _People_ section.
 - **`db/tests/schema_shape.sql`** — bump row-count assertions for
   the two new triggers (one extra row on `user_settings`, one
   extra row on `invitations`).
@@ -288,7 +286,7 @@ across tasks — a commit that ends in failing tests is broken code
 ordering: doc reconciliation (parent Phase 0 absorbed) → DB triggers
 (load-bearing) → state modules (depended on by every screen) →
 primitives (CircleExplainerSheet) → screens (in route-dependency
-order) → Settings *People* section.
+order) → Settings _People_ section.
 
 **Phase 0 — Doc reconciliation (absorbed from the parent plan).**
 The parent plan's TASKS 0.1 specified four doc edits that needed to
@@ -347,7 +345,7 @@ policy transition (tighten / loosen / same).
 3.1 `<CircleExplainerSheet>` + Vitest. The sheet has no upstream
 dependencies — it sits at the top of the import graph for both
 Privacy and Circle. Tests assert the title, the four explainer
-points (verbatim copy), the privacy footer, and the *Got it*
+points (verbatim copy), the privacy footer, and the _Got it_
 button dismisses via the `Sheet.svelte` back-stack pattern.
 
 **Phase 4 — Blocked screen (R3).**
@@ -362,7 +360,7 @@ Unblock button calling `unblock` from the state module.
 
 5.1 `<CircleScreen>` + Vitest + route + `page.test.ts`. Imports
 `<CircleExplainerSheet>` (now exists). Tests cover the intro
-paragraph, the *What's this?* link opening the sheet, the
+paragraph, the _What's this?_ link opening the sheet, the
 populated row format with the `"added DD MMM"` sub-line, the
 Remove button calling `removeFromCircle`, the add-by-email form
 calling `addCircleByEmail`, and the `'no such user'` raise
@@ -374,15 +372,15 @@ surfacing the helpful error copy.
 `<CircleExplainerSheet>` and resolves `/settings/circles` and
 `/settings/blocked` in its NavRows — both now exist. Tests cover
 the segmented control PATCHing `user_settings.invite_policy`, the
-*What's a circle?* link visible only when `circle` selected and
+_What's a circle?_ link visible only when `circle` selected and
 opening the sheet, the two NavRows (with counts read from the
 state module), and the cascade-feedback note (singular form when
 `removed == 1`; suppressed on `removed == 0`; suppressed on a
 loosen).
 
-**Phase 7 — Settings *People* section (R5).**
+**Phase 7 — Settings _People_ section (R5).**
 
-7.1 Add *People* section above Appearance in `SettingsScreen.svelte`:
+7.1 Add _People_ section above Appearance in `SettingsScreen.svelte`:
 non-interactive `<div>` Invites row + live Privacy NavRow.
 `SettingsScreen.test.ts` is updated in the same task — assertions
 for placement (between profile chip and Appearance), the two rows'
@@ -417,7 +415,7 @@ row's navigation to `/settings/privacy`.
   Circle, Blocked, and CircleExplainerSheet. Each screen's task
   cites the section by name.
 - **`design/cairn-screens.jsx:1135-1143`** — SettingsScreen
-  *People* section placement reference.
+  _People_ section placement reference.
 - **`.claude/skills/writing-tasks.md`** — TDD ordering, self-
   contained tasks, no `+` in route-test filenames.
 - **`.claude/skills/writing-sql.md`** — `SECURITY DEFINER` +

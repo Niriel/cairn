@@ -29,7 +29,7 @@ short exploration phase, but the shape is roughly:
 - `tone: 'primary' | 'neutral' | 'destructive'` — picks the colour
   mapping. `primary` → `--accent`; `neutral` → `--ink` / `--rule`;
   `destructive` → `--ember`. Replaces the legacy `'primary' | 'ghost'
-  | 'destructive'` variant set; the new defaults match the current
+| 'destructive'` variant set; the new defaults match the current
   primary-rect shape so existing call sites that pass no props keep
   working visually identically.
 - `size: 'sm' | 'md'` — derives padding and font-size. `md` is the
@@ -125,7 +125,7 @@ the global stylesheet (per R11), keyed off the `.hint` class. No
 new component for this — the audit showed it as a one-line span of
 typography, not worth a primitive. The CSS rule itself ships in
 **0901** alongside the input migration so the migrated hint
-paragraphs render styled from day one — see PLAN.md *Decisions*
+paragraphs render styled from day one — see PLAN.md _Decisions_
 for the rationale. Other typography rules in R11 continue to land
 in 0902.
 
@@ -136,16 +136,16 @@ the new `<Button>` surface (or `<IconButton>` where the shape is
 icon-only). Each row maps to a `variant` × `tone` × `size`
 combination.
 
-| Today                                            | New shape                              |
-|--------------------------------------------------|----------------------------------------|
-| `.btn-cancel`, `.btn-submit`, `.btn-save`, `.btn-delete` in sheet headers | `Button variant="rect" tone={primary | neutral | destructive}` size="md" |
-| `.row` actions in `AvatarSourceSheet`, `ListOverflowSheet`, `ProfileSheet`, `CircleScreen`, `InvitePickerSheet` (full-width sheet rows) | Likely `Button variant="text" tone="neutral" size="md"` inside an `<li>` (per R11); decide in 0901 |
-| `.empty-cta` in `ItemsScreen`, `ListsScreen`, `InvitesInboxScreen` | `Button variant="rect" tone="primary" size="md" leadingIcon="…"` |
-| `.panel-btn`, `.panel-btn.destructive` in `ItemsScreen` | `Button variant="pill" tone={neutral | destructive} size="sm" leadingIcon="…"` |
-| `.restore` in `TrashScreen` | `Button variant="pill" tone="neutral" size="sm"` |
-| `.pill-btn.ink`, `.pill-btn.ember` on the profile page | `Button variant="pill" tone={neutral | destructive} size="sm" leadingIcon="…"` |
-| `.add-btn`, `.invite-btn`, `.whats-this` (inline accent links) | `Button variant="text" tone="primary" size="sm"` |
-| `.nav-row`, `.profile-chip` in `SettingsScreen`, `InvitesInboxScreen`, `PrivacyScreen` | Stay as full-width tap-target rows, but the markup moves to `<li>` containing a `Button variant="text" tone="neutral" size="md"` (or a `<NavRow>` if one is extracted — sub-plan decides) |
+| Today                                                                                                                                   | New shape                                                                                                                                                                                 |
+| --------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------- | ----------------------- |
+| `.btn-cancel`, `.btn-submit`, `.btn-save`, `.btn-delete` in sheet headers                                                               | `Button variant="rect" tone={primary                                                                                                                                                      | neutral                                 | destructive}` size="md" |
+| `.row` actions in `AvatarSourceSheet`, `ListOverflowSheet`, `ProfileSheet`, `CircleScreen`, `InvitePickerSheet` (full-width sheet rows) | Likely `Button variant="text" tone="neutral" size="md"` inside an `<li>` (per R11); decide in 0901                                                                                        |
+| `.empty-cta` in `ItemsScreen`, `ListsScreen`, `InvitesInboxScreen`                                                                      | `Button variant="rect" tone="primary" size="md" leadingIcon="…"`                                                                                                                          |
+| `.panel-btn`, `.panel-btn.destructive` in `ItemsScreen`                                                                                 | `Button variant="pill" tone={neutral                                                                                                                                                      | destructive} size="sm" leadingIcon="…"` |
+| `.restore` in `TrashScreen`                                                                                                             | `Button variant="pill" tone="neutral" size="sm"`                                                                                                                                          |
+| `.pill-btn.ink`, `.pill-btn.ember` on the profile page                                                                                  | `Button variant="pill" tone={neutral                                                                                                                                                      | destructive} size="sm" leadingIcon="…"` |
+| `.add-btn`, `.invite-btn`, `.whats-this` (inline accent links)                                                                          | `Button variant="text" tone="primary" size="sm"`                                                                                                                                          |
+| `.nav-row`, `.profile-chip` in `SettingsScreen`, `InvitesInboxScreen`, `PrivacyScreen`                                                  | Stay as full-width tap-target rows, but the markup moves to `<li>` containing a `Button variant="text" tone="neutral" size="md"` (or a `<NavRow>` if one is extracted — sub-plan decides) |
 
 **Additional raw `<button>` call sites surfaced by the audit**
 that also migrate to the new `<Button>` surface (the 0901
@@ -186,7 +186,7 @@ The 0901 sub-plan migrates every raw `<input>` / `<textarea>` to
 the new primitives:
 
 - `LoginRequest.svelte` — email input → `<Label>` + `<TextInput
-  type="email">`.
+type="email">`.
 - `RenameListSheet.svelte`, `CreateListSheet.svelte` (name),
   `AddEditItemSheet.svelte` (name),
   `web/src/routes/(app)/profile/+page.svelte` (display name input
@@ -197,9 +197,9 @@ the new primitives:
   — → `<Label>` + `<Textarea>` (the notes case carries a per-call
   serif/14 px override per R4).
 - `InvitePickerSheet.svelte` (email row) — → `<TextInput
-  type="email">` inline with its submit button.
+type="email">` inline with its submit button.
 - `CircleScreen.svelte` (add-by-email) — → `<Label>` + `<TextInput
-  type="email">` inside the dashed-border card.
+type="email">` inside the dashed-border card.
 
 Carve-outs: file inputs (the hidden `<input type="file">` triggers
 in `AvatarSourceSheet`) and the `<canvas>` in `AvatarCropScreen` are
@@ -254,14 +254,14 @@ a single source of truth. Approximate shape:
 **The `.name` class is overloaded today**, and the audit found
 the drift is wider than originally claimed:
 
-| File:line                                       | Font size | Role                |
-|-------------------------------------------------|-----------|---------------------|
-| `InvitePickerSheet.svelte:266`                  | 14 px     | member-name         |
-| `MembersScreen.svelte:196`                      | 15 px     | member-name         |
-| `DeletedListsScreen.svelte:131`                 | 15 px     | deleted-list title  |
-| `TrashScreen.svelte:157`                        | 15.5 px   | deleted-item title  |
-| `ListsScreen.svelte:262`                        | 17 px     | list title          |
-| `ProfileSheet.svelte:173`                       | 18 px     | profile name        |
+| File:line                       | Font size | Role               |
+| ------------------------------- | --------- | ------------------ |
+| `InvitePickerSheet.svelte:266`  | 14 px     | member-name        |
+| `MembersScreen.svelte:196`      | 15 px     | member-name        |
+| `DeletedListsScreen.svelte:131` | 15 px     | deleted-list title |
+| `TrashScreen.svelte:157`        | 15.5 px   | deleted-item title |
+| `ListsScreen.svelte:262`        | 17 px     | list title         |
+| `ProfileSheet.svelte:173`       | 18 px     | profile name       |
 
 (`CircleScreen` does **not** apply `class="name"` — it uses
 `.display-name` instead; the earlier inventory was wrong.)
@@ -305,13 +305,14 @@ keys cleanly off the global rules with no regression.
 
 `docs/ui.md` documents two empty-state patterns: **illustrated**
 (`<div class="empty-circle">` icon disc + `.empty-heading` title
-+ `.empty-body` paragraph + optional `.empty-cta` button) and
-**simple** (dashed-border box, single icon, single muted
-paragraph, no CTA). The audit found:
 
-- *Illustrated*: `ListsScreen.svelte`, `ItemsScreen.svelte`,
+- `.empty-body` paragraph + optional `.empty-cta` button) and
+  **simple** (dashed-border box, single icon, single muted
+  paragraph, no CTA). The audit found:
+
+* _Illustrated_: `ListsScreen.svelte`, `ItemsScreen.svelte`,
   `InvitesInboxScreen.svelte`, `DeletedListsScreen.svelte`.
-- *Simple*: `BlockedScreen.svelte:27–87` (dashed `--stone-lt`
+* _Simple_: `BlockedScreen.svelte:27–87` (dashed `--stone-lt`
   border, `--paper-alt` background, one icon, one paragraph).
 
 `CircleScreen` does **not** have an empty state — when the
@@ -361,7 +362,7 @@ and lists it explicitly in the migration task's **Files**.
 Copy stays identical; tap targets stay where they were; focus
 order is unchanged. The 0902 sub-plan may add one or two narrow
 new tests asserting heading-hierarchy correctness (e.g.
-*"section labels render as `<h2>`"*) but **must not** widen the
+_"section labels render as `<h2>`"_) but **must not** widen the
 scope of existing tests to cover the refactor itself.
 
 **Two deliberate user-visible changes** (acknowledged here so
@@ -415,8 +416,8 @@ the same directory (Vitest), per `docs/testing.md` and
 - **Variants for one-off shapes.** VoteControl thumb, Accordion
   header toggle, the `(see more) / (see less)` description
   expander, and the Snackbar `.action` button stay as raw
-  `<button>` elements per the master plan rule *"if a shape only
-  appears once, keep it inline"*.
+  `<button>` elements per the master plan rule _"if a shape only
+  appears once, keep it inline"_.
 - **Removing layout-bearing icon wrappers.** `.icon-wrap` in
   `DeleteItemSheet.svelte` (40 × 40 disc with `--ember-bg`),
   `.icon-disc` in `LoginCheck.svelte` (84 × 84 disc with

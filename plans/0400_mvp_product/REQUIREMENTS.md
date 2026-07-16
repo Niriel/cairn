@@ -30,6 +30,7 @@ address anywhere in the UI (privacy contract from `docs/invites.md`).
 ## R3. Settings screen
 
 A Settings screen at `/(app)/settings/` shows:
+
 - A profile chip at the top: `Avatar` + `display_name` (no tap-through yet — profile editing is a later step).
 - An Appearance section wired to the existing `preferences.svelte.ts` store: Theme selector (Light / Dark / System) and Font size selector (XS / S / M / L / XL).
 - A Sign Out action at the bottom (moved from the current placeholder home route).

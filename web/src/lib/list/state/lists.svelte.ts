@@ -89,7 +89,7 @@ $effect.root(() => {
 				//     collection. The lists_is_member computed column (migration 0013) gates the
 				//     collection to lists you're actually a member of, leaving the banner embed
 				//     untouched.
-				'/lists?select=id,name,description,modified_at,item_count:lists_item_count,is_public,list_members(user_id,profiles(display_name,avatar_version))&list_members.deleted_at=is.null&deleted_at=is.null&lists_is_member=is.true&order=modified_at.desc'
+				'/lists?select=id,name,description,modified_at,item_count:lists_item_count,is_public,list_members(user_id,profiles(display_name,avatar_version,username))&list_members.deleted_at=is.null&deleted_at=is.null&lists_is_member=is.true&order=modified_at.desc'
 			)
 				.then((result) => {
 					lists.items = result;

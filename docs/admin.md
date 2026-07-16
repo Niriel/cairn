@@ -20,18 +20,18 @@ Admin RPCs in Postgres are the opposite trade. They live inside the same trust b
 
 The full set, deliberately small. Each row corresponds to one psql-callable RPC; the wrapping CLI is described later in this document.
 
-| Need | RPC | Effect |
-|---|---|---|
-| Stop a user logging in | `admin.ban_user(target, reason)` | Sets `auth.users.banned_until = 'infinity'`; GoTrue's magic-link issuance honours it. Existing sessions also fail at next request — see "Existing sessions" below. |
-| Allow them back in | `admin.unban_user(target, reason)` | Clears `banned_until`. The account's data is untouched. |
-| GDPR erasure on a user's behalf | `admin.delete_account_as(target, reason)` | Same effect as the user running `delete_account()` themselves: hard-delete `auth.users`, `profiles`, `user_settings`, `votes`, `list_members`, `relationships`, `invitations`; repoint attribution to the tombstone; hard-delete lists where the user was the only remaining member. |
-| Take an item down (complaint, light) | `admin.moderate_item(target, reason)` | Soft-delete attributed to the tombstone user. Recoverable by list members through the standard trash UI. The right tool for *"please remove this, it shouldn't be there"* where the requester is a list member. |
-| Take an item down (legal, hard) | `admin.purge_item(target, reason)` | Hard-delete the row; cascades remove its votes. Irrecoverable. The right tool for a DMCA notice, doxxing, or anything else where soft-delete-with-recovery is unacceptable. |
-| Take a list down (complaint, light) | `admin.moderate_list(target, reason)` | Soft-delete the list. Members can restore from the per-user list trash. |
-| Take a list down (legal, hard) | `admin.purge_list(target, reason)` | Hard-delete the list. Cascades through `items`, `votes`, `list_members`, `invitations`. Irrecoverable. |
-| Read-only inspection of a user | `admin.inspect_user(target)` | Returns a single JSON document containing the user's `auth.users` row (minus the encrypted password hash), `profiles`, `user_settings`, lists they're a member of, item and vote counts. The only RPC that does not require a reason. |
+| Need                                 | RPC                                       | Effect                                                                                                                                                                                                                                                                               |
+| ------------------------------------ | ----------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Stop a user logging in               | `admin.ban_user(target, reason)`          | Sets `auth.users.banned_until = 'infinity'`; GoTrue honours it and refuses to issue tokens, so sign-in fails. Existing sessions also fail at next request — see "Existing sessions" below.                                                                                           |
+| Allow them back in                   | `admin.unban_user(target, reason)`        | Clears `banned_until`. The account's data is untouched.                                                                                                                                                                                                                              |
+| GDPR erasure on a user's behalf      | `admin.delete_account_as(target, reason)` | Same effect as the user running `delete_account()` themselves: hard-delete `auth.users`, `profiles`, `user_settings`, `votes`, `list_members`, `relationships`, `invitations`; repoint attribution to the tombstone; hard-delete lists where the user was the only remaining member. |
+| Take an item down (complaint, light) | `admin.moderate_item(target, reason)`     | Soft-delete attributed to the tombstone user. Recoverable by list members through the standard trash UI. The right tool for _"please remove this, it shouldn't be there"_ where the requester is a list member.                                                                      |
+| Take an item down (legal, hard)      | `admin.purge_item(target, reason)`        | Hard-delete the row; cascades remove its votes. Irrecoverable. The right tool for a DMCA notice, doxxing, or anything else where soft-delete-with-recovery is unacceptable.                                                                                                          |
+| Take a list down (complaint, light)  | `admin.moderate_list(target, reason)`     | Soft-delete the list. Members can restore from the per-user list trash.                                                                                                                                                                                                              |
+| Take a list down (legal, hard)       | `admin.purge_list(target, reason)`        | Hard-delete the list. Cascades through `items`, `votes`, `list_members`, `invitations`. Irrecoverable.                                                                                                                                                                               |
+| Read-only inspection of a user       | `admin.inspect_user(target)`              | Returns a single JSON document containing the user's `auth.users` row (minus the encrypted password hash), `profiles`, `user_settings`, lists they're a member of, item and vote counts. The only RPC that does not require a reason.                                                |
 
-That's the list. Everything else — re-sending a magic link, debugging a failed login, deciphering a stuck PWA cache — is GoTrue's admin endpoints, Caddy logs, or the user's browser, not Cairn's database. None of those need new code.
+That's the list. Everything else — debugging a failed sign-in, deciphering a stuck PWA cache — is GoTrue's admin endpoints, Caddy logs, or the user's browser, not Cairn's database. None of those need new code.
 
 ## The `admin` schema and Postgres roles
 
@@ -111,14 +111,14 @@ revoke all  on admin.actions from authenticated, anon;
 
 A few choices, called out:
 
-- **Required reason is the discipline that matters.** Writing it down *before* the action runs, in the same transaction as the action, makes the table a real audit trail rather than a guilt log. It's also the answer to *"what did we do for that GDPR request three months ago"* — `select * from admin.actions where target = ? order by created_at`. The 2000-char ceiling matches `lists.description` and is generous for any reasonable note.
-- **`actor` is `session_user`, not `current_user`.** After `SET ROLE cairn_admin`, `current_user` is `cairn_admin` (uniform, useless as an audit field) while `session_user` is still the operator's personal login role (which is what the audit log should record). The `effective` column carries `current_user` as a sanity check — but note *where* it's read: the insert happens inside a `security definer` function, where `current_user` is the function owner, so `effective` records `cairn_admin_owner`, not `cairn_admin`. The check is "writes always run as the admin owner"; if `effective` is ever anything else, something escalated through a path we didn't intend.
-- **`payload` snapshots the pre-state, not the post-state.** For a ban: the previous `banned_until` value. For a moderate-item: the row before soft-delete. This is the minimum for a *partial* undo (re-set the prior `banned_until`, restore the prior soft-delete state); a *full* undo of a `purge_*` action still needs Restic. The snapshot is JSON because that's what survives schema migrations of the source table without breaking old audit rows.
+- **Required reason is the discipline that matters.** Writing it down _before_ the action runs, in the same transaction as the action, makes the table a real audit trail rather than a guilt log. It's also the answer to _"what did we do for that GDPR request three months ago"_ — `select * from admin.actions where target = ? order by created_at`. The 2000-char ceiling matches `lists.description` and is generous for any reasonable note.
+- **`actor` is `session_user`, not `current_user`.** After `SET ROLE cairn_admin`, `current_user` is `cairn_admin` (uniform, useless as an audit field) while `session_user` is still the operator's personal login role (which is what the audit log should record). The `effective` column carries `current_user` as a sanity check — but note _where_ it's read: the insert happens inside a `security definer` function, where `current_user` is the function owner, so `effective` records `cairn_admin_owner`, not `cairn_admin`. The check is "writes always run as the admin owner"; if `effective` is ever anything else, something escalated through a path we didn't intend.
+- **`payload` snapshots the pre-state, not the post-state.** For a ban: the previous `banned_until` value. For a moderate-item: the row before soft-delete. This is the minimum for a _partial_ undo (re-set the prior `banned_until`, restore the prior soft-delete state); a _full_ undo of a `purge_*` action still needs Restic. The snapshot is JSON because that's what survives schema migrations of the source table without breaking old audit rows.
 - **No RLS, no PostgREST exposure.** The table is in `admin`, which isn't on PostgREST's schema list. Operator reads happen through psql, against a role that has `SELECT`. The right grep for "did anyone touch Alice's data this month" is `select * from admin.actions where target = (select id from auth.users where email = ?) and created_at > now() - interval '30 days'`.
 
 ## The RPCs
 
-All of these live in the migration that introduces the schema. They share a small set of conventions: every function is `security definer` and owned by `cairn_admin_owner`; every function `revoke`s public execute and `grant`s execute only to `cairn_admin`; every destructive function takes `reason text` as a non-optional second argument and inserts into `admin.actions` *before* the destructive statement (the insert and the action are in one transaction, so either both happen or neither does).
+All of these live in the migration that introduces the schema. They share a small set of conventions: every function is `security definer` and owned by `cairn_admin_owner`; every function `revoke`s public execute and `grant`s execute only to `cairn_admin`; every destructive function takes `reason text` as a non-optional second argument and inserts into `admin.actions` _before_ the destructive statement (the insert and the action are in one transaction, so either both happen or neither does).
 
 ### `admin.ban_user` and `admin.unban_user`
 
@@ -153,11 +153,11 @@ grant  execute on function admin.ban_user(uuid, text) to cairn_admin;
 -- unban is the mirror image; same shape, sets banned_until = null.
 ```
 
-`'infinity'` is Postgres's permitted timestamp sentinel for "no upper bound." GoTrue reads `banned_until` and refuses to issue a magic link if `banned_until > now()` (which is trivially true here). A future GoTrue release that removes or renames this column is the failure mode to watch for at image-bump time — same caveat as the tombstone insert in `account-deletion.md`.
+`'infinity'` is Postgres's permitted timestamp sentinel for "no upper bound." GoTrue reads `banned_until` and refuses to issue tokens if `banned_until > now()` (which is trivially true here), so the account cannot sign in. A future GoTrue release that removes or renames this column is the failure mode to watch for at image-bump time — same caveat as the tombstone insert in `account-deletion.md`.
 
 ### Existing sessions for a banned user
 
-`banned_until` only governs *new* magic-link issuance. A user who is banned but holds a still-valid `cairn_session` cookie will continue to make authenticated requests until the JWT expires or the cookie is cleared. Two defences:
+`banned_until` only governs _new_ token issuance (a fresh sign-in or a refresh). A user who is banned but holds a still-valid session cookie will continue to make authenticated requests until the access JWT expires or the cookie is cleared. Two defences:
 
 - **JWT lifetime.** GoTrue's `GOTRUE_JWT_EXP` is set to one hour in production (the cookie's `Max-Age` is longer; Caddy refreshes the cookie value when GoTrue issues a new token via its refresh-token flow, which the ban breaks). One hour is the worst-case window between a ban landing and the banned user being unable to make API calls.
 - **Hard expiry.** If "one hour is too long" is ever true (it isn't, today), the ban can be made effective immediately by either rotating `JWT_SECRET` (invalidates every session for every user — heavy) or by adding a `revoked_at` column on a session table and consulting it in the `public.uid()` helper. The latter is a v2 problem, deliberately not designed for v1. The audit row records the moment of ban; if a follow-up "session continued for N minutes after ban" question matters, the Caddy access log filtered by `cairn_session=<that user's cookie>` answers it within the 24-hour IP-retention window.
@@ -166,35 +166,32 @@ For Cairn's threat model — a small group of friends, the rare bad actor — on
 
 ### What the web app shows when a banned user tries to sign in
 
-Banning a user at the GoTrue layer affects the web app's sign-in flow, and the web app has to be deliberate about how it presents that. The principle is the same anti-enumeration argument as the *"Couldn't send invite"* pattern in `invites.md`: **the response a banned user sees when they request a magic link must be indistinguishable from the response any other user sees in the same flow.**
+Banning a user at the GoTrue layer affects the web app's sign-in flow, and the web app has to be deliberate about how it presents that. The principle is the same anti-enumeration argument as the _"Couldn't send invite"_ pattern in `invites.md`: **a banned account's sign-in attempt must be indistinguishable from an ordinary failed sign-in.**
 
-When the user submits their email on the sign-in screen, the web app shows the same optimistic confirmation regardless of what GoTrue actually did:
+When a user submits their username and password, the BFF runs the password grant against that account's stable identity, and GoTrue refuses the grant if `banned_until > now()`. The web app collapses that refusal into the **same constant-shape failure** it shows for a wrong password:
 
-> *"Check your inbox. We sent a link to **alice@example.net**. Tap it on this device to continue."*
+> _"That username or password is incorrect."_
 
 This is the response shown when:
 
-- The email exists and a link was sent (the normal case).
-- The email exists but the account has `banned_until > now()` and GoTrue refused to send.
-- The email exists but the account is unconfirmed (`GOTRUE_MAILER_AUTOCONFIRM` is `false` in production, per `deployment.md`).
-- The email doesn't resolve to any account at all (typo, never signed up, or already deleted — for first-time signups, GoTrue's `/otp` flow auto-creates the user and the email *is* sent; this case is "doesn't exist *and* signups are closed or rate-limited," which we treat the same way).
-- GoTrue's send rate-limit has been hit for that address.
+- The password is wrong (the ordinary failure).
+- The username resolves to no account.
+- The username and password are correct but the account has `banned_until > now()`, so GoTrue refuses the grant.
+- GoTrue's rate-limit has been hit for that account.
 
-**The protection is structural, not rhetorical.** The screen is identical in every case, and that's the entire mechanism. In the cases where the screen technically lies (banned, unconfirmed, rate-limited, sometimes doesn't-exist), the lie is benign: the user can't verify it from this screen alone — they verify by checking their inbox, which is a private channel we don't see. An attacker probing the user database sees the same screen for every address they try, with no timing or text signal distinguishing them; a legitimate user who mistyped discovers it within a minute (no email arrives) and tries again. *"Continue"* rather than *"sign in"* in the copy reads naturally for both first-time users (whose email becomes a new account on click) and returning ones.
+**The protection is structural, not rhetorical.** The screen is identical in every case, and that's the entire mechanism. A third party probing the sign-in form never knows any account's password, so every attempt they make already looks like a wrong-password failure — the ban is invisible to them by construction. The banned user themselves sees only the generic failure, with no "you have been suspended" text to react to; they verify nothing from this screen. The copy never hedges (_"if that account is banned…"_): a conditional sentence protects nothing the identical screen isn't already protecting, and reads as an evasive non-answer to the ordinary user who simply mistyped.
 
-An earlier draft of this section used a conditional phrasing — *"If an account exists for that address, we've sent a sign-in link"* — on the grounds that hedging the claim is more honest in the failure cases. It isn't. It's actively wrong for the most important audience: the first-time user, who reads *"if there's a Cairn account…"* and reasonably wonders why the screen is asking a question they can't answer when they just submitted their email to create one. The phrasing also slightly chills returning users by implying their account might not exist. The conditional protects nothing the structural design isn't already protecting, because anti-enumeration was always a property of the screen being identical, not of any single sentence on it. Don't reintroduce it.
-
-The page also does *not* render *"Account suspended,"* *"No such user,"* *"Please confirm your email,"* or *"Too many attempts."* Each of those would leak the failure mode and break the indistinguishability the design relies on.
+The page also does _not_ render _"Account suspended,"_ _"No such user,"_ or _"Too many attempts."_ Each of those would leak the failure mode and break the indistinguishability the design relies on.
 
 The contract the web app has to honour for this to work:
 
-- **Treat any non-2xx response from `POST /auth/magiclink` as a success in the UI.** The error path and the success path render the same screen. GoTrue's actual response code is not surfaced.
-- **Don't poll for delivery status.** A *"sent / not sent"* indicator that depends on GoTrue's view of the world reintroduces the distinction. The user finds out the link works by clicking it, or doesn't by not receiving it; that's the right surface area.
-- **Don't add a *"resend"* button that distinguishes failure modes.** A button that says *"Try again — we couldn't send last time"* tells an attacker which addresses GoTrue refused. The same button on every screen, with the same effect, is fine.
+- **Treat every 4xx credential verdict from `POST /auth/signin` identically.** Wrong password, unknown username, and a banned account all render the one constant message; GoTrue's actual response code is not surfaced. (A 5xx or network blip is a different case — a transient _"couldn't reach the server,"_ not a credential verdict.)
+- **Don't distinguish "unknown username" from "wrong password."** The BFF returns a single 401 for both, and the copy mirrors that — never _"no such user"_ alongside _"wrong password."_
+- **Don't add an affordance that names the ban.** A message, a disabled control, or a "you're suspended, contact support" link shown _only_ to banned users tells an attacker which accounts GoTrue refused. The same screen for every failure is the protection.
 
-The operator-facing flip side: "a banned user complains they can't sign in" is invisible from the user's screen. The signal lives in GoTrue's logs (filtered by the user's email hash per `logging.md`) and in `admin.actions` (filtered by `action = 'ban_user' and target = <uid>`). Both are accessible to the operator via the standard debug commands; neither is accessible to the user. That asymmetry is the whole point.
+The operator-facing flip side: "a banned user complains they can't sign in" is invisible from the user's screen. The signal lives in `admin.actions` (filtered by `action = 'ban_user' and target = <uid>`) and in `auth.users.banned_until` (via `cairn-admin inspect`). Both are accessible to the operator through the standard debug commands; neither is accessible to the user. That asymmetry is the whole point.
 
-The future-self-service-appeal-channel question in "Open questions / future work" at the bottom of this document is the one place this design forces a tradeoff: if banned users ever need an in-product way to appeal, the web app has to surface *something* the user can act on, which breaks the perfect indistinguishability above. The right shape for that is probably a single neutral *"Account issues? Contact <address>"* link on the sign-in screen, shown to everyone, not just banned users — same anti-enumeration trick at one layer of indirection.
+The future-self-service-appeal-channel question in "Open questions / future work" at the bottom of this document is the one place this design forces a tradeoff: if banned users ever need an in-product way to appeal, the web app has to surface _something_ the user can act on, which breaks the perfect indistinguishability above. The right shape for that is probably a single neutral _"Account issues? Contact <address>"_ link on the sign-in screen, shown to everyone, not just banned users — same anti-enumeration trick at one layer of indirection.
 
 ### `admin.delete_account_as`
 
@@ -246,7 +243,7 @@ revoke all on function admin.delete_account_as(uuid, text) from public;
 grant  execute on function admin.delete_account_as(uuid, text) to cairn_admin;
 ```
 
-`payload` records the email at the time of deletion. Not the full account, deliberately: the audit log should *not* be a recovery channel for personal data that was just legally erased. The email is recorded as the only piece needed to confirm "yes, that erasure request was acted on for this address" months later, in the event of a regulator query. This is a thin compromise — strictly it's still personal data, retained for the legal-defence reason. If a stricter reading ever becomes operative, the `payload` for this one RPC can be reduced to a SHA-256 hash of the email (matching the GoTrue logging policy in `logging.md`).
+`payload` records the email at the time of deletion. Not the full account, deliberately: the audit log should _not_ be a recovery channel for personal data that was just legally erased. The email is recorded as the only piece needed to confirm "yes, that erasure request was acted on for this address" months later, in the event of a regulator query. This is a thin compromise — strictly it's still personal data, retained for the legal-defence reason. If a stricter reading ever becomes operative, the `payload` for this one RPC can be reduced to a SHA-256 hash of the email (matching the GoTrue logging policy in `logging.md`).
 
 The avatar-file side-effect is handled the same way as user-initiated deletion: the operator runs `curl -X DELETE http://avatars:8080/avatars/<uid>` from inside the docker network as a separate step (or relies on the nightly orphan-sweep; see `avatars.md`). The RPC stays a pure database transaction; cross-container side-effects don't belong in `security definer` functions.
 
@@ -308,7 +305,7 @@ end;
 $$;
 ```
 
-`moderate_item` is intentionally reversible. It attributes the soft-delete to the tombstone, which means no real user sees the item through the base-table `items_select` path (the `or deleted_by = public.uid()` disjunct never admits the tombstone), but the `items_deleted` view — which runs as the table owner and gates only on `is_list_member()` — does include it. List members will find the moderated item in the trash UI and can restore it via the standard `PATCH /items?id=eq.<uuid>` with `deleted_at: null`. That's the right semantics for *"someone complained and I want to take this down pending review"*: it's gone from the live list, the members can decide whether to bring it back, and there's no separate trash to remember to monitor. The tombstone attribution is the visible signal that *this wasn't a member's deletion* — see `ui.md` for the per-trash-row "Deleted by Deleted user" rendering, which is unambiguous about what happened.
+`moderate_item` is intentionally reversible. It attributes the soft-delete to the tombstone, which means no real user sees the item through the base-table `items_select` path (the `or deleted_by = public.uid()` disjunct never admits the tombstone), but the `items_deleted` view — which runs as the table owner and gates only on `is_list_member()` — does include it. List members will find the moderated item in the trash UI and can restore it via the standard `PATCH /items?id=eq.<uuid>` with `deleted_at: null`. That's the right semantics for _"someone complained and I want to take this down pending review"_: it's gone from the live list, the members can decide whether to bring it back, and there's no separate trash to remember to monitor. The tombstone attribution is the visible signal that _this wasn't a member's deletion_ — see `ui.md` for the per-trash-row "Deleted by Deleted user" rendering, which is unambiguous about what happened.
 
 `purge_item` is the legal-takedown lever. It hard-deletes the row, votes cascade away, and nothing in the live tables remembers it. The audit row's `payload` is the only record that the item ever existed — useful for "we received DMCA notice X on date Y and removed the item with these characteristics," which is the kind of question regulators or courts ask.
 
@@ -357,9 +354,9 @@ revoke all on function admin.inspect_user(uuid) from public;
 grant  execute on function admin.inspect_user(uuid) to cairn_readonly;
 ```
 
-The `auth` sub-document is an **allowlist** of non-secret columns, not a `to_jsonb(u)` with the known secrets subtracted. A denylist is the wrong shape here: every GoTrue image bump that adds a token column (`reauthentication_token`, `phone_change_token`, `email_change_token_current`, …) would silently re-introduce a leak that nobody remembered to subtract, and `inspect_user` is the *only* path `cairn_readonly` has to `auth.users` data — so a leak there is a leak to a role that is supposed to inspect without seeing credentials. Building the document from an explicit safe set means a slip of the eye while reading the result exposes nothing sensitive, and a new GoTrue column is excluded by default rather than included by default. The function is `stable` (read-only at the SQL level) and does not log to `admin.actions`: read-only inspection is *constantly* useful for debugging "user says X is broken" reports, and logging every read would either drown the audit table or train the operator to skip the log.
+The `auth` sub-document is an **allowlist** of non-secret columns, not a `to_jsonb(u)` with the known secrets subtracted. A denylist is the wrong shape here: every GoTrue image bump that adds a token column (`reauthentication_token`, `phone_change_token`, `email_change_token_current`, …) would silently re-introduce a leak that nobody remembered to subtract, and `inspect_user` is the _only_ path `cairn_readonly` has to `auth.users` data — so a leak there is a leak to a role that is supposed to inspect without seeing credentials. Building the document from an explicit safe set means a slip of the eye while reading the result exposes nothing sensitive, and a new GoTrue column is excluded by default rather than included by default. The function is `stable` (read-only at the SQL level) and does not log to `admin.actions`: read-only inspection is _constantly_ useful for debugging "user says X is broken" reports, and logging every read would either drown the audit table or train the operator to skip the log.
 
-The deliberate counterpart: any *write* path is logged, no exceptions. The asymmetry is the protection.
+The deliberate counterpart: any _write_ path is logged, no exceptions. The asymmetry is the protection.
 
 ## The `cairn-admin` CLI
 
@@ -389,7 +386,7 @@ The script is authorization theatre at the OS layer — it adds no security on i
 
 ### Self-target confirmation
 
-The operator is, in the usual case, also a regular Cairn user with their own `auth.users` row. Nothing in the database stops them from running `cairn-admin ban` or `cairn-admin delete` against their own account — and nothing in the database *can* stop them cleanly, because the admin RPCs have no identity binding to a Cairn user (no JWT in scope, no `public.uid()`, no operator-to-Cairn-account mapping table). "Self" is a CLI-layer concept, not a database-layer one.
+The operator is, in the usual case, also a regular Cairn user with their own `auth.users` row. Nothing in the database stops them from running `cairn-admin ban` or `cairn-admin delete` against their own account — and nothing in the database _can_ stop them cleanly, because the admin RPCs have no identity binding to a Cairn user (no JWT in scope, no `public.uid()`, no operator-to-Cairn-account mapping table). "Self" is a CLI-layer concept, not a database-layer one.
 
 The CLI reads `CAIRN_ADMIN_EMAIL` from `~/.cairn-admin.env` (set at provisioning time, one line per operator). When the resolved target of a destructive subcommand matches that email, the CLI requires a literal-string confirmation before proceeding:
 
@@ -407,7 +404,7 @@ Same pattern, milder phrasing, for `ban`. The confirmation string is verbatim �
 
 The guard is deliberately at the CLI, not the database, for three reasons. First, the database can't reliably know which Cairn account "belongs to" the operator — building that knowledge requires an `admin.operators` mapping table that has to be maintained on every operator change, and gets out of sync the first time someone forgets. Second, deleting your own account through admin is the highest-confidence way to test the erasure path; a hard DB rule would either block the test or force a throwaway-account dance that's less honest than testing on the account whose deletion semantics you actually care about getting right. Third, the threat being defended against is fat-fingers, not malice — a malicious operator with `cairn_admin` membership can do considerably worse than ban or delete their own account, and cryptography in the wrong place would just be theatre. The CLI confirmation is the right size of friction for the actual risk.
 
-The audit row is written either way, with the operator's `--reason`. If you ever wonder *"did I really mean to do that"* a week later, the answer is in `admin.actions.reason`.
+The audit row is written either way, with the operator's `--reason`. If you ever wonder _"did I really mean to do that"_ a week later, the answer is in `admin.actions.reason`.
 
 ## Operator workflow
 
@@ -424,7 +421,7 @@ Action logged: admin.actions.id = c1a3...
 Post-state: banned_until = infinity
 ```
 
-The user is banned at the GoTrue layer; new magic-link requests for that email will be silently dropped by GoTrue (we deliberately don't surface "this account is banned" to the requester — see the anti-enumeration discussion in `invites.md` for the analogous reasoning). Existing sessions die within an hour as the JWT expires.
+The user is banned at the GoTrue layer; their sign-in attempts are refused by GoTrue and the web app shows only the generic invalid-credentials message (we deliberately don't surface "this account is banned" to the requester — see "What the web app shows when a banned user tries to sign in" above). Existing sessions die as the short-lived access JWT expires.
 
 ### Acting on a GDPR erasure request
 
@@ -438,7 +435,7 @@ The manual `restic backup` here is the one belt-and-braces step that makes the d
 
 ### Moderating an item after a complaint
 
-For a complaint that's *probably* legitimate but where you want the list members to be able to challenge the takedown:
+For a complaint that's _probably_ legitimate but where you want the list members to be able to challenge the takedown:
 
 ```
 $ cairn-admin item moderate 8a91... --reason "complaint received, pending review"
@@ -466,16 +463,18 @@ $ cairn-admin log --target 4f6b... --since '1 year' # what's happened to this us
 
 `cairn-admin log` is `select * from admin.actions` with the obvious filters. The retention policy is "forever, until it stops fitting" — `admin.actions` is small (one row per intentional admin action, of which there are maybe dozens per year at this scale) and the audit value increases with age. The Postgres database is the one place in Cairn where the retention conversation in `logging.md` goes the other way: keep it.
 
-### Helping a user who can't log in
+### Helping a user who can't sign in
 
-Most of the time this isn't a Cairn admin task — it's GoTrue. The first commands are:
+A sign-in failure resolves to one of a few things: the account is banned, the credential is wrong, or the account isn't the one the user thinks it is. The first commands are:
 
 ```bash
-docker logs cairn-gotrue | grep $(echo -n alice@example.com | sha256sum | cut -d' ' -f1)
+docker logs cairn-gotrue | tail -200
 docker logs cairn-postgrest | tail -200
 ```
 
-The first finds magic-link send attempts for Alice; the second confirms whether any of her tokens reached PostgREST. Both are documented in `logging.md`. Only if those don't explain it does the operator reach for `cairn-admin inspect` to look at the database side. There is no "resend magic link" RPC because there's no Cairn-side reason for one — Alice can request a new one herself; the lever the operator pulls is GoTrue's, not ours.
+GoTrue's log shows the password-grant attempts (accepted or refused); PostgREST's confirms whether any of the user's tokens reached the API. Both are documented in `logging.md`. Only if those don't explain it does the operator reach for `cairn-admin inspect` to look at the database side — the first field to check is `banned_until`.
+
+A **forgotten password is the user's own to fix**: they drive forgot-password themselves (see `architecture.md` → "Password recovery is Cairn-orchestrated"). There is deliberately **no operator password-reset RPC** — a user who proved no recovery address has no self-serve way back in, and that is a conscious design choice, not a gap to plug with an `admin.reset_password`. The lever for that case, if it ever matters, is the deferred operator-assisted reset noted in "Open questions / future work," not a routine admin command.
 
 ## What admin must not do
 
@@ -491,13 +490,13 @@ A few rules, written down because the cost of violating them is high enough to w
 
 ## What's deliberately not in scope
 
-A short list of things this document does *not* cover, with a one-line reason each.
+A short list of things this document does _not_ cover, with a one-line reason each.
 
 - **An admin UI.** See the rationale at the top of this document. Reconsider when there are multiple operators, more than weekly admin actions, or any kind of public registration.
 - **Multi-operator authentication.** Today the operator pool is "people with SSH access to the VPS and a Postgres login role granted `cairn_admin`." That's two operators in practice (the maintainers). Adding a third means provisioning a third Postgres login role and granting it `cairn_admin`; nothing in this document changes. Adding a tenth means a real identity story (LDAP, SSO, hardware keys), which is a v2 problem.
 - **Per-action approvals.** No two-person rule for destructive operations. The audit log is the deterrent; at this scale it's enough.
 - **Rate limiting on admin actions.** There's no rate limiter. There's also no scenario where the operator is rate-limited in a useful way — the limit is operator restraint, not infrastructure.
-- **Notifying users of admin actions.** The product is silent about admin operations against accounts and content. A banned user finds out when their magic-link request fails; a user whose account was erased by request is the person who made the request. There's no general "you have been moderated" notification, and no architecture for one. If a future legal regime requires user-facing notification of moderation actions (e.g. DSA Article 17 for in-scope platforms), this is the place that would change — but Cairn is well below the DSA's "very large platform" thresholds and the proportionate compliance for a small private app is *"document the policy, keep the audit log, respond to user requests."*
+- **Notifying users of admin actions.** The product is silent about admin operations against accounts and content. A banned user finds out when their sign-in fails; a user whose account was erased by request is the person who made the request. There's no general "you have been moderated" notification, and no architecture for one. If a future legal regime requires user-facing notification of moderation actions (e.g. DSA Article 17 for in-scope platforms), this is the place that would change — but Cairn is well below the DSA's "very large platform" thresholds and the proportionate compliance for a small private app is _"document the policy, keep the audit log, respond to user requests."_
 - **Cross-instance moderation.** Cairn is single-tenant per VPS. There is no central moderation across deployments; no operator-level reputation; no shared blocklist. Other people running Cairn on their own VPS are running their own product as far as this document is concerned.
 
 ## Considered and rejected
@@ -517,4 +516,4 @@ The shape this document describes is one of several plausible answers. The ones 
 - **A scheduled "what happened" summary.** A weekly cron that emails the operator the last seven days of `admin.actions` would catch a compromised account or a misconfiguration earlier than the current "remember to check" pattern. Cheap to add; not a v1 must-have.
 - **Soft-delete recovery semantics for `moderate_item`.** Today, any list member can restore a moderated item from the trash. That's the right default for ambiguous cases but the wrong one for "this item is genuinely not okay." A future `moderate_item_locked` that uses a sentinel `deleted_by` other than the tombstone (and a matching policy clause that prevents restore) would split the difference. Not pressing until moderation volume justifies the second column.
 - **Two-person rule for `purge_*`.** A workflow where one operator initiates a hard-delete and a second confirms within an hour. Reasonable to add when there is a second operator who isn't also the first one's manager. Not architecturally interesting; just a flag column and a second RPC.
-- **Self-service appeal channel.** Banned users currently have no in-product path to appeal. They have an out-of-product one (email the operator), which is fine at this scale, but it isn't documented anywhere the user-facing app surfaces. Worth a one-line *"Account suspended — contact <address>"* on the sign-in screen if the magic-link path fails due to a ban. The blocker is that GoTrue doesn't tell the front-end *why* the magic-link path failed; we'd need a different error surface to distinguish ban from rate-limit from "we couldn't send the email."
+- **Self-service appeal channel.** Banned users currently have no in-product path to appeal. They have an out-of-product one (email the operator), which is fine at this scale, but it isn't documented anywhere the user-facing app surfaces. Worth a one-line _"Account issues? Contact <address>"_ on the sign-in screen, shown to everyone. Surfacing anything ban-specific would require the front-end to distinguish a ban from an ordinary failed sign-in — exactly the distinction the sign-in contract in "What the web app shows when a banned user tries to sign in" deliberately refuses to draw.

@@ -41,7 +41,7 @@ describe('lists store', () => {
 	test('(a) signed-in → fetches and populates lists.items', async () => {
 		server.use(http.get('*/api/lists', () => HttpResponse.json([LIST_A])));
 		expect(listsMod.lists.items).toEqual([]);
-		sessionMod.setSignedIn({ id: TEST_UID, email: 'dev@example.test' });
+		sessionMod.setSignedIn({ id: TEST_UID, username: 'dev' });
 		await tick();
 		await vi.waitFor(() => {
 			expect(listsMod.lists.items).toHaveLength(1);
@@ -50,7 +50,7 @@ describe('lists store', () => {
 
 	test('(b) signed-out → resets lists.items to []', async () => {
 		server.use(http.get('*/api/lists', () => HttpResponse.json([LIST_A])));
-		sessionMod.setSignedIn({ id: TEST_UID, email: 'dev@example.test' });
+		sessionMod.setSignedIn({ id: TEST_UID, username: 'dev' });
 		await tick();
 		await vi.waitFor(() => {
 			expect(listsMod.lists.items).toHaveLength(1);
@@ -62,7 +62,7 @@ describe('lists store', () => {
 
 	test('(c) refreshLists() re-triggers fetch', async () => {
 		server.use(http.get('*/api/lists', () => HttpResponse.json([LIST_A])));
-		sessionMod.setSignedIn({ id: TEST_UID, email: 'dev@example.test' });
+		sessionMod.setSignedIn({ id: TEST_UID, username: 'dev' });
 		await tick();
 		await vi.waitFor(() => {
 			expect(listsMod.lists.items).toHaveLength(1);
@@ -77,7 +77,7 @@ describe('lists store', () => {
 
 	test('(d) error response → sets lists.error', async () => {
 		server.use(http.get('*/api/lists', () => new HttpResponse(null, { status: 500 })));
-		sessionMod.setSignedIn({ id: TEST_UID, email: 'dev@example.test' });
+		sessionMod.setSignedIn({ id: TEST_UID, username: 'dev' });
 		await tick();
 		await vi.waitFor(() => {
 			expect(listsMod.lists.error).toBeTruthy();
@@ -92,7 +92,7 @@ describe('lists store', () => {
 				return HttpResponse.json([LIST_A]);
 			})
 		);
-		sessionMod.setSignedIn({ id: TEST_UID, email: 'dev@example.test' });
+		sessionMod.setSignedIn({ id: TEST_UID, username: 'dev' });
 		await tick();
 		await vi.waitFor(() => {
 			expect(listsMod.lists.items).toHaveLength(1);
@@ -108,7 +108,7 @@ describe('lists store', () => {
 				return HttpResponse.json([LIST_A]);
 			})
 		);
-		sessionMod.setSignedIn({ id: TEST_UID, email: 'dev@example.test' });
+		sessionMod.setSignedIn({ id: TEST_UID, username: 'dev' });
 		await tick();
 		await vi.waitFor(() => {
 			expect(listsMod.lists.items).toHaveLength(1);
@@ -124,7 +124,7 @@ describe('lists store', () => {
 				return HttpResponse.json([LIST_A]);
 			})
 		);
-		sessionMod.setSignedIn({ id: TEST_UID, email: 'dev@example.test' });
+		sessionMod.setSignedIn({ id: TEST_UID, username: 'dev' });
 		await tick();
 		await vi.waitFor(() => {
 			expect(listsMod.lists.items).toHaveLength(1);
@@ -136,7 +136,7 @@ describe('lists store', () => {
 
 async function setupWithLists(data = [LIST_A, LIST_B]) {
 	server.use(http.get('*/api/lists', () => HttpResponse.json(data)));
-	sessionMod.setSignedIn({ id: TEST_UID, email: 'dev@example.test' });
+	sessionMod.setSignedIn({ id: TEST_UID, username: 'dev' });
 	await tick();
 	await vi.waitFor(() => {
 		expect(listsMod.lists.items).toHaveLength(data.length);

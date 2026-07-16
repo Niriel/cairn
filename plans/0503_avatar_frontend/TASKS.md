@@ -27,6 +27,7 @@ unknown route IDs at type-check time.
 **Prerequisites:** Branch `0503_avatar_frontend` exists and is checked out.
 
 **Decisions:**
+
 - Profile store state shape: `{ uid: string | null; displayName: string | null; avatarVersion: number }`.
   `uid` is set from `session.current.user.id` when signed in; not from the DB
   query (we already have it). `avatarVersion` comes from the DB query; defaults
@@ -40,6 +41,7 @@ unknown route IDs at type-check time.
   `display_name: 'Alice'` so tests using that handler don't break.
 
 **Files:**
+
 - `web/src/lib/shared/state/profile.svelte.ts` (modify)
 - `web/src/lib/shared/state/__mocks__/profile.svelte.ts` (modify)
 - `web/src/lib/shared/state/profile.test.ts` (modify — add avatarVersion test)
@@ -47,6 +49,7 @@ unknown route IDs at type-check time.
 - `web/src/routes/(app)/profile/+page.svelte` (create, stub)
 
 **Steps:**
+
 1. **RED** — Add a test to `profile.test.ts` (after the existing tests) asserting
    that after sign-in, `profile.avatarVersion` equals `0` and `profile.uid`
    equals the test UID. Run `pnpm test` and confirm the new assertions fail.
@@ -84,11 +87,12 @@ optional props. The data model types for list members and vote rows gain
 **Prerequisites:** Task 0.1 done (profile store exposes `uid` and `avatarVersion`).
 
 **Decisions:**
+
 - New Avatar props (optional, backward-compatible): `uid?: string` (default `''`),
   `avatarVersion?: number` (default `0`). When both are their defaults (or
   `avatarVersion === 0`), the initials disc renders as today.
 - Photo branch: `avatarVersion > 0 && uid` → `<img
-  src="/avatars/{uid}.webp?v={avatarVersion}" alt="" ...style>`. The `<img>`
+src="/avatars/{uid}.webp?v={avatarVersion}" alt="" ...style>`. The `<img>`
   shares the same outer shape (same border-radius / size) as the initials disc.
   Add `loading="lazy"` for performance.
 - `List.list_members` gains `user_id: string` (from the join row) and
@@ -105,6 +109,7 @@ optional props. The data model types for list members and vote rows gain
 - ItemsScreen passes `uid={mv.user_id}` and `avatarVersion={mv.avatar_version}`.
 
 **Files:**
+
 - `web/src/lib/shared/components/Avatar.svelte` (modify)
 - `web/src/lib/shared/components/Avatar.test.ts` (modify — add photo-branch tests)
 - `web/src/lib/shared/components/__mocks__/Avatar.svelte` (modify — add new props)
@@ -117,6 +122,7 @@ optional props. The data model types for list members and vote rows gain
 - `web/src/lib/item/components/ItemsScreen.svelte` (modify — pass uid + avatarVersion)
 
 **Steps:**
+
 1. **RED** — Add two tests to `Avatar.test.ts`:
    - `(g) avatarVersion > 0 with uid renders img with correct src` — render
      Avatar with `displayName="Alice", uid="abc", avatarVersion=3`; assert the
@@ -124,7 +130,7 @@ optional props. The data model types for list members and vote rows gain
    - `(h) avatarVersion 0 renders initials (no img)` — render Avatar with
      `displayName="Alice", uid="abc", avatarVersion=0`; assert no `<img>` exists
      and text content is `'A'`.
-   Run `pnpm test`; the new tests must fail (Avatar ignores uid/avatarVersion).
+     Run `pnpm test`; the new tests must fail (Avatar ignores uid/avatarVersion).
 2. Update `Avatar.svelte`:
    - Add optional props `uid` (default `''`) and `avatarVersion` (default `0`).
    - Derived: `const showPhoto = $derived(avatarVersion > 0 && uid.length > 0)`.
@@ -167,6 +173,7 @@ keeps the change small and independently testable.
 **Prerequisites:** Tasks 0.1 (route stub exists at `/profile`) and 1.1 (Avatar component accepts `uid`/`avatarVersion` props) done.
 
 **Decisions:**
+
 - The entire profile chip (avatar + display name + chevron) becomes a single
   `<button>` per `docs/ui.md` → "Row navigation pattern".
 - `onclick`: `goto(resolve('/profile'))`.
@@ -174,10 +181,12 @@ keeps the change small and independently testable.
 - A `>` chevron icon is added trailing the display name (per design).
 
 **Files:**
+
 - `web/src/lib/settings/components/SettingsScreen.svelte` (modify)
 - `web/src/lib/settings/components/SettingsScreen.test.ts` (modify)
 
 **Steps:**
+
 1. **RED** — Add a test `(i) clicking profile chip navigates to /profile`:
    mock `$app/navigation` (`vi.mock('$app/navigation')`), render SettingsScreen
    with `profile.displayName = 'Alice'`, click `data-test="profile-chip"`,
@@ -185,7 +194,7 @@ keeps the change small and independently testable.
    called once). Run `pnpm test`; the test must fail.
 2. Update `SettingsScreen.svelte`:
    - Wrap the profile chip contents in a `<button class="profile-chip"
-     data-test="profile-chip" onclick={...}>`.
+data-test="profile-chip" onclick={...}>`.
    - Import `goto` from `$app/navigation` and `resolve` from `$app/paths`.
    - Add a trailing `<Icon name="chevron-right" size={18} />`.
    - Pass `uid={profile.uid ?? ''}` and `avatarVersion={profile.avatarVersion}`
@@ -212,15 +221,16 @@ testable in isolation.
 **Prerequisites:** None beyond the branch.
 
 **Decisions:**
+
 - Create `web/src/lib/avatar/components/` (new domain directory).
 - **AvatarSourceSheet props:** `onfile: (file: File) => void`, `oncancel: () =>
-  void`. Two hidden `<input type="file">` elements: one with `capture="user"`
+void`. Two hidden `<input type="file">` elements: one with `capture="user"`
   (camera), one without (library). Clicking the corresponding row triggers
   `.click()` on the input. `Sheet.svelte` handles the history guard internally
   via its `open` prop — `AvatarSourceSheet` does **not** call
   `pushHistoryGuard` separately.
 - **AvatarCropScreen props:** `imageFile: File`, `oncancel: () => void`, `onsave:
-  (blob: Blob | null) => void`. `null` signals a crop failure (tainted canvas or
+(blob: Blob | null) => void`. `null` signals a crop failure (tainted canvas or
   browser refusal); the parent maps this to `viewState = 'wrong-format'`. Renders a full-screen view (its own TopBar with title
   "Crop" and a Save button, back arrow calls `oncancel`). The image is drawn
   on a canvas. Drag (`pointermove` while pointer is down) adjusts `panX`/`panY`.
@@ -230,8 +240,8 @@ testable in isolation.
   the blob to `onsave`.
 - Visual spec for AvatarSourceSheet (inlined from `cairn-avatar-screens.jsx` so
   this task is self-contained): Sheet panel `borderTopLeftRadius: 24,
-  borderTopRightRadius: 24`, `padding: '22px 0 28px'`. Drag handle: `width: 36,
-  height: 4`, `borderRadius: 99`, `background: var(--stone-lt)`,
+borderTopRightRadius: 24`, `padding: '22px 0 28px'`. Drag handle: `width: 36,
+height: 4`, `borderRadius: 99`, `background: var(--stone-lt)`,
   `margin: '0 auto 14px'`. Header: `padding: '0 22px 14px'`,
   `borderBottom: 1px solid var(--rule)`. Title: Newsreader `18px` weight `500`.
   Subtitle: `12px`, `var(--stone)`, `marginTop: 2`; text: "A photo, doodle, or
@@ -246,6 +256,7 @@ testable in isolation.
   attributes matching what the profile route test will query.
 
 **Files:**
+
 - `web/src/lib/avatar/components/AvatarSourceSheet.svelte` (create)
 - `web/src/lib/avatar/components/AvatarSourceSheet.test.ts` (create)
 - `web/src/lib/avatar/components/__mocks__/AvatarSourceSheet.svelte` (create)
@@ -254,6 +265,7 @@ testable in isolation.
 - `web/src/lib/avatar/components/__mocks__/AvatarCropScreen.svelte` (create)
 
 **Steps:**
+
 1. **RED** — Write `AvatarSourceSheet.test.ts`:
    - `(a)` renders "Take photo" and "Choose from library" rows.
    - `(b)` Cancel row calls `oncancel`.
@@ -296,11 +308,11 @@ testable in isolation.
    - Pointer events on the canvas: `pointerdown` → start drag; `pointermove` →
      update `panX`/`panY`; `pointerup` → end drag.
    - Touch events: register via `$effect(() => { const el = canvasEl; const onTS =
-     (e) => { e.preventDefault(); /* record pinch */ }; const onTM = (e) => {
-     e.preventDefault(); /* update scale */ }; el.addEventListener('touchstart',
-     onTS, { passive: false }); el.addEventListener('touchmove', onTM, { passive:
-     false }); return () => { el.removeEventListener('touchstart', onTS);
-     el.removeEventListener('touchmove', onTM); }; })`. The `{ passive: false }`
+(e) => { e.preventDefault(); /* record pinch */ }; const onTM = (e) => {
+e.preventDefault(); /* update scale */ }; el.addEventListener('touchstart',
+onTS, { passive: false }); el.addEventListener('touchmove', onTM, { passive:
+false }); return () => { el.removeEventListener('touchstart', onTS);
+el.removeEventListener('touchmove', onTM); }; })`. The `{ passive: false }`
      flag is **required** — Svelte 5 element bindings (`ontouchstart`) are passive
      by default and cannot call `preventDefault()`; without this flag the native
      pinch-to-zoom gesture is not suppressed.
@@ -340,8 +352,9 @@ AvatarCropScreen mocks already exist for the route test.
 **Prerequisites:** Tasks 0.1, 1.1, 2.1, 3.1 all done.
 
 **Decisions:**
+
 - `viewState: 'edit' | 'cropping' | 'uploading' | 'success' | 'too-big' |
-  'wrong-format' | 'network'` drives which content the route renders. The
+'wrong-format' | 'network'` drives which content the route renders. The
   TopBar title and left/right slots change per state.
 - `showSourceSheet = $state(false)` controls AvatarSourceSheet visibility.
   It is separate from `viewState` because the source sheet is an overlay on
@@ -367,7 +380,7 @@ AvatarCropScreen mocks already exist for the route test.
   - Change/Add picture button: `border: 1px solid var(--ink)`, border-radius 99,
     13 px, weight 600, pencil icon 13 px, gap 6 px.
   - Remove button (shown only when `avatar_version > 0`): `border: 1px solid
-    var(--rule)`, `color: var(--ember)`, border-radius 99, 13 px, weight 600.
+var(--rule)`, `color: var(--ember)`, border-radius 99, 13 px, weight 600.
   - Display name label: 11.5 px, weight 600, uppercase, letter-spacing 0.06 em,
     `var(--stone)`, margin-top 28 px.
   - Display name input: 16 px, `border: 1px solid var(--ink)`, border-radius 12,
@@ -378,9 +391,9 @@ AvatarCropScreen mocks already exist for the route test.
     pill button, `background: var(--ink) color: var(--paper)`, 13 px, weight 600).
   - Save action: `let nameError = $state<string | null>(null)`. On each Save click,
     set `nameError = null`, then call `pgPost('/rpc/set_display_name', { new_name:
-    value.trim() })`. On `23514` error: set `nameError = 'Name can't be blank'`
+value.trim() })`. On `23514` error: set `nameError = 'Name can't be blank'`
     when the trimmed value is empty; `nameError = 'Name must be 100 characters or
-    fewer'` for a non-blank 23514 (name too long). Render `nameError` as a
+fewer'` for a non-blank 23514 (name too long). Render `nameError` as a
     `<p class="field-error">` between the input and the hint text (same slot as the
     hint, shown instead of or below it). On success: set `nameError = null`, update
     `profile.displayName`, call `history.back()`.
@@ -416,14 +429,14 @@ AvatarCropScreen mocks already exist for the route test.
   the store reflects the new version silently per the non-requirement.)
 - **Remove flow** (R10): `let removing = $state(false)`. Clicking Remove sets
   `removing = true`, calls `pgPost('/rpc/clear_avatar', {})`, then `fetch('/avatars/me',
-  { method: 'DELETE' })` (best-effort — ignore failure). On RPC success: `profile.avatarVersion = 0`
+{ method: 'DELETE' })` (best-effort — ignore failure). On RPC success: `profile.avatarVersion = 0`
   (button disappears because `avatar_version === 0`). Bind `disabled={removing}` to the
   Remove button to prevent double-taps. On RPC failure: reset `removing = false` and show
   a `<Snackbar>` with message "Couldn't remove picture — try again." (same Snackbar used by
   the delete-item flow). Import `Snackbar` and manage its trigger state in the page script.
 - **Vite `/avatars` proxy**: Added to `vite.config.ts`. Forwards all `/avatars`
   requests to `http://localhost:8080`. For POST/DELETE, injects `Authorization:
-  Bearer <jwt>` from the `cairn_session` cookie (same `readBearerFromCookie`
+Bearer <jwt>` from the `cairn_session` cookie (same `readBearerFromCookie`
   helper already used by the `/api` proxy). No path rewrite needed.
 - **MSW handlers for tests**: Add `http.post('*/avatars', ...)` returning
   `{ version: 1, url: '/avatars/test-uid.webp?v=1' }` and
@@ -435,6 +448,7 @@ AvatarCropScreen mocks already exist for the route test.
 `UploadingState`. Also `docs/ui.md` TopBar visual spec, button order.
 
 **Files:**
+
 - `web/src/routes/(app)/profile/+page.svelte` (replace stub with full impl)
 - `web/src/routes/(app)/profile/page.test.ts` (create)
 - `web/src/lib/test/handlers.ts` (add sidecar + RPC handlers)
@@ -442,6 +456,7 @@ AvatarCropScreen mocks already exist for the route test.
 - `web/src/lib/shared/styles/tokens.css` (add @keyframes cairnBlink)
 
 **Steps:**
+
 1. **RED** — Write `page.test.ts` with these cases (mock AvatarSourceSheet,
    AvatarCropScreen, Avatar, TopBar, profile store):
    - `(a)` shows avatar and display name in edit state.
@@ -460,7 +475,7 @@ AvatarCropScreen mocks already exist for the route test.
    - `(k)` when `clear_avatar` returns a non-2xx, the Snackbar message "Couldn't remove
      picture — try again." is visible and the Remove button re-enables. Override
      `*/api/rpc/clear_avatar` with a 500 response before this test.
-   Run `pnpm test`; tests must fail.
+     Run `pnpm test`; tests must fail.
 2. Add MSW handlers to `handlers.ts`:
    - `http.post('*/avatars', ...)` → `HttpResponse.json({ version: 1, url: '/avatars/test.webp?v=1' })`.
    - `http.delete('*/avatars/me', ...)` → `HttpResponse.json({ ok: true })`.
@@ -528,6 +543,7 @@ PostgREST `bump_avatar_version` call fails, the file is orphaned but invisible
 **Prerequisites:** None (ops-only, no frontend dependency).
 
 **Decisions:**
+
 - Pure shell script: `find` + `psql`. No Node runtime needed on the VPS cron host.
 - Connects as the `cairn` Postgres role via `DATABASE_URL` env var.
 - Query: `SELECT id FROM profiles WHERE avatar_version > 0`. Compares against
@@ -537,22 +553,24 @@ PostgREST `bump_avatar_version` call fails, the file is orphaned but invisible
 - `crontab.example` shows a nightly `0 3 * * *` entry.
 
 **Files:**
+
 - `scripts/sweep-avatars.sh` (create)
 - `crontab.example` (create)
 
 **Steps:**
+
 1. Write `scripts/sweep-avatars.sh`:
    - `#!/usr/bin/env bash` + `set -euo pipefail`.
    - `AVATARS_DIR="${AVATARS_DIR:-/srv/cairn/avatars}"`.
    - Fetch live UIDs from Postgres into a temp file via `psql "$DATABASE_URL" -t
-     -A -c "SELECT id FROM public.profiles WHERE avatar_version > 0"`.
+-A -c "SELECT id FROM public.profiles WHERE avatar_version > 0"`.
    - `find "$AVATARS_DIR" -maxdepth 1 -name "*.webp" -type f` to list files.
    - For each file, extract UUID (filename without `.webp`), check against live
      UIDs, unlink if absent.
    - Print a one-line summary: `Swept N file(s) — K orphan(s) removed.`
    - `chmod +x scripts/sweep-avatars.sh`.
 2. Write `crontab.example` with: `0 3 * * * DATABASE_URL=... AVATARS_DIR=...
-   /home/cairn/scripts/sweep-avatars.sh >> /var/log/cairn-sweep.log 2>&1`
+/home/cairn/scripts/sweep-avatars.sh >> /var/log/cairn-sweep.log 2>&1`
    and a comment explaining the two env vars.
 
 **Verify:** `shellcheck scripts/sweep-avatars.sh && shfmt -d scripts/sweep-avatars.sh`
@@ -573,6 +591,7 @@ the full stack including the Vite proxy and the sidecar's JWT verification.
 **Prerequisites:** All previous tasks done. Dev stack running (`docker compose up`).
 
 **Decisions:**
+
 - New file `web/e2e/avatar.spec.ts`. Modelled after `auth.spec.ts` (magic-link
   sign-in using `waitForMagicLink` helper, then exercise the avatar flows).
 - Upload test: sign in, navigate to Settings → profile chip → Edit Profile,
@@ -585,10 +604,12 @@ the full stack including the Vite proxy and the sidecar's JWT verification.
   skipped with `test.skip`.
 
 **Files:**
+
 - `web/e2e/avatar.spec.ts` (create)
 - `web/e2e/fixtures/test-avatar.jpg` (create — tiny valid JPEG)
 
 **Steps:**
+
 1. Create `web/e2e/fixtures/` and add a small (1×1 or 10×10) valid JPEG as
    `test-avatar.jpg`.
 2. Write `web/e2e/avatar.spec.ts`:

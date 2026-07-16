@@ -17,7 +17,7 @@
 
 	const memberIdSet = $derived(new Set(currentMemberIds));
 	const invitedIds = new SvelteSet<string>();
-	let email = $state('');
+	let username = $state('');
 	let toastOpen = $state(false);
 	let toastMessage = $state('');
 
@@ -30,6 +30,7 @@
 	type CoMember = {
 		userId: string;
 		displayName: string;
+		username: string;
 		avatarVersion: number;
 		sharedCount: number;
 	};
@@ -65,6 +66,7 @@
 					byUser.set(m.user_id, {
 						userId: m.user_id,
 						displayName: m.profiles.display_name,
+						username: m.profiles.username,
 						avatarVersion: m.profiles.avatar_version,
 						sharedCount: 1
 					});
@@ -86,17 +88,17 @@
 		}
 	}
 
-	async function sendByEmail() {
-		const value = email.trim();
+	async function sendByUsername() {
+		const value = username.trim();
 		if (!value) return;
 		try {
-			await sendInvitation(listId, { email: value });
-			email = '';
-			// Anti-enumeration: the inviter must not be able to tell whether
-			// the address has a Cairn account (see docs/invites.md). Same
-			// hedge regardless of whether the row was user-keyed or
-			// email-keyed under the hood.
-			toastMessage = 'If they have a Cairn account, the invite was sent.';
+			// Usernames are public, so the wrapper distinguishes the three
+			// outcomes for us: it resolves on success, and throws "No one on
+			// Cairn has that username" / "Couldn't send invite" for the miss
+			// and the generic (block/policy) failures respectively.
+			await sendInvitation(listId, { username: value });
+			username = '';
+			toastMessage = 'Invite sent';
 			toastOpen = true;
 		} catch (err) {
 			toastMessage = err instanceof Error ? err.message : "Couldn't send invite";
@@ -110,9 +112,9 @@
 		<h2 class="title t-sheet">Add someone</h2>
 		<p class="subtitle caption">
 			{#if hasTappableRows}
-				Tap to invite, or type an e-mail below
+				Tap to invite, or type a username below
 			{:else}
-				Invite someone by e-mail
+				Invite someone by username
 			{/if}
 		</p>
 	</header>
@@ -132,6 +134,7 @@
 							/>
 							<div class="info">
 								<h3 class="name">{row.displayName}</h3>
+								<span class="handle identity-handle">@{row.username}</span>
 								<span class="sub caption">In your circle</span>
 							</div>
 							{#if invitedIds.has(row.otherUserId)}
@@ -167,6 +170,7 @@
 							/>
 							<div class="info">
 								<h3 class="name">{row.displayName}</h3>
+								<span class="handle identity-handle">@{row.username}</span>
 								<span class="sub caption">On {row.sharedCount} of your other lists</span>
 							</div>
 							{#if invitedIds.has(row.userId)}
@@ -189,27 +193,24 @@
 		{/if}
 	</div>
 
-	<section class="email-section surface-alt">
-		<Label for="invite-picker-email-input">By e-mail</Label>
+	<section class="username-section surface-alt">
+		<Label for="invite-picker-username-input">By username</Label>
 		<form
-			class="email-row"
+			class="username-row"
 			onsubmit={(e) => {
 				e.preventDefault();
-				void sendByEmail();
+				void sendByUsername();
 			}}
 		>
-			<div class="email-input-wrap">
+			<div class="username-input-wrap">
 				<TextInput
-					id="invite-picker-email-input"
-					type="email"
-					inputmode="email"
-					autocomplete="email"
-					placeholder="friend@example.net"
-					data-test="invite-picker-email-input"
-					bind:value={email}
+					id="invite-picker-username-input"
+					placeholder="@username"
+					data-test="invite-picker-username-input"
+					bind:value={username}
 				/>
 			</div>
-			<Button variant="rect" tone="ink" type="submit" data-test="invite-picker-email-send"
+			<Button variant="rect" tone="ink" type="submit" data-test="invite-picker-username-send"
 				>Send</Button
 			>
 		</form>
@@ -255,8 +256,11 @@
 	.info {
 		flex: 1;
 		min-width: 0;
+		display: flex;
+		flex-direction: column;
 	}
 
+	.handle,
 	.sub {
 		margin-top: 0.125rem;
 	}
@@ -269,25 +273,25 @@
 		color: var(--sage);
 	}
 
-	.email-section {
+	.username-section {
 		padding: 0.875rem 0.25rem 0.25rem;
 		border-top: 1px solid var(--rule);
 	}
 
 	/* The <Label> primitive renders an inline <label>; make it a block with a
 	   gap to the input below. */
-	.email-section :global(label) {
+	.username-section :global(label) {
 		display: block;
 		margin-bottom: 0.5rem;
 	}
 
-	.email-row {
+	.username-row {
 		display: flex;
 		gap: 0.5rem;
 		align-items: center;
 	}
 
-	.email-input-wrap {
+	.username-input-wrap {
 		flex: 1;
 	}
 </style>

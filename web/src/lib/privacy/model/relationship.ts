@@ -5,12 +5,14 @@ export type RelationshipRow = {
 	profiles: {
 		display_name: string;
 		avatar_version: number;
+		username: string;
 	};
 };
 
 export type CircleEntry = {
 	otherUserId: string;
 	displayName: string;
+	username: string;
 	avatarVersion: number;
 	createdAt: string;
 };
@@ -18,6 +20,7 @@ export type CircleEntry = {
 export type BlockedEntry = {
 	otherUserId: string;
 	displayName: string;
+	username: string;
 	avatarVersion: number;
 	createdAt: string;
 };

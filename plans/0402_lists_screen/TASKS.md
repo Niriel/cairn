@@ -27,6 +27,7 @@ this plan.
 files.
 
 **Decisions:**
+
 - Use `goto('/lists', { replaceState: true })` inside `onMount`. The root layout
   already guards unauthenticated users (redirects them to `/auth/login`), so this
   redirect only fires for signed-in users. `replaceState: true` prevents the blank
@@ -40,10 +41,12 @@ files.
   test is replaced with the redirect assertion.
 
 **Files:**
+
 - `web/src/routes/+page.svelte` (modify)
 - `web/src/routes/page.test.ts` (modify)
 
 **Steps:**
+
 1. RED — In `web/src/routes/page.test.ts`, replace the existing smoke test with:
    - Import `{ goto }` from `$app/navigation` and mock the module.
    - Test `(a) redirects to /lists on mount`: render `Page`, `await tick()`, assert
@@ -84,6 +87,7 @@ layer keeps the PostgREST wire format in one place.
 **Prerequisites:** None.
 
 **Decisions:**
+
 - `List` type: `{ id: string; name: string; description: string | null; modified_at: string }`.
   `modified_at` is the ISO 8601 string PostgREST returns for `timestamptz`.
 - `createList(name: string, description?: string): Promise<List>` calls
@@ -98,11 +102,13 @@ layer keeps the PostgREST wire format in one place.
 the exact RPC signature and return shape.
 
 **Files:**
+
 - `web/src/lib/list/model/list.ts` (create)
 - `web/src/lib/list/model/list.test.ts` (create)
 - `web/src/lib/test/handlers.ts` (modify — add `POST /api/rpc/create_list`)
 
 **Steps:**
+
 1. RED — Create `web/src/lib/list/model/list.test.ts` with:
    - Import `{ createList }` and the `List` type from `./list`.
    - Import `{ server }` from `$lib/test/server`.
@@ -133,6 +139,7 @@ shape) auto-fetches on sign-in and exposes `refreshLists()` for post-create upda
 **Prerequisites:** Task 2.1 — `List` type exists in `list/model/list.ts`.
 
 **Decisions:**
+
 - `lists = $state<{ items: List[]; loading: boolean; error: string | null }>({ items: [], loading: false, error: null })`
   exported at module level.
 - `let refreshSignal = $state(0)` at module level; `refreshLists()` increments it.
@@ -155,12 +162,14 @@ shape) auto-fetches on sign-in and exposes `refreshLists()` for post-create upda
 fetches" — `await tick()` then `vi.waitFor(...)` pattern.
 
 **Files:**
+
 - `web/src/lib/list/state/lists.svelte.ts` (create)
 - `web/src/lib/list/state/lists.test.ts` (create)
 - `web/src/lib/list/state/__mocks__/lists.svelte.ts` (create)
 - `web/src/lib/test/handlers.ts` (modify — add `GET /api/lists`)
 
 **Steps:**
+
 1. RED — Create `web/src/lib/list/state/lists.test.ts` using the `vi.resetModules()`
    pattern from `profile.test.ts`. Mock `$lib/shared/state/session.svelte`.
    Re-import `session` and `lists`/`refreshLists` fresh in each `beforeEach`.
@@ -175,7 +184,7 @@ fetches" — `await tick()` then `vi.waitFor(...)` pattern.
      `vi.waitFor` asserting `lists.items.length === 2`.
    - `(d) error response → sets lists.error`: override handler with a 500 response;
      sign in, `vi.waitFor` asserting `lists.error` is truthy.
-   Run `pnpm test` — tests fail.
+     Run `pnpm test` — tests fail.
 2. GREEN — Create `web/src/lib/list/state/lists.svelte.ts` with the store
    implementation per Decisions above.
 3. GREEN — In `web/src/lib/test/handlers.ts`, add the `GET */api/lists` handler
@@ -203,6 +212,7 @@ sheet be tested in isolation.
 `POST /rpc/create_list` added in 2.1 step 3, `GET /api/lists` handler in 2.2).
 
 **Decisions:**
+
 - Props: `open: boolean`, `onclose: () => void`, `oncreated: (list: List) => void`.
 - Renders a `Sheet` with `open` and `onclose` wired through. Sheet body: a `<form>`
   with a text input (`data-test="create-list-name"`, required), a textarea
@@ -228,6 +238,7 @@ sheet be tested in isolation.
 `left`/`right` snippet prop shape.
 
 **Files:**
+
 - `web/src/lib/list/components/CreateListSheet.svelte` (create)
 - `web/src/lib/list/components/CreateListSheet.test.ts` (create)
 - `web/src/lib/list/components/__mocks__/CreateListSheet.svelte` (create)
@@ -236,6 +247,7 @@ sheet be tested in isolation.
   `left`/`right` snippets)
 
 **Steps:**
+
 1. RED — Create `web/src/lib/list/components/CreateListSheet.test.ts`. Mock `Sheet`
    and `ButtonPair` with `vi.mock(...)`. Tests:
    - `(a) renders name input and description textarea`: render with `open={true}`,
@@ -252,7 +264,7 @@ sheet be tested in isolation.
    - `(e) create button is disabled while submitting`: verify the button has
      `disabled` attribute between the submit and the MSW response (use a delayed
      MSW handler).
-   Run `pnpm test` — tests fail.
+     Run `pnpm test` — tests fail.
 2. GREEN — Create `web/src/lib/list/components/CreateListSheet.svelte` per
    Decisions.
 3. GREEN — Create `web/src/lib/shared/components/__mocks__/ButtonPair.svelte`.
@@ -285,6 +297,7 @@ flows start here.
 component + mock).
 
 **Decisions:**
+
 - Imports: `lists`, `refreshLists` from `$lib/list/state/lists.svelte`;
   `CreateListSheet` from `./CreateListSheet`; `TopBar` from
   `$lib/shared/components/TopBar`; `Accordion` from
@@ -313,15 +326,17 @@ component + mock).
 state" — each test sets `lists.items = [...]` inline.
 
 **Files:**
+
 - `web/src/lib/list/components/ListsScreen.svelte` (create)
 - `web/src/lib/list/components/ListsScreen.test.ts` (create)
 - `web/src/lib/list/components/__mocks__/ListsScreen.svelte` (create)
 
 **Steps:**
+
 1. RED — Create `web/src/lib/list/components/ListsScreen.test.ts`. Mock `TopBar`,
    `Accordion`, `Fab`, `CreateListSheet` (all via `vi.mock(...)`), `$lib/list/state/lists.svelte`,
    and `$app/navigation`. `afterEach`: `vi.clearAllMocks(); lists.items = [];
-   lists.loading = false; lists.error = null`.
+lists.loading = false; lists.error = null`.
    Tests:
    - `(a) shows loading indicator when lists.loading is true`: set
      `lists.loading = true`, render, assert `queryByDataTest('lists-loading')` not null.
@@ -338,7 +353,7 @@ state" — each test sets `lists.items = [...]` inline.
    - `(e) navigate to list on row click`: set `lists.items` to one fixture, render,
      click the row's navigate button (`data-test="list-nav-<id>"`), assert
      `vi.mocked(goto)` called with `'/lists/' + id`.
-   Run `pnpm test` — tests fail.
+     Run `pnpm test` — tests fail.
 2. GREEN — Create `web/src/lib/list/components/ListsScreen.svelte` per Decisions.
    Add `data-test="list-nav-{item.id}"` to the name button/anchor.
 3. GREEN — Create `web/src/lib/list/components/__mocks__/ListsScreen.svelte` stub.
@@ -357,16 +372,19 @@ state" — each test sets `lists.items = [...]` inline.
 **Prerequisites:** Task 3.2 (`ListsScreen` component + mock).
 
 **Decisions:**
+
 - `+page.svelte` is a one-liner: `<script>import ListsScreen from '$lib/list/components/ListsScreen.svelte';</script><ListsScreen />`.
 - `page.test.ts` (no `+` prefix — SvelteKit manifest rule) mocks `ListsScreen` with
   `vi.mock(...)` and asserts the stub renders. This is a smoke test, not a
   feature test — all features are tested in `ListsScreen.test.ts`.
 
 **Files:**
+
 - `web/src/routes/(app)/lists/+page.svelte` (create)
 - `web/src/routes/(app)/lists/page.test.ts` (create)
 
 **Steps:**
+
 1. RED — Create `web/src/routes/(app)/lists/page.test.ts`. Mock `ListsScreen`.
    Test: `(a) renders without throwing`: render `Page`, assert
    `queryByDataTest('lists-screen-stub')` is not null.
@@ -377,6 +395,7 @@ state" — each test sets `lists.items = [...]` inline.
 **Verify:** `pnpm lint` · `pnpm check` · `pnpm test`
 
 **Notes:**
+
 - The task itself was trivial. A separate visual-polish pass was needed after the
   functional code landed: `Sheet` and `Fab` were using viewport-relative `left`/`right`
   that ignored the `--app-max-w` shell; `TopBar` lacked its Newsreader 22 px title
@@ -413,18 +432,21 @@ the wire format.
 in the DB; the frontend code already sends the correct field names).
 
 **Decisions:**
+
 - Edit in the migration file (`0004_domain_schema.sql`) rather than writing a new
   migration. This is a pre-alpha dev DB and the function was never correct — a
   fixup migration would just add noise. The migration uses `CREATE OR REPLACE
-  FUNCTION`, so resetting the dev DB re-applies the corrected definition cleanly.
+FUNCTION`, so resetting the dev DB re-applies the corrected definition cleanly.
 - No pgTAP test changes needed: `db/tests/rpc_create_list.sql` calls the function
   with positional arguments (`public.create_list('My list', NULL)`), so parameter
   names are irrelevant to those tests.
 
 **Files:**
+
 - `db/migrations/0004_domain_schema.sql` (modify — lines ~587–607)
 
 **Steps:**
+
 1. In `db/migrations/0004_domain_schema.sql`, change the `create_list` function
    signature and body:
    - Line ~587: `p_name text` → `name text`

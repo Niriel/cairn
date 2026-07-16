@@ -35,7 +35,7 @@ briefing: it has the Why, Prerequisites, Decisions, Files,
 Reference, Steps, and Verify.
 
 Don't read `PLAN.md` or `REQUIREMENTS.md` up front — they're
-fallback context if you get stuck (see *If you get stuck* below).
+fallback context if you get stuck (see _If you get stuck_ below).
 The task block is meant to be self-contained per
 `.claude/skills/writing-tasks.md`.
 

@@ -54,7 +54,7 @@ ufw allow https
 ufw --force enable
 ```
 
-From now on, log in as `cairn`, not root. Test that `ssh cairn@<ip>` works *before* logging out of your root session.
+From now on, log in as `cairn`, not root. Test that `ssh cairn@<ip>` works _before_ logging out of your root session.
 
 ### Docker
 
@@ -106,7 +106,7 @@ The repo lives on the VPS at `/home/cairn/cairn`. Updates are `git pull && docke
 
 ### Production compose overrides
 
-The split between dev and prod is structural rather than override-by-override: **`docker-compose.yml` is the prod-safe base** — it publishes *no* ports and defines only the services common to both environments. The dev-only pieces (every published port, the `static` nginx and `mailpit` services, the dev GoTrue env) live in **`docker-compose.override.yml`**, which Compose auto-loads for a bare `docker compose up` but which production never loads. **`docker-compose.prod.yml`** then adds only what production needs on top of the base. Both files are real and kept in sync by this plan — read them rather than a pseudocode copy here.
+The split between dev and prod is structural rather than override-by-override: **`docker-compose.yml` is the prod-safe base** — it publishes _no_ ports and defines only the services common to both environments. The dev-only pieces (every published port, the `mailpit` service, the dev GoTrue env) live in **`docker-compose.override.yml`**, which Compose auto-loads for a bare `docker compose up` but which production never loads. **`docker-compose.prod.yml`** then adds only what production needs on top of the base. Both files are real and kept in sync by this plan — read them rather than a pseudocode copy here.
 
 The production overlay (`docker-compose.prod.yml`) is started with:
 
@@ -117,7 +117,7 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml --env-file .env.
 The services in the production stack:
 
 - **postgres / postgrest / gotrue** — internal only; reached by service name on the Compose network. Postgres additionally publishes `127.0.0.1:5432:5432` (loopback only) so `scripts/migrate.sh` can reach it from the host; it is not internet-reachable.
-- **auth-proxy** — the Node sidecar that performs the response-side half of the cookie/JWT shim (cookie-plant + token-strip), reusing the dev-proxy logic and the shared `auth-paths.ts` narrowing lists. Caddy routes `/auth/*` to it; it forwards to `gotrue:9999`. See `architecture.md` → "JWT storage".
+- **auth-proxy** — a small Cairn-shaped **BFF** (not just the response-side half of the old cookie/JWT shim): it plants the **dual session cookie** (durable revocable refresh token + short-lived access JWT), exposes `POST /auth/refresh` (refresh-token exchange with rotation + reuse detection) and `POST /auth/signout` (server-side revocation; `?scope=global` for sign-out-everywhere), enforces a CSRF header on its state-changing endpoints, and rate-limits sign-in. It still reuses the dev-proxy logic and the shared `auth-paths.ts` narrowing/constant lists. Caddy routes `/auth/*` to it; it forwards to `gotrue:9999`. See `architecture.md` → "JWT storage".
 - **web** — the SvelteKit static bundle, built in production mode and served by Caddy inside the image (see `web/Dockerfile`). Also serves `/gotrue/templates/*`.
 - **sidecar** — the avatar upload sidecar on port `3001` (see `avatars.md`); validates, resizes to 256×256 WebP, writes `/srv/cairn/avatars/{uid}.webp`, calls `bump_avatar_version` on PostgREST.
 - **caddy** — the only public entry point, publishing `80`/`443`, terminating TLS, and mounting `caddy/Caddyfile.prod`.
@@ -125,17 +125,17 @@ The services in the production stack:
 Notes:
 
 - **No internal services are exposed.** The base publishes nothing; the prod overlay publishes only Caddy's `80`/`443` and Postgres's loopback `5432`. (Docker-published ports bypass ufw's `INPUT` filter, so "publish nothing by default" is the safe posture — see Task 3.1 in the rollout plan.)
-- **`GOTRUE_SITE_URL` is the web origin**, not the API. The magic-link callback lands in the browser, not in a deep link.
-- **Mailpit and the `static` sidecar are dev-only** — they live in `docker-compose.override.yml` and are absent from the prod stack.
-- **`GOTRUE_MAILER_AUTOCONFIRM: false`** flips the safety back on: signing up requires clicking a confirmation email. Magic-link login is unaffected.
+- **`GOTRUE_SITE_URL` is the web origin**, not the API — GoTrue's notion of where the app lives.
+- **Mailpit is dev-only** — it lives in `docker-compose.override.yml` and is absent from the prod stack.
+- **`GOTRUE_MAILER_AUTOCONFIRM: "true"`** stays on in production (not only in dev): the auth-proxy's `/auth/register` grant authenticates against the non-deliverable `<uid>@cairn.internal` identity, so signup must not block on an unclickable confirmation e-mail. E-mail verification instead happens optionally, later, when a user proves a recovery address (see `architecture.md` → "Password recovery is Cairn-orchestrated").
 
 ### The Caddyfile
 
 The canonical production reverse-proxy config is the real `caddy/Caddyfile.prod` in the repo — read it rather than a pseudocode copy here. Its shape, single origin `cairn.{$DOMAIN}` with automatic Let's Encrypt TLS:
 
 - `encode gzip` and the security headers (HSTS `max-age=31536000; includeSubDomains`, `X-Content-Type-Options: nosniff`, `Referrer-Policy: no-referrer`).
-- **`/api/*`** → `postgrest:3000` via `handle_path` (strips the `/api` prefix), with the stock cookie→bearer translation (`header_regexp Cookie cairn_session=([^;]+)` → `Authorization: Bearer …`).
-- **`/auth/*`** → an **explicit allow-list** of the GoTrue endpoints (`/auth/magiclink* /auth/verify* /auth/token* /auth/user* /auth/session*`) → `reverse_proxy auth-proxy:3002`, with **no** prefix strip (the sidecar matches against `/auth/…`-shaped lists and strips `/auth` itself). A blanket `handle_path /auth/*` would break the SvelteKit client routes (`/auth/login|check|callback`) and the sidecar's narrowing — the subtlest prod-only failure. The response-side cookie-plant + token-strip happens inside the `auth-proxy` sidecar, not Caddy.
+- **`/api/*`** → `postgrest:3000` via `handle_path` (strips the `/api` prefix), with the stock cookie→bearer translation. This reads the **short-lived access cookie** (`__Host-cairn_access` in prod) via `header_regexp … Cookie __Host-cairn_access=…`, _not_ the durable refresh-token cookie, and emits `Authorization: Bearer …`.
+- **`/auth/*`** → an **explicit allow-list** → `reverse_proxy auth-proxy:3002`, with **no** prefix strip (the sidecar matches against `/auth/…`-shaped lists and strips `/auth` itself). Two matchers: `@gotrue` covers the session endpoints the BFF forwards to GoTrue (`/auth/signout* /auth/refresh*`, all methods), and `@auth_credentials` covers the **POST-only** credential and recovery endpoints (`/auth/signin* /auth/register* /auth/recovery-email* /auth/forgot-password* /auth/reset-password*`). The POST gate is load-bearing: several of these are also SvelteKit page routes, so a **GET** to `/auth/signin` or `/auth/forgot-password` must fall through to `web` for the SPA to serve the screen. A blanket `handle_path /auth/*` would strip `/auth`, break the sidecar's segment matching, and swallow those GET pages — the subtlest prod-only failure. The dual-cookie plant + token-strip happens inside the `auth-proxy` BFF, not Caddy. Both `@auth`-handles also set **`header_up X-Real-IP {remote_host}`**: the BFF's sign-in rate-limiter keys per-IP off `X-Real-IP` only (never the spoofable `X-Forwarded-For`), Caddy doesn't set it by default, and Caddy overwrites any client-supplied value — so this both gives the limiter a true client IP and closes the spoof. Without it every client collapses into one shared per-IP bucket (Caddy's container address).
 - **`/avatars/*.webp`** (GET) → `file_server` over the avatars volume with a one-year immutable `Cache-Control`; `POST/DELETE /avatars*` → `sidecar:3001` with the same cookie→bearer translation.
 - **Everything else** (including `/gotrue/templates/*`) → `web:80`.
 
@@ -154,9 +154,14 @@ SMTP_PORT=587
 SMTP_USER=...
 SMTP_PASS=...
 SMTP_FROM=no-reply@example.com
+AUTH_BFF_DB_JWT=<scoped-role JWT, see below>
 ```
 
 Generate the random values with `openssl rand -hex 32`. Store the file in your password manager — losing it means losing the database.
+
+The same `SMTP_*` block now feeds the **auth-proxy** as well as GoTrue: the BFF sends Cairn's recovery and recovery-address-confirmation mail itself (GoTrue's built-in `/recover` can't reach the non-deliverable `<uid>@cairn.internal` identity — see `architecture.md` → "Password recovery is Cairn-orchestrated"), so the auth-proxy service in `docker-compose.prod.yml` receives `SMTP_HOST/PORT/USER/PASS/FROM` too.
+
+`AUTH_BFF_DB_JWT` is the **scoped-role credential** the BFF uses for the signed-out reset flow: a long-lived JWT carrying `{"role":"cairn_auth_bff"}` signed with `JWT_SECRET` (the standard PostgREST service-role pattern, with a far-future `exp`). The two reset RPCs — the username→address lookup that mints a token, and the pgcrypto password-set — are granted **only** to `cairn_auth_bff`, never to `anon` or `authenticated`, so the BFF needs this JWT to call them. Mint it once with a small documented one-shot (a `scripts/mint-bff-jwt.sh` reading `JWT_SECRET`, not generated on every BFF boot) so it can be rotated independently. **This JWT is a high-value secret** — holding it is a reset-takeover primitive (its holder can mint and redeem a reset token without the emailed code) — so it is env-only, never logged, and rotatable. It is still preferred over a GoTrue admin/service-role key, which would grant strictly more.
 
 ## Initial migration
 
@@ -189,7 +194,7 @@ RESTIC_PASSWORD=$RESTIC_PASSWORD \
   restic -r sftp:u123456@u123456.your-storagebox.de:/cairn init
 ```
 
-The repository password is encryption at rest. It is *not* stored on the VPS. You hold this password; the Storage Box doesn't.
+The repository password is encryption at rest. It is _not_ stored on the VPS. You hold this password; the Storage Box doesn't.
 
 ### The nightly job
 
@@ -271,7 +276,7 @@ A PWA with a service worker has one operational gotcha worth knowing about: **a 
 Two countermeasures, both in the SvelteKit project:
 
 - The build emits a content-hashed bundle. The service worker compares the hash against its cache and triggers an update when it changes.
-- On detecting an update, the app shows a small *"A new version is available — refresh"* affordance (non-modal, dismissable). It auto-applies on next launch regardless.
+- On detecting an update, the app shows a small _"A new version is available — refresh"_ affordance (non-modal, dismissable). It auto-applies on next launch regardless.
 
 This is invisible day-to-day. It only matters if you ship a release, immediately push a hotfix, and want to be sure users actually get the hotfix. For Cairn's release cadence, the lazy update path is fine.
 
@@ -312,13 +317,39 @@ For Postgres major version upgrades (e.g. 16 → 17), there's an extra dance: du
 
 ## Auth surface: pre-deploy checklist
 
-The login screen at `web/src/lib/auth/components/LoginRequest.svelte` ships a dev login shortcut — three "Sign in as alice/bob/carol" buttons that call `devPasswordSignIn(email, password)` against GoTrue's `/auth/token?grant_type=password`. The UI is gated by `isDevLoginShortcutEnabled()`, which evaluates to `false` in prod builds (`import.meta.env.DEV` is constant-folded), so the buttons do not render. Previously, the underlying code still shipped in the prod client JS bundle: a static `{#if}` block kept the emails, the "Sign in as …" template fragment, and the `devPasswordSignIn` helper alive across tree-shaking, because the minifier can't prove a Svelte runtime branch is dead across the component boundary. Decorative, not exploitable — the helper just hit an endpoint that's also reachable with `curl` — but it did leak the seed emails and the dev password as plaintext strings in `web/build/_app/immutable/`. Landed in `plans/0301_gate_dev_login/`: the dev shortcut now lives in its own component (`DevShortcuts.svelte`) loaded via a literal `if (import.meta.env.DEV)` dynamic import. Vite folds the condition to `false` in prod, the `import()` becomes dead code, and the whole module drops from the prod graph. See `development.md` → "Gating dev-only UI so it doesn't ship to prod" for the general pattern.
+Several things must be confirmed before opening Cairn to public traffic:
 
-Two things still must be confirmed before opening Cairn to public traffic:
+1. **The public GoTrue password grant must reach GoTrue only through the BFF.** The password grant is the sign-in path, and exactly one route reaches it: the auth-proxy (and its dev mirror in `web/vite.config.ts`) rejects a direct `POST /auth/token?grant_type=password` with `403 { error: 'use /auth/signin' }` and never forwards it, so `POST /auth/signin` — behind the CSRF gate and the per-IP / per-account rate limiter — is the only way in. Verify that GoTrue is **not** reachable from the public internet except via Caddy → the BFF — a caller who can hit GoTrue's `:9999` directly bypasses both the lockdown and the rate limiter. (The Caddy `@gotrue` allow-list and the internal-only GoTrue port are the structural guarantee; this checklist item is the pre-deploy confirmation of it.)
 
-1. **GoTrue password grant must be unreachable for real accounts in prod.** The `/auth/token?grant_type=password` endpoint is server-side; whether the client bundle ships a helper for it is decorative — an attacker can hit it with `curl` either way. Verify in the GoTrue config that no real prod user can be password-signed-in. If a real admin account can, the bundle issue is the lesser problem and we have a separate vulnerability.
+2. **The revocable-session config must be in force.** GoTrue refresh-token rotation enabled with a reuse interval that safely covers multi-tab boot skew; `GOTRUE_JWT_EXP` lowered to the short access TTL (single-digit minutes); both session cookies `__Host-`-prefixed (forcing `Secure` + `Path=/` + no `Domain`); the CSRF header enforced on the Cairn-shaped state-changing `/auth/*` endpoints; and Caddy setting `X-Real-IP` on the auth-proxy upstreams (both `@gotrue` and `@auth_credentials`) so the sign-in rate-limiter's per-IP key is the real client, not Caddy's container. Confirm these before opening public traffic — a deploy with rotation off or the JWT TTL still long silently loses the revocability and reuse-detection guarantees.
 
-2. **`VITE_DEV_LOGIN_PASSWORD` must be unset when `pnpm build` runs for prod.** Vite inlines every `import.meta.env.VITE_*` reference at build time as a string literal — with no warning if a dev-only var leaks into the build environment. The structural fix above keeps `DevShortcuts.svelte` (and its env-var read) out of the prod graph, but if anyone ever adds another caller of `VITE_DEV_LOGIN_PASSWORD` outside the gated module, the value would re-leak. Grep `web/build/_app/immutable/` for the current dev password value before each prod release as a belt-and-braces watch.
+3. **The signup switch lives in the prod `.env`; its compose default is restrictive.** `docker-compose.prod.yml` sets `GOTRUE_DISABLE_SIGNUP: "${DISABLE_SIGNUP:-true}"` — registration is **operator-controlled and closed by default** unless the prod `.env` sets `DISABLE_SIGNUP=false`. Whichever way it is set, **the password grant does not depend on it**: sign-in and the self-serve password reset both work whether or not new registration is open. The per-IP register throttle bounds mass signup from one source. `docs/invites.md` governs invite _acceptance_, not signup-openness.
+
+4. **The recovery flow's SMTP env and scoped-role credential must reach the auth-proxy.** Password recovery is Cairn-orchestrated (see `architecture.md`), so the **auth-proxy** — not just GoTrue — needs `SMTP_HOST/PORT/USER/PASS/FROM` in its service env, plus `AUTH_BFF_DB_JWT` (the `cairn_auth_bff` scoped-role JWT signed with `JWT_SECRET`; see `.env.prod` above). Confirm: (a) both are present in the prod `.env` and wired to the `auth-proxy` service in `docker-compose.prod.yml`; (b) Caddy's `@auth_credentials` allow-list routes the four recovery POST endpoints (`/auth/recovery-email*`, `/auth/recovery-email/confirm*`, `/auth/forgot-password*`, `/auth/reset-password*`) to the BFF, while the page GETs for `/auth/forgot-password` and `/auth/reset-password` still fall through to the SPA; (c) `AUTH_BFF_DB_JWT` is treated as a high-value secret (env-only, never logged, rotatable — it is a reset-takeover primitive). Without (a) the recovery endpoints reach the scoped RPCs as `anon` and fail; without (b) they 404 in prod while passing every unit test on stubs.
+
+### Forced re-auth on the revocable-session deploy
+
+Deploying the revocable session **signs every existing user out once**, by design — they land on the sign-in screen on their next visit and re-authenticate with their username and password. No session purge, cache flush, or operator action is needed; the sign-out is structural:
+
+- The durable cookie is **renamed** under the `__Host-` prefix (`cairn_session` → `__Host-cairn_session`), so a browser still holding the old pre-deploy `cairn_session` cookie sends a name the new BFF and Caddy don't read.
+- Even if the old cookie's name matched, its contents are now wrong: the pre-2002 `cairn_session` held an **access JWT**, whereas the new durable cookie holds a **refresh token**. Boot does refresh-then-check (`POST /auth/refresh`), so an old artefact is offered to GoTrue's refresh-token exchange, rejected, and the client falls to signed-out.
+- The data plane reads the separate short-lived `__Host-cairn_access` cookie, which no pre-deploy client has at all → `/api` runs as `anon` until re-auth.
+
+This is the intended close of the non-revocable-session gap: the old long-lived bearer can no longer authenticate anything. The alpha is small, so no scheduled-maintenance banner is warranted — but if a one-time "please sign in again" notice is ever wanted, this deploy is the moment for it.
+
+### Applying the alpha identity migration
+
+Migration `0023_alpha_migration.sql` moves the live-alpha accounts onto the stable-identity model in place: for each eligible account it grandfathers the current e-mail into `user_settings.recovery_email`, derives a memorable username from the display name, and sets `auth.users.email` to the non-deliverable `<uid>@cairn.internal` identity. It is idempotent — an account already on `@cairn.internal` is skipped — and a no-op on a fresh database, where the only pre-existing row is the tombstone.
+
+The operator steps, once the release is deployed:
+
+1. Apply the migration with `./scripts/migrate.sh`; it ends by calling `backfill_legacy_identity()`, which returns the number of accounts migrated.
+2. Tell each migrated user their **derived username** (read from `profiles.username`), out of band.
+3. Each user sets a password by driving **forgot-password**: they enter their username, receive a reset code at their grandfathered recovery address, and complete the reset — then sign in. These accounts hold no password until this step, so it is mandatory, not optional.
+
+The migrated users need no separate forced sign-out: this release rides on the revocable-session deploy above, whose cookie rename signs every existing session out once. That single re-auth is the moment they set a password.
+
+**Post-deploy smoke step.** After applying `0023`, confirm one migrated account completes the whole path end to end — **forgot-password → `reset_password` → sign-in**. This is the only end-to-end check of the in-place identity rewrite: the pgTAP suite proves the SQL transform, but the e2e suite exercises only fresh accounts, so the migrated-account path is otherwise unverified by an automated layer.
 
 ## What's not here yet
 

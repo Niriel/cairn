@@ -148,7 +148,7 @@ Concretely:
 - **Dismissible overlays push history too.** Bottom sheets (delete-item confirmation, list overflow menu, item overflow menu, invite picker, avatar source sheet), modal dialogs, the profile sheet, and the unfolded item extra panel all push a state on open and listen for `popstate` to close. The user expects back to close what they just opened; system back, the sheet's own Cancel, a tap on the backdrop, and pressing `Escape` on a hardware keyboard are then equivalent. Without this, back skips past the overlay and pops the user out of the screen entirely — the bug usually reported as _"the back button is broken."_
   - **Implementation: a guard `$effect` must `untrack` the push.** Overlays install their entry with `pushHistoryGuard` (`$lib/shared/state/back-stack.svelte`) inside an `$effect`, and that call **must** be wrapped: `return untrack(() => pushHistoryGuard(() => close()))`. `pushHistoryGuard` calls SvelteKit's `pushState`, which _reads_ SvelteKit's internal **reactive** history state; an un-`untrack`ed effect tracks that read, re-runs on the next history change, and re-pushes a fresh guard — stacking entries until no back affordance can escape (again _"the back button is broken,"_ this time stuck rather than skipping). `Sheet.svelte`, `Accordion.svelte`, and `ItemsScreen.svelte` follow the pattern; the `*.history-guard.test.ts` regressions lock it in (a mocked `pushState` reads a reactive flag and asserts a later history change does not re-push). Plain mocked-`pushState` tests can't catch this — the mock must read a reactive source.
 - **The Lists screen is the back-stack root.** Pressing back from there does nothing inside the running app. On Android-installed-PWA the OS handles it (typically closes the app), which is fine — we don't fight the platform. On iOS-installed-PWA (`display: standalone`) there is no system back gesture at all, so the in-app **←** is the only path; the design's top-bar arrow must always be reachable.
-- **The auth callback URL replaces history rather than pushing.** Hitting back from the first post-login screen must not return the user to `cairn.<domain>/auth/callback?token=…`, which is single-use. Use SvelteKit's `goto(target, { replaceState: true })` from the callback handler.
+- **A signed-in visitor is redirected off the auth screens with `replaceState`.** Hitting back from the first post-sign-in screen must not strand the user on `/auth/signin` or `/auth/register`. The route guard bounces a signed-in visitor who lands on an auth screen to `/` with `goto(resolve('/'), { replaceState: true })`, so the auth screen never sits in the back stack behind the app.
 - **Transient surfaces don't push history.** The 6-second undo snackbar dismisses on its own timer; it doesn't consume a back press. Pressing back during the snackbar does whatever back means at that point in the route — it doesn't dismiss the snackbar in lieu of navigating.
 - **Accept invite navigation pushes**, so back from the freshly-joined list returns to the inbox / lists screen the user came from, not out of the app.
 - **Back never makes a destructive choice on the user's behalf.** Back from a delete-confirmation sheet dismisses the sheet (same as Cancel, never Delete). Back from Edit item with unsaved changes opens a "Discard changes?" sheet, which is itself a dismissible overlay — completing the recursion. Back from the Delete-account screen leaves the typed-confirmation state intact but does not submit.
@@ -263,13 +263,13 @@ The screen does _not_ show "people who have you in their circle." Each user's ci
 
 At the top of the list, a small _"What's this?"_ link opens a brief explainer sheet (one paragraph; same content as the top of `circles.md`). The link is always present — a circle is subtle enough that even returning users may want to re-check.
 
-At the bottom, an **Add by email** field. Typing an email and confirming triggers the mutual email-add path (see `invites.md`). The success toast is generic — same on success, on "they don't exist," on "they've blocked you" — to preserve their privacy.
+At the bottom, an **Add by username** field. Typing a `@username` and confirming triggers the mutual username-add path (see `invites.md`). An unknown handle surfaces the distinct _"No one on Cairn has that username"_ error (usernames are public), while success and "they've blocked you" show the same generic toast — the private outcomes stay indistinguishable to preserve their privacy.
 
-The screen is empty-state-friendly: a new user sees the brief explainer above the empty add-by-email field. No graphical empty state.
+The screen is empty-state-friendly: a new user sees the brief explainer above the empty add-by-username field. No graphical empty state.
 
 ### Blocked screen
 
-Reachable from Settings → Privacy → Blocked. A plain list of blocked users (avatar + display name) with an **Unblock** action on each row. Empty state: _"You haven't blocked anyone."_ No add-by-email field here — blocking happens from a profile screen, not by typing an email.
+Reachable from Settings → Privacy → Blocked. A plain list of blocked users (avatar + display name) with an **Unblock** action on each row. Empty state: _"You haven't blocked anyone."_ No add-by-username field here — blocking happens from a profile screen, not by typing a handle.
 
 ### Profile screen (sheet)
 
@@ -279,6 +279,7 @@ Contents:
 
 - Large avatar at top.
 - Display name in the same weight as a screen title.
+- The person's `@username` directly beneath the display name (the `.identity-handle` role — see the typography roles below). This is the one screen where the handle is prominent rather than a supporting caption, because the profile sheet is where you confirm _who_ a person is.
 - (No email, no bio, no member-since, no list of shared lists. Privacy by minimalism — see `invites.md`.)
 - A vertical stack of action rows, each tappable, showing only the actions valid given current state:
 
@@ -300,13 +301,13 @@ Tapping your **own** avatar bounces to Settings rather than opening a profile sh
 
 Opened from the **Members** screen of a list, by tapping the **Add member** affordance. A bottom sheet sliding up to roughly 75% of the screen height, with three sections, top to bottom:
 
-1. **Your circle** — people in the viewer's circle, excluding existing members of the current list. Each row: avatar, display name, a tap-to-invite affordance. A single tap sends the invite; the row briefly shows a check or the generic _"Couldn't send"_ error toast.
+1. **Your circle** — people in the viewer's circle, excluding existing members of the current list. Each row: avatar, display name, `@username`, a tap-to-invite affordance. A single tap sends the invite; the row briefly shows a check or the generic _"Couldn't send"_ error toast.
 2. **People you share other lists with** — live co-members on the viewer's other lists, deduplicated, excluding circle members already in section 1 and existing members of the current list. Same row shape as above.
-3. **By email** — a text field at the bottom of the sheet. Submit triggers the email-invite path. Success and failure show the same generic toast as the tap-to-invite rows.
+3. **By username** — a text field at the bottom of the sheet. Submit resolves the typed `@username` and triggers the invite path. An unknown handle shows the distinct _"No one on Cairn has that username"_ error; the private outcomes (blocked, policy) show the same generic toast as the tap-to-invite rows.
 
-Display names and avatars only — **no emails are shown** anywhere in the picker, on any row, ever. Email is only used in the manual text field at the bottom, and the user types it themselves; it's never echoed from the database.
+Display names, avatars, and `@username` handles only — **no emails are shown** anywhere in the picker, on any row, ever. The manual text field at the bottom takes a `@username`, which the user types themselves.
 
-If a section is empty (e.g. the viewer has no one in their circle yet), the section header and rows simply don't render — the next section takes their place. We don't show empty-state stubs in the picker; the email field is always available as a fallback.
+If a section is empty (e.g. the viewer has no one in their circle yet), the section header and rows simply don't render — the next section takes their place. We don't show empty-state stubs in the picker; the by-username field is always available as a fallback.
 
 For the data model and the policy/block check sequence behind all of this, see `invites.md`.
 
@@ -446,6 +447,17 @@ roles:
 - `.t-sheet` — bottom-sheet title. Used on an `<h2>`; identical to the section
   `h2` but with full `var(--ink)` for contrast on the sheet background.
 - `.identity-name` — a person's display name (members, inbox, profile).
+- `.identity-handle` — a person's public `@username`, rendered beside or beneath
+  their display name. Muted (`var(--stone)`) at the 1 rem caption floor — set
+  apart from `.identity-name` by colour and weight, not by shrinking below the
+  floor. It is **not** `.mono`: a handle is an identity string, not a tabular
+  numeric, and `.mono` is numerics-only (see below). The `@` is part of the
+  rendered text. Wherever a person appears with a display name, the handle
+  disambiguates them (display names are not unique; usernames are). It renders
+  in: the **profile sheet** (prominent, directly under the display name — the
+  one place it is more than a supporting caption); **members** rows; **vote
+  attribution** and **item created/modified attribution**; **invite-picker**
+  rows; and **circle** rows. Own-handle display in Settings uses the same role.
 - `.body` — default body copy.
 - `.caption` — muted secondary / metadata line (1 rem, set apart by colour).
 - `.fine` — fine print: the one tier below the 1 rem floor (0.8 rem, `var(--stone)`)

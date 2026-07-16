@@ -87,11 +87,10 @@ Additionally, three existing test files must be updated:
   0502, not here.
 - **Frontend UI** — the `<Avatar>` component, Edit Profile screen, and related
   Svelte changes are scoped to sub-plan 0503.
-- **Orphan sweeper** — the nightly file cleanup script is scoped to sub-plan
-  0503.
+- **Orphan sweeper** — the nightly file cleanup script is scoped to sub-plan 0503.
 - **Avatar file serving (Caddy)** — static-file block and volume mount are
   scoped to sub-plan 0502.
 - **RLS policy changes** — `bump_avatar_version`, `clear_avatar`, and
   `set_display_name` are `SECURITY DEFINER` and include `WHERE id =
-  public.uid()`, which is the full authorization boundary. No additional RLS
+public.uid()`, which is the full authorization boundary. No additional RLS
   policy changes are needed.

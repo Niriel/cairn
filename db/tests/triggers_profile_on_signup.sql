@@ -21,7 +21,7 @@
 
 BEGIN;
 
-SELECT plan(7);
+SELECT plan(8);
 
 -- Fresh signup: insert Dave into auth.users. The AFTER-INSERT
 -- trigger fires, creates Dave's profile + user_settings rows.
@@ -52,6 +52,20 @@ SELECT is(
   'invite_policy = ''everybody'''
 );
 
+-- 2b. provisional username seeded and matches the CHECK ----------
+-- Once `profiles.username` is NOT NULL the signup trigger must seed a
+-- value; assert it satisfies the format CHECK so a regression that
+-- seeds garbage (or nothing) reds here rather than only on the next
+-- signup's insert.
+SELECT matches(
+  (
+    SELECT username FROM public.profiles
+    WHERE id = 'dddddddd-dddd-dddd-dddd-dddddddddddd'
+  ),
+  '^[A-Za-z0-9]{3,30}$',
+  'tg_profile_on_signup seeds a provisional username matching the CHECK'
+);
+
 -- 3. SECURITY DEFINER (catalog probe) ----------------------------
 -- The trigger is the only `security definer` trigger in the
 -- schema — it must escalate because gotrue (the inserter) has no
@@ -71,9 +85,14 @@ SELECT is(
 -- CONFLICT (id) DO NOTHING`; re-running the same INSERT must not
 -- error. Without idempotency, a re-run or a future migration
 -- touching the same id would explode.
+-- `username` is supplied because it is NOT NULL: the not-null check
+-- fires before the ON CONFLICT skip, so a bare INSERT omitting it would
+-- raise and fail this lives_ok.
 SELECT lives_ok(
-  $$INSERT INTO public.profiles (id, display_name)
-    VALUES ('00000000-0000-0000-0000-000000000000', 'Deleted user')
+  $$INSERT INTO public.profiles (id, display_name, username)
+    VALUES (
+      '00000000-0000-0000-0000-000000000000', 'Deleted user', 'DeletedUser'
+    )
     ON CONFLICT (id) DO NOTHING$$,
   'tombstone profile INSERT is idempotent via ON CONFLICT DO NOTHING'
 );

@@ -18,6 +18,10 @@ interface CapturedRequest {
 let lastReq: CapturedRequest | null;
 let respond: (req: http.IncomingMessage, res: http.ServerResponse) => void;
 let gotrue: http.Server;
+// A stub PostgREST kept so these tests stay offline and hermetic. The generic
+// /auth pass-through does not itself call PostgREST (the cookie-plant
+// enrichment retired with the magic-link surface), so the stub is defensive.
+let postgrest: http.Server;
 
 function defaultRespond(_req: http.IncomingMessage, res: http.ServerResponse) {
 	res.statusCode = 200;
@@ -41,14 +45,23 @@ beforeAll(async () => {
 			respond(req, res);
 		});
 	});
+	postgrest = http.createServer((_req, res) => {
+		res.statusCode = 200;
+		res.setHeader('content-type', 'application/json');
+		res.end('[]'); // no profile row → enrichment degrades to { id }
+	});
 	await new Promise<void>((resolve) => gotrue.listen(0, '127.0.0.1', resolve));
-	const { port } = gotrue.address() as AddressInfo;
-	process.env.GOTRUE_URL = `http://127.0.0.1:${port}`;
+	await new Promise<void>((resolve) => postgrest.listen(0, '127.0.0.1', resolve));
+	process.env.GOTRUE_URL = `http://127.0.0.1:${(gotrue.address() as AddressInfo).port}`;
+	process.env.POSTGREST_URL = `http://127.0.0.1:${(postgrest.address() as AddressInfo).port}`;
 });
 
 afterAll(async () => {
 	await new Promise<void>((resolve, reject) =>
 		gotrue.close((err) => (err ? reject(err) : resolve()))
+	);
+	await new Promise<void>((resolve, reject) =>
+		postgrest.close((err) => (err ? reject(err) : resolve()))
 	);
 });
 
@@ -63,9 +76,17 @@ afterEach(() => {
 });
 
 function sessionCookie(res: request.Response): string | undefined {
+	// Prefix-aware: in prod (COOKIE_SECURE=true) the durable cookie is
+	// __Host-cairn_session; in dev it is unprefixed. Match either.
 	const raw: unknown = res.headers['set-cookie'];
 	const list = Array.isArray(raw) ? (raw as string[]) : [];
-	return list.find((c) => c.startsWith('cairn_session='));
+	return list.find((c) => /^(?:__Host-)?cairn_session=/.test(c));
+}
+
+function accessCookie(res: request.Response): string | undefined {
+	const raw: unknown = res.headers['set-cookie'];
+	const list = Array.isArray(raw) ? (raw as string[]) : [];
+	return list.find((c) => c.startsWith('cairn_access='));
 }
 
 // Read the Authorization header GoTrue saw, via a helper so the assertions
@@ -76,14 +97,14 @@ function capturedAuthHeader(): string | undefined {
 }
 
 describe('auth-proxy shim', () => {
-	it('(a) plants the session cookie on COOKIE_PLANT_PATHS but not on /auth/magiclink', async () => {
+	it('(a) plants no cookies on a GoTrue pass-through, even on a token-returning 200 (cookie-plant retired)', async () => {
 		const onToken = await request(app).post('/auth/token').send({ grant_type: 'refresh_token' });
-		const plantedCookie = sessionCookie(onToken);
-		expect(plantedCookie).toBeDefined();
-		expect(plantedCookie).toContain('cairn_session=AAA.token');
+		expect(sessionCookie(onToken)).toBeUndefined();
+		expect(accessCookie(onToken)).toBeUndefined();
 
 		const onMagiclink = await request(app).post('/auth/magiclink').send({ email: 'x@y.z' });
 		expect(sessionCookie(onMagiclink)).toBeUndefined();
+		expect(accessCookie(onMagiclink)).toBeUndefined();
 	});
 
 	it('(b) strips access_token and refresh_token from the forwarded body', async () => {
@@ -94,14 +115,16 @@ describe('auth-proxy shim', () => {
 		expect(body.user).toEqual({ id: 'u1' });
 	});
 
-	it('(c) attaches the bearer only on BEARER_AUTH_PATHS, never on anonymous endpoints', async () => {
-		await request(app).get('/auth/user').set('Cookie', 'cairn_session=xxx.yyy.zzz');
-		expect(capturedAuthHeader()).toBe('Bearer xxx.yyy.zzz');
+	it('(c) attaches no cookie-derived bearer on any GoTrue pass-through (bearer-attach retired)', async () => {
+		// The BFF no longer reads a cookie into an upstream Authorization header;
+		// GoTrue sees no bearer even when the access cookie is present.
+		await request(app).get('/auth/user').set('Cookie', 'cairn_access=xxx.yyy.zzz');
+		expect(capturedAuthHeader()).toBeUndefined();
 
 		lastReq = null;
 		await request(app)
 			.post('/auth/magiclink')
-			.set('Cookie', 'cairn_session=xxx.yyy.zzz')
+			.set('Cookie', 'cairn_access=xxx.yyy.zzz')
 			.send({ email: 'x@y.z' });
 		expect(capturedAuthHeader()).toBeUndefined();
 	});
@@ -114,22 +137,10 @@ describe('auth-proxy shim', () => {
 		expect(capturedAuthHeader()).toBeUndefined();
 	});
 
-	it('(e) DELETE /auth/session clears the cookie with 204 and never hits GoTrue', async () => {
-		const res = await request(app).delete('/auth/session');
-		expect(res.status).toBe(204);
-		const cookie = sessionCookie(res);
-		expect(cookie).toContain('Max-Age=0');
-		expect(lastReq).toBeNull();
-	});
-
-	it('(f) marks the cookie Secure iff COOKIE_SECURE === "true"', async () => {
-		const insecure = await request(app).post('/auth/token').send({});
-		expect(sessionCookie(insecure)).not.toContain('Secure');
-
-		process.env.COOKIE_SECURE = 'true';
-		const secure = await request(app).post('/auth/token').send({});
-		expect(sessionCookie(secure)).toContain('Secure');
-	});
+	// Sign-out moved to POST /auth/signout (revocable, server-side); its
+	// behaviour is covered by signout.test.ts. The cookie Secure + __Host-
+	// prefix behaviour is covered by cookies.test.ts (plantSession directly),
+	// now that no /auth pass-through plants a cookie.
 
 	it('(g) forwards a GoTrue 302 unfollowed — Location verbatim, no cookie, no body rewrite', async () => {
 		const location = 'https://cairn.example/auth/callback#access_token=ZZZ&refresh_token=QQQ';

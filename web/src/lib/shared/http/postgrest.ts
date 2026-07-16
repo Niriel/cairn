@@ -1,4 +1,4 @@
-import { onUnauthorized } from '$lib/shared/state/session.svelte';
+import { onUnauthorized, refresh } from '$lib/shared/state/session.svelte';
 
 const API_BASE = import.meta.env.VITE_API_BASE ?? '/api';
 
@@ -38,17 +38,33 @@ async function request<T>(
 		headers.set('Content-Type', 'application/json');
 	}
 
-	const res = await fetch(`${API_BASE}${path}`, {
-		...init,
-		method,
-		headers,
-		credentials: 'same-origin',
-		body: body === undefined ? init?.body : JSON.stringify(body)
-	});
+	const doFetch = () =>
+		fetch(`${API_BASE}${path}`, {
+			...init,
+			method,
+			headers,
+			credentials: 'same-origin',
+			body: body === undefined ? init?.body : JSON.stringify(body)
+		});
+
+	let res = await doFetch();
 
 	if (res.status === 401) {
-		onUnauthorized();
-		throw new AuthError();
+		// The short-lived access cookie likely expired (its JWT carries the
+		// minutes-long `exp`; the cookie itself outlives it, so PostgREST gets
+		// the stale bearer and answers 401 rather than running as anon). Silently
+		// refresh once via the shared single-flight `refresh()` — a burst of
+		// concurrent 401s collapses to one /auth/refresh — and retry once. If the
+		// refresh isn't an authoritative success, or the retry still 401s, the
+		// session is genuinely gone: sign out. Single retry; no loop.
+		const result = await refresh();
+		if (result.status === 'ok') {
+			res = await doFetch();
+		}
+		if (res.status === 401) {
+			onUnauthorized();
+			throw new AuthError();
+		}
 	}
 
 	if (!res.ok) {

@@ -21,12 +21,14 @@
 **Prerequisites:** None. Branch `0601_list_overflow` is checked out.
 
 **Decisions:**
+
 - `IconButton.svelte` renders a `<button>` with class `icon-btn`. Style: `background: none; border: none; padding: 4px; color: inherit; cursor: pointer; display: flex; align-items: center; justify-content: center;`. Forwards all HTML button attributes via rest-props (onclick, aria-label, data-test, style, etc.). `color: inherit` means callers control colour via context or a `style` attribute; no per-component colour is baked in.
 - `MoreButton.svelte` accepts `size?: number` (default 22) plus any HTML button attributes via rest-props. Renders `<IconButton {...rest}><Icon name="more-vertical" {size} /></IconButton>`. Lives in `basic/` alongside `IconButton` — no Cairn-specific knowledge.
 - `__mocks__/IconButton.svelte`: `let { children, ...rest } = $props();` → `<button data-test={rest['data-test']}>{@render children?.()}</button>`.
 - `__mocks__/MoreButton.svelte`: `let { 'aria-label': ariaLabel, ...rest } = $props();` → `<button data-test={rest['data-test']} aria-label={ariaLabel}>MoreButton</button>`.
 
 **Files:**
+
 - `web/src/lib/basic/components/IconButton.svelte` (create)
 - `web/src/lib/basic/components/IconButton.test.ts` (create)
 - `web/src/lib/basic/components/__mocks__/IconButton.svelte` (create)
@@ -35,6 +37,7 @@
 - `web/src/lib/basic/components/__mocks__/MoreButton.svelte` (create)
 
 **Steps:**
+
 1. RED — Create `IconButton.test.ts` with tests:
    (a) renders children inside a `<button>` element;
    (b) forwards `data-test` attribute to the button;
@@ -70,6 +73,7 @@ it. Both are small, safe changes with no logic to test in isolation.
 **Prerequisites:** None. Branch `0601_list_overflow` is checked out.
 
 **Decisions:**
+
 - Stub `+page.svelte` contains only a `<script lang="ts">` block with
   `export const prerender = false;` (or simply a minimal placeholder) — no real
   content. 0602 will fill it in. No test file for the stub; there is nothing to
@@ -93,18 +97,20 @@ it. Both are small, safe changes with no logic to test in isolation.
 stub shape.
 
 **Files:**
+
 - `web/src/routes/(app)/lists/[list_id]/trash/+page.svelte` (create)
 - `web/src/lib/shared/components/Snackbar.svelte` (modify)
 - `web/src/lib/shared/styles/tokens.css` (modify)
 
 **Steps:**
+
 1. Create `web/src/routes/(app)/lists/[list_id]/trash/+page.svelte` as a minimal
    stub: a `<script lang="ts"></script>` block and a single `<div>Trash</div>`
    placeholder. No imports, no logic, no test file.
 2. In `web/src/lib/shared/components/Snackbar.svelte`, add two optional props to the `$props()` destructure and type annotation:
    - `leading?: Snippet` — for a leading icon (used by `UndoSnackbar`).
    - `children?: Snippet` — for rich message content (used by `UndoSnackbar` to bold the item name); when absent, fall back to `<span class="message">{message}</span>`.
-   Make `message: string` optional (`message?: string`) so callers that pass `children` instead can omit it. Existing callers (`LoginRequest`, profile page) pass `message` only and are unaffected.
+     Make `message: string` optional (`message?: string`) so callers that pass `children` instead can omit it. Existing callers (`LoginRequest`, profile page) pass `message` only and are unaffected.
 3. In the template, apply the snippets in order: `{@render leading?.()}`, then `{#if children}{@render children()}{:else}<span class="message">{message}</span>{/if}`, then the action button.
 4. In the `<style>` block, make these CSS changes:
    - Replace `left: 16px; right: 16px;` with the canonical formula from `docs/ui.md`:
@@ -114,10 +120,10 @@ stub shape.
    - Add `gap: 10px` to the `div` rule so there is spacing between the `leading`
      snippet and the message text (the design uses `gap: 12`; 10 px also improves
      the existing message-to-action spacing on `LoginRequest` snackbars).
-   Do NOT change `padding`, `border-radius`, or `box-shadow` — those are
-   undo-snackbar-specific values that will be applied in `UndoSnackbar.svelte`'s
-   scoped style block (task 1.2), keeping `LoginRequest` and profile page
-   snackbars visually unchanged.
+     Do NOT change `padding`, `border-radius`, or `box-shadow` — those are
+     undo-snackbar-specific values that will be applied in `UndoSnackbar.svelte`'s
+     scoped style block (task 1.2), keeping `LoginRequest` and profile page
+     snackbars visually unchanged.
 5. In `web/src/lib/shared/styles/tokens.css`, remove the `--snackbar-bottom` declaration (it is now hardcoded in `Snackbar.svelte`).
 6. Run `pnpm lint && pnpm check` in `web/` — must be green.
 
@@ -137,6 +143,7 @@ from `Snackbar.test.ts`.
 **Prerequisites:** Task 1.1 (`Snackbar.svelte` has the `leading` prop).
 
 **Decisions:**
+
 - `UndoSnackbar.svelte` props: `message: string`, `onUndo: () => void`,
   `ondismiss: () => void`. The caller provides `ondismiss` to be notified when
   the snackbar self-dismisses (after the 6 s timer); it is passed to `Snackbar`
@@ -158,7 +165,7 @@ from `Snackbar.test.ts`.
     These values are applied via the scoped `:global(div)` override below.
   - Message item name: `font-weight: 600` (not 500).
   - UNDO label: `font-size: 12px; padding: 4px 8px; font-weight: 700;
-    letter-spacing: 0.04em; text-transform: uppercase; color: var(--sage)`.
+letter-spacing: 0.04em; text-transform: uppercase; color: var(--sage)`.
     Override `Snackbar`'s `.action` style from inside `UndoSnackbar`'s own
     `<style>` block using a **scoped** `:global()` selector:
     `.undo-snackbar-root :global(.action) { … }` where `.undo-snackbar-root`
@@ -179,17 +186,17 @@ from `Snackbar.test.ts`.
   do NOT affect `LoginRequest` or profile page snackbars:
   ```css
   .undo-snackbar-root :global(div) {
-    padding: 12px 14px;
-    border-radius: 12px;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+  	padding: 12px 14px;
+  	border-radius: 12px;
+  	box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
   }
   .undo-snackbar-root :global(.action) {
-    font-size: 12px;
-    padding: 4px 8px;
-    font-weight: 700;
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
-    color: var(--sage);
+  	font-size: 12px;
+  	padding: 4px 8px;
+  	font-weight: 700;
+  	letter-spacing: 0.04em;
+  	text-transform: uppercase;
+  	color: var(--sage);
   }
   ```
   Wrap `<Snackbar>` in `<div class="undo-snackbar-root">` in `UndoSnackbar`'s template.
@@ -226,6 +233,7 @@ from `Snackbar.test.ts`.
 - Updating `ItemsScreen.test.ts`: add `vi.mock('$lib/shared/components/UndoSnackbar.svelte')` near the top. Update tests (i-a), (i-b), (i-d) to query `data-test="undo-snackbar"` on the mock `<div>` — `textContent` will read `"UndoSnackbar: First item"` so `toContain('First item')` still passes. Remove test (i-c) (it asserts `data-test="undo-btn"` which no longer exists); replace it with a new test verifying `onUndo` prop is wired — click the mock's wrapper or check the prop is passed. Test (i-e) (the error-state message) is unchanged and should continue to pass because the error branch is kept inline.
 
 **Files:**
+
 - `web/src/lib/shared/components/UndoSnackbar.svelte` (create)
 - `web/src/lib/shared/components/UndoSnackbar.test.ts` (create)
 - `web/src/lib/shared/components/__mocks__/UndoSnackbar.svelte` (create)
@@ -233,6 +241,7 @@ from `Snackbar.test.ts`.
 - `web/src/lib/item/components/ItemsScreen.test.ts` (modify — update mock import if needed)
 
 **Steps:**
+
 1. RED — Create `UndoSnackbar.test.ts` with tests:
    (a) renders `data-test` attribute from parent;
    (b) calls `onUndo` when UNDO button is clicked;
@@ -264,6 +273,7 @@ wired in Phase 2.
 **Prerequisites:** None (independent of other Phase 1 tasks).
 
 **Decisions:**
+
 - Append `&deleted_at=is.null` to the existing query string in `lists.svelte.ts`
   before the `&order=` clause.
 - Add a test assertion that the URL passed to `pgGet` contains `deleted_at=is.null`
@@ -271,10 +281,12 @@ wired in Phase 2.
   unverified claim.
 
 **Files:**
+
 - `web/src/lib/list/state/lists.svelte.ts` (modify)
 - `web/src/lib/list/state/lists.test.ts` (modify)
 
 **Steps:**
+
 1. In `lists.svelte.ts`, find the `pgGet<List[]>(...)` call and append
    `&deleted_at=is.null` to the query string, immediately before `&order=`.
    Add a short inline comment explaining that `lists_select` allows the deleter
@@ -304,6 +316,7 @@ coverage, before any UI wiring touches it.
 **Prerequisites:** Task 1.3 (`&deleted_at=is.null` filter is in place).
 
 **Decisions:**
+
 - Add `pendingDelete: { list: List; timerId: ReturnType<typeof setTimeout> } | null`
   to the `lists` state object. Mirrors `items.pendingDelete`.
 - `deleteList(listId: string)`:
@@ -334,11 +347,13 @@ coverage, before any UI wiring touches it.
 `web/src/lib/item/state/items.test.ts` — the pattern to mirror.
 
 **Files:**
+
 - `web/src/lib/list/state/lists.svelte.ts` (modify)
 - `web/src/lib/list/state/lists.test.ts` (modify)
 - `web/src/lib/list/state/__mocks__/lists.svelte.ts` (modify)
 
 **Steps:**
+
 1. RED — In `lists.test.ts`, add a `describe('deleteList')` block with tests:
    (a) optimistically removes the list from `lists.items`;
    (b) sends `PATCH /lists?id=eq.<uuid>` with `{deleted_at: <iso>}`;
@@ -380,6 +395,7 @@ to it). Task 2.1 (`deleteList` is exported from `lists.svelte.ts` —
 `ListOverflowSheet` calls it).
 
 **Decisions:**
+
 - All three sheets use `Sheet.svelte` as the container (the existing shared
   primitive in `web/src/lib/basic/components/Sheet.svelte`). Follow the same
   pattern as `DeleteItemSheet.svelte`: pass `open={true}` to `Sheet` always, and
@@ -435,6 +451,7 @@ use `pushHistoryGuard`. `web/src/lib/list/components/CreateListSheet.svelte` —
 existing list sheet for style reference.
 
 **Files:**
+
 - `web/src/lib/list/components/ListOverflowSheet.svelte` (create)
 - `web/src/lib/list/components/ListOverflowSheet.test.ts` (create)
 - `web/src/lib/list/components/__mocks__/ListOverflowSheet.svelte` (create)
@@ -446,6 +463,7 @@ existing list sheet for style reference.
 - `web/src/lib/list/components/__mocks__/EditDescriptionSheet.svelte` (create)
 
 **Steps:**
+
 1. RED — Create `ListOverflowSheet.test.ts`. Add
    `vi.mock('$lib/list/components/RenameListSheet.svelte')` and
    `vi.mock('$lib/list/components/EditDescriptionSheet.svelte')` at the top so
@@ -458,14 +476,14 @@ existing list sheet for style reference.
    (e) tapping "Rename list" renders `RenameListSheet` (mocked);
    (f) tapping "Edit description" renders `EditDescriptionSheet` (mocked);
    (g) mock `Sheet.svelte` and verify that calling the `onclose` prop it receives
-       invokes `ListOverflowSheet`'s own `onclose` prop.
+   invokes `ListOverflowSheet`'s own `onclose` prop.
    Create `RenameListSheet.test.ts` with tests:
    (a) input is pre-filled with `currentName`;
    (b) tapping Save with a non-empty name calls PATCH and then `onclose`;
    (c) tapping Save with an empty name shows an error and does not call PATCH;
    (d) tapping Cancel calls `onclose` without PATCH;
    (e) tapping Save with a name longer than 200 characters shows the max-length
-       error and does not call PATCH.
+   error and does not call PATCH.
    Create `EditDescriptionSheet.test.ts` with tests:
    (a) textarea is pre-filled with `currentDescription` (or empty if null);
    (b) tapping Save with non-empty text sends the trimmed value;
@@ -496,10 +514,11 @@ state to the Lists screen — the primary surface for list management.
 `undoDeleteList` exported from `lists.svelte.ts`).
 
 **Decisions:**
+
 - Remove `<span class="chevron"><Icon name="chevron-right" size={18} /></span>` from inside `<button class="row-nav">`. Add a `<div class="row-top">` as the first child of each `.row`, containing two siblings:
   1. `<button class="row-nav">` now wraps only `<span class="name">{item.name}</span>` (no chevron span).
   2. `<MoreButton size={18} aria-label="List options" data-test="list-overflow-{item.id}" onclick={() => (overflowList = item)} style="color: var(--stone)" />` — a sibling of `row-nav`, not nested inside it. No `e.stopPropagation()` needed; siblings do not bubble into each other.
-  Import `MoreButton` from `$lib/shared/components/MoreButton.svelte`.
+     Import `MoreButton` from `$lib/shared/components/MoreButton.svelte`.
 - **Migrate the Settings icon button:** While in `ListsScreen.svelte`, replace the existing:
   ```svelte
   <button class="icon-btn" aria-label="Settings" data-test="lists-settings" onclick={() => goto(resolve('/settings'))}>
@@ -557,10 +576,12 @@ state to the Lists screen — the primary surface for list management.
   `vi.mock('$lib/basic/components/IconButton.svelte')` at the top of the test file.
 
 **Files:**
+
 - `web/src/lib/list/components/ListsScreen.svelte` (modify)
 - `web/src/lib/list/components/ListsScreen.test.ts` (modify)
 
 **Steps:**
+
 1. RED — Add the new tests to `ListsScreen.test.ts` per Decisions. Run
    `cd web && pnpm test -- --reporter=verbose ListsScreen` — new tests must fail.
 2. GREEN — Update `ListsScreen.svelte` per Decisions: add `row-top` wrapper,
@@ -588,6 +609,7 @@ a list.
 already used in `ListsScreen` — pattern is established).
 
 **Decisions:**
+
 - Add `let overflowOpen = $state(false)` to `ItemsScreen.svelte`.
 - **Extend `listMeta` to include `description`.** Update the `ListMeta` type to
   `{ name: string; description: string | null; list_members: { user_id: string }[] }`
@@ -632,10 +654,12 @@ already used in `ListsScreen` — pattern is established).
   Add `vi.mock('$lib/shared/components/MoreButton.svelte')` at the top of the test file.
 
 **Files:**
+
 - `web/src/lib/item/components/ItemsScreen.svelte` (modify)
 - `web/src/lib/item/components/ItemsScreen.test.ts` (modify)
 
 **Steps:**
+
 1. RED — Add `vi.mock('$lib/shared/components/MoreButton.svelte')` and the new test to `ItemsScreen.test.ts`. Run
    `cd web && pnpm test -- --reporter=verbose ItemsScreen` — must fail.
 2. GREEN — In `ItemsScreen.svelte`: update `ListMeta` type and initial value to include `description`; extend the `pgGet` select to include `description`; add `overflowOpen` state; replace the `<button class="icon-btn">` TopBar button with `<MoreButton>` wired to `overflowOpen`; mount `<ListOverflowSheet>` conditionally (passing `description`); remove the `.icon-btn` CSS block. Import `MoreButton`, `ListOverflowSheet`, `tick`.

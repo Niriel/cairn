@@ -3,7 +3,7 @@ import { afterEach, describe, expect, test, vi } from 'vitest';
 
 import { preferences } from '$lib/shared/state/preferences.svelte';
 import { profile } from '$lib/shared/state/profile.svelte';
-import { signOut } from '$lib/shared/state/session.svelte';
+import { session, signOut } from '$lib/shared/state/session.svelte';
 import { invitations } from '$lib/invite/state/invitations.svelte';
 import { render } from '$lib/test/render';
 
@@ -16,6 +16,12 @@ vi.mock('$lib/shared/state/preferences.svelte');
 vi.mock('$lib/shared/state/session.svelte');
 vi.mock('$lib/basic/components/Button.svelte');
 vi.mock('$lib/invite/state/invitations.svelte');
+vi.mock('$lib/privacy/state/user-settings.svelte');
+vi.mock('$lib/auth/model/auth-client', () => ({
+	setRecoveryEmail: vi.fn(),
+	removeRecoveryEmail: vi.fn(),
+	confirmRecoveryEmail: vi.fn()
+}));
 vi.mock('$app/navigation');
 vi.mock('$app/paths');
 
@@ -25,6 +31,7 @@ afterEach(() => {
 	preferences.fontSize = 'm';
 	profile.displayName = null;
 	invitations.inbox = [];
+	session.current = { status: 'unknown' };
 });
 
 describe('SettingsScreen', () => {
@@ -66,12 +73,24 @@ describe('SettingsScreen', () => {
 		expect(preferences.fontSize).toBe('xl');
 	});
 
+	test('(f-2) recovery e-mail row is mounted in the Account section', () => {
+		const { queryByDataTest } = render(SettingsScreen);
+		expect(queryByDataTest('recovery-email-add')).not.toBeNull();
+	});
+
 	test('(g) profile chip renders display name when loaded', () => {
 		profile.displayName = 'Alice';
 		const { queryByDataTest } = render(SettingsScreen);
 		expect(queryByDataTest('profile-chip-skeleton')).toBeNull();
 		// Avatar mock renders displayName as text content
 		expect(queryByDataTest('profile-avatar')?.textContent).toContain('Alice');
+	});
+
+	test('(g-2) profile chip renders the own @username from the session', () => {
+		profile.displayName = 'Alice';
+		session.current = { status: 'signed-in', user: { id: 'u-alice', username: 'alice' } };
+		const { getByDataTest } = render(SettingsScreen);
+		expect(getByDataTest('profile-chip').textContent).toContain('@alice');
 	});
 
 	test('(h) profile chip shows skeleton when displayName is null', () => {

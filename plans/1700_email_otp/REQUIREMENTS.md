@@ -46,7 +46,7 @@ param, so the typed code verifies against the same record as clicking the link.
 `web/src/lib/auth/model/auth-client.ts` exports
 `verifyOtp(email, token): Promise<{ user: AuthUser }>`, mirroring
 `exchangeRefreshToken`: it POSTs to `/verify`, asserts the user shape via the
-existing `assertAuthUser`, and returns `{ user }`. Unlike the *send* step
+existing `assertAuthUser`, and returns `{ user }`. Unlike the _send_ step
 (`sendMagicLink`, whose errors are swallowed to prevent e-mail enumeration), a
 non-2xx from verify is a real `HttpError` the caller surfaces — at verify time
 the user has already proved possession of a pending e-mail, and GoTrue returns
@@ -101,7 +101,7 @@ across environments).
 
 `docs/gotrue-templates.md`, `docs/architecture.md` (auth section/flow), and
 `docs/development.md` (where it walks the magic-link flow) are updated: Cairn now
-*keeps* the OTP because there is a code-entry screen; the social-engineering
+_keeps_ the OTP because there is a code-entry screen; the social-engineering
 trade-off is acknowledged alongside the "Don't share this code" mitigation; the
 guidance that the template must not reference `{{ .Token }}` and the CI-assertion
 note are corrected.
@@ -116,5 +116,5 @@ note are corrected.
   the HTML, so the code reaches both parts from one file (same rationale as 0303).
 - **Changes to GoTrue's send rate-limiting or anti-enumeration at the send step**
   — `sendMagicLink` still swallows errors; only the verify step surfaces them.
-- **Removing the magic link** — the link stays; the code is *additional* ("send
+- **Removing the magic link** — the link stays; the code is _additional_ ("send
   a code alongside the link").

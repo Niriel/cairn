@@ -47,10 +47,10 @@ error-render path. State flows down via props:
 
 ```ts
 type Props = {
-  sending: boolean;
-  setSending: (v: boolean) => void;
-  onInlineError: (message: string) => void;
-  onServerError: () => void;
+	sending: boolean;
+	setSending: (v: boolean) => void;
+	onInlineError: (message: string) => void;
+	onServerError: () => void;
 };
 ```
 
@@ -78,7 +78,7 @@ dev-shortcut behaviour (currently `(g)`–`(m)` in
 the extracted component directly, with controlled props and spied
 callbacks. Two cross-component integration tests stay in the parent
 suite — `(b)` and `(j)` — because they assert that the parent's
-`sending` gate disables the *other* component's buttons; those are
+`sending` gate disables the _other_ component's buttons; those are
 exactly the behaviours the split risks breaking, so they're the ones
 worth keeping at the parent level. The dynamic import resolves
 asynchronously, so those two tests gain an `await vi.waitFor(...)` for
@@ -103,8 +103,8 @@ the dev buttons to appear.
 - **`web/src/lib/auth/components/LoginRequest.svelte`** — drops
   `DEV_USERS`, `onDevLogin`, the `devPasswordSignIn` and `setSignedIn`
   imports, and the `.dev-shortcuts` styles. Adds the `let
-  DevShortcuts = $state(null)` + `if (import.meta.env.DEV) { void
-  import('./DevShortcuts.svelte').then(...) }` dynamic-import block,
+DevShortcuts = $state(null)` + `if (import.meta.env.DEV) { void
+import('./DevShortcuts.svelte').then(...) }` dynamic-import block,
   and renders `<DevShortcuts ... />` when both gates allow.
 - **`web/src/lib/auth/components/LoginRequest.test.ts`** — drops
   tests `(g)`, `(i)`, `(k)`, `(l)`, `(m)`; keeps `(a)`, `(c)`,
@@ -163,7 +163,7 @@ verification.
    (tests `(g)`/`(i)`/`(k)`/`(l)`/`(m)` rewritten against the child).
    GREEN: create `DevShortcuts.svelte` with the props contract from
    Decisions; lift the markup, handler, imports, and styles from
-   `LoginRequest.svelte` into it. The parent is *not yet* rewired —
+   `LoginRequest.svelte` into it. The parent is _not yet_ rewired —
    the child is verified in isolation. See Tasks 1.1–1.2.
 2. **Phase 2 — rewire `LoginRequest.svelte` and trim its tests.**
    RED: update `LoginRequest.test.ts` — drop the dev-only unit tests
@@ -173,7 +173,7 @@ verification.
    See Tasks 2.1–2.2.
 3. **Phase 3 — verify the prod bundle.** Build, grep, confirm the
    three forbidden strings are absent (R1). Run `./scripts/check.sh
-   --e2e` for the full layer pass (R5). Tick `0301` in
+--e2e` for the full layer pass (R5). Tick `0301` in
    `plans/0000_implementation_order.md`. See Task 3.1.
 
 ## Reference docs and skills

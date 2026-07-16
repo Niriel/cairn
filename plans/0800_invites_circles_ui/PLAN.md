@@ -39,16 +39,16 @@ review cleanly, so the work is split.
 **Orchestration in three sub-plans, not two and not a single branch.**
 Step 7's two-sub-plan split landed with each sub-plan carrying ~2
 tasks — too thin, in retrospect. Step 8's natural cleavage lines are
-*settings-side surfaces*, *the profile sheet primitive that several
-later surfaces consume*, and *the invite-flow surfaces that depend on
-the first two*. Each slice is ~10–15 tasks, reviewable in a sitting,
+_settings-side surfaces_, _the profile sheet primitive that several
+later surfaces consume_, and _the invite-flow surfaces that depend on
+the first two_. Each slice is ~10–15 tasks, reviewable in a sitting,
 and useful on its own.
 
 **0801 lands the relationships state module that 0802 and 0803
 reuse.** The Svelte `relationships.svelte.ts` module belongs with the
 Circle and Blocked screens that introduce it. Both later sub-plans
 import from it (0802 to render the profile sheet's status badge, 0803
-to populate the picker's *Your circle* section). Folding it into the
+to populate the picker's _Your circle_ section). Folding it into the
 earliest sub-plan avoids producer-after-consumer ordering pain.
 
 **0802 ships the profile sheet as a reusable component before 0803
@@ -62,8 +62,8 @@ discipline `docs/quality.md` calls out.
 
 **0803 lands the invite flow and the two new overflow rows together.**
 The Lists-screen banner, Invites inbox, post-accept circle prompt,
-invite picker, Members screen, *Manage members* overflow row, and
-*Leave list* overflow row all share the `invitations.svelte.ts`
+invite picker, Members screen, _Manage members_ overflow row, and
+_Leave list_ overflow row all share the `invitations.svelte.ts`
 module and several copy strings. Splitting them further would mean
 landing the picker without a way to open it, or the Members screen
 without a button to invite from. Keeping them together makes the
@@ -180,8 +180,8 @@ Per `docs/frontend-layout.md`:
 
 - **`db/migrations/0011_invitations_delete.sql`** (lands in 0802) —
   `invitations_delete` policy (`USING (created_by = public.uid())`)
-  + `GRANT DELETE ON public.invitations TO authenticated`. Pairs
-  with the profile sheet's *Cancel pending invite* action.
+  - `GRANT DELETE ON public.invitations TO authenticated`. Pairs
+    with the profile sheet's _Cancel pending invite_ action.
 
 ### New DB tests
 
@@ -200,13 +200,13 @@ Per `docs/frontend-layout.md`:
 
 ### Files modified (existing)
 
-- `web/src/lib/settings/components/SettingsScreen.svelte` — *People*
+- `web/src/lib/settings/components/SettingsScreen.svelte` — _People_
   section with Invites + Privacy NavRows (0801 scaffolds the
   section; 0803 wires the Invites count badge).
 - `web/src/lib/list/components/ListsScreen.svelte` — render
   `<InvitesBanner>` above the list rows (0803).
-- `web/src/lib/list/components/ListOverflowSheet.svelte` — *Manage
-  members* + *Leave list* rows (0803).
+- `web/src/lib/list/components/ListOverflowSheet.svelte` — _Manage
+  members_ + _Leave list_ rows (0803).
 - `plans/0000_implementation_order.md` — tick step 8's checkbox and
   update the parenthetical from "(rename/edit/leave/delete/view-trash)"
   to "(rename/edit/members/view-trash/leave/delete)" so the documented
@@ -220,27 +220,27 @@ sub-branch is cut, so the sub-plan authors find the docs already in
 the shape the plan assumes.
 
 - `docs/invites.md` § "Pending-invite cap" (the paragraph that ends
-  *"20 is tunable; the right number is 'high enough that no normal
-  user ever notices.'"*) — extend with a sentence pinning the
-  email-keyed carve-out: *"The cap applies to `target_user_id`-keyed
+  _"20 is tunable; the right number is 'high enough that no normal
+  user ever notices.'"_) — extend with a sentence pinning the
+  email-keyed carve-out: _"The cap applies to `target_user_id`-keyed
   pending invitations only; `target_email`-only rows (addressed to
   not-yet-registered users) are uncapped and convert to user-keyed
   rows at sign-up. Capping the email-keyed surface would let an
   attacker who knows an e-mail address evict that address's
-  already-pending sign-up nudges by flooding adjacent typos."* This
+  already-pending sign-up nudges by flooding adjacent typos."_ This
   matches R12 and the trigger gate in TASKS Phase 1.
 - `docs/invites.md` § "RLS and stored procedures" (the paragraph
-  starting *"Insert and delete on `invitations`, …"*) — carve out
+  starting _"Insert and delete on `invitations`, …"_) — carve out
   the inviter-self cancel path: *"The one exception is the inviter's
   own *cancel pending invite* action, which is a direct
   `DELETE /invitations?id=eq.<uuid>` gated by the `invitations_delete`
   policy (`USING (created_by = public.uid())`); accept and decline
   by the invitee still go through RPCs."*
 - `docs/data-model.md` § "What the app sees" — add a line under the
-  `invitations` endpoint block: *"`DELETE /invitations?id=eq.<uuid>` —
+  `invitations` endpoint block: _"`DELETE /invitations?id=eq.<uuid>` —
   cancel a pending invite you created (inviter only; the
   `invitations_delete` RLS policy scopes the delete to your own
-  rows)."*
+  rows)."_
 
 The corresponding pgTAP coverage and the migration that creates
 `invitations_delete` itself land in 0802 — Phase 0 only reconciles
@@ -250,7 +250,7 @@ the prose so the sub-plan's tests have a doc to point to.
 `0801_privacy_circle_blocked` from `0800_invites_circles_ui`. Run
 `/write-plan` to create its three plan files. Implement the Privacy /
 Circle / Blocked screens + circle explainer sheet, the
-`relationships.svelte.ts` state module, the new *People* section
+`relationships.svelte.ts` state module, the new _People_ section
 scaffolding in SettingsScreen, and the
 `0010_invite_cascades.sql` migration + pgTAP. Verify with
 `./scripts/check.sh`. Merge back via `--no-ff`. Satisfies R1–R4, R11–R12,
@@ -275,8 +275,8 @@ Verify with `./scripts/check.sh`. Merge back via `--no-ff`. Satisfies R5.
 `/write-plan` to create its three plan files. Implement the
 `invitations.svelte.ts` state module, `<InvitesBanner>`, `/settings/invites`
 route, post-accept circle prompt, `<InvitePickerSheet>`, Members
-screen at `/lists/[list_id]/members`, the *Manage members* and *Leave
-list* overflow rows, and the Settings *People* section's Invites
+screen at `/lists/[list_id]/members`, the _Manage members_ and _Leave
+list_ overflow rows, and the Settings _People_ section's Invites
 count badge. Add Playwright e2e specs `invites.spec.ts`,
 `block.spec.ts`, `privacy.spec.ts`. Verify with
 `./scripts/check.sh --e2e`. Merge back via `--no-ff`. Satisfies R6–R10,
@@ -298,12 +298,11 @@ a later sub-plan because 0801's `/settings/privacy`,
 anywhere; 0803's `/settings/invites` and `/lists/[list_id]/members`
 land together with their callers in the same sub-plan.
 
-One soft edge survives: 0801's Settings *People* section scaffolds
-the **Invites** NavRow with the placeholder sub-line *"No pending
-invites"*, but the `/settings/invites` route doesn't exist until
-0803. Rendering the NavRow as a real `<NavRow>` `href={"/settings/invites"}`
+One soft edge survives: 0801's Settings _People_ section scaffolds
+the **Invites** NavRow with the placeholder sub-line _"No pending
+invites"_, but the `/settings/invites` route doesn't exist until 0803. Rendering the NavRow as a real `<NavRow>` `href={"/settings/invites"}`
 in 0801 would fail `svelte-check`'s typed-routes pass. The plan
-chooses **option (a) — fold a stub** is *not* used here; instead
+chooses **option (a) — fold a stub** is _not_ used here; instead
 **option (c) — pre-pick** the escape: 0801 renders the Invites row
 as a **non-interactive** `<div>` (no `<button>`, no `<a>`, no
 `onclick`, `cursor: default`), styled identically to the live NavRow

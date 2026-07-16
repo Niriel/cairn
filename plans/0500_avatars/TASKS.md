@@ -25,6 +25,7 @@ can be built against it. Landing the migration first means sub-plans 0502 and
 **Prerequisites:** `0500_avatars` branch exists and is checked out.
 
 **Decisions:**
+
 - Sub-branch is cut from `0500_avatars`, not from `main`.
 - Scope: `db/migrations/0007_avatars.sql` (column + three RPCs + trigger
   rebind — DROP + CREATE) and `db/tests/avatars.sql` (pgTAP, R1–R4 and
@@ -35,6 +36,7 @@ can be built against it. Landing the migration first means sub-plans 0502 and
   the Edit Profile screen (0503) needs it and the migration is the right home.
 
 **Steps:**
+
 1. `git checkout -b 0501_avatar_db 0500_avatars`
 2. Invoke `/write-plan` to create `plans/0501_avatar_db/` with its
    REQUIREMENTS.md, PLAN.md, and TASKS.md.
@@ -62,6 +64,7 @@ Playwright tests.
 RPCs the sidecar calls (`bump_avatar_version`).
 
 **Decisions:**
+
 - Sub-branch cut from the updated `0500_avatars` (post-0501 merge).
 - Scope: `sidecar/` Node/TypeScript service (R5), `docker-compose.yml` sidecar
   service entry + named `avatars` volume, `caddy/Caddyfile` `/avatars/*` block
@@ -72,10 +75,10 @@ RPCs the sidecar calls (`bump_avatar_version`).
   security-critical validation gates — (a) a file whose extension says JPEG
   but whose magic bytes are not JPEG, (b) a valid small JPEG that decodes to
   > 4096×4096 pixels (image bomb), and (c) a body exceeding 8 MB. A minimal
-  integration-test script (e.g. `sidecar/test/validate.test.ts` run via
-  `pnpm test` inside `sidecar/`, called from `./scripts/check.sh`) is the
-  preferred form. These gates are the load-bearing security surface; manual
-  `curl` alone is not a repeatable regression guard.
+  > integration-test script (e.g. `sidecar/test/validate.test.ts` run via
+  > `pnpm test` inside `sidecar/`, called from `./scripts/check.sh`) is the
+  > preferred form. These gates are the load-bearing security surface; manual
+  > `curl` alone is not a repeatable regression guard.
 - `jose` JWT verification requires the GoTrue JWT secret; the 0502 sub-plan
   must document the sidecar env var (e.g. `GOTRUE_JWT_SECRET`) in
   `docker-compose.yml` and note how it is sourced. The sidecar also needs a
@@ -94,6 +97,7 @@ RPCs the sidecar calls (`bump_avatar_version`).
   fails with EXDEV and the "atomic" property is lost.
 
 **Steps:**
+
 1. `git checkout -b 0502_avatar_sidecar 0500_avatars`
 2. Invoke `/write-plan` to create `plans/0502_avatar_sidecar/` with its three files.
 3. Implement the sub-plan task by task.
@@ -121,6 +125,7 @@ the sidecar (0502) being in place.
 migration RPCs and the running sidecar + Caddy serve path.
 
 **Decisions:**
+
 - Sub-branch cut from the updated `0500_avatars` (post-0502 merge).
 - Scope covers R7–R12 (UI half): `<Avatar>` photo branch, `profile.svelte.ts`
   update, Settings profile chip navigation, Edit Profile screen, AvatarSourceSheet,
@@ -167,6 +172,7 @@ migration RPCs and the running sidecar + Caddy serve path.
   Decisions so the executor doesn't make a dependency decision ad hoc mid-task.
 
 **Steps:**
+
 1. `git checkout -b 0503_avatar_frontend 0500_avatars`
 2. Invoke `/write-plan` to create `plans/0503_avatar_frontend/` with its three files.
 3. Implement the sub-plan task by task.
@@ -191,6 +197,7 @@ branch before it lands on `main`.
 **Prerequisites:** Tasks 1.1, 2.1, 3.1 all merged into `0500_avatars`.
 
 **Decisions:**
+
 - Run the full E2E suite before merging — the avatar upload and remove flows
   must pass alongside the step-4 flows (lists, items, settings, sign out).
 - Tick step 5's checkbox in `plans/0000_implementation_order.md` as part of
@@ -200,6 +207,7 @@ branch before it lands on `main`.
   `docs/avatars.md` § Open questions recording the Node choice.
 
 **Steps:**
+
 1. On `0500_avatars`, run `./scripts/check.sh --e2e` — must be green.
 2. Edit `docs/open-questions.md`: delete the "Sidecar implementation language"
    bullet under Avatars.
@@ -221,8 +229,8 @@ branch before it lands on `main`.
 8. Edit `plans/0000_implementation_order.md` step 5 description: replace
    "Go / Python / Node — see `docs/open-questions.md`" with
    "TypeScript/Node (decided 2026-05; see `plans/0500_avatars/PLAN.md`)".
-7. Commit: `chore(plan): tick step 5 in implementation order`.
-8. `git checkout main && git merge --no-ff 0500_avatars`
+9. Commit: `chore(plan): tick step 5 in implementation order`.
+10. `git checkout main && git merge --no-ff 0500_avatars`
 
 **Verify:** `./scripts/check.sh --e2e` green on `main`. Avatar upload, replace,
 and remove flows work in the browser.

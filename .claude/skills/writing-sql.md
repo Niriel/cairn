@@ -46,17 +46,17 @@ form rather than `--noqa`-ing the rule, since the workaround is
 load-bearing for the parser rather than for the dialect.
 
 - **`SET LOCAL` with a dotted GUC name.** `SET LOCAL
-  request.jwt.claims = '…'` fails with a PRS error. Use the
+request.jwt.claims = '…'` fails with a PRS error. Use the
   function form: `SELECT set_config('request.jwt.claims', '…',
-  TRUE);` — third arg `TRUE` is the `is_local` flag, equivalent
+TRUE);` — third arg `TRUE` is the `is_local` flag, equivalent
   to `SET LOCAL`.
 - **Multi-role `GRANT … TO …`.** `GRANT anon, authenticated TO
-  authenticator;` trips the parser. Split into two single-role
+authenticator;` trips the parser. Split into two single-role
   GRANT statements. Semantics unchanged.
 - **Reserved words as unquoted identifiers.** Two flavours:
   - **Actually reserved** in Postgres's grammar — `role` is the
     canonical offender (a column named `role` fails the linter
-    *and* would force quoting at every call site). Rename the
+    _and_ would force quoting at every call site). Rename the
     column, or quote it (`"role"`) — renaming is usually the
     cheaper fix.
   - **Non-reserved keywords** that Postgres accepts unquoted but
@@ -77,7 +77,7 @@ load-bearing for the parser rather than for the dialect.
   `users_alice_bob_carol.sql` and `list_shared_alice_bob.sql`
   use).
 - **Comments containing the linter's own name.** sqlfluff parses
-  any comment containing the literal token *sqlfluff* as an
+  any comment containing the literal token _sqlfluff_ as an
   attempted inline config statement and emits a WARNING. Reword
   to "the SQL linter" or similar in code comments.
 
@@ -98,6 +98,7 @@ wrong shape with `LT02` errors. Use the accepted form from the start.
 
 - **Multi-line subqueries inside pgTAP helpers (`is`, `cmp_ok`,
   `ok`).** The subquery must expand to its own line group:
+
   ```sql
   SELECT is(
     (
@@ -108,6 +109,7 @@ wrong shape with `LT02` errors. Use the accepted form from the start.
     'description'
   );
   ```
+
   The broken form — `(SELECT … FROM …\n   WHERE …)` with the
   closing paren on the WHERE line — trips LT02 on both lines.
   Single-line subqueries (`(SELECT count(*) FROM t)`) are fine
@@ -116,18 +118,20 @@ wrong shape with `LT02` errors. Use the accepted form from the start.
 - **Array type casts: `text []` not `text[]`.** sqlfluff (LT01)
   requires a space between the `text` keyword and the `[]`:
   `ARRAY[]::text []`. Without the space: `LT01 Expected single
-  whitespace between 'text' keyword and start square bracket`.
+whitespace between 'text' keyword and start square bracket`.
 
 - **`ALTER TABLE … ADD COLUMN … CHECK` — zero indentation on
   continuation lines.** Unlike a `CREATE TABLE` body, the lines
   after `ALTER TABLE` are at column 0:
+
   ```sql
   ALTER TABLE public.profiles
   ADD COLUMN avatar_version int NOT NULL DEFAULT 0
   CHECK (avatar_version >= 0);
   ```
+
   Indenting `ADD COLUMN` or `CHECK` triggers `LT02 Line should
-  not be indented`.
+not be indented`.
 
 - **`ok(…)` closing `)` on its own line.** The closing paren of
   `ok(…, 'description')` must be on a separate line; appending it
@@ -167,7 +171,7 @@ can damage valid SQL. Surface area is small; know the traps.
   `sqlfluff fix` rewrote `i.id = item_id` to `i.id = i.item_id`
   — but `items` has no `item_id` column, so the migration then
   errored on apply with `column i.item_id does not exist`. The
-  bare `item_id` is correct *Postgres* (correlated reference to
+  bare `item_id` is correct _Postgres_ (correlated reference to
   the policy's row) but RF03 doesn't model the outer scope.
   **Pre-qualify the outer reference**: write
   `i.id = public.votes.item_id` (schema-qualified) so the linter
@@ -214,7 +218,7 @@ Any INSERT into `lists`, `items`, or `list_members` runs the
 `tg_set_attribution_*` BEFORE-INSERT triggers, which read
 `public.uid()` from `request.jwt.claims` and write `created_by`.
 A NULL claim fails the row's NOT NULL — so claims must be set
-*before* the INSERT.
+_before_ the INSERT.
 
 ```sql
 SELECT set_config(
@@ -238,7 +242,7 @@ transaction overwrite (e.g., switching from "act as Alice" to
 - **`authenticated`** — the role real users land in. Exercises
   RLS policies. Switch via `SET LOCAL ROLE authenticated;`.
 - **`anon`** — the unauthenticated role. Switch via `SET LOCAL
-  ROLE anon;`. Hits the GRANT layer (PostgREST denies anon on
+ROLE anon;`. Hits the GRANT layer (PostgREST denies anon on
   every new-table verb) before RLS gets a chance.
 
 **Critical: don't run policy-layer negatives as `cairn`.** A
@@ -279,7 +283,7 @@ defers symbol resolution to call time.
 
 Both wrap their query in an internal SAVEPOINT. A failed query
 inside is contained — the transaction stays usable. Plain
-INSERT *outside* one of these wrappers can abort the transaction
+INSERT _outside_ one of these wrappers can abort the transaction
 on error (Phase B / pre-migration runs commonly hit this when a
 table doesn't yet exist), turning every subsequent assertion
 into "current transaction is aborted." Diagnostic noise but
@@ -292,16 +296,16 @@ sqlstate; pass `NULL` for `errmsg` unless the exact text is
 load-bearing (it usually isn't — exact wording varies across
 postgres versions).
 
-| SQLSTATE | Name | Typical use |
-|---|---|---|
-| 23502 | not_null_violation | NOT NULL column got NULL |
-| 23503 | foreign_key_violation | FK target row missing |
-| 23505 | unique_violation | PK/unique-index duplicate |
-| 23514 | check_violation | CHECK constraint failed |
-| 42501 | insufficient_privilege | GRANT-layer denial |
-| 42P01 | undefined_table | table doesn't exist (Phase B reds) |
-| 28000 | invalid_authorization_specification | RPC body's `not authenticated` / `tombstone-user` guards |
-| P0001 | raise_exception | PL/pgSQL `RAISE` without an explicit SQLSTATE (the freeze triggers, custom error helpers) |
+| SQLSTATE | Name                                | Typical use                                                                               |
+| -------- | ----------------------------------- | ----------------------------------------------------------------------------------------- |
+| 23502    | not_null_violation                  | NOT NULL column got NULL                                                                  |
+| 23503    | foreign_key_violation               | FK target row missing                                                                     |
+| 23505    | unique_violation                    | PK/unique-index duplicate                                                                 |
+| 23514    | check_violation                     | CHECK constraint failed                                                                   |
+| 42501    | insufficient_privilege              | GRANT-layer denial                                                                        |
+| 42P01    | undefined_table                     | table doesn't exist (Phase B reds)                                                        |
+| 28000    | invalid_authorization_specification | RPC body's `not authenticated` / `tombstone-user` guards                                  |
+| P0001    | raise_exception                     | PL/pgSQL `RAISE` without an explicit SQLSTATE (the freeze triggers, custom error helpers) |
 
 ## RLS testing — defence in depth
 
@@ -312,12 +316,12 @@ policy ships with positive AND negative coverage.
 layer that should deny the call, in the same test file:
 
 - GRANT layer: under `SET LOCAL ROLE anon`, `throws_ok …
-  SQLSTATE 42501`.
+SQLSTATE 42501`.
 - Policy layer: under `SET LOCAL ROLE authenticated` with
-  `request.jwt.claims` *not set*, `is(count, 0)` — exercises the
+  `request.jwt.claims` _not set_, `is(count, 0)` — exercises the
   policy body itself.
 
-Without splitting, a future change that adds an INSERT grant *or*
+Without splitting, a future change that adds an INSERT grant _or_
 adds a permissive policy can silently re-open a footgun while the
 combined check still passes. Splitting is the whole point.
 
@@ -354,9 +358,9 @@ satisfiable if the trigger ever gets dropped.
 ## Trigger / cascade testing
 
 - **`ON DELETE SET DEFAULT` on `created_by` / `deleted_by`** — the
-  account-deletion mechanism. Test seeds must use a *cross-actor*
+  account-deletion mechanism. Test seeds must use a _cross-actor_
   shape: if Alice-creates-Alice's-own-membership-row, deleting
-  Alice fires the `list_members.user_id` CASCADE *first* and the
+  Alice fires the `list_members.user_id` CASCADE _first_ and the
   row vanishes before the `SET DEFAULT` on `created_by` runs.
   Make the row's `user_id` someone other than the user under
   test.
@@ -380,7 +384,7 @@ satisfiable if the trigger ever gets dropped.
 - Never `GRANT … TO PUBLIC` casually — Postgres grants EXECUTE to
   PUBLIC by default on new functions, so the canonical pattern
   for SECURITY DEFINER helpers is `REVOKE EXECUTE … FROM PUBLIC;`
-  *then* `GRANT EXECUTE … TO authenticated;`.
+  _then_ `GRANT EXECUTE … TO authenticated;`.
 
 ## Cross-references
 

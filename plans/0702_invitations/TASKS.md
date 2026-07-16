@@ -5,7 +5,7 @@
 - **`.claude/skills/writing-sql.md`** — pgTAP conventions, fixture include pattern, `throws_ok`/`is`/`ok`/`results_eq` shapes, SQLSTATE cheat sheet, role-context pattern; SQLFluff conventions for migration files.
 - **`docs/invites.md`** — canonical 8-step check sequence prose, function sketches for `send_invitation` / `accept_invitation` / `decline_invitation`, "Block always wins" prose.
 - **`docs/data-model.md`** — schema conventions, RLS catalogue, trigger naming (`t05_`, `t20_`, `t40_`).
-- **`docs/testing.md`** — pgTAP positive *and* negative cases for every new policy; fixture include path.
+- **`docs/testing.md`** — pgTAP positive _and_ negative cases for every new policy; fixture include path.
 - **`plans/0701_relationships/TASKS.md`** — precedent for fixture path (`/db/tests/fixtures/…`), cross-scenario cleanup, role-context block, `SET LOCAL ROLE authenticated` + `set_config('request.jwt.claims', …)` pattern.
 
 ---
@@ -18,8 +18,7 @@
 **Completed:** 2026-05-28T10:48:26Z
 
 **Why:** Two related doc gaps that Phase 1 will otherwise diverge
-from. (a) `docs/data-model.md`'s "Triggers" paragraph (around line
-618) names `t10_*, t20_*, t30_*` as the binding-prefix convention,
+from. (a) `docs/data-model.md`'s "Triggers" paragraph (around line 618) names `t10_*, t20_*, t30_*` as the binding-prefix convention,
 but the codebase already uses `t01_*` (freezes) and `t05_*`
 (timestamps) — and Task 1.1 introduces `t40_block_declines_invitations`
 as the first `t40_*` AFTER trigger. Documenting only `t10/t20/t30`
@@ -35,35 +34,38 @@ and matches what the migration actually ships.
 **Prerequisites:** None.
 
 **Decisions:**
+
 - Single commit covers both doc edits; both are pre-Phase-1
   reconciliation, both target `docs/`, and shipping them together
   keeps the doc commit-history coherent.
 - Trigger-chart edit: rewrite the "Naming convention" paragraph to
   list the full set in use — `t01_*` (BEFORE freezes, fire first),
   `t05_*` (universal timestamp guard), `t10_*`/`t20_*` (per-table
-  BEFORE attribution and modified_at work), `t40_*` (AFTER triggers
-  whose row work depends on the post-change durable state, concrete
-  example `t40_block_declines_invitations` on `relationships` from
-  migration 0009). Note `t30_*` is currently unused and reserved
+  BEFORE attribution and modified*at work), `t40*_`(AFTER triggers
+whose row work depends on the post-change durable state, concrete
+example`t40*block_declines_invitations`on`relationships`from
+migration 0009). Note`t30*_` is currently unused and reserved
   for a future BEFORE slot. State that AFTER triggers follow the
   same alphabetical-firing-order rule as BEFORE triggers.
 - `accept_invitation` sketch edit: drop `created_by` from the
   INSERT column list (and the matching `public.uid()` value), so
   the sketch reads
   `INSERT INTO public.list_members (list_id, user_id) VALUES
-  (inv.list_id, public.uid()) ON CONFLICT (list_id, user_id) DO
-  UPDATE SET deleted_at = null, deleted_by = null;`. Add a one-line
+(inv.list_id, public.uid()) ON CONFLICT (list_id, user_id) DO
+UPDATE SET deleted_at = null, deleted_by = null;`. Add a one-line
   comment immediately above noting that
   `tg_set_attribution_list_members` fills `created_by` on the
   fresh-INSERT path and preserves it on the restore path.
-- No code changes in this task. The migration that *uses* the
+- No code changes in this task. The migration that _uses_ the
   `t40_*` prefix and the two-column INSERT lands in Phase 1.
 
 **Files:**
+
 - `docs/data-model.md` (modify)
 - `docs/invites.md` (modify)
 
 **Steps:**
+
 1. In `docs/data-model.md` "Triggers" → "Naming convention"
    paragraph, rewrite the sentence that lists `t10_*, t20_*, t30_*`
    so it covers the full set in use: `t01_*` (BEFORE freezes,
@@ -113,61 +115,63 @@ the two circle RPCs are present). Fixtures
 
 **Decisions:**
 
-*Migration shape:*
+_Migration shape:_
+
 - File: `db/migrations/0009_invitations.sql`. Single `BEGIN; … COMMIT;`
   transaction (matches `0004_domain_schema.sql` and
   `0008_relationships.sql`).
 - Body order:
   1. `CREATE TABLE public.invitations` — columns in canonical order
      per R1 (`id, list_id, created_by, target_user_id, target_email,
-     created_at, modified_at`) with the FKs and the CHECK
+created_at, modified_at`) with the FKs and the CHECK
      `(target_user_id is not null or target_email is not null)`.
   2. `CREATE UNIQUE INDEX invitations_target_user_uniq ON
-     public.invitations (list_id, target_user_id) WHERE target_user_id
-     IS NOT NULL;`
+public.invitations (list_id, target_user_id) WHERE target_user_id
+IS NOT NULL;`
   3. `CREATE UNIQUE INDEX invitations_target_email_uniq ON
-     public.invitations (list_id, lower(target_email)) WHERE
-     target_email IS NOT NULL AND target_user_id IS NULL;`
+public.invitations (list_id, lower(target_email)) WHERE
+target_email IS NOT NULL AND target_user_id IS NULL;`
   4. `ALTER TABLE public.invitations ENABLE ROW LEVEL SECURITY;`
   5. `GRANT SELECT ON public.invitations TO authenticated;` (no
      INSERT/UPDATE/DELETE grants — RPCs only).
   6. Trigger binding: `CREATE TRIGGER t05_set_timestamps BEFORE INSERT
-     OR UPDATE ON public.invitations FOR EACH ROW EXECUTE FUNCTION
-     public.tg_set_timestamps();`. No `tg_set_modified_at` binding —
+OR UPDATE ON public.invitations FOR EACH ROW EXECUTE FUNCTION
+public.tg_set_timestamps();`. No `tg_set_modified_at` binding —
      `invitations` has no mutable payload columns in v1.
   7. RLS policy `invitations_select` per R3.
   8. `CREATE OR REPLACE FUNCTION public.send_invitation(p_list_id
-     uuid, p_email text DEFAULT NULL, p_user_id uuid DEFAULT NULL)
-     RETURNS uuid LANGUAGE plpgsql SECURITY DEFINER SET search_path
-     = public, auth AS $$ … $$;` Then `REVOKE ALL ON FUNCTION
-     public.send_invitation(uuid, text, uuid) FROM public; GRANT
-     EXECUTE ON FUNCTION public.send_invitation(uuid, text, uuid) TO
-     authenticated;`.
+uuid, p_email text DEFAULT NULL, p_user_id uuid DEFAULT NULL)
+RETURNS uuid LANGUAGE plpgsql SECURITY DEFINER SET search_path
+= public, auth AS $$ … $$;` Then `REVOKE ALL ON FUNCTION
+public.send_invitation(uuid, text, uuid) FROM public; GRANT
+EXECUTE ON FUNCTION public.send_invitation(uuid, text, uuid) TO
+authenticated;`.
   9. `accept_invitation` — same `REVOKE/GRANT` pair. `search_path = public`.
   10. `decline_invitation` — same `REVOKE/GRANT` pair. `search_path = public`.
   11. `CREATE OR REPLACE FUNCTION public.tg_block_declines_invitations()
-      RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path
-      = public AS $$ BEGIN IF NEW.status = 'blocked' THEN DELETE FROM
-      public.invitations WHERE created_by = NEW.other_user_id AND
-      target_user_id = NEW.user_id; END IF; RETURN NEW; END; $$;`
+RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path
+= public AS $$ BEGIN IF NEW.status = 'blocked' THEN DELETE FROM
+public.invitations WHERE created_by = NEW.other_user_id AND
+target_user_id = NEW.user_id; END IF; RETURN NEW; END; $$;`
   12. `CREATE TRIGGER t40_block_declines_invitations AFTER INSERT OR
-      UPDATE OF status ON public.relationships FOR EACH ROW EXECUTE
-      FUNCTION public.tg_block_declines_invitations();`
+UPDATE OF status ON public.relationships FOR EACH ROW EXECUTE
+FUNCTION public.tg_block_declines_invitations();`
 
-*RPC bodies — locked-in details:*
+_RPC bodies — locked-in details:_
+
 - `send_invitation` step 1 uses `public.is_list_member(p_list_id)`
   (the helper from `0004_domain_schema.sql`). If false → `RAISE
-  EXCEPTION 'not a list member'`. The helper already runs as the
+EXCEPTION 'not a list member'`. The helper already runs as the
   invoker's identity via `public.uid()`, but `send_invitation` is
   `SECURITY DEFINER` — must verify the helper reads `public.uid()`
   inside, not the function-owner's identity. (It does; see
   `0004_domain_schema.sql`.)
 - Step 4 (existing-membership): `EXISTS (SELECT 1 FROM
-  public.list_members WHERE list_id = p_list_id AND user_id = target
-  AND deleted_at IS NULL)`. The `deleted_at IS NULL` clause is what
+public.list_members WHERE list_id = p_list_id AND user_id = target
+AND deleted_at IS NULL)`. The `deleted_at IS NULL` clause is what
   makes a soft-deleted member treated as non-member; without it the
   test for "soft-deleted member can be re-invited" would fail.
-- Step 5 (existing-invite) returns the *existing* invitation id, not
+- Step 5 (existing-invite) returns the _existing_ invitation id, not
   null. Pattern:
   ```sql
   if target is not null then
@@ -223,9 +227,10 @@ the two circle RPCs are present). Fixtures
   email-keyed invitations because `NULL IS DISTINCT FROM uid()` is
   true.
 
-*Test counts — explicitly not pre-pinned:*
+_Test counts — explicitly not pre-pinned:_
+
 - New test file `db/tests/invitations.sql` uses `SELECT * FROM
-  no_plan();` at the top instead of `SELECT plan(N)`. We don't track
+no_plan();` at the top instead of `SELECT plan(N)`. We don't track
   the assertion count in the plan; what matters is that every
   assertion below passes. Adding or removing an assertion later is a
   one-line edit instead of a count-then-bump dance.
@@ -235,7 +240,7 @@ the two circle RPCs are present). Fixtures
   N here. New assertion content:
   - `schema_shape.sql` — `has_table('public', 'invitations', …)`;
     `has_column` for `id, list_id, created_by, target_user_id,
-    target_email, created_at, modified_at`; `has_function` for
+target_email, created_at, modified_at`; `has_function` for
     `send_invitation(uuid, text, uuid)`, `accept_invitation(uuid)`,
     `decline_invitation(uuid)`.
   - `grants.sql` — positives: SELECT on invitations for
@@ -243,7 +248,8 @@ the two circle RPCs are present). Fixtures
     authenticated. Negatives for anon: no SELECT on invitations, no
     EXECUTE on any of the three RPCs.
 
-*Test fixtures and context:*
+_Test fixtures and context:_
+
 - Use Alice UUID `aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa`, Bob UUID
   `bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb`, Carol UUID
   `cccccccc-cccc-cccc-cccc-cccccccccccc` from the canonical fixture.
@@ -261,7 +267,7 @@ the two circle RPCs are present). Fixtures
   this case (R4 step 2 says "From `p_user_id` directly"), so the FK
   raises naturally. Pin `23503` for that assertion.
 - `SET LOCAL ROLE authenticated` + `set_config('request.jwt.claims',
-  json_build_object('sub', '<uid>')::text, true)` for RLS / RPC
+json_build_object('sub', '<uid>')::text, true)` for RLS / RPC
   invocation context. `RESET ROLE` between scenarios that need
   superuser reads to check post-effect state.
 - **Cross-scenario cleanup convention.** Between scenarios, as
@@ -270,8 +276,8 @@ the two circle RPCs are present). Fixtures
      fixture seeds this table.
   2. `DELETE FROM public.relationships;` — full wipe; same.
   3. `DELETE FROM public.list_members WHERE NOT (list_id =
-     '22222222-2222-2222-2222-222222222222' AND user_id =
-     'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa');` — preserves Alice's
+'22222222-2222-2222-2222-222222222222' AND user_id =
+'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa');` — preserves Alice's
      solo-list membership from the `list_solo_alice.sql` fixture so
      subsequent scenarios' inviter-membership guard still passes.
      Equivalent alternative: do a full `DELETE` and then re-include
@@ -279,7 +285,7 @@ the two circle RPCs are present). Fixtures
      `ON CONFLICT DO NOTHING` makes re-inclusion idempotent). Pick
      one and stick with it.
   4. `UPDATE public.user_settings SET invite_policy = 'everybody'
-     WHERE id IN ('aaaaaaaa-…', 'bbbbbbbb-…', 'cccccccc-…');` —
+WHERE id IN ('aaaaaaaa-…', 'bbbbbbbb-…', 'cccccccc-…');` —
      resets policy back to the default so scenarios after J / K / L
      (which mutate Bob's policy) don't read stale state.
 
@@ -292,8 +298,8 @@ the two circle RPCs are present). Fixtures
   session GUC; the `set_config(…, TRUE)` calls in fixtures and prior
   scenarios persist across `RESET ROLE`. Every scenario's setup must
   re-issue `SELECT set_config('request.jwt.claims', '{"sub":"<uid>"}',
-  TRUE);` for the acting identity *before* `SET LOCAL ROLE
-  authenticated` — relying on a fixture's claim or a prior scenario's
+TRUE);` for the acting identity _before_ `SET LOCAL ROLE
+authenticated` — relying on a fixture's claim or a prior scenario's
   claim is how scenarios after J/K/L (which switch to Bob) silently
   end up acting as Bob in subsequent setups. Either re-include
   `list_solo_alice.sql` (which re-sets claims to Alice) or call
@@ -310,6 +316,7 @@ for `is_list_member`, `tg_set_attribution_list_members`,
 migration relies on).
 
 **Files:**
+
 - `db/tests/invitations.sql` (create — uses `SELECT * FROM no_plan();`)
 - `db/tests/schema_shape.sql` (modify — add the `has_table`,
   `has_column`, `has_function` assertions listed in step 2; bump the
@@ -323,6 +330,7 @@ migration relies on).
 **Steps:**
 
 1. RED — Create `db/tests/invitations.sql`. Structure:
+
    ```sql
    BEGIN;
    SELECT no_plan();
@@ -332,6 +340,7 @@ migration relies on).
    SELECT finish();
    ROLLBACK;
    ```
+
    `no_plan()` (rather than `plan(N)`) lets us add or remove
    assertions without re-counting; what matters is that every
    assertion below passes, not that we hit a specific count.
@@ -347,7 +356,7 @@ migration relies on).
 
    **A. `invitations_select` RLS (3 assertions)**
    - Setup: as superuser, insert one invite `(list_alice, Alice, Bob,
-     null)` (inviter=Alice, invitee=Bob) into `public.invitations`.
+null)` (inviter=Alice, invitee=Bob) into `public.invitations`.
    - A1: Alice (inviter) selects her sent invitations — count = 1.
    - A2: Bob (invitee) selects invitations addressed to him — count = 1.
    - A3: Carol (outsider) sees nothing — count = 0.
@@ -358,9 +367,9 @@ migration relies on).
    - B1: as Alice, `send_invitation(list_alice, p_user_id := Bob)`
      returns a non-null uuid.
    - B2: a row exists in `invitations` with `created_by = Alice,
-     target_user_id = Bob, target_email IS NULL, list_id = list_alice`.
+target_user_id = Bob, target_email IS NULL, list_id = list_alice`.
    - B3: re-calling `send_invitation(list_alice, p_user_id := Bob)`
-     returns the *same* uuid (idempotency / step-5 existing-invite check).
+     returns the _same_ uuid (idempotency / step-5 existing-invite check).
 
    **C. `send_invitation` — inviter-membership check (1 assertion)**
    - Setup: a list owned by Carol (Alice is not a member). Use an ad-hoc
@@ -375,11 +384,11 @@ migration relies on).
 
    **E. `send_invitation` — missing args (1 assertion)**
    - E1: as Alice, `send_invitation(list_alice, p_email := null,
-     p_user_id := null)` → `throws_ok` `P0001`.
+p_user_id := null)` → `throws_ok` `P0001`.
 
    **F. `send_invitation` — non-existent UUID (1 assertion)**
    - F1: as Alice, `send_invitation(list_alice, p_user_id :=
-     'ffffffff-ffff-ffff-ffff-ffffffffffff'::uuid)` → `throws_ok`
+'ffffffff-ffff-ffff-ffff-ffffffffffff'::uuid)` → `throws_ok`
      SQLSTATE `23503` (foreign_key_violation from `target_user_id` FK
      to `auth.users`). **Do not use the tombstone UUID
      `00000000-…` here** — the tombstone is a valid `auth.users` row
@@ -417,30 +426,30 @@ migration relies on).
 
    **L. `send_invitation` — policy = 'circle', in circle (1 assertion)**
    - Setup: Bob's `invite_policy = 'circle'`; insert `(Bob, Alice,
-     'circle')` into `relationships`.
+'circle')` into `relationships`.
    - L1: as Alice, `send_invitation(list_alice, p_user_id := Bob)`
      returns a non-null uuid (invite proceeds).
 
    **M. `send_invitation` — email-keyed, unregistered email (3 assertions)**
    - M1: as Alice, `send_invitation(list_alice, p_email :=
-     'nobody@example.com')` returns a non-null uuid (policy/block
+'nobody@example.com')` returns a non-null uuid (policy/block
      checks skipped for unregistered).
    - M2: an `invitations` row exists with `target_user_id IS NULL,
-     target_email = 'nobody@example.com'`.
+target_email = 'nobody@example.com'`.
    - M3: re-calling `send_invitation(list_alice, p_email :=
-     'nobody@example.com')` returns the *same* uuid (step-5
+'nobody@example.com')` returns the _same_ uuid (step-5
      idempotency on the `target_user_id IS NULL AND
-     lower(target_email) = lower(p_email)` branch — parallel to O1
+lower(target_email) = lower(p_email)` branch — parallel to O1
      for the user-keyed path).
 
    **N. `send_invitation` — both p_email and p_user_id non-null, p_user_id wins (1 assertion)**
    - N1: as Alice, `send_invitation(list_alice, p_email :=
-     'irrelevant@example.com', p_user_id := Bob)` returns a uuid; the
+'irrelevant@example.com', p_user_id := Bob)` returns a uuid; the
      resulting row has `target_user_id = Bob` and `target_email IS NULL`.
 
    **O. `send_invitation` — step-5 idempotency under pre-existing invitation (2 assertions)**
    - Setup: as superuser, directly INSERT a row `(list_alice, Alice,
-     Bob, null)` into `public.invitations`, bypassing the RPC. This
+Bob, null)` into `public.invitations`, bypassing the RPC. This
      exercises the step-5 short-circuit, **not** the
      EXCEPTION-with-SELECT branch — the latter is unreachable from a
      single-session pgTAP test because the RPC's step-5 SELECT sees
@@ -458,13 +467,13 @@ migration relies on).
      into `invitations`. Capture the invitation id.
    - P1: as Bob, `accept_invitation(inv_id)` returns without error.
    - P2: a `list_members` row exists with `list_id = list_alice,
-     user_id = Bob, created_by = Bob, deleted_at IS NULL`.
+user_id = Bob, created_by = Bob, deleted_at IS NULL`.
    - P3: the `invitations` row is gone (count = 0).
 
    **Q. `accept_invitation` — restores soft-deleted membership (3 assertions)**
    - Setup: insert a soft-deleted `(list_alice, Bob, …, deleted_at =
-     now())` into `list_members`. Insert `(list_alice, Alice, Bob,
-     null)` into `invitations`.
+now())` into `list_members`. Insert `(list_alice, Alice, Bob,
+null)` into `invitations`.
    - Q1: as Bob, `accept_invitation(inv_id)` returns without error.
    - Q2: the `list_members` row now has `deleted_at IS NULL` and
      `deleted_by IS NULL`.
@@ -498,28 +507,28 @@ migration relies on).
 
    **W. Block auto-decline — INSERT path (2 assertions)**
    - Setup: as superuser, insert `(list_alice, Bob, Alice, null)`
-     into `invitations` (Bob invited Alice) *and* a separate row
+     into `invitations` (Bob invited Alice) _and_ a separate row
      `(list_alice, Bob, Carol, null)` for the negative scope check.
      Then as Alice (`SET LOCAL ROLE authenticated` + JWT), INSERT
      `(Alice, Bob, 'blocked')` into `public.relationships` (Alice
      has no prior relationships row for Bob).
    - **`RESET ROLE` before W1 and W2** so the count SELECTs run as
      superuser (`invitations_select` is `created_by = uid() OR
-     target_user_id = uid()`; under Alice's role she cannot see the
+target_user_id = uid()`; under Alice's role she cannot see the
      Carol-addressed row at all, which would falsely-green W2 even
      if the trigger over-deleted).
    - W1: the pending invitation from Bob to Alice is gone (count = 0).
-   - W2: a pending invitation to a *different* user
-     (`(list_alice, Bob, Carol, null)`) is *not* deleted — locks
+   - W2: a pending invitation to a _different_ user
+     (`(list_alice, Bob, Carol, null)`) is _not_ deleted — locks
      the scope of the trigger (only `created_by = NEW.other_user_id
-     AND target_user_id = NEW.user_id` rows are affected).
+AND target_user_id = NEW.user_id` rows are affected).
 
    **X. Block auto-decline — UPDATE path (1 assertion)**
    - Setup: as Alice, insert `(Alice, Bob, 'circle')` into
      `relationships`. Then insert `(list_alice, Bob, Alice, null)`
      into `invitations` as superuser. Then as Alice, UPDATE
      `relationships SET status = 'blocked' WHERE user_id = Alice AND
-     other_user_id = Bob`.
+other_user_id = Bob`.
    - `RESET ROLE` before X1's count SELECT (same reasoning as W —
      keeps the assertion honest even on rows Alice happens to be
      able to see; uniform with W's pattern so the convention is
@@ -539,7 +548,7 @@ migration relies on).
      (a no-op UPDATE that still fires the AFTER UPDATE OF status
      trigger because `OF status` includes assignments even when value
      unchanged; verify the invitation row still exists — `NEW.status
-     = 'blocked'` guard short-circuits).
+= 'blocked'` guard short-circuits).
 
    The file uses `SELECT * FROM no_plan();` at the top; we don't
    pre-count assertions or pin a `plan(N)` here. Adding or splitting
@@ -588,7 +597,7 @@ migration relies on).
 
 5. GREEN — Create `db/migrations/0009_invitations.sql` with the full
    migration body per the Decisions block above. Single `BEGIN; …
-   COMMIT;` transaction. Sections in the order listed (1–12).
+COMMIT;` transaction. Sections in the order listed (1–12).
    Function bodies follow the exact shapes in the Decisions block.
 
 6. GREEN — Run `./scripts/test-db.sh` and confirm all new assertions
@@ -621,15 +630,15 @@ migration relies on).
   scenarios then `SET LOCAL ROLE authenticated` to call the RPC
   and need to read or update the captured id. A temp table created
   under `cairn` is not visible to `authenticated` (`permission
-  denied for table _x`), so each `CREATE TEMPORARY TABLE _x …` is
+denied for table _x`), so each `CREATE TEMPORARY TABLE _x …` is
   followed by `GRANT ALL ON _x TO authenticated;` to bridge the
   role boundary. Also dropped the trailing `DROP TABLE _x;` lines
   — DROP requires ownership which GRANT doesn't confer, and the
   file-end `ROLLBACK` cleans them up anyway.
 - The raw INSERT pattern in the original task draft was
   `INSERT INTO _t (id) SELECT id FROM (INSERT … RETURNING id) AS
-  inserted;`, which Postgres rejects — `INSERT` can't appear as a
+inserted;`, which Postgres rejects — `INSERT` can't appear as a
   subselect, only as a top-level WITH-CTE. Rewrote the eight
   occurrences as
   `WITH ins AS (INSERT … RETURNING id) INSERT INTO _t (id)
-  SELECT id FROM ins;`.
+SELECT id FROM ins;`.

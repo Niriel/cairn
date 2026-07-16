@@ -1,6 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 
-import { waitForMagicLink } from './helpers/mailpit';
+import { register, uniqueUsername } from './helpers/auth';
 
 // Public-list flow: a member publishes a list and copies its link, then a
 // signed-out visitor opens /p/<id> and sees a read-only view — while a
@@ -8,26 +8,26 @@ import { waitForMagicLink } from './helpers/mailpit';
 //
 // Serial: each step builds on the published/private lists created in beforeAll.
 
+const PASSWORD = 'cairn-e2e-pw';
+
 test.describe.serial('public list flow', () => {
 	let page: Page;
 	let publicListId: string;
 	let privateListId: string;
 
 	test.beforeAll(async ({ browser }) => {
-		page = await browser.newPage();
+		// The publish flow copies the public link via navigator.clipboard, which
+		// headless chromium blocks without the clipboard-write permission. The
+		// permission token is chromium-only, so grant it guarded by browser;
+		// firefox needs no grant.
+		const context = await browser.newContext();
+		if (browser.browserType().name() === 'chromium') {
+			await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+		}
+		page = await context.newPage();
 
-		// Login via magic-link with a unique email for this describe block.
 		const runId = Date.now().toString(36);
-		const email = `alice+public-${runId}@example.test`;
-
-		await page.goto('/');
-		await expect(page).toHaveURL(/\/auth\/login$/);
-		await page.locator('[data-test="login-email"]').fill(email);
-		await page.locator('[data-test="login-submit"]').click();
-		await expect(page).toHaveURL(/\/auth\/check$/);
-		const { link } = await waitForMagicLink(email);
-		await page.goto(link);
-		await expect(page).toHaveURL(/\/lists$/);
+		await register(page, uniqueUsername('publicuser'), PASSWORD);
 
 		// Create the list we'll publish, with one item.
 		await page.locator('[data-test="lists-fab"]').click();

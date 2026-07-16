@@ -74,16 +74,16 @@ overlays push a history entry on open and listen for `popstate` to close.
 
 ## Component paths
 
-| Component | Path |
-|---|---|
-| `<Avatar>` | `web/src/lib/shared/components/Avatar.svelte` |
+| Component           | Path                                                     |
+| ------------------- | -------------------------------------------------------- |
+| `<Avatar>`          | `web/src/lib/shared/components/Avatar.svelte`            |
 | `AvatarSourceSheet` | `web/src/lib/avatar/components/AvatarSourceSheet.svelte` |
-| `AvatarCropScreen` | `web/src/lib/avatar/components/AvatarCropScreen.svelte` |
-| Profile route | `web/src/routes/(app)/profile/+page.svelte` |
-| Profile route test | `web/src/routes/(app)/profile/page.test.ts` |
-| Orphan sweeper | `scripts/sweep-avatars.sh` |
-| Crontab example | `crontab.example` |
-| Playwright spec | `web/e2e/avatar.spec.ts` |
+| `AvatarCropScreen`  | `web/src/lib/avatar/components/AvatarCropScreen.svelte`  |
+| Profile route       | `web/src/routes/(app)/profile/+page.svelte`              |
+| Profile route test  | `web/src/routes/(app)/profile/page.test.ts`              |
+| Orphan sweeper      | `scripts/sweep-avatars.sh`                               |
+| Crontab example     | `crontab.example`                                        |
+| Playwright spec     | `web/e2e/avatar.spec.ts`                                 |
 
 ## Upload data flow (dev)
 

@@ -22,7 +22,7 @@ const RANKED_A: ItemRanked = {
 	score: 3,
 	created_at: '2026-01-01T00:00:00Z',
 	modified_at: '2026-01-01T00:00:00Z',
-	created_by_profile: { display_name: 'Alice' },
+	created_by_profile: { display_name: 'Alice', username: 'alice' },
 	modified_by_profile: null
 };
 
@@ -51,7 +51,7 @@ beforeEach(async () => {
 	vi.resetModules();
 	sessionMod = await import('$lib/shared/state/session.svelte');
 	itemsMod = await import('./items.svelte');
-	sessionMod.setSignedIn({ id: TEST_UID, email: 'test@test.com' });
+	sessionMod.setSignedIn({ id: TEST_UID, username: 'tester' });
 });
 
 describe('loadItems', () => {

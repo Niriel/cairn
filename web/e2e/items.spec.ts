@@ -1,9 +1,11 @@
 import { expect, test, type Page } from '@playwright/test';
 
-import { waitForMagicLink } from './helpers/mailpit';
+import { register, uniqueUsername } from './helpers/auth';
 
 // Items flow: serial because each step builds on the previous one.
 // Login → create list → add items → exercise accordion, voting, edit, delete/undo.
+
+const PASSWORD = 'cairn-e2e-pw';
 
 test.describe.serial('items flow', () => {
 	let page: Page;
@@ -14,18 +16,8 @@ test.describe.serial('items flow', () => {
 	test.beforeAll(async ({ browser }) => {
 		page = await browser.newPage();
 
-		// Login via magic-link using a unique email for this describe block.
 		const runId = Date.now().toString(36);
-		const email = `alice+items-${runId}@example.test`;
-
-		await page.goto('/');
-		await expect(page).toHaveURL(/\/auth\/login$/);
-		await page.locator('[data-test="login-email"]').fill(email);
-		await page.locator('[data-test="login-submit"]').click();
-		await expect(page).toHaveURL(/\/auth\/check$/);
-		const { link } = await waitForMagicLink(email);
-		await page.goto(link);
-		await expect(page).toHaveURL(/\/lists$/);
+		await register(page, uniqueUsername('itemsuser'), PASSWORD);
 
 		// Create a list.
 		await page.locator('[data-test="lists-fab"]').click();

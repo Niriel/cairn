@@ -114,19 +114,19 @@ Fab click
 
 2. **Phase 2 — List domain model and state.** Task 2.1 creates `list/model/list.ts`
    with the `List` type and `createList()` helper, tests it against the `POST
-   /rpc/create_list` MSW handler (added to `handlers.ts` in the same task). Task 2.2
+/rpc/create_list` MSW handler (added to `handlers.ts` in the same task). Task 2.2
    creates `lists.svelte.ts` with the auto-fetch store and `refreshLists()`, tests
    it (auto-fetch on sign-in, reset on sign-out, re-fetch on refresh signal), adds
    the `GET /api/lists` MSW handler, and ships the `__mocks__/lists.svelte.ts`
    automock for downstream component tests.
 
 3. **Phase 3 — Lists screen UI.** Task 3.1 creates `CreateListSheet.svelte` (Sheet
-   + form + ButtonPair), tests form submission success and failure, and ships
-   `__mocks__/CreateListSheet.svelte`. Task 3.2 creates `ListsScreen.svelte` (TopBar
-   + list rows with Accordion + Fab + empty state + CreateListSheet), tests the four
-   main cases (loading, populated, empty, create-opens-sheet), and ships
-   `__mocks__/ListsScreen.svelte`. Task 3.3 creates the thin `/(app)/lists/+page.svelte`
-   and its smoke test.
+   - form + ButtonPair), tests form submission success and failure, and ships
+     `__mocks__/CreateListSheet.svelte`. Task 3.2 creates `ListsScreen.svelte` (TopBar
+   - list rows with Accordion + Fab + empty state + CreateListSheet), tests the four
+     main cases (loading, populated, empty, create-opens-sheet), and ships
+     `__mocks__/ListsScreen.svelte`. Task 3.3 creates the thin `/(app)/lists/+page.svelte`
+     and its smoke test.
 
 TDD order: each task writes RED tests first, GREEN implementation second. Cross-task:
 2.2's `__mocks__/lists.svelte.ts` and 3.1's `__mocks__/CreateListSheet.svelte` must
