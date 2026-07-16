@@ -401,10 +401,10 @@ screen tasks).
 
 ## Phase 6 — 2006: migrate the alpha + retire e-mail login, then close the step
 
-### [ ] 6.1 Plan and implement sub-step 2006 (backfill usernames, stable-identity + initial-password, remove e-mail sign-in)
+### [x] 6.1 Plan and implement sub-step 2006 (backfill usernames, stable-identity + initial-password, remove e-mail sign-in)
 
 **Created:** 2026-06-15T17:24:58Z
-**Completed:**
+**Completed:** 2026-07-16T11:04:01Z
 
 **Why:** The live alpha has e-mail/magic-link accounts with no username, no
 password, and on the old non-revocable session model; they must move to the new
@@ -455,6 +455,28 @@ no-recovery-e-mail accounts, if added).
 5. `git checkout 2000_username_identity && git merge --no-ff 2006_alpha_migration`
 
 **Verify:** `./scripts/check.sh --e2e` green on `2000_username_identity` after merge.
+
+**Notes:**
+
+- Implemented as the 7-task `plans/2006_alpha_migration/` sub-plan (merged here
+  `--no-ff`); see its per-task Notes for detail. Its Verify was green on the
+  sub-branch: full non-e2e gauntlet passed and `pnpm test:e2e --project=chromium
+  --project=firefox` was 102/102 (**WebKit not run — can't launch on this box**,
+  the standing `docs/testing.md` rule). The merge into `2000` is strictly
+  fast-forward-equivalent (2006 was cut from 2000 with no divergence), so the
+  merged tree is byte-identical to that verified sub-branch tree; the gauntlet is
+  re-run once on `main` in 6.2 rather than twice over an identical tree.
+- **Two carry-forward findings** surfaced during 2006, out of that sub-plan's
+  magic-link scope (flagged for a follow-up, not blockers):
+  1. `scripts/cairn-admin` resolves targets by `auth.users.email`, which migration
+     `0023` rewrites to `<uid>@cairn.internal` (the real address moves to
+     `user_settings.recovery_email`) — so email→uid resolution won't find a migrated
+     account. The CLI should resolve by **username**. Worth fixing before the alpha
+     migration is operated.
+  2. `docs/admin.md` "Existing sessions for a banned user" still says
+     `GOTRUE_JWT_EXP` is one hour and that Caddy refreshes the cookie — both
+     superseded by the 2002 revocable-session model (single-digit-minute access
+     JWT; the BFF refreshes).
 
 ### [ ] 6.2 Tick the step-20 box and merge the orchestration branch to main
 
