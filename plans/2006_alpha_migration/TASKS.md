@@ -497,10 +497,10 @@ drift guard, svelte-check 0 errors; web + auth-proxy eslint/prettier clean too.)
 - **Left `BEARER_AUTH_PATHS` / `COOKIE_PLANT_PATHS`** (and their
   `auth-paths.test.ts` describes) untouched — those are Task 3.2's.
 
-### [ ] 3.2 Retire the BFF magic-link pass-throughs
+### [x] 3.2 Retire the BFF magic-link pass-throughs
 
 **Created:** 2026-07-16T07:35:41Z
-**Completed:**
+**Completed:** 2026-07-16T10:46:15Z
 
 **Why:** The BFF's generic pass-through still serves magic-link mechanics —
 `/auth/verify`, the `/auth/token` refresh-grant cookie-plant, `/auth/magiclink`,
@@ -589,6 +589,33 @@ Cairn-shaped surface intact.
    (auth-paths), and `pnpm -C web check` green.
 
 **Verify:** `pnpm -C auth-proxy lint` · `pnpm -C auth-proxy test` · `pnpm -C web test` · `pnpm -C web check`
+(all green: auth-proxy eslint clean + 15 files / 95 tests, web 102 files / 755 tests,
+svelte-check 0 errors; web + auth-proxy prettier clean too.)
+
+**Notes:**
+
+- **`enrich.test.ts` deleted, not modified.** Its whole content tested the
+  cookie-plant enrichment on `/auth/token` (retired here); `enrichUser`'s retained
+  caller (`/auth/refresh`) is covered by `refresh.test.ts`, so no coverage is lost.
+- **`shim.test.ts` (f) removed** (the `Secure`/`__Host-` cookie test) — it piggybacked
+  on the retired `/auth/token` cookie-plant, and `cookies.test.ts` already covers the
+  prefix behaviour against `plantSession` directly. Rewrote (a)/(c) to assert the
+  generic pass-through plants **no** cookie and attaches **no** bearer.
+- **Generic pass-through kept as defence-in-depth**, per the Decisions: the token-strip
+  and `redirect: 'manual'` stay (reframed off their magic-link comments). The dev Vite
+  `proxyRes` end handler is now synchronous — its only `await` was the removed
+  enrichment.
+- **`handlers.ts`: went past "comment only".** With `COOKIE_PLANT_PATHS` gone, I also
+  removed the now-dead `/auth/verify` + `/auth/token` MSW default handlers (their web
+  callers `verifyOtp`/`exchangeRefreshToken` were deleted in 2.1 — flagged then). Kept
+  `/auth/refresh`, `/auth/user`, `/auth/signout`.
+- **Comments reframed beyond the four the Decisions named** — the `index.ts`
+  `redirect: 'manual'` note, the dev `bypass` comment's `/auth/callback` example, the
+  dev lockdown comment, and the shim/csrf/password-lockdown test comments — all stale
+  magic-link references surfaced by the change. Dropped the `R6` shorthand from the
+  lockdown comments (a requirement-number pointer, not durable doc).
+- The drift guard's name anchor was trimmed to the four survivors; both `auth-paths.ts`
+  copies stayed byte-identical, so its equality check passes.
 
 ## Phase 4 — reconcile GoTrue config and retire the template
 

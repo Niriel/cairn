@@ -7,8 +7,6 @@ import { defineConfig, loadEnv } from 'vite';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 
 import {
-	BEARER_AUTH_PATHS,
-	COOKIE_PLANT_PATHS,
 	CSRF_HEADER,
 	LOGOUT_PATHS,
 	PUBLIC_AUTH_PATHS,
@@ -862,10 +860,10 @@ export default defineConfig(({ mode }) => {
 						}
 						void handleDevResetPassword(req, res);
 					});
-					// R6 lockdown (dev parity): the public GoTrue password grant must be
-					// unreachable; the only password-grant path is /auth/signin above.
-					// The legacy magic-link refresh-token grant still proxies through, so
-					// reject only grant_type=password (read from the query string).
+					// Password-grant lockdown (dev parity): the public GoTrue password
+					// grant must be unreachable; the only password-grant path is
+					// /auth/signin above. The lockdown is surgical — reject only
+					// grant_type=password (read from the query string), forward any other.
 					server.middlewares.use((req, res, next) => {
 						if (req.url?.split('?')[0] !== '/auth/token' || req.method !== 'POST') {
 							next();
@@ -917,31 +915,16 @@ export default defineConfig(({ mode }) => {
 					// `bypass` runs before `rewrite`, so `req.url` is still the
 					// original `/auth/...` here. Returning a string short-circuits
 					// the proxy entirely and lets SvelteKit's router serve the
-					// page (e.g. `/auth/callback?token=…`); see auth-paths.ts.
+					// page (e.g. `/auth/reset-password?code=…`); see auth-paths.ts.
 					bypass: (req) => (isSegmentMatch(req.url, PUBLIC_AUTH_PATHS) ? req.url : undefined),
 					selfHandleResponse: true,
 					configure: (proxy) => {
-						proxy.on('proxyReq', (proxyReq, req) => {
-							// Narrowed to BEARER_AUTH_PATHS — see auth-paths.ts.
-							// `cairnOriginalUrl` is consulted because Vite's `rewrite`
-							// mutates `req.url` before this handler fires.
-							if (!isSegmentMatch(req.cairnOriginalUrl ?? req.url, BEARER_AUTH_PATHS)) {
-								return;
-							}
-							// Read the short-lived access cookie — the durable cookie now
-							// holds a refresh token GoTrue's /user would reject.
-							const token = readBearerFromCookie(req, ACCESS_COOKIE_NAME);
-							if (token && !proxyReq.getHeader('authorization')) {
-								proxyReq.setHeader('Authorization', `Bearer ${token}`);
-							}
-						});
+						// This pass-through serves only anonymous GoTrue endpoints, so it
+						// attaches no cookie-derived bearer (bearer-attach retired).
 						proxy.on('proxyRes', (proxyRes, req: IncomingMessage, res: ServerResponse) => {
 							const chunks: Buffer[] = [];
 							proxyRes.on('data', (c: Buffer) => chunks.push(c));
-							// async so the cookie-plant branch can enrich the user with the
-							// username (a PostgREST lookup) before forwarding; http-proxy
-							// ignores the returned promise and `res.end(body)` still runs last.
-							proxyRes.on('end', async () => {
+							proxyRes.on('end', () => {
 								let body = Buffer.concat(chunks);
 								for (const [k, v] of Object.entries(proxyRes.headers)) {
 									if (v === undefined) continue;
@@ -955,33 +938,10 @@ export default defineConfig(({ mode }) => {
 								if (ct.includes('application/json') && proxyRes.statusCode === 200) {
 									try {
 										const json = JSON.parse(body.toString('utf8'));
-										// Cookie-plant is narrowed to deliberate-login
-										// endpoints (auth-paths.ts COOKIE_PLANT_PATHS).
-										// `cairnOriginalUrl` is the original `/auth/...`
-										// since `rewrite` mutated `req.url` before we got here.
-										if (
-											typeof json?.access_token === 'string' &&
-											typeof json?.refresh_token === 'string' &&
-											isSegmentMatch(req.cairnOriginalUrl ?? req.url, COOKIE_PLANT_PATHS)
-										) {
-											// Plant BOTH cookies: refresh token in the durable
-											// cookie, access JWT in the short-lived one. Mirrors
-											// plantSession() in auth-proxy/src/lib/cookies.ts.
-											// append — preserves any upstream Set-Cookie the header-copy loop already forwarded
-											res.appendHeader(
-												'set-cookie',
-												sessionCookie(COOKIE_NAME, json.refresh_token)
-											);
-											res.appendHeader(
-												'set-cookie',
-												sessionCookie(ACCESS_COOKIE_NAME, json.access_token)
-											);
-											// Enrich the forwarded user with the username (Task 3.4),
-											// using the freshly planted access token, before tokens
-											// are stripped below.
-											json.user = await enrichDevUser(json.user, json.access_token);
-										}
-										// strip tokens unconditionally — JS has no use for them; cookie is the source of truth (docs/architecture.md:145, :233)
+										// Strip any token from a forwarded body — JS has no use
+										// for one, the cookie is the source of truth, and this
+										// pass-through plants no session cookie (dev parity with
+										// the prod auth-proxy).
 										if (
 											typeof json?.access_token === 'string' ||
 											typeof json?.refresh_token === 'string'

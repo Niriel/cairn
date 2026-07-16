@@ -21,10 +21,6 @@ export const SIGNED_IN_REDIRECT_PATHS = [
 	'/auth/reset-password'
 ] as const;
 
-export const BEARER_AUTH_PATHS = ['/auth/user'] as const;
-
-export const COOKIE_PLANT_PATHS = ['/auth/verify', '/auth/token'] as const;
-
 export const LOGOUT_PATHS = ['/auth/signout'] as const;
 
 // Required custom header on state-changing Cairn-shaped /auth/* requests. A

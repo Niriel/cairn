@@ -4,10 +4,10 @@ import type { AddressInfo } from 'node:net';
 import request from 'supertest';
 import { app } from '../src/index.js';
 
-// R6 lockdown: the public GoTrue password grant must be unreachable — the only
-// password-grant path is the rate-limited /auth/signin. The legacy magic-link
-// refresh-token grant still flows through /auth/token, so the lockdown rejects
-// only grant_type=password and leaves grant_type=refresh_token forwarding.
+// Password-grant lockdown: the public GoTrue password grant must be unreachable
+// — the only password-grant path is the rate-limited /auth/signin. The lockdown
+// is surgical: it rejects only grant_type=password on /auth/token and leaves any
+// other grant forwarding through the generic pass-through.
 let gotrueReqs: { method: string; url: string }[];
 let gotrue: http.Server;
 let postgrest: http.Server;
@@ -23,9 +23,9 @@ beforeAll(async () => {
 			res.end(JSON.stringify({ access_token: 'a', refresh_token: 'r', user: { id: 'u1' } }));
 		});
 	});
-	// The /auth/token forward is a cookie-plant path, so its token-returning 200
-	// is enriched with the username (a PostgREST lookup by uid). Stub PostgREST so
-	// the refresh_token forward completes rather than hanging on the prod host.
+	// A stub PostgREST kept for hermeticity. The generic /auth/token pass-through
+	// no longer performs a profile lookup (the cookie-plant enrichment retired),
+	// so this is defensive — no test here should reach a real PostgREST host.
 	postgrest = http.createServer((_req, res) => {
 		res.statusCode = 200;
 		res.setHeader('content-type', 'application/json');

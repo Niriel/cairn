@@ -1,8 +1,6 @@
 import { describe, expect, test } from 'vitest';
 
 import {
-	BEARER_AUTH_PATHS,
-	COOKIE_PLANT_PATHS,
 	LOGOUT_PATHS,
 	PUBLIC_AUTH_PATHS,
 	SIGNED_IN_REDIRECT_PATHS,
@@ -49,46 +47,6 @@ describe('isSegmentMatch against SIGNED_IN_REDIRECT_PATHS', () => {
 	test('the retired /auth/login and /auth/check are NOT redirect paths', () => {
 		expect(isSegmentMatch('/auth/login', SIGNED_IN_REDIRECT_PATHS)).toBe(false);
 		expect(isSegmentMatch('/auth/check', SIGNED_IN_REDIRECT_PATHS)).toBe(false);
-	});
-});
-
-describe('isSegmentMatch against BEARER_AUTH_PATHS', () => {
-	test('matches /auth/user', () => {
-		expect(isSegmentMatch('/auth/user', BEARER_AUTH_PATHS)).toBe(true);
-	});
-
-	test('matches /auth/user?id=x', () => {
-		expect(isSegmentMatch('/auth/user?id=x', BEARER_AUTH_PATHS)).toBe(true);
-	});
-
-	test('sibling-prefix /auth/userx is NOT a match', () => {
-		expect(isSegmentMatch('/auth/userx', BEARER_AUTH_PATHS)).toBe(false);
-	});
-
-	test('/auth/unknown is not in BEARER_AUTH_PATHS', () => {
-		expect(isSegmentMatch('/auth/unknown', BEARER_AUTH_PATHS)).toBe(false);
-	});
-});
-
-describe('isSegmentMatch against COOKIE_PLANT_PATHS', () => {
-	test('matches /auth/verify', () => {
-		expect(isSegmentMatch('/auth/verify', COOKIE_PLANT_PATHS)).toBe(true);
-	});
-
-	test('matches /auth/token', () => {
-		expect(isSegmentMatch('/auth/token', COOKIE_PLANT_PATHS)).toBe(true);
-	});
-
-	test('matches /auth/token?grant_type=password', () => {
-		expect(isSegmentMatch('/auth/token?grant_type=password', COOKIE_PLANT_PATHS)).toBe(true);
-	});
-
-	test('does NOT match /auth/signup (adversarial — signup also returns access_token)', () => {
-		expect(isSegmentMatch('/auth/signup', COOKIE_PLANT_PATHS)).toBe(false);
-	});
-
-	test('sibling-prefix /auth/verifyx is NOT a match', () => {
-		expect(isSegmentMatch('/auth/verifyx', COOKIE_PLANT_PATHS)).toBe(false);
 	});
 });
 

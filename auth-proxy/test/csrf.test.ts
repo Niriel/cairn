@@ -12,9 +12,9 @@ import { CSRF_HEADER } from '../src/lib/auth-paths.js';
 // header, so the BFF must strip GoTrue's CORS headers rather than forward them.
 let requests: { method: string; url: string }[];
 let gotrue: http.Server;
-// The refresh + cookie-plant paths now enrich the user via a PostgREST profile
-// lookup (usernameForUid). A stub PostgREST returning an empty result keeps these
-// CSRF tests fast and offline; enrichment degrades the user to `{ id }`, which is
+// The refresh path enriches the user via a PostgREST profile lookup
+// (usernameForUid). A stub PostgREST returning an empty result keeps these CSRF
+// tests fast and offline; enrichment degrades the user to `{ id }`, which is
 // irrelevant to what these tests assert (the CSRF gate and CORS stripping).
 let postgrest: http.Server;
 

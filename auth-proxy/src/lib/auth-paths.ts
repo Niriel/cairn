@@ -7,9 +7,8 @@
 // canonical source ever diverge. When you edit the canonical file, copy the
 // change here too — the drift guard will tell you if you forget.
 //
-// The proxy reads BEARER_AUTH_PATHS, COOKIE_PLANT_PATHS, LOGOUT_PATHS, and
-// CSRF_HEADER (via csrf.ts), but the copy is verbatim (all exports) so the
-// drift guard can compare the whole file.
+// The proxy reads LOGOUT_PATHS and CSRF_HEADER (via csrf.ts), but the copy is
+// verbatim (all exports) so the drift guard can compare the whole file.
 
 export const PUBLIC_AUTH_PATHS = [
 	'/auth/signin',
@@ -24,10 +23,6 @@ export const SIGNED_IN_REDIRECT_PATHS = [
 	'/auth/forgot-password',
 	'/auth/reset-password'
 ] as const;
-
-export const BEARER_AUTH_PATHS = ['/auth/user'] as const;
-
-export const COOKIE_PLANT_PATHS = ['/auth/verify', '/auth/token'] as const;
 
 export const LOGOUT_PATHS = ['/auth/signout'] as const;
 
