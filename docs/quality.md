@@ -41,16 +41,16 @@ We do not soften strictness with `noImplicitAny: false` or `strictNullChecks: fa
 
 SvelteKit (≥ 2.26) generates a string-literal union of registered routes for `$app/types`'s `RouteId` / `Pathname` and uses it to type `resolve(...)` from `$app/paths`. The ESLint rule `svelte/no-navigation-without-resolve` then enforces `goto(resolve('/foo'))` over a bare `goto('/foo')`.
 
-When the plan-ordering puts the navigation call ahead of the destination route's `+page.svelte` (e.g. `LoginRequest` was landed before the `/auth/check` route file existed in `web/src/routes/`), `resolve('/auth/check')` fails type-check — only `/` is in the generated route union — and `goto('/auth/check')` directly fails lint.
+When the plan-ordering puts the navigation call ahead of the destination route's `+page.svelte` (say a `goto` to `/lists/archived` lands a task before the `/lists/archived` route file exists in `web/src/routes/`), `resolve('/lists/archived')` fails type-check — that path isn't in the generated route union yet — and `goto('/lists/archived')` directly fails lint.
 
 The pattern: **use the literal string with a per-line ESLint disable that names the follow-up task**.
 
 ```svelte
-// /auth/check route is created in task 3.5 — until then
-// `resolve()` types reject the path. Swap back to
-// `goto(resolve('/auth/check'))` once that task lands.
+// The /lists/archived route lands in a later task — until then
+// `resolve()` types reject the path. Swap to
+// `goto(resolve('/lists/archived'))` once that task lands.
 // eslint-disable-next-line svelte/no-navigation-without-resolve
-await goto('/auth/check');
+await goto('/lists/archived');
 ```
 
 When the destination route lands, grep for the disable comment, remove it, and switch to `resolve(...)`. The justification comment is the load-bearing part — a bare disable rots; a disable with a task pointer self-cleans the next time anyone touches that route.

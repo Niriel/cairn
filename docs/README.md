@@ -17,7 +17,7 @@ A list is a named collection of items. An item has a name, optional notes, times
 
 ## The stack, in one paragraph
 
-A small Hetzner VPS in Germany runs PostgreSQL, [PostgREST](https://postgrest.org/) (which exposes the schema directly as a REST API), [GoTrue](https://github.com/supabase/gotrue) (email magic-link authentication), and [Caddy](https://caddyserver.com/) (reverse proxy with automatic TLS) — all as Docker containers. A fifth container serves the web app: a [SvelteKit](https://kit.svelte.dev/) bundle compiled to static files, runnable as a Progressive Web App on any modern browser. Backups go encrypted to a Hetzner Storage Box via [Restic](https://restic.net/).
+A small Hetzner VPS in Germany runs PostgreSQL, [PostgREST](https://postgrest.org/) (which exposes the schema directly as a REST API), [GoTrue](https://github.com/supabase/gotrue) (username + password authentication), and [Caddy](https://caddyserver.com/) (reverse proxy with automatic TLS) — all as Docker containers. A fifth container serves the web app: a [SvelteKit](https://kit.svelte.dev/) bundle compiled to static files, runnable as a Progressive Web App on any modern browser. Backups go encrypted to a Hetzner Storage Box via [Restic](https://restic.net/).
 
 For the reasoning behind each choice — and the alternatives we considered and rejected — see `architecture.md`.
 

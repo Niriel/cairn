@@ -18,10 +18,10 @@
 
 ## Phase 0 — reconcile docs
 
-### [ ] 0.1 Reconcile the auth/identity specification docs to the username-only surface
+### [x] 0.1 Reconcile the auth/identity specification docs to the username-only surface
 
 **Created:** 2026-07-16T07:35:41Z
-**Completed:**
+**Completed:** 2026-07-16T09:25:13Z
 
 **Why:** Several docs still present e-mail/magic-link sign-in as a live surface,
 left "pending removal in a later step" by earlier sub-steps. This is that step;
@@ -108,6 +108,59 @@ aren't stale (the same Phase-0 discipline earlier sub-steps used).
 
 **Verify:** manual review + `grep -rn "magic.link\|/auth/login\|/auth/callback" docs/`
 shows only intentional historical mentions.
+
+**Notes:**
+
+- **User directive mid-task — no change-history narrative.** The user asked that
+  the docs read as if written correctly on the first try: no "we used to do X /
+  now removed / reversed / earlier draft" prose. This overrode the task's
+  "keep the historical framing" phrasing for _implementation archaeology_ (a
+  present-tense "considered and rejected" _rationale_ is still fine). Applied
+  throughout: deleted the "Direct-to-callback magic-link email template" rejected
+  entry in `architecture.md` entirely; reframed the "Magic-link-only
+  authentication" and synthetic-e-mail and subdomains rejected entries and the
+  "trade we accept" list to present tense; reframed `deployment.md` checklist
+  item 1. Saved as feedback memory `docs-no-change-history`.
+- **`gotrue-templates.md` retired (deleted), not stubbed.** Cairn ships no GoTrue
+  custom templates, so a "no longer used" stub would itself be change-history; a
+  first-try doc set omits the file. Its only referrer (`email-html.md` Reference
+  section) was repointed to `auth-proxy/src/lib/mail.ts` (the BFF recovery/reset
+  mail) and `deployment.md` SMTP wiring.
+- **Scope wider than the listed line-hints.** The task's per-doc `≈:NN` hints were
+  representative, not exhaustive; the Verify grep requires _every_ magic-link /
+  callback mention to be historical/rationale. So I also reconciled the
+  `architecture.md` "JWT storage" section, removed the "Security trade-off: the
+  callback page reads tokens from the URL hash" subsection (the callback is
+  deleted; username+password never puts tokens in the URL), the client-storage
+  hash note, and the shim-narrowing paragraph; and the `development.md` dev
+  cookie-plant note.
+- **Stale claims corrected against ground truth (where they intersected the
+  magic-link text):** `GOTRUE_MAILER_AUTOCONFIRM` is `"true"` in prod
+  (`docker-compose.prod.yml:45`), not `false` as `development.md`/`deployment.md`
+  claimed; corrected both. `logging.md`'s operator lookup
+  `select id from auth.users where email = ?` breaks post-`0023` (that column
+  becomes `<uid>@cairn.internal`) — changed to resolve by username via
+  `profiles`.
+- **Pre-existing drift I did NOT rewrite (out of this task's magic-link scope —
+  flagging for a possible follow-up / `/concerns`):**
+  1. `admin.md` "Existing sessions for a banned user" (§ ~160–165) still says
+     `GOTRUE_JWT_EXP` is **one hour** and that **Caddy** refreshes the cookie —
+     both superseded by the 2002 revocable-session model (single-digit-minute
+     access JWT; the BFF, not Caddy, refreshes). I only fixed the one adjacent
+     "within an hour" mention I was already editing for magic-link.
+  2. `deployment.md` "Forced re-auth on the revocable-session deploy" (§ ~330–338)
+     is a 2002-transition runbook with some change-history phrasing ("the pre-2002
+     `cairn_session` held an access JWT"). Left as a legitimate deploy-transition
+     note.
+  3. **`cairn-admin` CLI resolves targets by `auth.users.email`** (`admin.md`
+     § "The `cairn-admin` CLI" and the workflow examples use
+     `alice@example.com`). After `0023`, `auth.users.email` is
+     `<uid>@cairn.internal` and the real address lives in
+     `user_settings.recovery_email`, so email→uid resolution will not find a
+     migrated account. This is a **code** change (`scripts/cairn-admin`), outside
+     this doc-only task, but it's a real migration consequence — the CLI should
+     resolve by **username** (or recovery_email). Worth a task before the alpha
+     migration is operated.
 
 ## Phase 1 — backfill migration + tests
 

@@ -10,7 +10,7 @@ The headline rule: **logs exist to help the operator fix the operator's problem.
 | ------------------ | ------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------- | ----------------- |
 | **PostgreSQL**     | Startup, shutdown, slow queries (>1s), errors, role login attempts                                      | `docker logs cairn-postgres`, rotated by Docker's `json-file` driver | 7 days, 50 MB cap |
 | **PostgREST**      | One line per request: method, path (without query string), status code, duration, anon-or-authenticated | `docker logs cairn-postgrest`, same rotation                         | 7 days, 50 MB cap |
-| **GoTrue**         | Magic-link sends (recipient hash, not address), token exchanges, signup events                          | `docker logs cairn-gotrue`, same rotation                            | 7 days, 50 MB cap |
+| **GoTrue**         | Sign-in / refresh token exchanges and signup events, keyed by user-id (never a deliverable address)     | `docker logs cairn-gotrue`, same rotation                            | 7 days, 50 MB cap |
 | **Caddy**          | Standard access log (method, path, status, size, duration) plus TLS handshake errors                    | `/var/log/cairn/caddy-access.log`, rotated daily via `logrotate`     | 30 days           |
 | **Avatar sidecar** | Upload attempts (size, accept/reject reason), resize errors                                             | `docker logs cairn-avatars`, same rotation                           | 7 days, 50 MB cap |
 
@@ -20,7 +20,7 @@ The retention numbers are caps, not floors — disk pressure on a 40 GB Hetzner 
 
 - **Query strings** on PostgREST or Caddy. PostgREST query strings frequently contain row UUIDs that, combined with the path, would constitute personal data; logging them turns the access log into a shadow audit trail nobody asked for. The path alone (`/items_ranked`) is enough to debug performance.
 - **Request bodies.** PostgREST never logs bodies; the avatar sidecar never logs upload bytes. The avatar sidecar logs the _size_ and the _accept/reject reason_, not the content type's claim and not the magic-byte sniff result detail.
-- **Email addresses.** GoTrue's request log records magic-link sends with the email's `sha256` hash rather than the address. This is enough to debug "a user reports they can't sign in" — the operator can hash their email and grep — without the log file itself being a dump of every user's email.
+- **Email addresses.** No real e-mail address appears in any container log. GoTrue's login identifier is the uid-derived `<uid>@cairn.internal`, which carries no personal data, so its token-exchange and signup lines identify an account by user-id, never by a deliverable address. The one real address a user may have — their recovery e-mail — is handled only by the auth BFF, which never logs it (see the recovery bullet below). To trace "a user reports they can't sign in," the operator resolves their username to a user-id and greps by that.
 - **Sign-in credentials and usernames at the auth BFF.** The auth-proxy (the Cairn-shaped backend-for-frontend; see `architecture.md`) never logs the submitted username, password, recovery e-mail, or any token — not on a sign-in, a registration, a refresh, or a rate-limit decision. A username is _public_ (it's the `@handle`), but a _sign-in attempt_ keyed to a username is behavioural data the log has no reason to keep, and a password must never touch a log under any circumstance. The per-IP / per-account sign-in rate-limiter holds its counters in memory only (`auth-proxy/src/lib/rate-limit.ts`), so even the throttle state is never written to disk.
 - **Recovery addresses, codes, and the reset password at the auth BFF.** Cairn-orchestrated password recovery (see `architecture.md`) adds new sensitive values the BFF handles — the candidate/on-file recovery address, the 6-digit verification and reset codes, the scoped-role JWT, and the **new password** submitted on a reset. None of these ever appears in a log line: no recovery e-mail (at most a hash, like the GoTrue rule below), no code, no token, no JWT, and the BFF must **never log the reset request body** (it carries the plaintext new password). The codes cross to the database only as a SHA-256 hash, never plaintext. The one unavoidable plaintext crossing is the new password itself: R6's pgcrypto design means `reset_password` receives it as an RPC argument so `crypt()` can run in the DB. That argument therefore transits the PostgREST→Postgres boundary, which is why Postgres full-statement logging (`log_statement`) must stay **off** — it is by default (`none`) — and must not be turned on for the auth/recovery path. (The slow-query logger `log_min_duration_statement = 1000` logs the _parameterized_ statement text, not the bound argument values, so it does not expand the password; the rule is "don't enable `log_statement`," not "disable the slow-query log.")
 - **JWT contents.** No log line in any container ever decodes or prints a JWT. PostgREST logs the role (`anon` or `authenticated`); GoTrue logs the user-id only in events where the user-id is the _subject_ of the event, never as a contextual annotation on an unrelated request.
@@ -35,7 +35,7 @@ The privacy page (see `design/cairn-legal-screens.jsx` → Privacy Policy) lists
 - _"We do not log the contents of your requests — your list names, item names, notes, and votes do not appear in any log file."_
 - _"We do not use third-party analytics, crash reporting, or telemetry of any kind."_
 
-Email-hash logging is a level of detail most users won't read about, but it's documented here so the operator can answer the question if asked.
+The uid-only identification of accounts in the logs is a level of detail most users won't read about, but it's documented here so the operator can answer the question if asked.
 
 ## Operator workflow
 
@@ -53,7 +53,7 @@ For a slow-query investigation, Postgres's `log_min_duration_statement = 1000` e
 
 For an abuse investigation, Caddy's access log is the source of truth — IP, path, status, count. The IP-stripping cron means the operator has at most 24 hours of recent IP-grouped abuse data, which is enough for a same-day rate-limit response and short of a week-long surveillance window.
 
-For a "user says their account is broken" report, GoTrue's log (filtered by the user's email hash) shows the magic-link send history, and PostgREST's log filtered by their role's user-id (when the operator looks it up via `select id from auth.users where email = ?`) shows their recent API activity. Nothing in the logs reveals what they were doing — just that they were.
+For a "user says their account is broken" report, the operator resolves the account's user-id (`select id from profiles where lower(username) = lower(?)`), then filters GoTrue's log by that uid to see their sign-in / refresh history and PostgREST's log by the same uid to see their recent API activity. Nothing in the logs reveals what they were doing — just that they were.
 
 ## What the operator must not do
 

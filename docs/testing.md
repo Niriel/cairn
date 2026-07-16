@@ -193,7 +193,7 @@ Playwright drives a real browser against the _fully running_ stack — `pnpm dev
 
 A small, deliberate set of _user journeys_, not a re-creation of the unit suite:
 
-- **Auth happy path.** Magic-link login (Mailpit-driven), cookie set, redirected into the app, logged out.
+- **Auth happy path.** Sign in with username + password, cookie set, redirected into the app, signed out. (Password recovery — the one Mailpit-driven auth flow — has its own spec.)
 - **List lifecycle.** Create a list, add items, vote, soft-delete, restore from trash.
 - **Sharing.** Invite by handle, the recipient sees the invite, accepts, both see the list.
 - **Offline read.** Open a list online, go offline, reload, see cached items.
