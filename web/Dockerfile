@@ -1,7 +1,6 @@
-# Build stage: produce the static SvelteKit bundle in production mode so the
-# dev-login shortcut (plan 0301) folds to dead code and no VITE_DEV_LOGIN_*
-# literal ends up in the shipped JS. NODE_ENV is set *after* install so the
-# build toolchain (devDependencies) is still available to pnpm.
+# Build stage: produce the static SvelteKit bundle in production mode. NODE_ENV
+# is set *after* install so the build toolchain (devDependencies) is still
+# available to pnpm.
 FROM node:20-alpine AS build
 WORKDIR /app
 RUN corepack enable

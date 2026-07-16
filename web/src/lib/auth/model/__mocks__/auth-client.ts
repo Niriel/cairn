@@ -1,7 +1,7 @@
 // Mirrors the real `auth-client.ts` API as `vi.fn()` spies. Bare
 // `vi.mock('$lib/auth/model/auth-client')` in the auth component tests
-// (SignIn, Register, DevShortcuts) auto-loads this file; lifting the
-// spies out of the test files keeps the per-case
+// (SignIn, Register) auto-loads this file; lifting the spies out of the
+// test files keeps the per-case
 // `vi.mocked(...).mockResolvedValueOnce(...)` overrides readable.
 
 import { vi } from 'vitest';

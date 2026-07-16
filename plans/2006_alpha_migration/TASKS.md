@@ -384,10 +384,10 @@ screens already exist (2003).
   did **not** author (an em-dash → semicolon in the reset-mail copy string,
   `resetMailBody`). Left as-is and excluded from this task — commit it separately.
 
-### [ ] 2.2 Drop the dev-login shortcut entirely
+### [x] 2.2 Drop the dev-login shortcut entirely
 
 **Created:** 2026-07-16T07:35:41Z
-**Completed:**
+**Completed:** 2026-07-16T10:19:37Z
 
 **Why:** The dev-login shortcut was hosted only by the now-deleted
 `LoginRequest.svelte`; per the parent decision it is removed rather than re-homed
@@ -419,6 +419,18 @@ or CI reads `VITE_DEV_LOGIN_*`.
    nothing.
 
 **Verify:** `pnpm -C web lint` · `pnpm -C web check` · `pnpm -C web test`
+(all green: eslint clean, prettier clean, svelte-check 0 errors, vitest 102 files / 767 tests.)
+
+**Notes:**
+
+- **Two comment rewords beyond the named Files, required by the step-3 grep.**
+  `web/src/lib/auth/model/__mocks__/auth-client.ts` named `DevShortcuts` in its
+  header (a 2.1 edit) — trimmed to `(SignIn, Register)`. `web/Dockerfile`'s
+  build-stage comment explained the prod build folding the dev-login shortcut to
+  dead code with no `VITE_DEV_LOGIN_*` literal — reworded to keep only the
+  still-valid "build in production mode; NODE_ENV after install" rationale. Both
+  named the removed symbols, so the grep would not have come back clean otherwise.
+- No shortcut was added to `SignIn.svelte`, per the decision.
 
 ## Phase 3 — prune shared auth-paths and retire BFF pass-throughs
 
