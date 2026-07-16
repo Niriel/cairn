@@ -22,7 +22,7 @@ The full set, deliberately small. Each row corresponds to one psql-callable RPC;
 
 | Need                                 | RPC                                       | Effect                                                                                                                                                                                                                                                                               |
 | ------------------------------------ | ----------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Stop a user logging in               | `admin.ban_user(target, reason)`          | Sets `auth.users.banned_until = 'infinity'`; GoTrue's magic-link issuance honours it. Existing sessions also fail at next request — see "Existing sessions" below.                                                                                                                   |
+| Stop a user logging in               | `admin.ban_user(target, reason)`          | Sets `auth.users.banned_until = 'infinity'`; GoTrue honours it and refuses to issue tokens, so sign-in fails. Existing sessions also fail at next request — see "Existing sessions" below.                                                                                           |
 | Allow them back in                   | `admin.unban_user(target, reason)`        | Clears `banned_until`. The account's data is untouched.                                                                                                                                                                                                                              |
 | GDPR erasure on a user's behalf      | `admin.delete_account_as(target, reason)` | Same effect as the user running `delete_account()` themselves: hard-delete `auth.users`, `profiles`, `user_settings`, `votes`, `list_members`, `relationships`, `invitations`; repoint attribution to the tombstone; hard-delete lists where the user was the only remaining member. |
 | Take an item down (complaint, light) | `admin.moderate_item(target, reason)`     | Soft-delete attributed to the tombstone user. Recoverable by list members through the standard trash UI. The right tool for _"please remove this, it shouldn't be there"_ where the requester is a list member.                                                                      |
@@ -31,7 +31,7 @@ The full set, deliberately small. Each row corresponds to one psql-callable RPC;
 | Take a list down (legal, hard)       | `admin.purge_list(target, reason)`        | Hard-delete the list. Cascades through `items`, `votes`, `list_members`, `invitations`. Irrecoverable.                                                                                                                                                                               |
 | Read-only inspection of a user       | `admin.inspect_user(target)`              | Returns a single JSON document containing the user's `auth.users` row (minus the encrypted password hash), `profiles`, `user_settings`, lists they're a member of, item and vote counts. The only RPC that does not require a reason.                                                |
 
-That's the list. Everything else — re-sending a magic link, debugging a failed login, deciphering a stuck PWA cache — is GoTrue's admin endpoints, Caddy logs, or the user's browser, not Cairn's database. None of those need new code.
+That's the list. Everything else — debugging a failed sign-in, deciphering a stuck PWA cache — is GoTrue's admin endpoints, Caddy logs, or the user's browser, not Cairn's database. None of those need new code.
 
 ## The `admin` schema and Postgres roles
 
@@ -153,11 +153,11 @@ grant  execute on function admin.ban_user(uuid, text) to cairn_admin;
 -- unban is the mirror image; same shape, sets banned_until = null.
 ```
 
-`'infinity'` is Postgres's permitted timestamp sentinel for "no upper bound." GoTrue reads `banned_until` and refuses to issue a magic link if `banned_until > now()` (which is trivially true here). A future GoTrue release that removes or renames this column is the failure mode to watch for at image-bump time — same caveat as the tombstone insert in `account-deletion.md`.
+`'infinity'` is Postgres's permitted timestamp sentinel for "no upper bound." GoTrue reads `banned_until` and refuses to issue tokens if `banned_until > now()` (which is trivially true here), so the account cannot sign in. A future GoTrue release that removes or renames this column is the failure mode to watch for at image-bump time — same caveat as the tombstone insert in `account-deletion.md`.
 
 ### Existing sessions for a banned user
 
-`banned_until` only governs _new_ magic-link issuance. A user who is banned but holds a still-valid `cairn_session` cookie will continue to make authenticated requests until the JWT expires or the cookie is cleared. Two defences:
+`banned_until` only governs _new_ token issuance (a fresh sign-in or a refresh). A user who is banned but holds a still-valid session cookie will continue to make authenticated requests until the access JWT expires or the cookie is cleared. Two defences:
 
 - **JWT lifetime.** GoTrue's `GOTRUE_JWT_EXP` is set to one hour in production (the cookie's `Max-Age` is longer; Caddy refreshes the cookie value when GoTrue issues a new token via its refresh-token flow, which the ban breaks). One hour is the worst-case window between a ban landing and the banned user being unable to make API calls.
 - **Hard expiry.** If "one hour is too long" is ever true (it isn't, today), the ban can be made effective immediately by either rotating `JWT_SECRET` (invalidates every session for every user — heavy) or by adding a `revoked_at` column on a session table and consulting it in the `public.uid()` helper. The latter is a v2 problem, deliberately not designed for v1. The audit row records the moment of ban; if a follow-up "session continued for N minutes after ban" question matters, the Caddy access log filtered by `cairn_session=<that user's cookie>` answers it within the 24-hour IP-retention window.
@@ -166,33 +166,30 @@ For Cairn's threat model — a small group of friends, the rare bad actor — on
 
 ### What the web app shows when a banned user tries to sign in
 
-Banning a user at the GoTrue layer affects the web app's sign-in flow, and the web app has to be deliberate about how it presents that. The principle is the same anti-enumeration argument as the _"Couldn't send invite"_ pattern in `invites.md`: **the response a banned user sees when they request a magic link must be indistinguishable from the response any other user sees in the same flow.**
+Banning a user at the GoTrue layer affects the web app's sign-in flow, and the web app has to be deliberate about how it presents that. The principle is the same anti-enumeration argument as the _"Couldn't send invite"_ pattern in `invites.md`: **a banned account's sign-in attempt must be indistinguishable from an ordinary failed sign-in.**
 
-When the user submits their email on the sign-in screen, the web app shows the same optimistic confirmation regardless of what GoTrue actually did:
+When a user submits their username and password, the BFF runs the password grant against that account's stable identity, and GoTrue refuses the grant if `banned_until > now()`. The web app collapses that refusal into the **same constant-shape failure** it shows for a wrong password:
 
-> _"Check your inbox. We sent a link to **alice@example.net**. Tap it on this device to continue."_
+> _"That username or password is incorrect."_
 
 This is the response shown when:
 
-- The email exists and a link was sent (the normal case).
-- The email exists but the account has `banned_until > now()` and GoTrue refused to send.
-- The email exists but the account is unconfirmed (`GOTRUE_MAILER_AUTOCONFIRM` is `false` in production, per `deployment.md`).
-- The email doesn't resolve to any account at all (typo, never signed up, or already deleted — for first-time signups, GoTrue's `/otp` flow auto-creates the user and the email _is_ sent; this case is "doesn't exist _and_ signups are closed or rate-limited," which we treat the same way).
-- GoTrue's send rate-limit has been hit for that address.
+- The password is wrong (the ordinary failure).
+- The username resolves to no account.
+- The username and password are correct but the account has `banned_until > now()`, so GoTrue refuses the grant.
+- GoTrue's rate-limit has been hit for that account.
 
-**The protection is structural, not rhetorical.** The screen is identical in every case, and that's the entire mechanism. In the cases where the screen technically lies (banned, unconfirmed, rate-limited, sometimes doesn't-exist), the lie is benign: the user can't verify it from this screen alone — they verify by checking their inbox, which is a private channel we don't see. An attacker probing the user database sees the same screen for every address they try, with no timing or text signal distinguishing them; a legitimate user who mistyped discovers it within a minute (no email arrives) and tries again. _"Continue"_ rather than _"sign in"_ in the copy reads naturally for both first-time users (whose email becomes a new account on click) and returning ones.
+**The protection is structural, not rhetorical.** The screen is identical in every case, and that's the entire mechanism. A third party probing the sign-in form never knows any account's password, so every attempt they make already looks like a wrong-password failure — the ban is invisible to them by construction. The banned user themselves sees only the generic failure, with no "you have been suspended" text to react to; they verify nothing from this screen. The copy never hedges (_"if that account is banned…"_): a conditional sentence protects nothing the identical screen isn't already protecting, and reads as an evasive non-answer to the ordinary user who simply mistyped.
 
-An earlier draft of this section used a conditional phrasing — _"If an account exists for that address, we've sent a sign-in link"_ — on the grounds that hedging the claim is more honest in the failure cases. It isn't. It's actively wrong for the most important audience: the first-time user, who reads _"if there's a Cairn account…"_ and reasonably wonders why the screen is asking a question they can't answer when they just submitted their email to create one. The phrasing also slightly chills returning users by implying their account might not exist. The conditional protects nothing the structural design isn't already protecting, because anti-enumeration was always a property of the screen being identical, not of any single sentence on it. Don't reintroduce it.
-
-The page also does _not_ render _"Account suspended,"_ _"No such user,"_ _"Please confirm your email,"_ or _"Too many attempts."_ Each of those would leak the failure mode and break the indistinguishability the design relies on.
+The page also does _not_ render _"Account suspended,"_ _"No such user,"_ or _"Too many attempts."_ Each of those would leak the failure mode and break the indistinguishability the design relies on.
 
 The contract the web app has to honour for this to work:
 
-- **Treat any non-2xx response from `POST /auth/magiclink` as a success in the UI.** The error path and the success path render the same screen. GoTrue's actual response code is not surfaced.
-- **Don't poll for delivery status.** A _"sent / not sent"_ indicator that depends on GoTrue's view of the world reintroduces the distinction. The user finds out the link works by clicking it, or doesn't by not receiving it; that's the right surface area.
-- **Don't add a _"resend"_ button that distinguishes failure modes.** A button that says _"Try again — we couldn't send last time"_ tells an attacker which addresses GoTrue refused. The same button on every screen, with the same effect, is fine.
+- **Treat every 4xx credential verdict from `POST /auth/signin` identically.** Wrong password, unknown username, and a banned account all render the one constant message; GoTrue's actual response code is not surfaced. (A 5xx or network blip is a different case — a transient _"couldn't reach the server,"_ not a credential verdict.)
+- **Don't distinguish "unknown username" from "wrong password."** The BFF returns a single 401 for both, and the copy mirrors that — never _"no such user"_ alongside _"wrong password."_
+- **Don't add an affordance that names the ban.** A message, a disabled control, or a "you're suspended, contact support" link shown _only_ to banned users tells an attacker which accounts GoTrue refused. The same screen for every failure is the protection.
 
-The operator-facing flip side: "a banned user complains they can't sign in" is invisible from the user's screen. The signal lives in GoTrue's logs (filtered by the user's email hash per `logging.md`) and in `admin.actions` (filtered by `action = 'ban_user' and target = <uid>`). Both are accessible to the operator via the standard debug commands; neither is accessible to the user. That asymmetry is the whole point.
+The operator-facing flip side: "a banned user complains they can't sign in" is invisible from the user's screen. The signal lives in `admin.actions` (filtered by `action = 'ban_user' and target = <uid>`) and in `auth.users.banned_until` (via `cairn-admin inspect`). Both are accessible to the operator through the standard debug commands; neither is accessible to the user. That asymmetry is the whole point.
 
 The future-self-service-appeal-channel question in "Open questions / future work" at the bottom of this document is the one place this design forces a tradeoff: if banned users ever need an in-product way to appeal, the web app has to surface _something_ the user can act on, which breaks the perfect indistinguishability above. The right shape for that is probably a single neutral _"Account issues? Contact <address>"_ link on the sign-in screen, shown to everyone, not just banned users — same anti-enumeration trick at one layer of indirection.
 
@@ -424,7 +421,7 @@ Action logged: admin.actions.id = c1a3...
 Post-state: banned_until = infinity
 ```
 
-The user is banned at the GoTrue layer; new magic-link requests for that email will be silently dropped by GoTrue (we deliberately don't surface "this account is banned" to the requester — see the anti-enumeration discussion in `invites.md` for the analogous reasoning). Existing sessions die within an hour as the JWT expires.
+The user is banned at the GoTrue layer; their sign-in attempts are refused by GoTrue and the web app shows only the generic invalid-credentials message (we deliberately don't surface "this account is banned" to the requester — see "What the web app shows when a banned user tries to sign in" above). Existing sessions die as the short-lived access JWT expires.
 
 ### Acting on a GDPR erasure request
 
@@ -466,16 +463,18 @@ $ cairn-admin log --target 4f6b... --since '1 year' # what's happened to this us
 
 `cairn-admin log` is `select * from admin.actions` with the obvious filters. The retention policy is "forever, until it stops fitting" — `admin.actions` is small (one row per intentional admin action, of which there are maybe dozens per year at this scale) and the audit value increases with age. The Postgres database is the one place in Cairn where the retention conversation in `logging.md` goes the other way: keep it.
 
-### Helping a user who can't log in
+### Helping a user who can't sign in
 
-Most of the time this isn't a Cairn admin task — it's GoTrue. The first commands are:
+A sign-in failure resolves to one of a few things: the account is banned, the credential is wrong, or the account isn't the one the user thinks it is. The first commands are:
 
 ```bash
-docker logs cairn-gotrue | grep $(echo -n alice@example.com | sha256sum | cut -d' ' -f1)
+docker logs cairn-gotrue | tail -200
 docker logs cairn-postgrest | tail -200
 ```
 
-The first finds magic-link send attempts for Alice; the second confirms whether any of her tokens reached PostgREST. Both are documented in `logging.md`. Only if those don't explain it does the operator reach for `cairn-admin inspect` to look at the database side. There is no "resend magic link" RPC because there's no Cairn-side reason for one — Alice can request a new one herself; the lever the operator pulls is GoTrue's, not ours.
+GoTrue's log shows the password-grant attempts (accepted or refused); PostgREST's confirms whether any of the user's tokens reached the API. Both are documented in `logging.md`. Only if those don't explain it does the operator reach for `cairn-admin inspect` to look at the database side — the first field to check is `banned_until`.
+
+A **forgotten password is the user's own to fix**: they drive forgot-password themselves (see `architecture.md` → "Password recovery is Cairn-orchestrated"). There is deliberately **no operator password-reset RPC** — a user who proved no recovery address has no self-serve way back in, and that is a conscious design choice, not a gap to plug with an `admin.reset_password`. The lever for that case, if it ever matters, is the deferred operator-assisted reset noted in "Open questions / future work," not a routine admin command.
 
 ## What admin must not do
 
@@ -497,7 +496,7 @@ A short list of things this document does _not_ cover, with a one-line reason ea
 - **Multi-operator authentication.** Today the operator pool is "people with SSH access to the VPS and a Postgres login role granted `cairn_admin`." That's two operators in practice (the maintainers). Adding a third means provisioning a third Postgres login role and granting it `cairn_admin`; nothing in this document changes. Adding a tenth means a real identity story (LDAP, SSO, hardware keys), which is a v2 problem.
 - **Per-action approvals.** No two-person rule for destructive operations. The audit log is the deterrent; at this scale it's enough.
 - **Rate limiting on admin actions.** There's no rate limiter. There's also no scenario where the operator is rate-limited in a useful way — the limit is operator restraint, not infrastructure.
-- **Notifying users of admin actions.** The product is silent about admin operations against accounts and content. A banned user finds out when their magic-link request fails; a user whose account was erased by request is the person who made the request. There's no general "you have been moderated" notification, and no architecture for one. If a future legal regime requires user-facing notification of moderation actions (e.g. DSA Article 17 for in-scope platforms), this is the place that would change — but Cairn is well below the DSA's "very large platform" thresholds and the proportionate compliance for a small private app is _"document the policy, keep the audit log, respond to user requests."_
+- **Notifying users of admin actions.** The product is silent about admin operations against accounts and content. A banned user finds out when their sign-in fails; a user whose account was erased by request is the person who made the request. There's no general "you have been moderated" notification, and no architecture for one. If a future legal regime requires user-facing notification of moderation actions (e.g. DSA Article 17 for in-scope platforms), this is the place that would change — but Cairn is well below the DSA's "very large platform" thresholds and the proportionate compliance for a small private app is _"document the policy, keep the audit log, respond to user requests."_
 - **Cross-instance moderation.** Cairn is single-tenant per VPS. There is no central moderation across deployments; no operator-level reputation; no shared blocklist. Other people running Cairn on their own VPS are running their own product as far as this document is concerned.
 
 ## Considered and rejected
@@ -517,4 +516,4 @@ The shape this document describes is one of several plausible answers. The ones 
 - **A scheduled "what happened" summary.** A weekly cron that emails the operator the last seven days of `admin.actions` would catch a compromised account or a misconfiguration earlier than the current "remember to check" pattern. Cheap to add; not a v1 must-have.
 - **Soft-delete recovery semantics for `moderate_item`.** Today, any list member can restore a moderated item from the trash. That's the right default for ambiguous cases but the wrong one for "this item is genuinely not okay." A future `moderate_item_locked` that uses a sentinel `deleted_by` other than the tombstone (and a matching policy clause that prevents restore) would split the difference. Not pressing until moderation volume justifies the second column.
 - **Two-person rule for `purge_*`.** A workflow where one operator initiates a hard-delete and a second confirms within an hour. Reasonable to add when there is a second operator who isn't also the first one's manager. Not architecturally interesting; just a flag column and a second RPC.
-- **Self-service appeal channel.** Banned users currently have no in-product path to appeal. They have an out-of-product one (email the operator), which is fine at this scale, but it isn't documented anywhere the user-facing app surfaces. Worth a one-line _"Account suspended — contact <address>"_ on the sign-in screen if the magic-link path fails due to a ban. The blocker is that GoTrue doesn't tell the front-end _why_ the magic-link path failed; we'd need a different error surface to distinguish ban from rate-limit from "we couldn't send the email."
+- **Self-service appeal channel.** Banned users currently have no in-product path to appeal. They have an out-of-product one (email the operator), which is fine at this scale, but it isn't documented anywhere the user-facing app surfaces. Worth a one-line _"Account issues? Contact <address>"_ on the sign-in screen, shown to everyone. Surfacing anything ban-specific would require the front-end to distinguish a ban from an ordinary failed sign-in — exactly the distinction the sign-in contract in "What the web app shows when a banned user tries to sign in" deliberately refuses to draw.

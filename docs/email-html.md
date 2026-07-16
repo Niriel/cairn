@@ -5,6 +5,10 @@ works perfectly in Chrome may be silently discarded by Gmail, mangled by
 Outlook, or replaced wholesale by Yahoo Mail. This document records what
 Cairn's emails must do to render acceptably across all of them.
 
+Cairn sends exactly one kind of e-mail: the auth BFF's recovery and
+password-reset code messages (`auth-proxy/src/lib/mail.ts`). Those are the
+templates these rules govern.
+
 ## The fundamental constraint: no shared document
 
 When a web browser renders a page, it owns the whole document. When an email
@@ -173,7 +177,7 @@ complexity. Neither is appropriate for Cairn's current needs.
 
 ## Reference
 
-- GoTrue template loading and the dev/prod delivery mechanism:
-  [`docs/gotrue-templates.md`](gotrue-templates.md)
-- Cairn's current magic-link template:
-  [`web/static/gotrue/templates/magic_link.html`](../web/static/gotrue/templates/magic_link.html)
+- The BFF module that composes and sends Cairn's recovery and reset-code mail:
+  [`auth-proxy/src/lib/mail.ts`](../auth-proxy/src/lib/mail.ts)
+- SMTP wiring (Mailpit in dev, the configured provider in prod):
+  [`docs/deployment.md`](deployment.md) → "`.env.prod`" and "Auth surface: pre-deploy checklist"

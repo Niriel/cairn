@@ -135,7 +135,7 @@ services:
       GOTRUE_SMTP_PORT: 1025
       GOTRUE_SITE_URL: http://localhost:5173
       GOTRUE_DISABLE_SIGNUP: "false"
-      GOTRUE_MAILER_AUTOCONFIRM: "true" # dev only — skip email verification
+      GOTRUE_MAILER_AUTOCONFIRM: "true" # skip e-mail confirmation (on in prod too)
     ports:
       - "9999:9999"
     depends_on: [postgres, mailpit]
@@ -174,8 +174,8 @@ A few things worth knowing about this:
 
 - **The `JWT_SECRET` is shared** between PostgREST and GoTrue. GoTrue signs JWTs with it; PostgREST verifies signatures with it. They have to match. In dev it's a random string in `.env`; in production it's a stronger random string in a secrets file.
 - **Postgres roles**: `cairn` is the superuser used for migrations (created by Postgres from `POSTGRES_USER`); the rest are created by the migrations. `authenticator` is what PostgREST connects as — it has no rights of its own and `SET ROLE`s to `anon` or `authenticated` per request based on the JWT. `anon` and `authenticated` are no-login group roles that RLS policies reference. `gotrue` is what GoTrue connects as; it owns the `auth` schema. There is also a no-login `postgres` stub role: recent supabase/gotrue migrations hardcode `GRANT ... TO postgres` against their auth tables, so the role has to exist even though our superuser is named `cairn`.
-- **`GOTRUE_MAILER_AUTOCONFIRM: "true"`** is a development convenience: signing up doesn't require clicking a confirmation email. In production this is `false` so users actually have to verify their email. Magic-link login itself works the same way in both environments.
-- **`GOTRUE_SITE_URL: http://localhost:5173`** is the SvelteKit dev server. Magic-link emails point at it; clicking the link opens a browser tab on the dev server. Caddy's _cookie shim_ is not in the loop locally — it is approximated by the SvelteKit dev server's API proxy (see below). Caddy itself does run in the dev compose for avatar static serving (port 8080).
+- **`GOTRUE_MAILER_AUTOCONFIRM: "true"`** makes signup skip the e-mail-confirmation step, and it is on in **both** dev and prod. It is load-bearing, not just a convenience: the auth-proxy's `/auth/register` flow authenticates against the non-deliverable `<uid>@cairn.internal` identity, so a confirmation e-mail could never be delivered and clicked — the account has to be immediately usable. E-mail verification instead happens later and optionally, when a user proves a _recovery_ address (see `architecture.md` → "Password recovery is Cairn-orchestrated").
+- **`GOTRUE_SITE_URL: http://localhost:5173`** is the SvelteKit dev server — GoTrue's notion of the app origin. Caddy's _cookie shim_ is not in the loop locally — it is approximated by the SvelteKit dev server's API proxy (see below). Caddy itself does run in the dev compose for avatar static serving (port 8080).
 
 ## The SvelteKit dev server and the cookie shim
 
@@ -252,11 +252,9 @@ We deliberately don't `INSERT` directly into `auth.users` — GoTrue's schema ha
 
 **Production posture (step 13, `1500_production_rollout` — now shipped).** The dev password `cairn-dev` is committed in `db/seed/dev_seed.sql` and `scripts/seed.sh`, and `POST /auth/signup` is open in dev (`GOTRUE_DISABLE_SIGNUP="false"`, `GOTRUE_MAILER_AUTOCONFIRM="true"`). Both are intentional and contained to localhost: no production rollout path runs `./scripts/seed.sh`, so the committed credential never reaches a prod instance. Production runs **open** signup as a deliberate alpha posture: the prod `.env` sets `DISABLE_SIGNUP=false` (so GoTrue's `GOTRUE_DISABLE_SIGNUP` resolves to `false`) and `GOTRUE_MAILER_AUTOCONFIRM=true`, which the auth-proxy's `/auth/register` flow needs to obtain an immediately-usable token set. `GOTRUE_DISABLE_SIGNUP` remains the operator's hard switch, and the per-IP register throttle bounds mass signup from a single source. The raw GoTrue password grant is reachable only through the rate-limited BFF (see `docs/deployment.md` → "Auth surface: pre-deploy checklist"), so an open signup endpoint is not an open credential-stuffing surface. `docs/invites.md` governs invite _acceptance_, not signup-openness — it is not the basis for an invite-only signup gate.
 
-Step 13 must _also_ run the production web build with `VITE_DEV_LOGIN_PASSWORD` unset (no entry in the prod `.env`, no CI export). Vite statically replaces `import.meta.env.VITE_*` at build time before Rollup tree-shakes the dev-shortcut call site, so a stray prod-env entry would inline the `cairn-dev` literal into the JS source even when `isDevLoginShortcutEnabled()` constant-folds to `false`. The dev-shortcut is dev-only by belt-and-braces (`import.meta.env.DEV === false` in prod also tree-shakes the branch), but the env-var-unset rule is the load-bearing guarantee that no plaintext credential ships.
+Anti-enumeration lives in the recovery flow, not the sign-in screen. A username is _public_ (it's the `@handle`), so the sign-in screen has no account-existence secret to protect — but the private **recovery e-mail** does. A signed-out password reset is requested by **username**, and the BFF returns a **constant response** regardless of whether the account exists or has a recovery address on file, mailing a reset code only when both are true (the discipline established in `plans/0302_signin_anti_enumeration/`). The banned-user sign-in contract in `docs/admin.md` → _"What the web app shows when a banned user tries to sign in"_ is the same idea at the credential layer: a banned account's sign-in attempt is indistinguishable from a wrong-password one. Dev's `GOTRUE_DISABLE_SIGNUP="false"` doesn't change these surfaces; the contracts are verified by the route-mocks in `web/e2e/` rather than by GoTrue itself.
 
-Separately, with `GOTRUE_DISABLE_SIGNUP=true` the `POST /auth/magiclink` endpoint returns 4xx for unknown emails and 200 for known ones. The status split is an account-existence oracle: anyone with a list of candidate emails can confirm registered accounts, which contradicts Cairn's email-privacy stance (`docs/invites.md` — email is never social information). Step 3's initial `LoginRequest` surfaced the 4xx as an inline error and the 5xx as a snackbar, exposing the oracle directly in the UI; `plans/0302_signin_anti_enumeration/` closed that gap by collapsing every non-2xx response (banned, unconfirmed, rate-limited, unknown) into the same `/auth/check` destination with the same copy as the success path, per the structural contract in `docs/admin.md` → _"What the web app shows when a banned user tries to sign in"_. Dev's `GOTRUE_DISABLE_SIGNUP="false"` doesn't trigger the underlying split, so the contract is verified by the route-mock in `web/e2e/auth.spec.ts` rather than by GoTrue itself.
-
-**Dev cookie-plant narrowing.** The Vite proxy's JSON-sniffing response shim plants the `cairn_session` cookie only on responses from endpoints in `COOKIE_PLANT_PATHS` (currently `/auth/verify` and `/auth/token`, defined in `web/src/lib/shared/model/auth-paths.ts`). `POST /auth/signup` through the proxy returns the GoTrue body including `access_token` but **does not** plant the cookie — a deliberate narrowing so the dev cookie-plant contract is pinned to deliberate-login endpoints. A contributor adding a new GoTrue endpoint that returns `access_token` (refresh-token rotation, OAuth callbacks) must extend `COOKIE_PLANT_PATHS` explicitly.
+**Dev cookie-plant narrowing.** The Vite dev proxy mirrors production's `auth-proxy` BFF: it plants the dual session cookie only on the deliberate sign-in / registration exchanges (`/auth/signin`, `/auth/register`), and a 2xx from any other endpoint does **not** plant a cookie. Both the dev proxy and the production BFF enforce the same narrowing via the shared lists in `web/src/lib/shared/model/auth-paths.ts`; adding a new GoTrue endpoint to the narrow is a deliberate edit, not an implicit consequence of a 2xx response shape.
 
 ## The web app
 
@@ -278,7 +276,7 @@ VITE_AUTH_BASE=/auth
 
 `VITE_API_BASE` and `VITE_AUTH_BASE` are paths, not full URLs — same in dev and prod, because Caddy and Vite both serve the API at `/api` and the auth service at `/auth` on the same origin as the app.
 
-`VITE_DEV_LOGIN_SHORTCUT=true` (the default in `web/.env.example`) enables three secondary buttons — _Alice_, _Bob_, _Carol_ — under the email field on `/auth/login`. Each calls `POST /auth/signin` with the corresponding seed username (`alice` / `bob` / `carol`) and the dev password `cairn-dev` — the same path the sign-in screen uses, since the public password grant is now locked to the BFF. The BFF resolves the username, runs the grant against the account's stable `<uid>@cairn.internal` identity, plants the session cookies, and you land on `/` signed in. The shortcut is dev-only by belt-and-braces: in a production build `import.meta.env.DEV` is `false` regardless of which env vars are set, and Vite tree-shakes the dead branch out of the bundle. To disable locally without losing the dev build mode, unset the env var.
+To sign in locally, use the seed accounts on the sign-in screen — see "Signing in during development" below.
 
 ### Building for production locally
 
@@ -293,7 +291,7 @@ pnpm preview
 
 Svelte compiles `{#if condition} … {/if}` to runtime logic — even when `condition` is statically `false` after Vite's `import.meta.env.DEV` replacement, the minifier cannot prove the branch is dead across the component boundary. The template strings, the closures, and any modules imported only for that branch all survive into the prod bundle.
 
-This matters whenever you add UI that should be **physically absent** in prod, not just hidden. The dev login shortcut in `web/src/lib/auth/components/LoginRequest.svelte` is the existing instance; see `deployment.md` → "Auth surface: pre-deploy checklist" for the deploy-time mitigations on that specific case.
+This matters whenever you add UI that should be **physically absent** in prod, not just hidden — a debug panel, a fixture-seeding button, anything that embeds a dev-only secret or endpoint. Use the literal-conditional dynamic-import pattern below so the dead module drops from the prod graph entirely.
 
 **Don't do this:**
 
@@ -332,7 +330,7 @@ This matters whenever you add UI that should be **physically absent** in prod, n
 
 The dynamic-import pattern moves the gate from runtime to build time. Verify with `pnpm build` followed by grep against `web/build/_app/immutable/` — any string that should be dev-only should not appear.
 
-Note also that `import.meta.env.VITE_*` references are **inlined at build time as string literals**. A dev-only env var (e.g. `VITE_DEV_LOGIN_PASSWORD`) that is set in the shell when `pnpm build` runs will bake its value into the JS bundle, dead-code-eliminated or not. Keep dev env vars in `.env.local` or `.env.development` (which Vite only loads in dev mode), never in `.env` or `.env.production`.
+Note also that `import.meta.env.VITE_*` references are **inlined at build time as string literals**. A dev-only env var (say a `VITE_DEBUG_*` flag) that is set in the shell when `pnpm build` runs will bake its value into the JS bundle, dead-code-eliminated or not. Keep dev env vars in `.env.local` or `.env.development` (which Vite only loads in dev mode), never in `.env` or `.env.production`.
 
 ### The service worker in development
 
@@ -344,22 +342,13 @@ When you do test offline behaviour:
 - Close the browser dev tools, open the _Application_ tab in dev tools, and check the _Offline_ checkbox.
 - Reload — the app shell loads from the cache; cached `/api` GETs serve recent data; uncached routes show the _"No connection"_ state.
 
-## The magic-link flow in development
+## Signing in during development
 
-Cairn uses email magic links for real authentication. Locally, no actual email is sent — Mailpit catches everything.
+Sign-in is **username + password** (see `architecture.md` → "Authentication: GoTrue + username and password"). Locally, use the seed accounts created by `./scripts/seed.sh`: on the sign-in screen enter `alice`, `bob`, or `carol` with the dev password `cairn-dev`. The Vite dev proxy mirrors production's `auth-proxy` BFF — it resolves the username to the account's stable `<uid>@cairn.internal` identity, runs GoTrue's password grant server-side, and plants the dual session cookie — so you land on `/` signed in, exactly as in production.
 
-To test the flow:
+The dev cookies are set without the `Secure` attribute because localhost is HTTP; production's cookies are `Secure` and `__Host-`-prefixed. This divergence is intentional.
 
-1. In the app, enter an email (any email; it doesn't have to be real).
-2. The app POSTs to `/auth/magiclink` with `{email, redirect_to: ${origin}/auth/callback}`.
-3. GoTrue sends an email via SMTP to Mailpit. The email's link points at GoTrue's own `/verify` endpoint (port 9999 in dev), which validates the token and then 302-redirects to `localhost:5173/auth/callback#access_token=…&refresh_token=…&type=magiclink`.
-4. Open `http://localhost:8025` — Mailpit's web UI shows the email. It carries both a sign-in link and a six-digit code.
-5. Click the link. The browser follows the `/verify` → 302 → callback chain. The callback page captures the hash, `replaceState`s it away, and POSTs `/auth/token?grant_type=refresh_token` through the Vite proxy. The cookie-plant shim sets the `cairn_session` cookie, and the page navigates to `/`, logged in. (Tokens are JS-readable in `window.location.hash` for the few hundred milliseconds the callback page is mounted — the trade-off is documented in `docs/architecture.md` under "JWT storage → Security trade-off".)
-6. Alternatively, instead of clicking the link, type the six-digit code on the "Check your inbox" screen (`/auth/check`). The code-entry field POSTs `/auth/verify` with `{type:'magiclink', email, token}` through the same cookie-plant shim, and the page navigates to `/`, logged in — useful for finishing sign-in on the device you started on.
-
-The dev cookie is set without the `Secure` attribute because localhost is HTTP; production's Caddy-set cookie has `Secure`. This divergence is intentional.
-
-For routine dev where you don't care about exercising the flow, use the dev login shortcut to log in as Alice/Bob/Carol directly.
+To exercise **password recovery** locally, no real e-mail is sent — Mailpit (`http://localhost:8025`) catches the recovery and reset-code e-mails the BFF sends. Set a recovery address from Settings (the BFF mails a confirmation code), then drive forgot-password to receive a reset code; see `architecture.md` → "Password recovery is Cairn-orchestrated".
 
 ## Common tasks
 

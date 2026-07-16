@@ -23,7 +23,6 @@
 			// recovery e-mail on file, rate-limited, server error) renders the
 			// same next screen. The BFF already answers a constant 200; swallowing
 			// here keeps the public path from leaking through a thrown error.
-			// Mirrors LoginRequest's sendMagicLink(...).catch(() => {}).
 			await requestPasswordReset(username).catch(() => {});
 			setPendingReset(username);
 			await goto(resolve('/auth/reset-password')).catch(() => {});

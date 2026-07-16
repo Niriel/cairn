@@ -10,12 +10,10 @@ import { CSRF_HEADER } from './auth-paths.js';
 // no Access-Control-Allow-* headers — see index.ts), so the header's mere
 // presence is sufficient: there is no value to validate.
 //
-// The magic-link pass-through endpoints (/auth/magiclink, /auth/verify,
-// /auth/token) are GoTrue's own wire protocol kept alive for the magic-link
-// flow; they establish a session from the request body, not the cookie, so
-// SameSite does not protect them and they sit outside this check. The residual
-// login-CSRF on that path is deliberately accepted (see REQUIREMENTS.md
-// Non-requirements) and retires when magic-link does.
+// The generic GoTrue pass-through sits outside this check: it plants no session
+// cookie, so there is nothing for a CSRF header to reinforce there. Only the
+// Cairn-shaped endpoints above — which plant, rotate, or clear the dual-cookie
+// session — are gated.
 export function requireCsrf(req: Request): boolean {
 	return req.get(CSRF_HEADER) !== undefined;
 }

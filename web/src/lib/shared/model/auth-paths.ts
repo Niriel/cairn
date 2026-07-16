@@ -10,9 +10,6 @@
 export const PUBLIC_AUTH_PATHS = [
 	'/auth/signin',
 	'/auth/register',
-	'/auth/login',
-	'/auth/check',
-	'/auth/callback',
 	'/auth/forgot-password',
 	'/auth/reset-password'
 ] as const;
@@ -20,15 +17,9 @@ export const PUBLIC_AUTH_PATHS = [
 export const SIGNED_IN_REDIRECT_PATHS = [
 	'/auth/signin',
 	'/auth/register',
-	'/auth/login',
-	'/auth/check',
 	'/auth/forgot-password',
 	'/auth/reset-password'
 ] as const;
-
-export const BEARER_AUTH_PATHS = ['/auth/user'] as const;
-
-export const COOKIE_PLANT_PATHS = ['/auth/verify', '/auth/token'] as const;
 
 export const LOGOUT_PATHS = ['/auth/signout'] as const;
 

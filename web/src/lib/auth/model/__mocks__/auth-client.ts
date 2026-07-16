@@ -1,12 +1,8 @@
-// Mirrors the real `auth-client.ts` API as `vi.fn()` spies. Single-
-// consumer today (Task 3.2c's `LoginRequest.test.ts`), but the
-// per-case overrides on four functions are non-trivial enough that
-// lifting the factory out of the test file keeps the per-case
-// `vi.mocked(...).mockResolvedValueOnce(...)` calls readable.
-//
-// The callback test (Task 6.3) deliberately does NOT use this mock —
-// it runs the real `exchangeRefreshToken` against MSW handler overrides
-// on `/auth/token`, matching `postgrest.test.ts`'s MSW-driven shape.
+// Mirrors the real `auth-client.ts` API as `vi.fn()` spies. Bare
+// `vi.mock('$lib/auth/model/auth-client')` in the auth component tests
+// (SignIn, Register) auto-loads this file; lifting the spies out of the
+// test files keeps the per-case
+// `vi.mocked(...).mockResolvedValueOnce(...)` overrides readable.
 
 import { vi } from 'vitest';
 
@@ -17,8 +13,6 @@ const SEED_USER: AuthUser = {
 	username: 'dev'
 };
 
-export const sendMagicLink = vi.fn((_email: string): Promise<void> => Promise.resolve());
-
 export const signIn = vi.fn(
 	(_username: string, _password: string): Promise<{ user: AuthUser }> =>
 		Promise.resolve({ user: SEED_USER })
@@ -26,15 +20,6 @@ export const signIn = vi.fn(
 
 export const register = vi.fn(
 	(_username: string, _password: string): Promise<{ user: AuthUser }> =>
-		Promise.resolve({ user: SEED_USER })
-);
-
-export const exchangeRefreshToken = vi.fn(
-	(_refreshToken: string): Promise<{ user: AuthUser }> => Promise.resolve({ user: SEED_USER })
-);
-
-export const verifyOtp = vi.fn(
-	(_email: string, _token: string): Promise<{ user: AuthUser }> =>
 		Promise.resolve({ user: SEED_USER })
 );
 

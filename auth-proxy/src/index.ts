@@ -3,12 +3,7 @@ import { randomUUID } from 'node:crypto';
 import express from 'express';
 import type { Request, Response } from 'express';
 
-import {
-	BEARER_AUTH_PATHS,
-	COOKIE_PLANT_PATHS,
-	LOGOUT_PATHS,
-	isSegmentMatch
-} from './lib/auth-paths.js';
+import { LOGOUT_PATHS, isSegmentMatch } from './lib/auth-paths.js';
 import { plantSession, clearSession, readAccessCookie, readSessionCookie } from './lib/cookies.js';
 import { refresh, logout, passwordGrant, signup, type LogoutScope } from './lib/session.js';
 import {
@@ -37,27 +32,24 @@ import {
 import { sendVerifyCode, sendResetCode } from './lib/mail.js';
 
 // Production auth BFF (Cairn-shaped). This is the prod analogue of the dev
-// Vite proxy in web/vite.config.ts (~lines 30–185): it owns the dual-cookie
-// session (durable `cairn_session` refresh token + short-lived `cairn_access`
-// JWT), so no token ever reaches page JavaScript. Caddy routes the GoTrue
-// endpoints (/auth/magiclink|verify|token|user|session) and the Cairn-shaped
-// /auth/refresh here; the stock cookie→bearer direction for /api and /avatars
-// stays in the Caddyfile and reads the access cookie. The narrowing lists are
-// the canonical ones (auth-paths.ts, guarded deep-equal against web/'s copy by
-// the drift test).
+// Vite proxy in web/vite.config.ts: it owns the dual-cookie session (durable
+// `cairn_session` refresh token + short-lived `cairn_access` JWT), so no token
+// ever reaches page JavaScript. Caddy routes the Cairn-shaped /auth endpoints
+// here; the stock cookie→bearer direction for /api and /avatars stays in the
+// Caddyfile and reads the access cookie. The narrowing lists are the canonical
+// ones (auth-paths.ts, guarded deep-equal against web/'s copy by the drift test).
 //
-// The full Cairn-shaped BFF surface is:
+// The Cairn-shaped BFF surface is:
 //   POST /auth/register  — create an account
 //   POST /auth/signin    — username + password sign-in
-//   POST /auth/signout    — revoke server-side + clear cookies (?scope=global)
+//   POST /auth/signout   — revoke server-side + clear cookies (?scope=global)
 //   POST /auth/refresh   — rotate the durable refresh token, re-mint the access
-// /auth/signin is the real username+password sign-in and /auth/register is the
-// real open account-creation flow. All four are state-changing and require the
-// CSRF header (csrf.ts). The magic-link GoTrue
-// pass-throughs (/auth/token, /auth/verify, /auth/magiclink, /auth/user) keep
-// GoTrue's own wire protocol so magic-link sign-in still works — except the
-// public password grant on /auth/token, which is locked down (the only
-// password-grant path is the rate-limited /auth/signin).
+//   plus the authenticated recovery-e-mail and signed-out password-reset endpoints
+// All state-changing endpoints require the CSRF header (csrf.ts). Any other
+// /auth/* path falls through to a generic GoTrue pass-through (defence-in-depth:
+// it attaches no cookie-derived bearer, plants no cookie, and strips any token
+// from a forwarded body), with a hard lockdown on the public password grant —
+// the only password-grant path is the rate-limited /auth/signin.
 
 // The Cairn-shaped refresh endpoint — not a GoTrue passthrough, so it's handled
 // before the generic fetch-to-GoTrue path below.
@@ -94,9 +86,9 @@ const RESET_PASSWORD_PATH = '/auth/reset-password';
 const USERNAME_RE = /^[A-Za-z0-9]{3,30}$/;
 const MIN_PASSWORD_LENGTH = 8;
 
-// The GoTrue token endpoint, kept as a pass-through for the legacy magic-link
-// refresh-token grant. The public password grant against it is locked down (the
-// only password-grant path is the rate-limited /auth/signin) — see authHandler.
+// The GoTrue token endpoint. Retained only to anchor the password-grant lockdown
+// below: a public `grant_type=password` against it is rejected (the only
+// password-grant path is the rate-limited /auth/signin) — see authHandler.
 const TOKEN_PATH = '/auth/token';
 
 // Sign-in is rate-limited (per-IP block + per-account escalating delay) — the
@@ -108,8 +100,8 @@ const signinLimiter = new RateLimiter(rateLimitConfigFromEnv());
 const signinGuard = signinRateLimit(signinLimiter);
 
 // State-changing Cairn-shaped endpoints that require the CSRF header. The
-// magic-link GoTrue pass-throughs (/auth/token, /auth/verify, /auth/magiclink)
-// are the deliberate exception — see csrf.ts.
+// generic GoTrue pass-through is the deliberate exception — it plants no cookie,
+// so SameSite has nothing there for a CSRF header to reinforce — see csrf.ts.
 const CSRF_PROTECTED_PATHS = [
 	REFRESH_PATH,
 	SIGNIN_PATH,
@@ -247,11 +239,11 @@ async function authHandler(req: Request, res: Response): Promise<void> {
 		return;
 	}
 
-	// R6 lockdown: the public GoTrue password grant must be unreachable, since
-	// anyone can compute `<uid>@cairn.internal` from the public resolver. The only
-	// password-grant path is the rate-limited /auth/signin above. The legacy
-	// magic-link refresh-token grant still flows through /auth/token, so reject
-	// only grant_type=password (read from the query string) and never forward it.
+	// Password-grant lockdown (defence-in-depth): the public GoTrue password grant
+	// must be unreachable, since anyone can compute `<uid>@cairn.internal` from the
+	// public resolver. The only password-grant path is the rate-limited /auth/signin
+	// above. Reject `grant_type=password` on /auth/token (read from the query string)
+	// and never forward it — this holds regardless of what Caddy routes here.
 	if (isSegmentMatch(originalUrl, [TOKEN_PATH]) && grantTypeOf(originalUrl) === 'password') {
 		res.status(403).json({ error: 'use /auth/signin' });
 		return;
@@ -264,14 +256,10 @@ async function authHandler(req: Request, res: Response): Promise<void> {
 		headers.set(key, Array.isArray(value) ? value.join(', ') : value);
 	}
 
-	// Bearer attach is narrowed to BEARER_AUTH_PATHS (/auth/user) — anonymous
-	// endpoints (/auth/magiclink|verify|token) must not receive a credential.
-	if (isSegmentMatch(originalUrl, BEARER_AUTH_PATHS)) {
-		// Read the short-lived access cookie — the durable cookie now holds a
-		// refresh token, which GoTrue's /user would reject.
-		const token = readAccessCookie(req.headers.cookie);
-		if (token) headers.set('Authorization', `Bearer ${token}`);
-	}
+	// No cookie-derived bearer is attached to the generic pass-through: it serves
+	// only anonymous GoTrue endpoints, and forwarding a session credential to one
+	// would hand it out needlessly. (A client-supplied Authorization is stripped
+	// above via SKIP_REQUEST_HEADERS.)
 
 	const hasBody = req.method !== 'GET' && req.method !== 'HEAD';
 	// `Uint8Array.from` (not the raw Buffer) so the value matches fetch's
@@ -287,11 +275,10 @@ async function authHandler(req: Request, res: Response): Promise<void> {
 			method: req.method,
 			headers,
 			body,
-			// Never follow GoTrue's /verify 302 — the browser must receive it
-			// so it can land on /auth/callback#<tokens>. The dev Vite proxy
-			// gets this right by accident (http-proxy doesn't follow); we do it
-			// deliberately. A 302 carries no JSON, so the cookie-plant below
-			// never fires on it and the body passes through verbatim.
+			// Never follow an upstream redirect — forward it to the browser
+			// verbatim. A proxy that silently followed a GoTrue 3xx would swallow
+			// a response the client must see. A 302 carries no JSON, so the token
+			// strip below never fires on it and the body passes through verbatim.
 			redirect: 'manual'
 		});
 	} catch {
@@ -327,34 +314,11 @@ async function authHandler(req: Request, res: Response): Promise<void> {
 			const json = JSON.parse(buf.toString('utf8')) as {
 				access_token?: unknown;
 				refresh_token?: unknown;
-				expires_in?: unknown;
-				user?: unknown;
 			};
-			// Cookie-plant is narrowed to the deliberate-login endpoints
-			// (COOKIE_PLANT_PATHS = /auth/verify, /auth/token) — a 2xx from
-			// /auth/magiclink (or a future token-returning endpoint) must not
-			// plant a session unless explicitly added to the allow-list. Plants
-			// BOTH cookies (refresh in the durable cookie, access in the
-			// short-lived one) so a magic-link/OTP sign-in establishes the
-			// dual-cookie session.
-			if (
-				typeof json.access_token === 'string' &&
-				typeof json.refresh_token === 'string' &&
-				isSegmentMatch(originalUrl, COOKIE_PLANT_PATHS)
-			) {
-				const expiresIn = typeof json.expires_in === 'number' ? json.expires_in : undefined;
-				plantSession(res, {
-					accessToken: json.access_token,
-					refreshToken: json.refresh_token,
-					expiresIn
-				});
-				// Enrich the forwarded user with the username (Task 3.4), using the
-				// freshly planted access token, so a legacy magic-link sign-in adopts
-				// the same AuthUser shape as /auth/signin and /auth/refresh.
-				json.user = await enrichUser(json.user, json.access_token);
-			}
-			// Strip tokens unconditionally — page JS has no use for them; the
-			// cookie is the source of truth.
+			// Strip any token from a forwarded body — page JS has no use for one,
+			// the cookie is the source of truth, and this pass-through plants no
+			// session cookie. Defence-in-depth: no GoTrue endpoint routed here
+			// should be returning tokens to the browser at all.
 			if (typeof json.access_token === 'string' || typeof json.refresh_token === 'string') {
 				delete json.access_token;
 				delete json.refresh_token;
@@ -371,9 +335,9 @@ async function authHandler(req: Request, res: Response): Promise<void> {
 
 // Build the client-facing user from a GoTrue user + the freshly minted access
 // token: `{ id, username }` when the profile lookup finds a username, else
-// `{ id }`. GoTrue's user object has no username, so every session-returning path
-// (refresh, the magic-link cookie-plant) routes through here so the client adopts
-// an identically-shaped AuthUser. A profile-lookup *error* degrades the same way
+// `{ id }`. GoTrue's user object has no username, so /auth/refresh routes its
+// restored user through here to adopt the same AuthUser shape /auth/signin
+// returns directly. A profile-lookup *error* degrades the same way
 // as an empty result (bare `{ id }`) rather than signing the session out — the
 // degraded shape is effectively unreachable, since every account gets a profile
 // (with a provisional username) at signup. Returns the user unchanged when it

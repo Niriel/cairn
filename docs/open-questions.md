@@ -30,6 +30,17 @@ the matching entry in the underlying doc.
   separate JS file referenced before `%sveltekit.head%`. See
   `plans/0200_web_foundation/TASKS.md` § Task 1.1.
 
+## Auth
+
+- **Operator-assisted password reset for accounts with no recovery
+  e-mail.** Deferred — there is no `admin.reset_password` today. Self-serve
+  recovery is built, but e-mail is optional, so a user who never proved a
+  recovery address and then forgets their password has no self-serve way
+  back in, by design. An `admin`-schema fallback is the eventual answer,
+  built when someone actually locks themselves out rather than
+  speculatively. See `architecture.md` § "Open questions and future work"
+  and `admin.md` § "Helping a user who can't sign in".
+
 ## Legal
 
 - **Imprint contents.** Every legally-required field on the Imprint
@@ -72,9 +83,9 @@ the matching entry in the underlying doc.
   scale but isn't surfaced anywhere the sign-in screen mentions. A
   single neutral _"Account issues? Contact <address>"_ link shown
   to everyone — same anti-enumeration trick at one layer of
-  indirection — is the obvious shape. Blocker: GoTrue doesn't tell
-  the front-end _why_ a magic-link request failed, so adding a
-  banned-only surface would break the indistinguishability that
+  indirection — is the obvious shape. Blocker: surfacing anything
+  ban-specific means distinguishing a ban from an ordinary failed
+  sign-in, which breaks the indistinguishability that
   `admin.md` § "What the web app shows when a banned user tries to
   sign in" relies on. See `admin.md` § Open questions.
 

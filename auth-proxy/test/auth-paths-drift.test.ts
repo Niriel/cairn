@@ -37,8 +37,6 @@ describe('auth-paths drift guard', () => {
 
 	it('parses the known canonical const exports (anchor so empty-vs-empty cannot pass)', () => {
 		expect(Object.keys(canonical).sort()).toEqual([
-			'BEARER_AUTH_PATHS',
-			'COOKIE_PLANT_PATHS',
 			'CSRF_HEADER',
 			'LOGOUT_PATHS',
 			'PUBLIC_AUTH_PATHS',

@@ -18,11 +18,9 @@ interface CapturedRequest {
 let lastReq: CapturedRequest | null;
 let respond: (req: http.IncomingMessage, res: http.ServerResponse) => void;
 let gotrue: http.Server;
-// The cookie-plant path now enriches the forwarded user with the username via a
-// PostgREST profile lookup (usernameForUid). A stub PostgREST returning an empty
-// result keeps these narrowing tests fast and offline — enrichment degrades the
-// user to `{ id }`, which is fine here (these tests assert narrowing + token
-// stripping, not the username shape).
+// A stub PostgREST kept so these tests stay offline and hermetic. The generic
+// /auth pass-through does not itself call PostgREST (the cookie-plant
+// enrichment retired with the magic-link surface), so the stub is defensive.
 let postgrest: http.Server;
 
 function defaultRespond(_req: http.IncomingMessage, res: http.ServerResponse) {
@@ -99,11 +97,10 @@ function capturedAuthHeader(): string | undefined {
 }
 
 describe('auth-proxy shim', () => {
-	it('(a) plants both cookies on COOKIE_PLANT_PATHS but neither on /auth/magiclink', async () => {
+	it('(a) plants no cookies on a GoTrue pass-through, even on a token-returning 200 (cookie-plant retired)', async () => {
 		const onToken = await request(app).post('/auth/token').send({ grant_type: 'refresh_token' });
-		// Durable cookie holds the refresh token, access cookie holds the JWT.
-		expect(sessionCookie(onToken)).toContain('cairn_session=RRR.token');
-		expect(accessCookie(onToken)).toContain('cairn_access=AAA.token');
+		expect(sessionCookie(onToken)).toBeUndefined();
+		expect(accessCookie(onToken)).toBeUndefined();
 
 		const onMagiclink = await request(app).post('/auth/magiclink').send({ email: 'x@y.z' });
 		expect(sessionCookie(onMagiclink)).toBeUndefined();
@@ -118,11 +115,11 @@ describe('auth-proxy shim', () => {
 		expect(body.user).toEqual({ id: 'u1' });
 	});
 
-	it('(c) attaches the bearer from the access cookie only on BEARER_AUTH_PATHS, never on anonymous endpoints', async () => {
-		// The bearer comes from the short-lived access cookie — the durable
-		// cookie now holds a refresh token GoTrue's /user would reject.
+	it('(c) attaches no cookie-derived bearer on any GoTrue pass-through (bearer-attach retired)', async () => {
+		// The BFF no longer reads a cookie into an upstream Authorization header;
+		// GoTrue sees no bearer even when the access cookie is present.
 		await request(app).get('/auth/user').set('Cookie', 'cairn_access=xxx.yyy.zzz');
-		expect(capturedAuthHeader()).toBe('Bearer xxx.yyy.zzz');
+		expect(capturedAuthHeader()).toBeUndefined();
 
 		lastReq = null;
 		await request(app)
@@ -141,19 +138,9 @@ describe('auth-proxy shim', () => {
 	});
 
 	// Sign-out moved to POST /auth/signout (revocable, server-side); its
-	// behaviour is covered by signout.test.ts.
-
-	it('(f) marks the cookie Secure + __Host--prefixed iff COOKIE_SECURE === "true"', async () => {
-		const insecure = await request(app).post('/auth/token').send({});
-		expect(sessionCookie(insecure)).toContain('cairn_session=');
-		expect(sessionCookie(insecure)).not.toContain('__Host-');
-		expect(sessionCookie(insecure)).not.toContain('Secure');
-
-		process.env.COOKIE_SECURE = 'true';
-		const secure = await request(app).post('/auth/token').send({});
-		expect(sessionCookie(secure)).toContain('__Host-cairn_session=');
-		expect(sessionCookie(secure)).toContain('Secure');
-	});
+	// behaviour is covered by signout.test.ts. The cookie Secure + __Host-
+	// prefix behaviour is covered by cookies.test.ts (plantSession directly),
+	// now that no /auth pass-through plants a cookie.
 
 	it('(g) forwards a GoTrue 302 unfollowed — Location verbatim, no cookie, no body rewrite', async () => {
 		const location = 'https://cairn.example/auth/callback#access_token=ZZZ&refresh_token=QQQ';
