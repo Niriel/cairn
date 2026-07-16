@@ -362,7 +362,7 @@ in-flight branch for no gain.
     Copy/Move. See `plans/1901_item_overflow/` — a follow-on to step 18,
     so it took the `1901` slot.
 
-20. [ ] **Username identity: sign in with a unique username + password;
+20. [x] **Username identity: sign in with a unique username + password;
     e-mail becomes optional, kept only for password recovery.** Today the
     whole identity hangs off e-mail — GoTrue authenticates by
     `auth.users.email` (magic links + the six-digit OTP from step 1700),
@@ -407,22 +407,22 @@ in-flight branch for no gain.
       Closes a pre-existing prod gap independent of usernames; lands
       first; prod-facing. (Reuse is detection-only on GoTrue v2.158.1 — no
       auto family-revoke; `signout?scope=global` is the manual kill-switch.)
-    - [ ] **2003: username + password sign-in.** Revise 2001 forward —
+    - [x] **2003: username + password sign-in.** Revise 2001 forward —
       `set_username` becomes profiles-only and a stable uid-derived GoTrue
       identity replaces the synthetic e-mail; username→id resolver +
       register/sign-in on the BFF; register + sign-in screens; `session`
       carries the username. Vitest + Playwright.
-    - [ ] **2004: password recovery via the optional e-mail.** "Forgot
+    - [x] **2004: password recovery via the optional e-mail.** "Forgot
       password" request + reset screens, recovery-e-mail capture in
       settings with verify-on-set/change, and the send/reset wiring;
       anti-enumeration on the request step.
-    - [ ] **2005: add-by-username + username display.** `send_invitation`
+    - [x] **2005: add-by-username + username display.** `send_invitation`
       and circle-add keyed by username (replacing the e-mail RPCs, keeping
       the block / invite-policy / self-invite checks); InvitePicker and
       Circle screens lose the e-mail field and gain a username field;
       `@username` shown on the profile sheet, members, votes, and
       attribution to disambiguate display names.
-    - [ ] **2006: migrate the live alpha + retire e-mail login.** Backfill
+    - [x] **2006: migrate the live alpha + retire e-mail login.** Backfill
       `profiles.username` from each existing display name
       (`a-zA-Z0-9`-folded, collision-suffixed), move accounts onto the
       stable identity, give existing users an initial-password path via

@@ -478,10 +478,10 @@ no-recovery-e-mail accounts, if added).
      superseded by the 2002 revocable-session model (single-digit-minute access
      JWT; the BFF refreshes).
 
-### [ ] 6.2 Tick the step-20 box and merge the orchestration branch to main
+### [x] 6.2 Tick the step-20 box and merge the orchestration branch to main
 
 **Created:** 2026-06-15T17:24:58Z
-**Completed:**
+**Completed:** 2026-07-16T11:05:45Z
 
 **Why:** With all sub-branches (2001–2006) merged, step 20 is done; record it and
 land the orchestration branch.
