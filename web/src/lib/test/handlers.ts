@@ -20,7 +20,6 @@ export const handlers: RequestHandler[] = [
 	// default, so unrelated tests render the logged-out view.
 	http.post('*/auth/refresh', () => new HttpResponse(null, { status: 401 })),
 	http.get('*/auth/user', () => new HttpResponse(null, { status: 401 })),
-	http.post('*/auth/magiclink', () => HttpResponse.json({})),
 	http.post('*/auth/verify', () =>
 		HttpResponse.json({
 			token_type: 'bearer',

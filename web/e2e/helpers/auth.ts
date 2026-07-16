@@ -1,9 +1,6 @@
-// Username + password auth helpers shared across e2e specs. Since 2003 the
-// real sign-in path is username + password (the magic-link screen at
-// /auth/login still exists but is a separate flow); specs that need a user
-// with a *known* handle — so they can be invited or circle-added by it —
-// register through this helper rather than the magic-link flow, which only
-// ever mints an unguessable provisional username.
+// Username + password auth helpers shared across e2e specs. The sign-in path
+// is username + password; specs that need a user with a *known* handle — so
+// they can be invited or circle-added by it — register through this helper.
 
 import { expect, type Page } from '@playwright/test';
 

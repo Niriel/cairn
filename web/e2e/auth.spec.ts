@@ -3,12 +3,12 @@ import type { BrowserContext, Page } from '@playwright/test';
 
 import { CSRF_HEADER } from '../src/lib/shared/model/auth-paths';
 import { register, signInWithPassword, uniqueUsername } from './helpers/auth';
-import { waitForMagicLink } from './helpers/mailpit';
 
-// Magic-link happy path + sign-out, end to end against the real backend
-// (GoTrue + Mailpit + PostgREST + the Vite cookie-plant proxy). Dev-shortcut
-// sign-in is exercised by Vitest component tests; this spec proves the full
-// stack works. See plans/0300_auth_http_client/TASKS.md 6.4.
+// End-to-end auth against the real backend (GoTrue + PostgREST + the Vite
+// cookie-plant proxy): the revocable-session behaviours (silent refresh,
+// sign-out-everywhere, stale-cookie rejection) and the username + password
+// credential flow. This proves the full stack works, which the mocked Vitest
+// component tests cannot.
 
 // Dev cookie names (unprefixed — localhost is plain HTTP, so the prod
 // `__Host-` prefix is intentionally absent here; see Task 2.1). The durable
@@ -22,26 +22,11 @@ async function cookieNamed(context: BrowserContext, name: string) {
 }
 
 // Sign out via the settings screen and land on the signed-out surface
-// (the guard now bounces signed-out visitors to /auth/signin).
+// (the guard bounces signed-out visitors to /auth/signin).
 async function signOut(page: Page): Promise<void> {
 	await page.goto('/settings');
 	await page.locator('[data-test="signout"]').click();
 	await expect(page).toHaveURL(/\/auth\/signin$/);
-}
-
-// Drive the magic-link sign-in end to end and land on /lists. The magic-link
-// login screen lives at /auth/login (still public until 2006); a signed-out
-// visit to `/` now lands on /auth/signin, so reach the magic-link screen
-// directly rather than via the guard bounce.
-async function signInViaMagicLink(page: Page, email: string): Promise<void> {
-	await page.goto('/auth/login');
-	await expect(page).toHaveURL(/\/auth\/login$/);
-	await page.locator('[data-test="login-email"]').fill(email);
-	await page.locator('[data-test="login-submit"]').click();
-	await expect(page).toHaveURL(/\/auth\/check$/);
-	const { link } = await waitForMagicLink(email);
-	await page.goto(link);
-	await expect(page).toHaveURL(/\/lists$/);
 }
 
 // A well-formed JWT whose `exp` is in the past. The signature is deliberately
@@ -65,124 +50,20 @@ function expiredAccessJwt(): string {
 	return `${header}.${payload}.bogus-signature`;
 }
 
-test('magic-link happy path and sign-out', async ({ page, context }) => {
-	const email = `alice+${test.info().testId}@example.test`;
-
-	await page.goto('/auth/login');
-	await expect(page).toHaveURL(/\/auth\/login$/);
-
-	await page.locator('[data-test="login-email"]').fill(email);
-	await page.locator('[data-test="login-submit"]').click();
-
-	// Anchored to end so a future drift that appends `?email=…` fails this
-	// (R14 / privacy decision — the email must not leak via the URL).
-	await expect(page).toHaveURL(/\/auth\/check$/);
-
-	const { link, html, text } = await waitForMagicLink(email);
-
-	// The e-mail carries a typeable six-digit code (the code-entry path on
-	// /auth/check). It must be present in both MIME parts.
-	expect(/\b\d{6}\b/.test(html)).toBe(true);
-	expect(/\b\d{6}\b/.test(text)).toBe(true);
-
-	// Playwright follows the GoTrue /verify → 302 → /auth/callback#… chain
-	// automatically; the callback page strips the hash and JS-navigates to
-	// /, which then redirects to /lists.
-	await page.goto(link);
-	await expect(page).toHaveURL(/\/lists$/);
-
-	// (a) The dual-cookie contract: BOTH the durable refresh cookie and the
-	// short-lived access cookie are planted, HttpOnly + SameSite=Lax. This is the
-	// authoritative dev cookie-parity check (Task 2.1 parity-risk note) — it runs
-	// against the real stack and catches a Vite proxy that drifted from cookies.ts.
-	const durable = await cookieNamed(context, DURABLE_COOKIE);
-	expect(durable).toBeDefined();
-	expect(durable?.httpOnly).toBe(true);
-	expect(durable?.sameSite).toBe('Lax');
-	const access = await cookieNamed(context, ACCESS_COOKIE);
-	expect(access).toBeDefined();
-	expect(access?.httpOnly).toBe(true);
-	expect(access?.sameSite).toBe('Lax');
-
-	// (c) Sign-out clears BOTH cookies (server-side revoke + cookie clear)...
-	await page.goto('/settings');
-	await page.locator('[data-test="signout"]').click();
-	await expect(page).toHaveURL(/\/auth\/signin$/);
-	expect(await cookieNamed(context, DURABLE_COOKIE)).toBeUndefined();
-	expect(await cookieNamed(context, ACCESS_COOKIE)).toBeUndefined();
-
-	// ...and the session is genuinely gone: a fresh visit to a protected route
-	// boots with no cookies, /auth/refresh 401s, and the guard bounces to
-	// sign-in (the data plane now runs as anon). Proves sign-out de-authorises
-	// /api, not just the local UI state.
-	await page.goto('/lists');
-	await expect(page).toHaveURL(/\/auth\/signin$/);
-});
-
-test('code-entry happy path: typing the e-mailed code signs in', async ({ page, context }) => {
-	const email = `alice+${test.info().testId}@example.test`;
-
-	// Reach /auth/check through the request flow, never a direct visit:
-	// pendingLogin is a module-scoped singleton wiped on hard reload, and
-	// /auth/check redirects to /auth/login when it's empty. Stay in the SPA.
-	await page.goto('/auth/login');
-	await expect(page).toHaveURL(/\/auth\/login$/);
-
-	await page.locator('[data-test="login-email"]').fill(email);
-	await page.locator('[data-test="login-submit"]').click();
-	await expect(page).toHaveURL(/\/auth\/check$/);
-
-	const { code } = await waitForMagicLink(email);
-
-	// Deliberately do NOT open the link — typing the code is the whole point
-	// (the device reading the e-mail differs from the one entering the code).
-	// Filling six valid digits edge-triggers auto-submit; the "Sign in" button
-	// is only a fallback, so this also proves the auto-submit path.
-	await page.locator('[data-test="login-check-code"]').fill(code);
-
-	await expect(page).toHaveURL(/\/lists$/);
-
-	// Same cookie contract the link-click path asserts: /auth/verify plants the
-	// HttpOnly cairn_session in the prod-shaped shim.
-	const session = (await context.cookies()).find((c) => c.name === 'cairn_session');
-	expect(session).toBeDefined();
-	expect(session?.httpOnly).toBe(true);
-	expect(session?.sameSite).toBe('Lax');
-});
-
-test('magic-link non-2xx still lands on /auth/check (anti-enumeration)', async ({ page }) => {
-	const email = `alice+${test.info().testId}@example.test`;
-
-	await page.route('**/auth/magiclink*', (route) =>
-		route.fulfill({ status: 429, contentType: 'application/json', body: '{}' })
-	);
-
-	await page.goto('/auth/login');
-	await expect(page).toHaveURL(/\/auth\/login$/);
-
-	await page.locator('[data-test="login-email"]').fill(email);
-	await page.locator('[data-test="login-submit"]').click();
-
-	await expect(page).toHaveURL(/\/auth\/check$/);
-	await expect(page.locator('[data-test="login-check-heading"]')).toHaveText('Check your inbox');
-	await expect(page.locator('[data-test="login-check-email"]')).toHaveText(email);
-});
-
-// The revocable session's behaviours that the single happy-path can't show:
+// The revocable session's behaviours that a single happy-path can't show:
 // silent refresh across access-token expiry, sign-out-everywhere killing a
 // second session, and a stale pre-2002 cookie failing to authenticate.
 test.describe('revocable session', () => {
 	// (b) Silent refresh: when the access cookie's JWT has expired but the durable
 	// refresh cookie is still valid, an /api call 401s, the interceptor refreshes
-	// once, retries, and the user stays signed in — no bounce to login.
+	// once, retries, and the user stays signed in — no bounce to sign-in.
 	test('silent refresh on access-token expiry keeps the user signed in', async ({
 		page,
 		context
 	}) => {
-		// Unique per run (not the stable testId) so a rapid re-run doesn't trip
-		// GoTrue's per-e-mail magic-link send throttle and reuse a consumed link.
-		const email = `alice+refresh-${Date.now().toString(36)}@example.test`;
-		await signInViaMagicLink(page, email);
+		// Any signed-in session exercises the refresh path; register a fresh
+		// account per run (unique username) so concurrent projects don't collide.
+		await register(page, uniqueUsername('refresh'), 'cairn-e2e-pw');
 
 		// Overwrite the access cookie with an expired-but-well-formed JWT (NOT
 		// delete it — see expiredAccessJwt). The next /api call carries this stale
@@ -255,8 +136,8 @@ test.describe('revocable session', () => {
 		await contextB.close();
 	});
 
-	// (e) Forced re-auth (R10): a cookie planted under the bare pre-2002 name with
-	// no access cookie must NOT authenticate. Boot reads the durable cookie, tries
+	// (e) Forced re-auth: a cookie planted under the bare pre-2002 name with no
+	// access cookie must NOT authenticate. Boot reads the durable cookie, tries
 	// to refresh, GoTrue rejects the bogus refresh token, and the user lands
 	// signed-out — proving no fallback read of the old artefact authenticates and
 	// the non-revocable gap is structurally closed.

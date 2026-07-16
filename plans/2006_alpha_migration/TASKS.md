@@ -279,10 +279,10 @@ provisional usernames, `user_settings` rows — the ideal prod-shaped seed).
 
 ## Phase 2 — remove the web magic-link surface and dev-login
 
-### [ ] 2.1 Remove the e-mail/magic-link web sign-in surface
+### [x] 2.1 Remove the e-mail/magic-link web sign-in surface
 
 **Created:** 2026-07-16T07:35:41Z
-**Completed:**
+**Completed:** 2026-07-16T10:10:01Z
 
 **Why:** Username + password (2003) is the sole sign-in path; the magic-link
 request/check/callback screens and their client functions are dead surface to
@@ -350,6 +350,39 @@ screens already exist (2003).
    reference remains in retained code.
 
 **Verify:** `pnpm -C web lint` · `pnpm -C web check` · `pnpm -C web test`
+(all green: eslint clean, prettier clean, svelte-check 0 errors, vitest 104 files / 778 tests.)
+
+**Notes:**
+
+- **Retargeted a retained e2e test off the deleted magic-link helper.** The task
+  assumed the `revocable session` describe was "untouched," but its
+  `silent refresh on access-token expiry` test signed in via `signInViaMagicLink`
+  (the helper this task deletes). Rewrote that one line to `register(page,
+  uniqueUsername('refresh'), …)` — any signed-in session exercises the refresh
+  path, so the sign-in route is irrelevant to what it proves.
+- **Stale-comment cleanups beyond the named `ForgotPassword.svelte:26`.** Deleting
+  the routes/state/functions orphaned comments in retained files; reworded them to
+  keep retained code clean: `+layout.svelte` (removed the `/auth/callback` case-3
+  note; dropped the `LoginRequest` padding example), `DeleteAccountScreen.svelte`
+  and `public-paths.ts` (`/auth/login` → `/auth/signin`), `pending-reset.svelte.ts`
+  (dropped "Mirrors pending-login.svelte.ts"), the session mock (**repointed** the
+  `$state`-proxy rationale from the deleted `pending-login` to the surviving
+  `profile.svelte.ts`/`lists.svelte.ts`, which still register session-reading
+  effects — the proxy shape is still needed), and the e2e `auth.spec.ts` /
+  `mailpit.ts` / `helpers/auth.ts` headers.
+- **Removed the dead `/auth/magiclink` MSW handler** (`handlers.ts`) — its only
+  callers were the deleted magic-link tests. **Left `/auth/verify` + `/auth/token`
+  default handlers** (and the `COOKIE_PLANT_PATHS` comment) for Task 3.2, which
+  owns `handlers.ts` — but note both are now **dead** (their web callers
+  `verifyOtp`/`exchangeRefreshToken` are gone here), so 3.2's "comment only"
+  `handlers.ts` scope should expand to remove them.
+- **Left `auth-paths.ts`, `auth-paths.test.ts`, `layout.test.ts` untouched** — Task
+  3.1 owns pruning the `/auth/{login,check,callback}` entries and the guard test in
+  lockstep. The step-3 grep still shows those hits by design; they are the only
+  remaining ones.
+- **Unrelated working-tree change flagged:** `web/vite.config.ts` carries a change I
+  did **not** author (an em-dash → semicolon in the reset-mail copy string,
+  `resetMailBody`). Left as-is and excluded from this task — commit it separately.
 
 ### [ ] 2.2 Drop the dev-login shortcut entirely
 

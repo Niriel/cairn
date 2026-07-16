@@ -40,7 +40,7 @@
 		//    void; we keep the session store signed-in here so the confirmation
 		//    view renders inside the app shell. "Back to sign in" calls signOut(),
 		//    which re-POSTs /auth/signout, flips the store, and lets the root guard
-		//    redirect to /auth/login.
+		//    redirect to /auth/signin.
 		try {
 			await fetch(`${AUTH_BASE}/signout`, {
 				method: 'POST',

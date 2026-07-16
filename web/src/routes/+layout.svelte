@@ -44,9 +44,6 @@
 	//      register, login, check) — about to redirect to /; without
 	//      this branch the user briefly sees a stale auth screen after
 	//      setSignedIn flipped the state.
-	// /auth/callback is intentionally absent from case 3: the callback
-	// page owns its own goto('/'), and letting it render unimpeded
-	// keeps the two redirects from racing.
 	const showBootScreen = $derived(
 		session.current.status === 'unknown' ||
 			(session.current.status === 'signed-out' && !signedOutMayView(page.url.pathname)) ||
@@ -93,8 +90,7 @@
 	 * while wide screens cap here. Held in px so it does NOT scale with the
 	 * user's font-size preference (a rem-based value shrank the usable width
 	 * on large-screen phones with small fonts). Per-screen horizontal
-	 * padding (e.g. LoginRequest's 28px) stays on the screen so the layout
-	 * doesn't double-pad.
+	 * padding stays on the screen so the layout doesn't double-pad.
 	 */
 	.app-shell {
 		max-width: var(--app-max-w);

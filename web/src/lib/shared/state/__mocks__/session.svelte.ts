@@ -1,12 +1,12 @@
 // Mirrors the real `session.svelte.ts` API as a controllable stand-in.
 //
-// This mock IS a `$state` proxy (not a plain object) because
-// `pending-login.svelte.ts` registers a module-scoped `$effect.root`
-// that reads `session.current.status` through this very import — if it
-// were a plain object the effect would never re-fire on a consumer
-// test's reassignment and the auto-clear behaviour (R14) could not be
-// tested through the mock. The sibling `preferences.svelte.ts` mock is
-// a plain object on purpose; do not copy that shape forward here.
+// This mock IS a `$state` proxy (not a plain object) because module-scoped
+// runes like `profile.svelte.ts` and `lists.svelte.ts` register an
+// `$effect.root` that reads `session.current.status` through this very
+// import — if it were a plain object the effect would never re-fire on a
+// consumer test's reassignment, and those session-dependent behaviours
+// could not be tested through the mock. The sibling `preferences.svelte.ts`
+// mock is a plain object on purpose; do not copy that shape forward here.
 
 import { vi } from 'vitest';
 

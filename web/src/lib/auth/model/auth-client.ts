@@ -91,41 +91,6 @@ export async function register(username: string, password: string): Promise<{ us
 	return { user: payload.user };
 }
 
-export async function sendMagicLink(email: string): Promise<void> {
-	// GoTrue v2.158.1's MagicLinkParams struct has no RedirectTo field, so
-	// `redirect_to` in the JSON body is silently dropped by encoding/json.
-	// The accepted carriers are the query string, a `redirect_to` header,
-	// or a form-encoded body — query string is the cleanest. See Task 6.2
-	// Notes for the empirical trace.
-	const redirectTo = encodeURIComponent(`${window.location.origin}/auth/callback`);
-	await postJson<unknown>(`/magiclink?redirect_to=${redirectTo}`, { email });
-}
-
-export async function exchangeRefreshToken(refreshToken: string): Promise<{ user: AuthUser }> {
-	const payload = await postJson<{ user?: unknown }>('/token?grant_type=refresh_token', {
-		refresh_token: refreshToken
-	});
-	assertAuthUser(payload?.user);
-	return { user: payload.user };
-}
-
-export async function verifyOtp(email: string, token: string): Promise<{ user: AuthUser }> {
-	// The typed six-digit code from the magic-link e-mail. On 200 the auth
-	// shim has already planted the cookie and stripped the tokens; the JSON
-	// carries `user`. Unlike `sendMagicLink`, a non-2xx is NOT swallowed — it
-	// throws `HttpError` so the caller can show an inline "incorrect or
-	// expired" message. This leaks nothing: GoTrue returns the same 4xx for a
-	// wrong code and an unknown e-mail, and the caller already holds a pending
-	// e-mail.
-	const payload = await postJson<{ user?: unknown }>('/verify', {
-		type: 'magiclink',
-		email,
-		token
-	});
-	assertAuthUser(payload?.user);
-	return { user: payload.user };
-}
-
 // Recovery e-mail (authenticated). The address column is read-only via
 // PostgREST, so every write goes through the BFF under the caller's own
 // session. A non-2xx throws `HttpError` so the Settings screen can map status
@@ -151,7 +116,7 @@ export async function removeRecoveryEmail(): Promise<void> {
 // Signed-out password reset (no session). Request a reset code by username:
 // POST /auth/forgot-password { username }. This throws on a non-2xx like every
 // other call here; the anti-enumeration swallow is the ForgotPassword screen's
-// job (it ignores any error), mirroring sendMagicLink's caller.
+// job — it ignores any error so the response shape never leaks account existence.
 export async function requestPasswordReset(username: string): Promise<void> {
 	await postJson<unknown>('/forgot-password', { username });
 }
