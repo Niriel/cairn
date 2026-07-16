@@ -463,7 +463,7 @@ function resetMailBody(code: string): { subject: string; text: string } {
 			'Someone asked to reset the password for a Cairn account linked to this address.\r\n\r\n' +
 			`Your reset code is: ${code}\r\n\r\n` +
 			'Enter it in Cairn to set a new password. The code expires in one hour.\r\n\r\n' +
-			"If you didn't ask for this, you can safely ignore this e-mail — your password will not change.\r\n"
+			"If you didn't ask for this, you can safely ignore this e-mail; your password will not change.\r\n"
 	};
 }
 
