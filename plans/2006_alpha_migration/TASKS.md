@@ -164,10 +164,10 @@ shows only intentional historical mentions.
 
 ## Phase 1 — backfill migration + tests
 
-### [ ] 1.1 Add the username-fold helper, the idempotent backfill, and its pgTAP
+### [x] 1.1 Add the username-fold helper, the idempotent backfill, and its pgTAP
 
 **Created:** 2026-07-16T07:35:41Z
-**Completed:**
+**Completed:** 2026-07-16T09:37:50Z
 
 **Why:** The two live-alpha accounts hold a real e-mail, an unmemorable
 provisional username (`u<hex>`), and no password. They must move to the stable
@@ -263,6 +263,19 @@ provisional usernames, `user_settings` rows — the ideal prod-shaped seed).
 4. GREEN — `./scripts/test-db.sh` green.
 
 **Verify:** `./scripts/test-db.sh`
+
+**Notes:**
+
+- **Collision check excludes the account being migrated** (`AND id <> r.id`),
+  a small hardening beyond the Decisions' literal "if `lower(base)` is taken":
+  the migrating account still holds its provisional `u<hex>` handle at the point
+  of the check, so this changes no observed behaviour, but it makes the loop
+  robust against the pathological case where a display name folds to the
+  account's own current handle.
+- `auth.users.email` is written as `r.id::text || '@cairn.internal'` — `uuid ||
+  text` has no implicit cast, so the explicit `::text` is required.
+- Verified green with `./scripts/test-db.sh` (51 files, 800 tests, PASS) and
+  lint-clean with `sqlfluff lint` on both new files.
 
 ## Phase 2 — remove the web magic-link surface and dev-login
 
