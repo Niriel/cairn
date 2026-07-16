@@ -619,10 +619,10 @@ svelte-check 0 errors; web + auth-proxy prettier clean too.)
 
 ## Phase 4 — reconcile GoTrue config and retire the template
 
-### [ ] 4.1 Reconcile the compose GoTrue config and retire the magic-link template
+### [x] 4.1 Reconcile the compose GoTrue config and retire the magic-link template
 
 **Created:** 2026-07-16T07:35:41Z
-**Completed:**
+**Completed:** 2026-07-16T10:58:27Z
 
 **Why:** With magic-link retired, the prod/dev GoTrue mailer knobs and the
 magic-link e-mail template are dead config; the password-grant knobs and open
@@ -695,3 +695,27 @@ signup must stay (R9). This is prod-facing.
 4. GREEN — Run the full gauntlet including e2e.
 
 **Verify:** `./scripts/check.sh --e2e`
+
+**Notes:**
+
+- **WebKit not run — machine limitation, not a pass claimed.** `./scripts/check.sh
+  --e2e` runs `pnpm test:e2e`, which launches all three Playwright projects, and
+  WebKit can't launch on this box (standing rule, `docs/testing.md` +
+  `[[playwright-webkit-fedora]]`). So the Verify was run in two parts: the full
+  non-e2e gauntlet `./scripts/check.sh` (**all checks passed** — prettier, eslint,
+  sqlfluff, shellcheck, shfmt, svelte-check, pgTAP, and web/sidecar/auth-proxy
+  vitest), then `pnpm test:e2e --project=chromium --project=firefox` (**102 passed**,
+  incl. the auth + password-recovery flows). Chromium + Firefox validate the
+  journeys; only the iOS-Safari-specific quirks go unchecked.
+- **Recreated `gotrue` with the new env before the e2e** (`docker compose up -d
+  --force-recreate gotrue`) and confirmed `GOTRUE_MAILER_TEMPLATES_MAGIC_LINK` and
+  `GOTRUE_MAILER_OTP_LENGTH` are gone from its environment; the dev
+  `GOTRUE_URI_ALLOW_LIST=http://localhost:5173` remains (kept per Decisions). Also
+  `--remove-orphans` cleared the now-deleted `static` container from the running
+  stack.
+- **Removed the emptied `web/static/gotrue/` + `templates/` dirs** after deleting
+  `magic_link.html` (git doesn't track empty dirs, so only the file deletion is in
+  the diff). The vestigial Caddy fall-through to `/gotrue/templates/*` is left as-is
+  (harmless), per Decisions.
+- Both compose merges (`docker compose config` for dev base+override and
+  base+prod) parse cleanly after the edits.

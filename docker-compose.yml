@@ -51,9 +51,6 @@ services:
       GOTRUE_SECURITY_REFRESH_TOKEN_REUSE_INTERVAL: "30"
       GOTRUE_JWT_DEFAULT_GROUP_NAME: authenticated
       GOTRUE_EXTERNAL_EMAIL_ENABLED: "true"
-      # Six-digit OTP to match the frontend's code-entry field; pinned in the
-      # base so both the dev override and the prod overlay inherit it.
-      GOTRUE_MAILER_OTP_LENGTH: "6"
     depends_on:
       postgres:
         condition: service_healthy

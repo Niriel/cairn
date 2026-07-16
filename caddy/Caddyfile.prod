@@ -30,12 +30,13 @@ cairn.{$DOMAIN} {
 		reverse_proxy postgrest:3000
 	}
 
-	# Auth plane: explicit allow-list of GoTrue endpoints -> auth-proxy, with
-	# NO prefix strip. The SvelteKit client routes (/auth/login|check|callback)
-	# are NOT listed here, so they fall through to `web`. A blanket
-	# `handle_path /auth/*` would strip /auth and break both the proxy's
-	# segment matching and the callback page (the subtlest prod-only failure).
-	@gotrue path /auth/magiclink* /auth/verify* /auth/token* /auth/user* /auth/signout* /auth/refresh*
+	# Auth plane: explicit allow-list of the BFF session endpoints -> auth-proxy,
+	# with NO prefix strip. The SvelteKit client routes (/auth/signin|register|
+	# forgot-password|reset-password) are NOT listed here, so they fall through to
+	# `web`. A blanket `handle_path /auth/*` would strip /auth and break both the
+	# proxy's segment matching and the SPA auth pages (the subtlest prod-only
+	# failure).
+	@gotrue path /auth/signout* /auth/refresh*
 	handle @gotrue {
 		# The auth-proxy's sign-in rate-limiter keys per-IP off X-Real-IP ONLY
 		# (it ignores the spoofable X-Forwarded-For). Caddy does not set
@@ -91,8 +92,7 @@ cairn.{$DOMAIN} {
 		header Cache-Control "public, max-age=31536000, immutable"
 	}
 
-	# Everything else (the SPA, the /auth client routes, and the GoTrue
-	# magic-link template at /gotrue/templates/*) -> the web container.
+	# Everything else (the SPA and the /auth client routes) -> the web container.
 	handle {
 		reverse_proxy web:80
 	}
