@@ -10,28 +10,26 @@ import {
 } from './auth-paths';
 
 describe('isSegmentMatch against PUBLIC_AUTH_PATHS', () => {
-	test('exact match on /auth/login', () => {
-		expect(isSegmentMatch('/auth/login', PUBLIC_AUTH_PATHS)).toBe(true);
+	test('exact match on /auth/signin', () => {
+		expect(isSegmentMatch('/auth/signin', PUBLIC_AUTH_PATHS)).toBe(true);
 	});
 
-	test('trailing slash on /auth/login/', () => {
-		expect(isSegmentMatch('/auth/login/', PUBLIC_AUTH_PATHS)).toBe(true);
+	test('trailing slash on /auth/signin/', () => {
+		expect(isSegmentMatch('/auth/signin/', PUBLIC_AUTH_PATHS)).toBe(true);
 	});
 
-	test('query string on /auth/login?email=x', () => {
-		expect(isSegmentMatch('/auth/login?email=x', PUBLIC_AUTH_PATHS)).toBe(true);
+	test('query string on /auth/reset-password?code=x', () => {
+		expect(isSegmentMatch('/auth/reset-password?code=x', PUBLIC_AUTH_PATHS)).toBe(true);
 	});
 
-	test('callback with magiclink token query', () => {
-		expect(isSegmentMatch('/auth/callback?token=x&type=magiclink', PUBLIC_AUTH_PATHS)).toBe(true);
+	test('sibling-prefix /auth/signinx is NOT a match', () => {
+		expect(isSegmentMatch('/auth/signinx', PUBLIC_AUTH_PATHS)).toBe(false);
 	});
 
-	test('exact match on /auth/check', () => {
-		expect(isSegmentMatch('/auth/check', PUBLIC_AUTH_PATHS)).toBe(true);
-	});
-
-	test('sibling-prefix /auth/loginx is NOT a match', () => {
-		expect(isSegmentMatch('/auth/loginx', PUBLIC_AUTH_PATHS)).toBe(false);
+	test('the retired /auth/login, /auth/check, /auth/callback are NOT public paths', () => {
+		expect(isSegmentMatch('/auth/login', PUBLIC_AUTH_PATHS)).toBe(false);
+		expect(isSegmentMatch('/auth/check', PUBLIC_AUTH_PATHS)).toBe(false);
+		expect(isSegmentMatch('/auth/callback', PUBLIC_AUTH_PATHS)).toBe(false);
 	});
 
 	test('unrelated /auth/unknown is not in PUBLIC_AUTH_PATHS', () => {
@@ -40,16 +38,17 @@ describe('isSegmentMatch against PUBLIC_AUTH_PATHS', () => {
 });
 
 describe('isSegmentMatch against SIGNED_IN_REDIRECT_PATHS', () => {
-	test('matches /auth/login', () => {
-		expect(isSegmentMatch('/auth/login', SIGNED_IN_REDIRECT_PATHS)).toBe(true);
+	test('matches /auth/signin', () => {
+		expect(isSegmentMatch('/auth/signin', SIGNED_IN_REDIRECT_PATHS)).toBe(true);
 	});
 
-	test('matches /auth/check', () => {
-		expect(isSegmentMatch('/auth/check', SIGNED_IN_REDIRECT_PATHS)).toBe(true);
+	test('matches /auth/register', () => {
+		expect(isSegmentMatch('/auth/register', SIGNED_IN_REDIRECT_PATHS)).toBe(true);
 	});
 
-	test('deliberately excludes /auth/callback (callback owns its own goto)', () => {
-		expect(isSegmentMatch('/auth/callback', SIGNED_IN_REDIRECT_PATHS)).toBe(false);
+	test('the retired /auth/login and /auth/check are NOT redirect paths', () => {
+		expect(isSegmentMatch('/auth/login', SIGNED_IN_REDIRECT_PATHS)).toBe(false);
+		expect(isSegmentMatch('/auth/check', SIGNED_IN_REDIRECT_PATHS)).toBe(false);
 	});
 });
 

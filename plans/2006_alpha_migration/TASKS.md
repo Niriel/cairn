@@ -434,10 +434,10 @@ or CI reads `VITE_DEV_LOGIN_*`.
 
 ## Phase 3 — prune shared auth-paths and retire BFF pass-throughs
 
-### [ ] 3.1 Prune the magic-link entries from both `auth-paths.ts` copies
+### [x] 3.1 Prune the magic-link entries from both `auth-paths.ts` copies
 
 **Created:** 2026-07-16T07:35:41Z
-**Completed:**
+**Completed:** 2026-07-16T10:27:22Z
 
 **Why:** The shared path lists still route `/auth/{login,check,callback}` as
 public/redirect auth paths. With the screens gone (Task 2.1) those entries are
@@ -478,6 +478,24 @@ dead and must leave both mirrored copies in lockstep (R8).
    included).
 
 **Verify:** `pnpm -C web test` · `pnpm -C auth-proxy test` · `pnpm -C web check`
+(all green: web 102 files / 764 tests, auth-proxy 16 files / 98 tests incl. the
+drift guard, svelte-check 0 errors; web + auth-proxy eslint/prettier clean too.)
+
+**Notes:**
+
+- **`auth-paths-drift.test.ts` needed no change** — it pins the const *name* set
+  (unchanged) and cross-file equality, not the array contents. Both copies were
+  pruned identically, so the guard stays green (as the task anticipated).
+- **Test arrays trimmed to the *actual* surviving list contents.** Rather than
+  only deleting the pruned paths, I set the `layout.test.ts` `test.each` arrays
+  (cases e/g/h) and the `auth-paths.test.ts` describes to the real surviving set —
+  which includes `/auth/forgot-password` and `/auth/reset-password` (public/
+  redirect paths since 2003/recovery that these arrays never listed). Slightly
+  broader coverage, and the arrays now mirror the consts. Also added explicit
+  "the retired /auth/login|check|callback are NOT matched" assertions as the
+  regression guard for the pruning.
+- **Left `BEARER_AUTH_PATHS` / `COOKIE_PLANT_PATHS`** (and their
+  `auth-paths.test.ts` describes) untouched — those are Task 3.2's.
 
 ### [ ] 3.2 Retire the BFF magic-link pass-throughs
 

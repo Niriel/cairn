@@ -71,7 +71,7 @@ describe('+layout.svelte (auth guard)', () => {
 		expect(queryByDataTest('layout-children')).toBeNull();
 	});
 
-	test.each(['/auth/signin', '/auth/register', '/auth/login', '/auth/check', '/auth/callback'])(
+	test.each(['/auth/signin', '/auth/register', '/auth/forgot-password', '/auth/reset-password'])(
 		'(e) signed-out on public path %s: children render, no redirect, no boot screen',
 		async (path) => {
 			session.current = { status: 'signed-out' };
@@ -112,7 +112,7 @@ describe('+layout.svelte (auth guard)', () => {
 		expect(vi.mocked(goto)).toHaveBeenCalledWith('/auth/signin', { replaceState: true });
 	});
 
-	test.each(['/auth/signin', '/auth/register', '/auth/login', '/auth/check'])(
+	test.each(['/auth/signin', '/auth/register', '/auth/forgot-password', '/auth/reset-password'])(
 		'(g) signed-in on %s redirects to / with replaceState',
 		async (path) => {
 			session.current = { status: 'signed-in', user: SEED_USER };
@@ -123,7 +123,7 @@ describe('+layout.svelte (auth guard)', () => {
 		}
 	);
 
-	test.each(['/auth/signin', '/auth/register', '/auth/login', '/auth/check'])(
+	test.each(['/auth/signin', '/auth/register', '/auth/forgot-password', '/auth/reset-password'])(
 		'(h) signed-in on %s shows boot screen, hides children before redirect lands',
 		(path) => {
 			session.current = { status: 'signed-in', user: SEED_USER };
@@ -133,15 +133,6 @@ describe('+layout.svelte (auth guard)', () => {
 			expect(queryByDataTest('layout-children')).toBeNull();
 		}
 	);
-
-	test('(i) signed-in on /auth/callback: no guard redirect, children render', async () => {
-		session.current = { status: 'signed-in', user: SEED_USER };
-		setUrl('/auth/callback');
-		const { queryByDataTest } = render(Layout, { children: childStub });
-		await tick();
-		expect(vi.mocked(goto)).not.toHaveBeenCalled();
-		expect(queryByDataTest('layout-children')).not.toBeNull();
-	});
 
 	test('(j) signed-in on a private path: children render, no boot screen, no redirect', async () => {
 		session.current = { status: 'signed-in', user: SEED_USER };
@@ -155,7 +146,7 @@ describe('+layout.svelte (auth guard)', () => {
 
 	test('(k) page.url reassignment re-fires the guard (mock reactivity)', async () => {
 		session.current = { status: 'signed-out' };
-		setUrl('/auth/login');
+		setUrl('/auth/signin');
 		render(Layout, { children: childStub });
 		await tick();
 		expect(vi.mocked(goto)).not.toHaveBeenCalled();

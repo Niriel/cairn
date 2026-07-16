@@ -10,9 +10,6 @@
 export const PUBLIC_AUTH_PATHS = [
 	'/auth/signin',
 	'/auth/register',
-	'/auth/login',
-	'/auth/check',
-	'/auth/callback',
 	'/auth/forgot-password',
 	'/auth/reset-password'
 ] as const;
@@ -20,8 +17,6 @@ export const PUBLIC_AUTH_PATHS = [
 export const SIGNED_IN_REDIRECT_PATHS = [
 	'/auth/signin',
 	'/auth/register',
-	'/auth/login',
-	'/auth/check',
 	'/auth/forgot-password',
 	'/auth/reset-password'
 ] as const;
