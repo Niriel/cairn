@@ -278,7 +278,7 @@ in-flight branch for no gain.
     settled) and step 10 (the `delete_account()` shape and tombstone
     semantics that `delete_account_as` mirrors).
 
-12. [ ] **Data export (GDPR portability).** `export_my_data()`
+12. [x] **Data export (GDPR portability).** `export_my_data()`
     security-definer RPC returning per-user JSONB (see
     `docs/data-export.md` → "How the export is produced"). Settings →
     Privacy & data → **Download my data** row, hub, packaging,
@@ -334,9 +334,10 @@ in-flight branch for no gain.
     >   not the real company / contact details. This is a launch-blocker
     >   under German law (see the sequencing rationale below) and must be
     >   completed before the deploy is treated as publicly launched.
-    > - Everything else in steps **10–14** (account deletion, admin,
-    >   data export, PWA shell, legal & about) is **not done** — these
-    >   are genuinely unstarted, not partially landed.
+    > - Account deletion (step 10), admin (step 11), and data export
+    >   (step 12) have since landed and merged — their boxes are ticked
+    >   above. Still genuinely unstarted are the **PWA shell** (step 13)
+    >   and **legal & about** (step 14).
 
 16. [x] **Public, read-only, shareable lists.** A member can flag a list
     public, producing a link anyone (no account, no invite) can open to a
