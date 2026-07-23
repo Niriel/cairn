@@ -168,10 +168,10 @@ it must be inert in `pnpm dev` (registration is gated in Task 1.2).
   and `/` returns the SPA shell. The interactive dev-tools "tick Offline, reload,
   shell renders" check needs a real browser and was not run headlessly.
 
-### [ ] 1.2 `swUpdate` store + `UpdateSnackbar`, wired into the root layout
+### [x] 1.2 `swUpdate` store + `UpdateSnackbar`, wired into the root layout
 
 **Created:** 2026-07-23T07:52:02Z
-**Completed:**
+**Completed:** 2026-07-23T08:41:09Z
 
 **Why:** Register the service worker manually (non-dev only), detect a waiting
 new version, and surface the dismissable *"A new version is available —
@@ -251,6 +251,18 @@ exact copy and the non-modal/auto-apply-next-launch behaviour.
 7. GREEN — Re-run the tests and `pnpm check`; confirm green.
 
 **Verify:** `cd web && pnpm test service-worker UpdateSnackbar Snackbar` · `cd web && pnpm lint` · `cd web && pnpm check`
+
+**Notes:**
+
+- The `swUpdate` store's `register`/`applyUpdate` are written as
+  function-valued **arrow properties** (not method shorthand) so ESLint's
+  `@typescript-eslint/unbound-method` rule doesn't fire where the mocked store
+  is referenced in `UpdateSnackbar.test.ts`. Neither uses `this`, so the shape
+  is semantically identical — this is the clean fix, not a rule bend.
+- Dismiss control: reused the existing `IconButton` with the `x` icon and
+  `aria-label="Dismiss"`; dropped an initial `class="dismiss"` because
+  `IconButton` spreads `...rest` onto its `<button>`, which would clobber its
+  own `icon-btn` class. Its built-in tap-target styling is sufficient.
 
 ## Phase 2 — Manifest, icons, chrome
 

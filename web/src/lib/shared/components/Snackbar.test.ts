@@ -75,4 +75,42 @@ describe('Snackbar', () => {
 		await fireEvent.click(getByDataTest('snack-action'));
 		expect(onaction).toHaveBeenCalledTimes(1);
 	});
+
+	test('(e) default (non-persistent) renders no dismiss control', () => {
+		const onclose = vi.fn();
+		const { queryByDataTest } = render(Snackbar, {
+			open: true,
+			message: 'Item deleted',
+			onclose,
+			'data-test': 'snack'
+		});
+		expect(queryByDataTest('snack-dismiss')).toBeNull();
+	});
+
+	test('(f) persistent does not auto-close on the timer', () => {
+		vi.useFakeTimers();
+		const onclose = vi.fn();
+		render(Snackbar, {
+			open: true,
+			message: 'A new version is available — refresh',
+			persistent: true,
+			onclose,
+			'data-test': 'snack'
+		});
+		vi.advanceTimersByTime(6000);
+		expect(onclose).not.toHaveBeenCalled();
+	});
+
+	test('(g) persistent renders a dismiss control that calls onclose', async () => {
+		const onclose = vi.fn();
+		const { getByDataTest } = render(Snackbar, {
+			open: true,
+			message: 'A new version is available — refresh',
+			persistent: true,
+			onclose,
+			'data-test': 'snack'
+		});
+		await fireEvent.click(getByDataTest('snack-dismiss'));
+		expect(onclose).toHaveBeenCalledTimes(1);
+	});
 });
