@@ -55,6 +55,13 @@ export default [
 		...ts.configs.disableTypeChecked
 	},
 	{
+		// SvelteKit excludes the service worker from the app tsconfig (it needs the
+		// WebWorker lib, not DOM), so the typed project service can't resolve it.
+		// svelte-check type-checks it separately; here we lint it untyped.
+		files: ['src/service-worker.ts'],
+		...ts.configs.disableTypeChecked
+	},
+	{
 		rules: {
 			'no-console': ['warn', { allow: ['warn', 'error'] }],
 			'@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }]

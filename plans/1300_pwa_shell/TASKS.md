@@ -97,10 +97,10 @@ question" and §"The rule before adding anything new".
 
 ## Phase 1 — Config + registration skeleton
 
-### [ ] 1.1 Minimal service worker + register:false config
+### [x] 1.1 Minimal service worker + register:false config
 
 **Created:** 2026-07-23T07:52:02Z
-**Completed:**
+**Completed:** 2026-07-23T08:32:46Z
 
 **Why:** Establish the compiled-and-installed service worker that precaches the
 app shell so the app launches offline (R3), and stop SvelteKit from
@@ -153,6 +153,20 @@ it must be inert in `pnpm dev` (registration is gated in Task 1.2).
    reload with the Offline box ticked still renders the app shell.
 
 **Verify:** `cd web && pnpm build` · `cd web && pnpm check` · `cd web && pnpm lint`
+
+**Notes:**
+
+- **Side work (eslint config):** SvelteKit's generated `.svelte-kit/tsconfig.json`
+  deliberately *excludes* `src/service-worker.ts` from the app's typed project
+  (the worker needs the WebWorker lib, not DOM). ESLint's `projectService` then
+  fails to lint it (`was not found by the project service`). Added a dedicated
+  `disableTypeChecked` override for `src/service-worker.ts` in `eslint.config.js`,
+  mirroring the existing "not part of the app's typed graph" tooling override.
+  svelte-check still type-checks the worker separately (it passes with 0 errors).
+- Offline verification: `pnpm build` emits `build/service-worker.js`; `pnpm check`
+  is clean; `pnpm preview` serves `/service-worker.js` as `text/javascript` (200)
+  and `/` returns the SPA shell. The interactive dev-tools "tick Offline, reload,
+  shell renders" check needs a real browser and was not run headlessly.
 
 ### [ ] 1.2 `swUpdate` store + `UpdateSnackbar`, wired into the root layout
 

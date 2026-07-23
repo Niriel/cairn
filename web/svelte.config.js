@@ -8,7 +8,12 @@ const config = {
 	kit: {
 		adapter: adapter({
 			fallback: 'index.html'
-		})
+		}),
+		serviceWorker: {
+			// We own the update lifecycle (see src/service-worker.ts and the
+			// swUpdate store); adapter-static still compiles the worker.
+			register: false
+		}
 	}
 };
 
