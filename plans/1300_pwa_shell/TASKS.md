@@ -21,10 +21,10 @@
 
 ## Phase 0 — doc reconciliation
 
-### [ ] 0.1 Record the two new client-side stores in the storage inventory
+### [x] 0.1 Record the two new client-side stores in the storage inventory
 
 **Created:** 2026-07-23T08:09:56Z
-**Completed:**
+**Completed:** 2026-07-23T08:27:31Z
 
 **Why:** This plan adds two new device-side stores —
 `localStorage['cairn.user']` (Task 4.2) and
@@ -70,6 +70,30 @@ question" and §"The rule before adding anything new".
    to confirm it still reads as exhaustive and correct.
 
 **Verify:** `cd web && pnpm lint` (docs-only change; no code/tests touched)
+
+**Notes:**
+
+- **Side edit (within the step's "confirm surrounding prose still reads
+  correctly" mandate):** the "Why no banner" prose said the privacy policy
+  "enumerates **the four entries above**". With two rows added the table no
+  longer holds four logical entries, so I changed it to "enumerates **the
+  entries above**" to keep the doc internally consistent. Rows placed among the
+  `localStorage` entries (after `cairn.font_size`, before the SW `Cache` row) and
+  padded to the table's existing column widths (57/220/124/285).
+- **Doc/code divergence to flag (out of scope here):** that same sentence claims
+  the privacy-policy **screen** (`design/cairn-legal-screens.jsx` → Privacy
+  Policy; built as the canonical screen in **step 12**, now ticked done)
+  enumerates the same list and is kept in sync with this table. That screen was
+  authored against the pre-PWA inventory, so it does **not** yet mention
+  `cairn.user` or `cairn.install_hint_dismissed`. Bringing the built privacy-
+  policy screen into sync is a code change to a different plan's surface, not a
+  docs edit — flagging rather than silently touching it. The two stores don't
+  land in code until Tasks 4.2 / 5.1, so there's no live under-disclosure yet,
+  but the screen should be updated before/with those tasks ship to prod.
+- `pnpm lint` is `eslint .` and doesn't cover the root `docs/` tree; verified
+  the table stays aligned by hand (all edited rows measure 57/220/124/285
+  between pipes). No prettier hook covers root `docs/` either (lefthook +
+  `check.sh` prettier are both scoped to `web/`).
 
 ## Phase 1 — Config + registration skeleton
 
