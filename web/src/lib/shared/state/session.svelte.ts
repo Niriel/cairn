@@ -181,15 +181,24 @@ export function bootSession(): Promise<void> {
 				// optimistically resurrect this now-revoked session.
 				clearPersistedUser();
 			} else {
-				// `transient` normally leaves the status `unknown`: a momentary outage
-				// on cold start must not bounce a validly-signed-in user to sign-in, and
-				// an online blip must never optimistically adopt. BUT if we are offline
-				// and hold a valid last-known user, adopt it optimistically so cached
-				// content renders instead of pinning the boot screen.
+				// `transient` while online leaves the status `unknown`: a momentary
+				// outage on cold start must not bounce a validly-signed-in user to
+				// sign-in, and an online blip must never optimistically adopt — the
+				// retry that resolves it is moments away.
+				//
+				// Offline there is no such retry, so the boot must settle on the local
+				// record rather than pin the visitor on the boot screen forever: a
+				// valid last-known user is adopted optimistically so cached content
+				// renders, and with none (never signed in here, or storage cleared or
+				// unavailable) there is no session to resurrect and no way to check for
+				// one — signed-out, so the sign-in screen shows instead of a splash
+				// that can never resolve.
 				const offline = typeof navigator !== 'undefined' && navigator.onLine === false;
 				const persisted = readPersistedUser();
-				if (offline && persisted) {
-					session.current = { status: 'signed-in', user: persisted };
+				if (offline) {
+					session.current = persisted
+						? { status: 'signed-in', user: persisted }
+						: { status: 'signed-out' };
 				}
 			}
 		} finally {

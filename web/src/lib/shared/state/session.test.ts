@@ -376,19 +376,24 @@ describe('offline-optimistic boot', () => {
 		expect(mod.session.current.status).toBe('unknown');
 	});
 
-	test('transient + offline but NO persisted user → stays unknown', async () => {
+	// Offline is a terminal answer either way: the local record decides. With no
+	// last-known user there is no session to resurrect and no way to check for
+	// one, so the boot settles on signed-out and shows the sign-in screen.
+	// Leaving it `unknown` would pin the visitor on the boot screen forever —
+	// there is no later event offline that could resolve it.
+	test('transient + offline but NO persisted user → signed-out', async () => {
 		stubOnLine(false);
 		server.use(http.post('*/auth/refresh', () => new HttpResponse(null, { status: 503 })));
 		await mod.bootSession();
-		expect(mod.session.current.status).toBe('unknown');
+		expect(mod.session.current.status).toBe('signed-out');
 	});
 
-	test('transient + offline + a corrupt persisted user → stays unknown', async () => {
+	test('transient + offline + a corrupt persisted user → signed-out', async () => {
 		localStorage.setItem(USER_KEY, '{not json');
 		stubOnLine(false);
 		server.use(http.post('*/auth/refresh', () => new HttpResponse(null, { status: 503 })));
 		await mod.bootSession();
-		expect(mod.session.current.status).toBe('unknown');
+		expect(mod.session.current.status).toBe('signed-out');
 	});
 });
 
