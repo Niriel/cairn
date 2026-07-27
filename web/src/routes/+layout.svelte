@@ -6,6 +6,8 @@
 	import { page } from '$app/state';
 
 	import favicon from '$lib/assets/favicon.svg';
+	import UpdateSnackbar from '$lib/pwa/components/UpdateSnackbar.svelte';
+	import { swUpdate } from '$lib/pwa/state/service-worker.svelte';
 	import CairnWordmark from '$lib/shared/components/CairnWordmark.svelte';
 	import {
 		PUBLIC_AUTH_PATHS,
@@ -53,6 +55,7 @@
 
 	onMount(() => {
 		void bootSession();
+		void swUpdate.register();
 	});
 
 	$effect(() => {
@@ -81,6 +84,7 @@
 	{:else}
 		{@render children()}
 	{/if}
+	{#if swUpdate.available}<UpdateSnackbar />{/if}
 </div>
 
 <style>

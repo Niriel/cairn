@@ -174,6 +174,7 @@ The other sections are navigation rows that open dedicated screens:
 
 - **People → Invites** — pending invitations to lists, with Accept / Decline. See "Invites & circles" below.
 - **People → Privacy** — who can invite you, who's in your circle, who you've blocked. See below.
+- **App → Install Cairn** — only present when Cairn isn't already running installed. Fires the browser's install prompt where there is one, and otherwise opens an explainer sheet: the Safari share-sheet gesture on iOS, a generic "look in your browser's menu" elsewhere. Settings is installation's canonical home, since the first-launch hint on the Lists screen is dismissible.
 - **Privacy & data → Download my data** — produce a per-user export archive. See `data-export.md` and `design/cairn-export-screens.jsx`.
 - **Recovery → Deleted lists** — restore lists you've soft-deleted.
 - **About → About Cairn** — version, privacy policy, terms, open-source attributions, contact, license. See `design/cairn-legal-screens.jsx`.

@@ -3,11 +3,14 @@ import { tick } from 'svelte';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 
 import { lists, refreshLists } from '$lib/list/state/lists.svelte';
+import { profile } from '$lib/shared/state/profile.svelte';
+import { network } from '$lib/shared/state/network.svelte';
 import { render } from '$lib/test/render';
 
 import ListsScreen from './ListsScreen.svelte';
 
 vi.mock('$lib/shared/components/TopBar.svelte');
+vi.mock('$lib/shared/state/network.svelte');
 vi.mock('$lib/basic/components/Fab.svelte');
 vi.mock('$lib/basic/components/IconButton.svelte');
 vi.mock('$lib/invite/components/InvitesBanner.svelte');
@@ -16,6 +19,7 @@ vi.mock('$lib/list/components/ListOverflowSheet.svelte');
 vi.mock('$lib/list/state/lists.svelte');
 vi.mock('$lib/shared/components/MoreButton.svelte');
 vi.mock('$lib/shared/components/UndoSnackbar.svelte');
+vi.mock('$lib/pwa/components/InstallHint.svelte');
 vi.mock('$lib/shared/state/profile.svelte');
 vi.mock('$app/navigation', () => ({ goto: vi.fn(() => Promise.resolve()) }));
 
@@ -25,6 +29,8 @@ afterEach(() => {
 	lists.loading = false;
 	lists.error = null;
 	lists.pendingDelete = null;
+	network.online = true;
+	profile.displayName = null;
 });
 
 const LIST_A = {
@@ -182,6 +188,12 @@ describe('ListsScreen', () => {
 		const { queryByDataTest } = render(ListsScreen);
 		expect(queryByDataTest('lists-fab')).toBeNull();
 	});
+
+	test('(offline-fab) the create FAB is disabled while offline', () => {
+		network.online = false;
+		const { getByDataTest } = render(ListsScreen);
+		expect((getByDataTest('lists-fab') as HTMLButtonElement).disabled).toBe(true);
+	});
 });
 
 describe('Refresh button', () => {
@@ -203,5 +215,21 @@ describe('Refresh button', () => {
 		const { queryByDataTest } = render(ListsScreen);
 		const btn = queryByDataTest('lists-refresh') as HTMLButtonElement | null;
 		expect(btn?.disabled).toBe(true);
+	});
+});
+
+describe('Install hint', () => {
+	// Only one banner at a time: the welcome banner owns the slot while the
+	// display name is still the signup default, and the install hint waits.
+	test('(install-a) is mounted once the user is past the welcome banner', () => {
+		profile.displayName = 'Alice';
+		const { queryByDataTest } = render(ListsScreen);
+		expect(queryByDataTest('install-hint-stub')).not.toBeNull();
+	});
+
+	test('(install-b) yields while the welcome banner is showing', () => {
+		profile.displayName = 'New user';
+		const { queryByDataTest } = render(ListsScreen);
+		expect(queryByDataTest('install-hint-stub')).toBeNull();
 	});
 });

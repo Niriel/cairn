@@ -199,7 +199,7 @@ A small, deliberate set of _user journeys_, not a re-creation of the unit suite:
 - **Offline read.** Open a list online, go offline, reload, see cached items.
 - **PWA install path.** Manifest is served, service worker registers, app shell loads on reload-while-offline.
 
-Five to ten journeys total. Each one is the kind of thing a developer would manually click through before shipping; Playwright does it for them, in three browsers, deterministically.
+Five to ten journeys total. Each one is the kind of thing a developer would manually click through before shipping; Playwright does it for them, in three browsers, deterministically. The two PWA journeys (Offline read, PWA install path) are the exception: they run under **Chromium only** — WebKit can't run on the dev machines and `beforeinstallprompt` is Chromium-specific — so iOS-Safari PWA specifics (Add-to-Home-Screen, ~7-day cache eviction) are verified manually on a device rather than in CI.
 
 ### Layout
 

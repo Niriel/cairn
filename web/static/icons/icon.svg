@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+	<!-- Opaque paper field: computed sRGB hex of the light paper token
+	     oklch(98% 0.012 85). A standalone raster has no app-stylesheet
+	     context, so a CSS var would render black/empty. -->
+	<rect width="512" height="512" fill="#fcf8f0" />
+	<!-- CairnGlyph shapes (native 24 unit viewBox) scaled to ~62% of the field
+	     and centred. Filled with the computed light accent hex
+	     oklch(45% 0.07 70); CairnGlyph itself uses currentColor, meaningless
+	     here. -->
+	<g transform="translate(97.6 97.6) scale(13.2)" fill="#6e4e27">
+		<ellipse cx="12" cy="19" rx="9" ry="2.6" />
+		<ellipse cx="11.2" cy="13.5" rx="6.3" ry="2.4" />
+		<ellipse cx="12.6" cy="8.5" rx="3.6" ry="2.0" />
+		<circle cx="12.2" cy="4.6" r="1.1" />
+	</g>
+</svg>

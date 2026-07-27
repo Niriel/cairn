@@ -74,7 +74,11 @@ export const ICON_PATHS = {
 	slash: 'M22 12a10 10 0 1 1-20 0 10 10 0 0 1 20 0z M4.93 4.93l14.14 14.14',
 	globe:
 		'M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20z M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20 M2 12h20',
-	link: 'M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71 M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71'
+	link: 'M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71 M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71',
+	// Not in design/cairn-ui.jsx — added for the iOS install explainer, which
+	// has to point at Safari's Share button by its glyph. Same Lucide source
+	// as the rest.
+	share: 'M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8 M16 6l-4-4-4 4 M12 2v13'
 } as const;
 
 export type IconName = keyof typeof ICON_PATHS;

@@ -1,6 +1,8 @@
 <script lang="ts">
 	import type { Snippet } from 'svelte';
 
+	import IconButton from '$lib/basic/components/IconButton.svelte';
+
 	let {
 		open,
 		message,
@@ -9,6 +11,7 @@
 		actionLabel,
 		onaction,
 		onclose,
+		persistent = false,
 		...rest
 	}: {
 		open: boolean;
@@ -18,11 +21,15 @@
 		actionLabel?: string;
 		onaction?: () => void;
 		onclose: () => void;
+		// A persistent snackbar stays until the user acts or dismisses it —
+		// right for a release prompt. The default is the timed, control-less
+		// undo snackbar, so existing call sites are unaffected.
+		persistent?: boolean;
 		['data-test']?: string;
 	} = $props();
 
 	$effect(() => {
-		if (!open) return;
+		if (!open || persistent) return;
 		const id = setTimeout(() => onclose(), 6000);
 		return () => clearTimeout(id);
 	});
@@ -41,6 +48,14 @@
 			>
 				{actionLabel}
 			</button>
+		{/if}
+		{#if persistent}
+			<IconButton
+				icon="x"
+				aria-label="Dismiss"
+				data-test={rest['data-test'] ? `${rest['data-test']}-dismiss` : undefined}
+				onclick={() => onclose()}
+			/>
 		{/if}
 	</div>
 {/if}

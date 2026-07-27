@@ -4,6 +4,7 @@ import path from 'node:path';
 
 import { sveltekit } from '@sveltejs/kit/vite';
 import { defineConfig, loadEnv } from 'vite';
+import type { PreviewServer, ProxyOptions, ViteDevServer } from 'vite';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 
 import {
@@ -718,6 +719,231 @@ async function handleDevResetPassword(req: IncomingMessage, res: ServerResponse)
 	}
 }
 
+// The dev auth shim's middleware chain, installed identically by the dev
+// server (`configureServer`) and `vite preview` (`configurePreviewServer`).
+// Preview is where the PWA e2e run — the service worker is inert under
+// `pnpm dev` — so preview needs the same sign-in/refresh/recovery handlers
+// the dev server has, or the specs can't authenticate. Both hosts expose the
+// same Connect middleware stack, so one installer serves both.
+function installAuthShimMiddlewares(server: ViteDevServer | PreviewServer): void {
+	// Neither hook returns a function → these install before Vite's internal
+	// proxy; see auth-paths.ts and Task 1.4 Decisions.
+	server.middlewares.use((req, _res, next) => {
+		if (req.url?.startsWith('/auth/') || req.url === '/auth') {
+			req.cairnOriginalUrl = req.url;
+		}
+		next();
+	});
+	// Sign-out: dev mirror of the prod POST /auth/signout handler
+	// (auth-proxy/src/index.ts) — revoke server-side at GoTrue, then
+	// clear both cookies (cleared regardless of the revoke outcome).
+	// Mounted at root (no path arg) so `req.url` stays the full request
+	// path — `server.middlewares.use('/auth/signout', …)` would strip
+	// the mount and leave `req.url === '/'`, silently failing the
+	// segment match.
+	server.middlewares.use((req, res, next) => {
+		if (!isSegmentMatch(req.url, LOGOUT_PATHS) || req.method !== 'POST') {
+			next();
+			return;
+		}
+		if (!hasCsrfHeader(req)) {
+			res.statusCode = 403;
+			res.end(JSON.stringify({ error: 'missing csrf header' }));
+			return;
+		}
+		void handleDevSignout(req, res);
+	});
+	// Bespoke dev mirror of the prod /auth/refresh handler
+	// (auth-proxy/src/index.ts): exchange the durable refresh cookie
+	// at GoTrue, re-plant both cookies, return a tokenless user.
+	// GoTrue has no /refresh route, so this can't be a plain proxy.
+	// Distinguishes an authoritative revoke (clear + 401) from a
+	// transient blip (503, cookies intact).
+	server.middlewares.use((req, res, next) => {
+		if (req.url?.split('?')[0] !== '/auth/refresh' || req.method !== 'POST') {
+			next();
+			return;
+		}
+		if (!hasCsrfHeader(req)) {
+			res.statusCode = 403;
+			res.end(JSON.stringify({ error: 'missing csrf header' }));
+			return;
+		}
+		void handleDevRefresh(req, res);
+	});
+	// Cairn-shaped credential endpoints — dev mirror of the prod
+	// /auth/signin + /auth/register handlers (auth-proxy/src/index.ts),
+	// both now the real username+password flows. They sit behind the CSRF
+	// gate so dev exercises the same routes + guard as prod. GoTrue:9999
+	// has no such routes, so these can't be a plain proxy. (The prod
+	// rate-limiter is BFF-only — a dev-parity exception.)
+	server.middlewares.use((req, res, next) => {
+		const path = req.url?.split('?')[0];
+		if ((path !== '/auth/signin' && path !== '/auth/register') || req.method !== 'POST') {
+			next();
+			return;
+		}
+		if (!hasCsrfHeader(req)) {
+			res.statusCode = 403;
+			res.end(JSON.stringify({ error: 'missing csrf header' }));
+			return;
+		}
+		if (path === '/auth/signin') {
+			void handleDevSignin(req, res);
+			return;
+		}
+		void handleDevRegister(req, res);
+	});
+	// Recovery-e-mail set/confirm/remove — dev mirror of the prod
+	// /auth/recovery-email + /auth/recovery-email/confirm handlers
+	// (auth-proxy/src/index.ts). Matched by EXACT path (confirm first):
+	// the confirm path is a sub-path of the set path, so a prefix match
+	// would swallow it. Behind the CSRF gate for dev/prod parity.
+	server.middlewares.use((req, res, next) => {
+		const path = req.url?.split('?')[0];
+		if (
+			(path !== '/auth/recovery-email' && path !== '/auth/recovery-email/confirm') ||
+			req.method !== 'POST'
+		) {
+			next();
+			return;
+		}
+		if (!hasCsrfHeader(req)) {
+			res.statusCode = 403;
+			res.end(JSON.stringify({ error: 'missing csrf header' }));
+			return;
+		}
+		if (path === '/auth/recovery-email/confirm') {
+			void handleDevRecoveryConfirm(req, res);
+			return;
+		}
+		void handleDevRecoveryEmail(req, res);
+	});
+	// Signed-out recovery — dev mirror of the prod /auth/forgot-password +
+	// /auth/reset-password handlers (auth-proxy/src/index.ts). Behind the CSRF
+	// gate for dev/prod parity; both reach the scoped reset RPCs.
+	server.middlewares.use((req, res, next) => {
+		const path = req.url?.split('?')[0];
+		if (
+			(path !== '/auth/forgot-password' && path !== '/auth/reset-password') ||
+			req.method !== 'POST'
+		) {
+			next();
+			return;
+		}
+		if (!hasCsrfHeader(req)) {
+			res.statusCode = 403;
+			res.end(JSON.stringify({ error: 'missing csrf header' }));
+			return;
+		}
+		if (path === '/auth/forgot-password') {
+			void handleDevForgotPassword(req, res);
+			return;
+		}
+		void handleDevResetPassword(req, res);
+	});
+	// Password-grant lockdown (dev parity): the public GoTrue password
+	// grant must be unreachable; the only password-grant path is
+	// /auth/signin above. The lockdown is surgical — reject only
+	// grant_type=password (read from the query string), forward any other.
+	server.middlewares.use((req, res, next) => {
+		if (req.url?.split('?')[0] !== '/auth/token' || req.method !== 'POST') {
+			next();
+			return;
+		}
+		const grantType = new URLSearchParams(req.url.split('?')[1] ?? '').get('grant_type');
+		if (grantType === 'password') {
+			res.statusCode = 403;
+			res.end(JSON.stringify({ error: 'use /auth/signin' }));
+			return;
+		}
+		next();
+	});
+}
+
+// The cookie→bearer data-plane proxies, shared by the dev server (`server.proxy`)
+// and `vite preview` (`preview.proxy`). Vite keeps these under a top-level config
+// key rather than in the server hooks, so unlike the auth middlewares they're
+// shared as a config object rather than an installer function.
+const CAIRN_PROXY: Record<string, ProxyOptions> = {
+	'/api': {
+		target: POSTGREST_DEV_URL,
+		changeOrigin: false,
+		rewrite: (p) => p.replace(/^\/api/, ''),
+		configure: (proxy) => {
+			proxy.on('proxyReq', (proxyReq, req) => {
+				const token = readBearerFromCookie(req, ACCESS_COOKIE_NAME);
+				if (token && !proxyReq.getHeader('authorization')) {
+					proxyReq.setHeader('Authorization', `Bearer ${token}`);
+				}
+			});
+		}
+	},
+	'/avatars': {
+		target: 'http://localhost:8080',
+		changeOrigin: false,
+		configure: (proxy) => {
+			proxy.on('proxyReq', (proxyReq, req) => {
+				const token = readBearerFromCookie(req, ACCESS_COOKIE_NAME);
+				if (token && !proxyReq.getHeader('authorization')) {
+					proxyReq.setHeader('Authorization', `Bearer ${token}`);
+				}
+			});
+		}
+	},
+	'/auth': {
+		target: 'http://localhost:9999',
+		changeOrigin: false,
+		rewrite: (p) => p.replace(/^\/auth/, ''),
+		// `bypass` runs before `rewrite`, so `req.url` is still the
+		// original `/auth/...` here. Returning a string short-circuits
+		// the proxy entirely and lets SvelteKit's router serve the
+		// page (e.g. `/auth/reset-password?code=…`); see auth-paths.ts.
+		bypass: (req) => (isSegmentMatch(req.url, PUBLIC_AUTH_PATHS) ? req.url : undefined),
+		selfHandleResponse: true,
+		configure: (proxy) => {
+			// This pass-through serves only anonymous GoTrue endpoints, so it
+			// attaches no cookie-derived bearer (bearer-attach retired).
+			proxy.on('proxyRes', (proxyRes, req: IncomingMessage, res: ServerResponse) => {
+				const chunks: Buffer[] = [];
+				proxyRes.on('data', (c: Buffer) => chunks.push(c));
+				proxyRes.on('end', () => {
+					let body = Buffer.concat(chunks);
+					for (const [k, v] of Object.entries(proxyRes.headers)) {
+						if (v === undefined) continue;
+						// Skip content-length so Node recomputes it from the
+						// (possibly rewritten) body in `res.end(body)`.
+						if (k.toLowerCase() === 'content-length') continue;
+						res.setHeader(k, v as string | string[]);
+					}
+					res.statusCode = proxyRes.statusCode ?? 502;
+					const ct = String(proxyRes.headers['content-type'] ?? '');
+					if (ct.includes('application/json') && proxyRes.statusCode === 200) {
+						try {
+							const json = JSON.parse(body.toString('utf8'));
+							// Strip any token from a forwarded body — JS has no use
+							// for one, the cookie is the source of truth, and this
+							// pass-through plants no session cookie (dev parity with
+							// the prod auth-proxy).
+							if (
+								typeof json?.access_token === 'string' ||
+								typeof json?.refresh_token === 'string'
+							) {
+								delete json.access_token;
+								delete json.refresh_token;
+								body = Buffer.from(JSON.stringify(json));
+							}
+						} catch {
+							// non-JSON or parse error — pass through unchanged.
+						}
+					}
+					res.end(body);
+				});
+			});
+		}
+	}
+};
+
 export default defineConfig(({ mode }) => {
 	// Load the repo-root .env (the same dev-secrets file docker compose reads —
 	// one level up from this web/ root) and surface the cairn_auth_bff role JWT on
@@ -744,222 +970,15 @@ export default defineConfig(({ mode }) => {
 				name: 'cairn-auth-shim',
 				enforce: 'pre',
 				configureServer(server) {
-					// no return from configureServer → installs before Vite's internal
-					// proxy; see auth-paths.ts and Task 1.4 Decisions.
-					server.middlewares.use((req, _res, next) => {
-						if (req.url?.startsWith('/auth/') || req.url === '/auth') {
-							req.cairnOriginalUrl = req.url;
-						}
-						next();
-					});
-					// Sign-out: dev mirror of the prod POST /auth/signout handler
-					// (auth-proxy/src/index.ts) — revoke server-side at GoTrue, then
-					// clear both cookies (cleared regardless of the revoke outcome).
-					// Mounted at root (no path arg) so `req.url` stays the full request
-					// path — `server.middlewares.use('/auth/signout', …)` would strip
-					// the mount and leave `req.url === '/'`, silently failing the
-					// segment match.
-					server.middlewares.use((req, res, next) => {
-						if (!isSegmentMatch(req.url, LOGOUT_PATHS) || req.method !== 'POST') {
-							next();
-							return;
-						}
-						if (!hasCsrfHeader(req)) {
-							res.statusCode = 403;
-							res.end(JSON.stringify({ error: 'missing csrf header' }));
-							return;
-						}
-						void handleDevSignout(req, res);
-					});
-					// Bespoke dev mirror of the prod /auth/refresh handler
-					// (auth-proxy/src/index.ts): exchange the durable refresh cookie
-					// at GoTrue, re-plant both cookies, return a tokenless user.
-					// GoTrue has no /refresh route, so this can't be a plain proxy.
-					// Distinguishes an authoritative revoke (clear + 401) from a
-					// transient blip (503, cookies intact).
-					server.middlewares.use((req, res, next) => {
-						if (req.url?.split('?')[0] !== '/auth/refresh' || req.method !== 'POST') {
-							next();
-							return;
-						}
-						if (!hasCsrfHeader(req)) {
-							res.statusCode = 403;
-							res.end(JSON.stringify({ error: 'missing csrf header' }));
-							return;
-						}
-						void handleDevRefresh(req, res);
-					});
-					// Cairn-shaped credential endpoints — dev mirror of the prod
-					// /auth/signin + /auth/register handlers (auth-proxy/src/index.ts),
-					// both now the real username+password flows. They sit behind the CSRF
-					// gate so dev exercises the same routes + guard as prod. GoTrue:9999
-					// has no such routes, so these can't be a plain proxy. (The prod
-					// rate-limiter is BFF-only — a dev-parity exception.)
-					server.middlewares.use((req, res, next) => {
-						const path = req.url?.split('?')[0];
-						if ((path !== '/auth/signin' && path !== '/auth/register') || req.method !== 'POST') {
-							next();
-							return;
-						}
-						if (!hasCsrfHeader(req)) {
-							res.statusCode = 403;
-							res.end(JSON.stringify({ error: 'missing csrf header' }));
-							return;
-						}
-						if (path === '/auth/signin') {
-							void handleDevSignin(req, res);
-							return;
-						}
-						void handleDevRegister(req, res);
-					});
-					// Recovery-e-mail set/confirm/remove — dev mirror of the prod
-					// /auth/recovery-email + /auth/recovery-email/confirm handlers
-					// (auth-proxy/src/index.ts). Matched by EXACT path (confirm first):
-					// the confirm path is a sub-path of the set path, so a prefix match
-					// would swallow it. Behind the CSRF gate for dev/prod parity.
-					server.middlewares.use((req, res, next) => {
-						const path = req.url?.split('?')[0];
-						if (
-							(path !== '/auth/recovery-email' && path !== '/auth/recovery-email/confirm') ||
-							req.method !== 'POST'
-						) {
-							next();
-							return;
-						}
-						if (!hasCsrfHeader(req)) {
-							res.statusCode = 403;
-							res.end(JSON.stringify({ error: 'missing csrf header' }));
-							return;
-						}
-						if (path === '/auth/recovery-email/confirm') {
-							void handleDevRecoveryConfirm(req, res);
-							return;
-						}
-						void handleDevRecoveryEmail(req, res);
-					});
-					// Signed-out recovery — dev mirror of the prod /auth/forgot-password +
-					// /auth/reset-password handlers (auth-proxy/src/index.ts). Behind the CSRF
-					// gate for dev/prod parity; both reach the scoped reset RPCs.
-					server.middlewares.use((req, res, next) => {
-						const path = req.url?.split('?')[0];
-						if (
-							(path !== '/auth/forgot-password' && path !== '/auth/reset-password') ||
-							req.method !== 'POST'
-						) {
-							next();
-							return;
-						}
-						if (!hasCsrfHeader(req)) {
-							res.statusCode = 403;
-							res.end(JSON.stringify({ error: 'missing csrf header' }));
-							return;
-						}
-						if (path === '/auth/forgot-password') {
-							void handleDevForgotPassword(req, res);
-							return;
-						}
-						void handleDevResetPassword(req, res);
-					});
-					// Password-grant lockdown (dev parity): the public GoTrue password
-					// grant must be unreachable; the only password-grant path is
-					// /auth/signin above. The lockdown is surgical — reject only
-					// grant_type=password (read from the query string), forward any other.
-					server.middlewares.use((req, res, next) => {
-						if (req.url?.split('?')[0] !== '/auth/token' || req.method !== 'POST') {
-							next();
-							return;
-						}
-						const grantType = new URLSearchParams(req.url.split('?')[1] ?? '').get('grant_type');
-						if (grantType === 'password') {
-							res.statusCode = 403;
-							res.end(JSON.stringify({ error: 'use /auth/signin' }));
-							return;
-						}
-						next();
-					});
+					installAuthShimMiddlewares(server);
+				},
+				configurePreviewServer(server) {
+					installAuthShimMiddlewares(server);
 				}
 			},
 			sveltekit()
 		],
-		server: {
-			proxy: {
-				'/api': {
-					target: POSTGREST_DEV_URL,
-					changeOrigin: false,
-					rewrite: (p) => p.replace(/^\/api/, ''),
-					configure: (proxy) => {
-						proxy.on('proxyReq', (proxyReq, req) => {
-							const token = readBearerFromCookie(req, ACCESS_COOKIE_NAME);
-							if (token && !proxyReq.getHeader('authorization')) {
-								proxyReq.setHeader('Authorization', `Bearer ${token}`);
-							}
-						});
-					}
-				},
-				'/avatars': {
-					target: 'http://localhost:8080',
-					changeOrigin: false,
-					configure: (proxy) => {
-						proxy.on('proxyReq', (proxyReq, req) => {
-							const token = readBearerFromCookie(req, ACCESS_COOKIE_NAME);
-							if (token && !proxyReq.getHeader('authorization')) {
-								proxyReq.setHeader('Authorization', `Bearer ${token}`);
-							}
-						});
-					}
-				},
-				'/auth': {
-					target: 'http://localhost:9999',
-					changeOrigin: false,
-					rewrite: (p) => p.replace(/^\/auth/, ''),
-					// `bypass` runs before `rewrite`, so `req.url` is still the
-					// original `/auth/...` here. Returning a string short-circuits
-					// the proxy entirely and lets SvelteKit's router serve the
-					// page (e.g. `/auth/reset-password?code=…`); see auth-paths.ts.
-					bypass: (req) => (isSegmentMatch(req.url, PUBLIC_AUTH_PATHS) ? req.url : undefined),
-					selfHandleResponse: true,
-					configure: (proxy) => {
-						// This pass-through serves only anonymous GoTrue endpoints, so it
-						// attaches no cookie-derived bearer (bearer-attach retired).
-						proxy.on('proxyRes', (proxyRes, req: IncomingMessage, res: ServerResponse) => {
-							const chunks: Buffer[] = [];
-							proxyRes.on('data', (c: Buffer) => chunks.push(c));
-							proxyRes.on('end', () => {
-								let body = Buffer.concat(chunks);
-								for (const [k, v] of Object.entries(proxyRes.headers)) {
-									if (v === undefined) continue;
-									// Skip content-length so Node recomputes it from the
-									// (possibly rewritten) body in `res.end(body)`.
-									if (k.toLowerCase() === 'content-length') continue;
-									res.setHeader(k, v as string | string[]);
-								}
-								res.statusCode = proxyRes.statusCode ?? 502;
-								const ct = String(proxyRes.headers['content-type'] ?? '');
-								if (ct.includes('application/json') && proxyRes.statusCode === 200) {
-									try {
-										const json = JSON.parse(body.toString('utf8'));
-										// Strip any token from a forwarded body — JS has no use
-										// for one, the cookie is the source of truth, and this
-										// pass-through plants no session cookie (dev parity with
-										// the prod auth-proxy).
-										if (
-											typeof json?.access_token === 'string' ||
-											typeof json?.refresh_token === 'string'
-										) {
-											delete json.access_token;
-											delete json.refresh_token;
-											body = Buffer.from(JSON.stringify(json));
-										}
-									} catch {
-										// non-JSON or parse error — pass through unchanged.
-									}
-								}
-								res.end(body);
-							});
-						});
-					}
-				}
-			}
-		}
+		server: { proxy: CAIRN_PROXY },
+		preview: { proxy: CAIRN_PROXY }
 	};
 });

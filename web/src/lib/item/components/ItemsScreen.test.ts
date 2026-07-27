@@ -5,6 +5,7 @@ import { http, HttpResponse } from 'msw';
 
 import { items, loadItems, undoDelete } from '$lib/item/state/items.svelte';
 import { _resetForTesting } from '$lib/shared/state/back-stack.svelte';
+import { network } from '$lib/shared/state/network.svelte';
 import { server } from '$lib/test/server';
 import { render } from '$lib/test/render';
 import type { Item } from '$lib/item/model/item';
@@ -12,11 +13,13 @@ import type { Item } from '$lib/item/model/item';
 import ItemsScreen from './ItemsScreen.svelte';
 
 vi.mock('$lib/item/state/items.svelte');
+vi.mock('$lib/shared/state/network.svelte');
 vi.mock('$lib/basic/components/Fab.svelte');
 vi.mock('$lib/list/components/ListOverflowSheet.svelte');
 vi.mock('$lib/shared/components/Avatar.svelte');
 vi.mock('$lib/shared/components/MoreButton.svelte');
 vi.mock('$lib/shared/components/UndoSnackbar.svelte');
+vi.mock('$lib/shared/components/NoConnectionState.svelte');
 vi.mock('$lib/item/components/VoteControl.svelte');
 vi.mock('$lib/item/components/AddEditItemSheet.svelte');
 vi.mock('$lib/item/components/DeleteItemSheet.svelte');
@@ -58,6 +61,7 @@ beforeEach(() => {
 		listId: null,
 		pendingDelete: null
 	});
+	network.online = true;
 });
 
 afterEach(() => {
@@ -78,6 +82,44 @@ describe('ItemsScreen', () => {
 		const { queryByDataTest } = render(ItemsScreen, { listId: 'test-list-id' });
 		await tick();
 		expect(queryByDataTest('items-empty')).not.toBeNull();
+	});
+
+	test('(b-offline) shows No-connection state on a failed load with no rows while offline', async () => {
+		items.error = 'Failed to load items';
+		items.rows = [];
+		network.online = false;
+		const { queryByDataTest } = render(ItemsScreen, { listId: 'test-list-id' });
+		await tick();
+		expect(queryByDataTest('no-connection')).not.toBeNull();
+		expect(queryByDataTest('items-empty')).toBeNull();
+	});
+
+	test('(b-online-error) a failed load while online shows the normal empty state, not No-connection', async () => {
+		items.error = 'Failed to load items';
+		items.rows = [];
+		network.online = true;
+		const { queryByDataTest } = render(ItemsScreen, { listId: 'test-list-id' });
+		await tick();
+		expect(queryByDataTest('items-empty')).not.toBeNull();
+		expect(queryByDataTest('no-connection')).toBeNull();
+	});
+
+	test('(offline-fab) the add FAB is disabled while offline', async () => {
+		items.rows = [ITEM_1];
+		network.online = false;
+		const { getByDataTest } = render(ItemsScreen, { listId: 'test-list-id' });
+		await tick();
+		expect((getByDataTest('items-fab') as HTMLButtonElement).disabled).toBe(true);
+	});
+
+	test('(offline-vote) the vote control is disabled while offline', async () => {
+		vi.spyOn(history, 'back').mockImplementation(() => {});
+		items.rows = [ITEM_1];
+		network.online = false;
+		const { getByDataTest } = render(ItemsScreen, { listId: 'test-list-id' });
+		await fireEvent.click(getByDataTest(`row-${ITEM_1.id}`));
+		await tick();
+		expect(getByDataTest('vote-indicator').hasAttribute('data-disabled')).toBe(true);
 	});
 
 	test('(c) renders item rows with names and vote controls', async () => {

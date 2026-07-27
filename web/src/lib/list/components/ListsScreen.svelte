@@ -15,7 +15,10 @@
 	import UndoSnackbar from '$lib/shared/components/UndoSnackbar.svelte';
 	import EmptyState from '$lib/shared/components/EmptyState.svelte';
 	import WelcomeBanner from '$lib/shared/components/WelcomeBanner.svelte';
+	import InstallHint from '$lib/pwa/components/InstallHint.svelte';
 	import { lists, refreshLists, undoDeleteList } from '$lib/list/state/lists.svelte';
+	import { network } from '$lib/shared/state/network.svelte';
+	import { profile } from '$lib/shared/state/profile.svelte';
 	import { ICON_SIZE } from '$lib/shared/model/constants';
 	import { timeAgo } from '$lib/shared/model/time-ago';
 	import type { List } from '$lib/list/model/list';
@@ -70,6 +73,13 @@
 	<div class="screen-body">
 		<WelcomeBanner />
 
+		<!-- One banner at a time. WelcomeBanner shows exactly while the display
+		     name is still the signup default, so the install hint waits its turn
+		     rather than stacking a second card above the lists. -->
+		{#if profile.displayName !== 'New user'}
+			<InstallHint />
+		{/if}
+
 		<InvitesBanner />
 
 		{#if lists.loading}
@@ -78,7 +88,7 @@
 			<EmptyState
 				data-test="lists-empty"
 				title="Start your first cairn"
-				body="A cairn is a small stack of stones hikers leave to mark the way. Make a list of things — movies, books, places — and share it with friends."
+				body="A cairn is a small stack of stones that hikers leave to mark the way. Make a list of things — movies, books, places — and share it with friends."
 				ctaLabel="Create your first list"
 				onCta={() => (createSheetOpen = true)}
 			>
@@ -165,6 +175,7 @@
 {#if !lists.pendingDelete}
 	<Fab
 		data-test="lists-fab"
+		disabled={!network.online}
 		onclick={() => {
 			createSheetOpen = true;
 		}}><Icon name="plus" size={24} /></Fab

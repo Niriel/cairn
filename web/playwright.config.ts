@@ -12,6 +12,9 @@ const PORT = 5173;
 
 export default defineConfig({
 	testDir: './e2e',
+	// The PWA specs need a real service worker, which is inert under `pnpm dev`
+	// — they run against `vite preview` via playwright.pwa.config.ts instead.
+	testIgnore: ['offline-read.spec.ts', 'pwa-install.spec.ts'],
 	fullyParallel: true,
 	forbidOnly: !!process.env.CI,
 	retries: process.env.CI ? 2 : 0,

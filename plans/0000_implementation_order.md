@@ -289,7 +289,7 @@ in-flight branch for no gain.
     pgTAP coverage on per-user filtering and on the rejection of
     `uid = tombstone`.
 
-13. [ ] **PWA shell.** `manifest.webmanifest`, icons, install prompts, and
+13. [x] **PWA shell.** `manifest.webmanifest`, icons, install prompts, and
     a minimal service worker for the read-only offline behaviour
     described in `docs/architecture.md` (offline-first conflict
     resolution is explicitly *not* a v1 goal).
