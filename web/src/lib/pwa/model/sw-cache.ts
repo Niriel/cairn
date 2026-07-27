@@ -82,3 +82,69 @@ export function shouldKeepOnPurge(url: URL, incomingListId: string): boolean {
 	if (c === null) return false;
 	return c.listId !== null && c.listId === incomingListId;
 }
+
+/**
+ * True for a write against PostgREST — any non-GET under `/api`. Deliberately
+ * broader than `classifyApiRequest`, which only knows the paths worth caching:
+ * `POST /api/rpc/create_list` is unclassifiable yet changes the overview, so
+ * the router keys cache invalidation off the write, not off the read shape.
+ */
+export function isApiWrite(method: string, url: URL): boolean {
+	return method !== 'GET' && url.pathname.startsWith('/api/');
+}
+
+/**
+ * True for a cached entry that a landed write should mark stale — every cached
+ * read, and nothing else. A write is the one moment the cached reads are known
+ * to be behind the server, and one write can move rows the URL never mentions:
+ * an item changes the ranking, a vote changes the score, a rename changes the
+ * overview. Mapping each write to the reads it invalidates would rot with the
+ * next endpoint, so the whole set is marked. The MRU sentinel is epoch
+ * bookkeeping rather than a cached read, and is left alone.
+ */
+export function shouldMarkStaleOnWrite(url: URL): boolean {
+	return url.pathname !== MRU_SENTINEL_KEY;
+}
+
+/**
+ * The router's answer when a read can be served neither from the network nor
+ * from the cache. Shaped like a PostgREST error so `postgrest.ts` throws a
+ * typed `ApiError` rather than rejecting raw — including a `message`, which is
+ * load-bearing: without it the error's message falls back to a synthetic
+ * Response's empty `statusText`, and the stores that keep the message and test
+ * it (`if (items.error)`) read the empty string as no failure at all, showing
+ * "Nothing here yet" for a list they simply couldn't reach.
+ */
+export function offlineResponse(): Response {
+	return new Response(JSON.stringify({ code: 'offline', message: 'No connection' }), {
+		status: 503,
+		headers: { 'content-type': 'application/json' }
+	});
+}
+
+// A cached response carries this header once a write has landed behind its
+// back. It means "still good enough to show offline, but confirm with the
+// server before showing it again" — the router turns SWR into network-first
+// (cache as fallback) for exactly these entries, so the read that follows a
+// write can't be served the pre-write answer. Marking rather than deleting is
+// what keeps offline reads working: the app refetches only what the screen it
+// is on needs, so a delete would drop the lists overview and the list's own
+// name — content nothing would ever put back — for the sake of freshness the
+// next read obtains anyway.
+const STALE_HEADER = 'x-cairn-stale';
+
+/** True once a write has landed since this response was cached. */
+export function isStale(response: Response): boolean {
+	return response.headers.has(STALE_HEADER);
+}
+
+/** The same response, flagged for a network-first confirmation. Idempotent. */
+export function markStale(response: Response): Response {
+	const headers = new Headers(response.headers);
+	headers.set(STALE_HEADER, '1');
+	return new Response(response.body, {
+		status: response.status,
+		statusText: response.statusText,
+		headers
+	});
+}

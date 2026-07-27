@@ -4,9 +4,14 @@ import { build, files, version } from '$service-worker';
 import {
 	apiCache,
 	classifyApiRequest,
+	isApiWrite,
+	isStale,
+	markStale,
 	MRU_SENTINEL_KEY,
+	offlineResponse,
 	shellCache,
 	shouldKeepOnPurge,
+	shouldMarkStaleOnWrite,
 	shouldPurgeForEntry
 } from '$lib/pwa/model/sw-cache';
 
@@ -51,12 +56,19 @@ sw.addEventListener('message', (event) => {
 
 sw.addEventListener('fetch', (event) => {
 	const { request } = event;
-	// Non-GET (writes) and cross-origin fall through to the network untouched, so
-	// offline writes fail naturally rather than being silently swallowed.
-	if (request.method !== 'GET') return;
 
+	// Cross-origin falls through to the network untouched.
 	const url = new URL(request.url);
 	if (url.origin !== location.origin) return;
+
+	// Writes always go to the network — never cached, never served from cache, so
+	// an offline write fails naturally rather than being silently swallowed. A
+	// write that *succeeds*, though, has just made the cached reads stale, so it
+	// invalidates them on the way back.
+	if (request.method !== 'GET') {
+		if (isApiWrite(request.method, url)) event.respondWith(writeThrough(request));
+		return;
+	}
 
 	// Navigations: serve the cached shell, falling back to the network.
 	if (request.mode === 'navigate') {
@@ -85,12 +97,32 @@ sw.addEventListener('fetch', (event) => {
 	// passthrough, never cached: no respondWith.
 });
 
-/** A clean 503 so `postgrest.ts` throws a typed ApiError, not a raw reject. */
-function offlineResponse(): Response {
-	return new Response(JSON.stringify({ code: 'offline' }), {
-		status: 503,
-		headers: { 'content-type': 'application/json' }
-	});
+/**
+ * A write, straight to the network, marking the cached reads it may have
+ * outdated. Without this the stale-while-revalidate reads below would answer the
+ * refetch the app fires immediately after a mutation with the pre-write
+ * response — and since a store reads only that first response and never sees
+ * the background revalidation, a list you just created would stay invisible.
+ *
+ * `fetch` is deliberately not caught: offline it rejects, and the caller sees
+ * the same failed fetch it would see with no worker at all.
+ */
+async function writeThrough(request: Request): Promise<Response> {
+	const response = await fetch(request);
+	// Only a landed write invalidates: one the server rejected (RLS, validation)
+	// changed nothing.
+	if (response.ok) await markApiCacheStale();
+	return response;
+}
+
+/** Flag every cached api read for a network-first confirmation on next use. */
+async function markApiCacheStale(): Promise<void> {
+	const cache = await caches.open(API_CACHE);
+	for (const req of await cache.keys()) {
+		if (!shouldMarkStaleOnWrite(new URL(req.url))) continue;
+		const cached = await cache.match(req);
+		if (cached && !isStale(cached)) await cache.put(req, markStale(cached));
+	}
 }
 
 /** The stored most-recently-viewed list id, or null if none yet. */
@@ -141,9 +173,13 @@ async function handleApi(
 		})
 		.catch(() => undefined);
 
-	if (cached) {
+	// The steady state: answer from cache now, refresh in the background.
+	if (cached && !isStale(cached)) {
 		event.waitUntil(revalidate);
 		return cached;
 	}
-	return (await revalidate) ?? offlineResponse();
+	// A write has landed behind this entry's back (or there is nothing cached):
+	// confirm with the server first. The cached copy is still the right answer
+	// when the network is gone — it's the offline read the cache exists for.
+	return (await revalidate) ?? cached ?? offlineResponse();
 }

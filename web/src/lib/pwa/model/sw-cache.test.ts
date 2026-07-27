@@ -2,9 +2,14 @@ import { describe, expect, test } from 'vitest';
 import {
 	apiCache,
 	classifyApiRequest,
+	isApiWrite,
+	isStale,
+	markStale,
+	offlineResponse,
 	MRU_SENTINEL_KEY,
 	shellCache,
 	shouldKeepOnPurge,
+	shouldMarkStaleOnWrite,
 	shouldPurgeForEntry
 } from './sw-cache';
 
@@ -85,5 +90,70 @@ describe('shouldKeepOnPurge (entering list B)', () => {
 		expect(shouldKeepOnPurge(votes, B)).toBe(false);
 		expect(shouldKeepOnPurge(meta(A), B)).toBe(false);
 		expect(shouldKeepOnPurge(items(A), B)).toBe(false);
+	});
+});
+
+describe('isApiWrite', () => {
+	test('true for a non-GET to any /api path, cached or not', () => {
+		// `rpc/create_list` is deliberately included: classifyApiRequest returns
+		// null for it (nothing to cache), but it still changes the overview.
+		expect(isApiWrite('POST', new URL(`${ORIGIN}/api/rpc/create_list`))).toBe(true);
+		expect(isApiWrite('POST', new URL(`${ORIGIN}/api/items`))).toBe(true);
+		expect(isApiWrite('PATCH', new URL(`${ORIGIN}/api/lists?id=eq.${A}`))).toBe(true);
+		expect(isApiWrite('DELETE', new URL(`${ORIGIN}/api/votes?item_id=eq.x`))).toBe(true);
+	});
+
+	test('false for GETs — those are the SWR reads, not writes', () => {
+		expect(isApiWrite('GET', overview)).toBe(false);
+		expect(isApiWrite('GET', items(A))).toBe(false);
+	});
+
+	test('false outside /api — the auth BFF owns its own cookies and caching', () => {
+		expect(isApiWrite('POST', new URL(`${ORIGIN}/auth/signin`))).toBe(false);
+		expect(isApiWrite('POST', new URL(`${ORIGIN}/apifoo`))).toBe(false);
+	});
+});
+
+describe('shouldMarkStaleOnWrite', () => {
+	test('marks every cached read — one write can move rows the URL never mentions', () => {
+		expect(shouldMarkStaleOnWrite(overview)).toBe(true);
+		expect(shouldMarkStaleOnWrite(meta(A))).toBe(true);
+		expect(shouldMarkStaleOnWrite(items(A))).toBe(true);
+		expect(shouldMarkStaleOnWrite(votes)).toBe(true);
+	});
+
+	test('leaves the MRU sentinel alone — epoch bookkeeping, not a cached read', () => {
+		expect(shouldMarkStaleOnWrite(sentinel)).toBe(false);
+	});
+});
+
+describe('offlineResponse', () => {
+	test('is a 503 carrying a code AND a message', async () => {
+		const res = offlineResponse();
+		expect(res.status).toBe(503);
+		expect(res.headers.get('content-type')).toContain('application/json');
+		// The message is load-bearing: postgrest.ts puts it on the thrown
+		// ApiError, and the stores test that string for truthiness to decide
+		// whether the fetch failed at all.
+		const body = (await res.json()) as { code?: string; message?: string };
+		expect(body.code).toBe('offline');
+		expect(body.message).toBeTruthy();
+	});
+});
+
+describe('the stale mark', () => {
+	test('markStale carries the body and status through, flagged', async () => {
+		const marked = markStale(new Response('[{"id":"a"}]', { status: 200 }));
+		expect(isStale(marked)).toBe(true);
+		expect(marked.status).toBe(200);
+		expect(await marked.text()).toBe('[{"id":"a"}]');
+	});
+
+	test('a response straight off the network is not stale', () => {
+		expect(isStale(new Response('[]', { status: 200 }))).toBe(false);
+	});
+
+	test('marking twice is idempotent, so repeated writes cannot compound', () => {
+		expect(isStale(markStale(markStale(new Response('[]'))))).toBe(true);
 	});
 });
