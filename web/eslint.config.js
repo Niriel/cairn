@@ -50,7 +50,8 @@ export default [
 			'svelte.config.js',
 			'vite.config.ts',
 			'vitest.setup.ts',
-			'playwright.config.ts'
+			'playwright.config.ts',
+			'scripts/**/*.{js,mjs}'
 		],
 		...ts.configs.disableTypeChecked
 	},
@@ -66,6 +67,11 @@ export default [
 			'no-console': ['warn', { allow: ['warn', 'error'] }],
 			'@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }]
 		}
+	},
+	{
+		// CLI tooling scripts log their progress to stdout — that's the point.
+		files: ['scripts/**/*.{js,mjs}'],
+		rules: { 'no-console': 'off' }
 	},
 	prettier
 ];

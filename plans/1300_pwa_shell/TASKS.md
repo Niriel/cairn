@@ -266,10 +266,10 @@ exact copy and the non-modal/auto-apply-next-launch behaviour.
 
 ## Phase 2 — Manifest, icons, chrome
 
-### [ ] 2.1 Cairn icon set + favicon from the glyph
+### [x] 2.1 Cairn icon set + favicon from the glyph
 
 **Created:** 2026-07-23T07:52:02Z
-**Completed:**
+**Completed:** 2026-07-27T07:49:10Z
 
 **Why:** Ship branded install icons and replace the default orange Svelte-logo
 favicon, so the installed app carries the Cairn mark (R2).
@@ -321,6 +321,40 @@ favicon, so the installed app carries the Cairn mark (R2).
    builds and the tab icon is the cairn.
 
 **Verify:** `cd web && pnpm gen:icons` · `cd web && pnpm build` · `cd web && pnpm lint`
+
+**Notes:**
+
+- **Exact hex differs from the plan's approximations — flag for Task 2.2.** The
+  plan quotes the token conversions as light `--paper` ≈ `#F7F4EE` / dark ≈
+  `#24211E` with an explicit "verify the exact conversion" caveat. Converting the
+  oklch tokens through the canonical CSS Color 4 matrices (validated against the
+  fixed points: `oklch(100% 0 0)`→`#ffffff`, `oklch(0% 0 0)`→`#000000`,
+  `oklch(50% 0 0)`→`#636363`) gives the real values browsers render:
+  - light `--paper` `oklch(98% 0.012 85)` → **`#fcf8f0`** (not `#F7F4EE`)
+  - light `--accent` `oklch(45% 0.07 70)` → **`#6e4e27`**
+  - dark `--paper` `oklch(20% 0.012 70)` → **`#1a1510`** (not `#24211E`)
+  Used `#fcf8f0` (field) + `#6e4e27` (glyph) in `icon.svg` / `favicon.svg`.
+  **Task 2.2 hard-codes `#F7F4EE`/`#24211E` in the manifest and the `app.html`
+  `theme-color` metas** — those should use `#fcf8f0`/`#1a1510` instead so the
+  installed app's chrome/background matches the icon field. (The manifest test in
+  2.2 only asserts `#`-hex, so it won't catch the mismatch — the value must be
+  corrected by hand.)
+- **Side edit (eslint):** `scripts/**/*.{js,mjs}` isn't in the app's typed
+  project, so ESLint's `projectService` errored on `generate-icons.mjs` (same
+  class as Task 1.1's `service-worker.ts`). Added it to the existing "Node
+  tooling, not the app's typed graph" `disableTypeChecked` override, plus a
+  scoped `no-console: 'off'` override (placed after the general rules block so
+  last-match-wins applies) since a codegen CLI logging what it wrote to stdout is
+  legitimate.
+- **SVG comment gotcha:** librsvg (via `sharp`) and strict XML parsers reject
+  `--` inside `<!-- -->` comments, so the icon comments say "light paper token"
+  rather than "`--paper`". SVGs are not Prettier-managed (no parser), same as the
+  prior `favicon.svg`.
+- Verified generated PNGs: all four opaque (`hasAlpha=false`, 3 channels) at
+  192/512/512/180; the maskable glyph bbox is ~189px vs the base's ~237px
+  (the expected 0.8× inset), well inside Android's 80% safe zone. The
+  "tab icon renders as the cairn" visual check needs a real browser and was not
+  run headlessly.
 
 ### [ ] 2.2 Manifest, `app.html` chrome, and MIME
 
