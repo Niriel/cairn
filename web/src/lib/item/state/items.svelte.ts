@@ -30,6 +30,15 @@ function sortRows(rows: Item[]): Item[] {
 export async function loadItems(listId: string): Promise<void> {
 	const s = session.current;
 	if (s.status !== 'signed-in') return;
+	// Switching lists: drop the previous list's rows up front, and adopt the new
+	// listId immediately. Holding either until the fetch resolves would, when it
+	// fails — offline being the visible case — leave one list's items rendered
+	// under another list's name, reading as that list's content. Reloading the
+	// *same* list keeps its rows, so a refresh doesn't blank the screen.
+	if (items.listId !== listId) {
+		items.rows = [];
+		items.listId = listId;
+	}
 	items.loading = true;
 	items.error = null;
 	try {

@@ -63,6 +63,35 @@ describe('loadItems', () => {
 		expect(itemsMod.items.rows[0].score).toBe(3);
 		expect(itemsMod.items.listId).toBe(LIST_ID);
 	});
+
+	test('(a2) a failed load of a different list does not keep the previous list’s rows', async () => {
+		useItemHandlers();
+		await itemsMod.loadItems(LIST_ID);
+		expect(itemsMod.items.rows).toHaveLength(1);
+
+		// Opening another list with the fetch failing — offline, most visibly.
+		// Holding on to the old rows would render one list's items under the other
+		// list's name, which reads as that list's content.
+		server.use(http.get('*/api/items_ranked', () => new HttpResponse(null, { status: 503 })));
+		const OTHER_LIST = 'mmmmmmmm-mmmm-mmmm-mmmm-mmmmmmmmmmmm';
+		await itemsMod.loadItems(OTHER_LIST);
+
+		expect(itemsMod.items.rows).toEqual([]);
+		expect(itemsMod.items.listId).toBe(OTHER_LIST);
+		expect(itemsMod.items.error).not.toBeNull();
+	});
+
+	test('(a3) reloading the same list keeps its rows while the fetch is in flight', async () => {
+		useItemHandlers();
+		await itemsMod.loadItems(LIST_ID);
+
+		// No blank flash on a same-list refresh: the rows stay up until the new
+		// ones land.
+		const inFlight = itemsMod.loadItems(LIST_ID);
+		expect(itemsMod.items.rows).toHaveLength(1);
+		await inFlight;
+		expect(itemsMod.items.rows).toHaveLength(1);
+	});
 });
 
 describe('upsertVote', () => {
