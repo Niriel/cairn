@@ -445,10 +445,10 @@ browser chrome (R1, R9).
 
 ## Phase 3 — App-shell fetch routing + SWR
 
-### [ ] 3.1 `sw-cache` classification + epoch-purge helpers (pure)
+### [x] 3.1 `sw-cache` classification + epoch-purge helpers (pure)
 
 **Created:** 2026-07-23T07:52:02Z
-**Completed:**
+**Completed:** 2026-07-27T08:17:17Z
 
 **Why:** The service worker's `/api` routing decisions must be unit-testable,
 but a worker can't be mounted in happy-dom — so the URL classification and the
@@ -508,6 +508,27 @@ purge-on-list-change decision live in a pure module (R4).
 4. GREEN — Re-run; confirm green.
 
 **Verify:** `cd web && pnpm test sw-cache` · `cd web && pnpm lint` · `cd web && pnpm check`
+
+**Notes:**
+
+- **URL shapes confirmed against current source** (line numbers had drifted from
+  the plan's citations, but the shapes match): overview
+  `/lists?select=...&order=modified_at.desc` (no `id` param) at
+  `list/state/lists.svelte.ts`; items entry
+  `/items_ranked?list_id=eq.<uuid>&select=...` at `item/model/item.ts`; votes
+  `/votes?item_id=in.(…)` (no `list_id`) same file; meta `/lists?id=eq.<uuid>&…`
+  at `ItemsScreen.svelte` (`reloadMeta`); and the second meta
+  `/lists?id=eq.<uuid>&select=name` at `item-trash.ts` (`fetchListName`) — the
+  latter classifies `list-scoped` for the same `listId`, harmless as the plan
+  predicted. The SW sees these under the `/api` prefix
+  (`postgrest.ts`: `API_BASE = VITE_API_BASE ?? '/api'`), which the matchers key
+  on.
+- Drove `shouldKeepOnPurge` off `classifyApiRequest` (single source of truth for
+  listId extraction) rather than re-parsing the query, with the sentinel check
+  first (the sentinel path isn't under `/api`, so classify would return null and
+  wrongly drop it). Also exported `SHELL_CACHE_PREFIX` / `API_CACHE_PREFIX`
+  constants so Task 4.2's sign-out purge can filter by the `cairn-api-` prefix
+  without hard-coding the string.
 
 ### [ ] 3.2 Service-worker `/api` SWR fetch router
 
