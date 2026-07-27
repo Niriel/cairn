@@ -356,10 +356,10 @@ favicon, so the installed app carries the Cairn mark (R2).
   "tab icon renders as the cairn" visual check needs a real browser and was not
   run headlessly.
 
-### [ ] 2.2 Manifest, `app.html` chrome, and MIME
+### [x] 2.2 Manifest, `app.html` chrome, and MIME
 
 **Created:** 2026-07-23T07:52:02Z
-**Completed:**
+**Completed:** 2026-07-27T08:08:25Z
 
 **Why:** Declare the installable manifest and the standalone/theme-color chrome
 so browsers offer install and the installed app has correct colours and no
@@ -416,6 +416,32 @@ browser chrome (R1, R9).
    affordance appears in a Chromium browser.
 
 **Verify:** `cd web && pnpm test manifest` · `cd web && pnpm lint` · `cd web && pnpm check`
+
+**Notes:**
+
+- **Used the corrected hexes flagged in Task 2.1, not the plan's approximations.**
+  Manifest `theme_color`/`background_color` and both `app.html` `theme-color`
+  metas use **`#fcf8f0`** (light `--paper`) / **`#1a1510`** (dark `--paper`) — the
+  exact CSS Color 4 conversions of the oklch tokens — rather than the plan's
+  `#F7F4EE`/`#24211E` placeholders. This keeps the installed chrome matching the
+  icon field from 2.1. The manifest test asserts `#`-hex shape only (as the plan
+  intended), so it passes either way; the value choice is deliberate.
+- **MIME confirmed correct — no Dockerfile/Caddyfile change.** Replicated the web
+  container's serving config (`caddy:2.9.1-alpine` + the Dockerfile's
+  `file_server` Caddyfile) in a throwaway container and curled the manifest:
+  `Content-Type: application/manifest+json` out of the box. The task's "only add
+  an explicit mapping if the served content-type is wrong" condition is not
+  triggered, so the web container's serving config is untouched. (The edge
+  `nosniff` header lives in `caddy/Caddyfile.prod`; the correct upstream type
+  means it's satisfied.)
+- **Test typing:** `JSON.parse` returns `any`, which trips
+  `@typescript-eslint/no-unsafe-member-access` under `recommendedTypeChecked`.
+  Cast the parsed manifest to a local `Manifest` type in the test rather than
+  disabling the rule.
+- The interactive "Application → Manifest parses with no warnings / install
+  affordance appears" check needs a real Chromium and was not run headlessly.
+  Verified instead that `pnpm build` emits `build/manifest.webmanifest` +
+  `build/icons/*` and that `build/index.html` carries the manifest `<link>`.
 
 ## Phase 3 — App-shell fetch routing + SWR
 
