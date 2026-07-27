@@ -9,7 +9,7 @@ let available = $state(false);
 // to take over. Null until an update is detected.
 let waiting: ServiceWorker | null = null;
 
-// Reload exactly once when the new worker takes control, guarding against a
+// Reload exactly once when a *new* worker takes control, guarding against a
 // second reload if `controllerchange` fires again.
 let reloading = false;
 
@@ -24,8 +24,16 @@ export const swUpdate = {
 		if (import.meta.env.DEV) return;
 		if (!('serviceWorker' in navigator)) return;
 
+		// Whether a worker already controlled this page when it loaded. Only then
+		// is a takeover an *update*, where the assets this page is running are the
+		// old version and a reload is the point. On a first install there is no
+		// controller, yet the worker's `clients.claim()` fires `controllerchange`
+		// all the same — reloading on that would bounce every visitor's first page
+		// load, mid-form and all, to no end: nothing it fetched is stale.
+		const wasControlled = navigator.serviceWorker.controller !== null;
+
 		navigator.serviceWorker.addEventListener('controllerchange', () => {
-			if (reloading) return;
+			if (!wasControlled || reloading) return;
 			reloading = true;
 			location.reload();
 		});

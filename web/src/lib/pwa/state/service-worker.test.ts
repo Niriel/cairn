@@ -24,6 +24,7 @@ function makeWorker(state = 'installing'): FakeWorker {
 let registration: FakeRegistration;
 let controller: FakeWorker | null;
 let registerSpy: ReturnType<typeof vi.fn>;
+let reloadSpy: ReturnType<typeof vi.fn>;
 
 beforeEach(() => {
 	registration = Object.assign(new EventTarget(), {
@@ -43,6 +44,13 @@ beforeEach(() => {
 	Object.defineProperty(navigator, 'serviceWorker', {
 		value: container,
 		configurable: true
+	});
+
+	reloadSpy = vi.fn();
+	Object.defineProperty(window, 'location', {
+		value: { reload: reloadSpy },
+		configurable: true,
+		writable: true
 	});
 });
 
@@ -100,6 +108,36 @@ describe('swUpdate', () => {
 		const swUpdate = await freshStore();
 		await swUpdate.register();
 		expect(swUpdate.available).toBe(true);
+	});
+
+	test('a first install taking control does not reload the page', async () => {
+		vi.stubEnv('DEV', false);
+		// No controller at register() time: this page loaded before any worker
+		// existed, so nothing it has already fetched is stale. The worker's
+		// clients.claim() on activate still fires controllerchange — reloading on
+		// it would bounce every visitor's very first page load for no reason.
+		controller = null;
+		const swUpdate = await freshStore();
+		await swUpdate.register();
+
+		controller = makeWorker('activated');
+		navigator.serviceWorker.dispatchEvent(new Event('controllerchange'));
+
+		expect(reloadSpy).not.toHaveBeenCalled();
+	});
+
+	test('an applied update taking control reloads the page once', async () => {
+		vi.stubEnv('DEV', false);
+		// A controller was already running when this page registered, so the
+		// assets it holds are the old version: the takeover needs a reload.
+		controller = makeWorker('activated');
+		const swUpdate = await freshStore();
+		await swUpdate.register();
+
+		navigator.serviceWorker.dispatchEvent(new Event('controllerchange'));
+		navigator.serviceWorker.dispatchEvent(new Event('controllerchange'));
+
+		expect(reloadSpy).toHaveBeenCalledTimes(1);
 	});
 
 	test('applyUpdate() posts SKIP_WAITING to the waiting worker', async () => {
