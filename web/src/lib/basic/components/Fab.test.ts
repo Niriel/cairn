@@ -33,4 +33,19 @@ describe('Fab', () => {
 		await fireEvent.click(getByDataTest('fab'));
 		expect(onclick).toHaveBeenCalledTimes(1);
 	});
+
+	test('renders disabled and fires no onclick when disabled', async () => {
+		const onclick = vi.fn();
+		const { getByDataTest } = render(Fab, {
+			'data-test': 'fab',
+			'aria-label': 'New',
+			disabled: true,
+			onclick,
+			children: content('+')
+		});
+		const btn = getByDataTest('fab') as HTMLButtonElement;
+		expect(btn.disabled).toBe(true);
+		await fireEvent.click(btn);
+		expect(onclick).not.toHaveBeenCalled();
+	});
 });

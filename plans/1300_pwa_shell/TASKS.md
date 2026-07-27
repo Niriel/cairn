@@ -818,10 +818,10 @@ state, not stale data or a crash (R4).
   gate ensures a genuinely-empty cached list offline still reads "Nothing here
   yet", not "No connection".
 
-### [ ] 4.4 Disable the FAB and vote control offline
+### [x] 4.4 Disable the FAB and vote control offline
 
 **Created:** 2026-07-23T07:52:02Z
-**Completed:**
+**Completed:** 2026-07-27T09:34:10Z
 
 **Why:** Writes aren't queued offline; the two most-tapped write affordances
 must visibly disable so a tap doesn't silently do nothing (R5).
@@ -856,6 +856,31 @@ must visibly disable so a tap doesn't silently do nothing (R5).
 4. GREEN — Re-run; confirm green.
 
 **Verify:** `cd web && pnpm test Fab Vote ItemsScreen` · `cd web && pnpm lint` · `cd web && pnpm check`
+
+**Notes:**
+
+- **`VoteControl` needed no component change — it already had a working
+  `disabled` prop** (gates the thumb handler, dims via opacity, sets
+  `aria-disabled`). Only added a test case for it and wired
+  `disabled={!network.online}` from `ItemsScreen`. The vote control lives inside
+  the open accordion panel, so its screen test opens a row first.
+- **`Fab` already forwarded `disabled` implicitly** through its `{...rest}`
+  spread (the real `Fab.test.ts` disabled case passed before any change). Made it
+  explicit (`disabled` destructured + `{disabled}` on the button) and added a
+  `button:disabled` dim style (opacity 0.4, no shadow, default cursor) so the
+  offline state reads as disabled, not just inert.
+- **Screen tests assert through the mocks**, so both the `Fab` mock and the
+  `VoteControl` mock were extended to surface `disabled` (Fab → native
+  `disabled`; VoteControl → `data-disabled` attribute). The VoteControl mock's
+  `Props` lists only `disabled` — declaring the unused `value`/`onchange` tripped
+  `svelte/no-unused-props`; Svelte drops extra props a component doesn't declare,
+  so the screen still passes them harmlessly.
+- **Self-inflicted bug caught + fixed:** wired `network.online` into
+  `ListsScreen`'s Fab but initially forgot to add `import { network }` to
+  `ListsScreen.svelte` (added it only to the test) — 18 ListsScreen tests failed
+  with an unhandled ReferenceError until the component import was added.
+- Ran the full suite (810 pass) since this touched a `basic/` primitive and two
+  shared mocks.
 
 ## Phase 5 — Install affordance
 

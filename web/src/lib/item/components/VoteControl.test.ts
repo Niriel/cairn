@@ -63,4 +63,12 @@ describe('VoteControl', () => {
 		await fireEvent.click(getByDataTest('vote-up'));
 		expect(parentClick).not.toHaveBeenCalled();
 	});
+
+	test('(j) is non-interactive when disabled — neither thumb fires onchange', async () => {
+		const onchange = vi.fn();
+		const { getByDataTest } = render(VoteControl, { value: null, onchange, disabled: true });
+		await fireEvent.click(getByDataTest('vote-up'));
+		await fireEvent.click(getByDataTest('vote-down'));
+		expect(onchange).not.toHaveBeenCalled();
+	});
 });

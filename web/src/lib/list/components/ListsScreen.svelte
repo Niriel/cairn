@@ -16,6 +16,7 @@
 	import EmptyState from '$lib/shared/components/EmptyState.svelte';
 	import WelcomeBanner from '$lib/shared/components/WelcomeBanner.svelte';
 	import { lists, refreshLists, undoDeleteList } from '$lib/list/state/lists.svelte';
+	import { network } from '$lib/shared/state/network.svelte';
 	import { ICON_SIZE } from '$lib/shared/model/constants';
 	import { timeAgo } from '$lib/shared/model/time-ago';
 	import type { List } from '$lib/list/model/list';
@@ -165,6 +166,7 @@
 {#if !lists.pendingDelete}
 	<Fab
 		data-test="lists-fab"
+		disabled={!network.online}
 		onclick={() => {
 			createSheetOpen = true;
 		}}><Icon name="plus" size={24} /></Fab

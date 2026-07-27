@@ -230,6 +230,7 @@
 											<VoteControl
 												value={item.my_vote}
 												onchange={(v: number | null) => handleVote(item.id, v)}
+												disabled={!network.online}
 											/>
 										</div>
 									</div>
@@ -279,7 +280,12 @@
 	</div>
 
 	{#if !items.pendingDelete}
-		<Fab onclick={() => (addSheetOpen = true)} aria-label="Add item" data-test="items-fab">
+		<Fab
+			onclick={() => (addSheetOpen = true)}
+			aria-label="Add item"
+			data-test="items-fab"
+			disabled={!network.online}
+		>
 			<Icon name="plus" size={22} />
 		</Fab>
 	{/if}

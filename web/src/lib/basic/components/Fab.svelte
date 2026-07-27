@@ -3,15 +3,16 @@
 
 	type Props = {
 		onclick?: () => void;
+		disabled?: boolean;
 		'aria-label'?: string;
 		'data-test'?: string;
 		children?: Snippet;
 	};
 
-	let { onclick, children, ...rest }: Props = $props();
+	let { onclick, disabled = false, children, ...rest }: Props = $props();
 </script>
 
-<button type="button" {onclick} {...rest}>
+<button type="button" {onclick} {disabled} {...rest}>
 	{@render children?.()}
 </button>
 
@@ -33,5 +34,12 @@
 		align-items: center;
 		justify-content: center;
 		cursor: pointer;
+	}
+
+	/* Offline: dimmed and non-interactive (writes aren't queued offline). */
+	button:disabled {
+		opacity: 0.4;
+		cursor: default;
+		box-shadow: none;
 	}
 </style>

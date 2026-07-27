@@ -104,6 +104,24 @@ describe('ItemsScreen', () => {
 		expect(queryByDataTest('no-connection')).toBeNull();
 	});
 
+	test('(offline-fab) the add FAB is disabled while offline', async () => {
+		items.rows = [ITEM_1];
+		network.online = false;
+		const { getByDataTest } = render(ItemsScreen, { listId: 'test-list-id' });
+		await tick();
+		expect((getByDataTest('items-fab') as HTMLButtonElement).disabled).toBe(true);
+	});
+
+	test('(offline-vote) the vote control is disabled while offline', async () => {
+		vi.spyOn(history, 'back').mockImplementation(() => {});
+		items.rows = [ITEM_1];
+		network.online = false;
+		const { getByDataTest } = render(ItemsScreen, { listId: 'test-list-id' });
+		await fireEvent.click(getByDataTest(`row-${ITEM_1.id}`));
+		await tick();
+		expect(getByDataTest('vote-indicator').hasAttribute('data-disabled')).toBe(true);
+	});
+
 	test('(c) renders item rows with names and vote controls', async () => {
 		items.rows = [ITEM_1, ITEM_2];
 		const { queryByDataTest } = render(ItemsScreen, { listId: 'test-list-id' });

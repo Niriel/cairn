@@ -3,11 +3,13 @@ import { tick } from 'svelte';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 
 import { lists, refreshLists } from '$lib/list/state/lists.svelte';
+import { network } from '$lib/shared/state/network.svelte';
 import { render } from '$lib/test/render';
 
 import ListsScreen from './ListsScreen.svelte';
 
 vi.mock('$lib/shared/components/TopBar.svelte');
+vi.mock('$lib/shared/state/network.svelte');
 vi.mock('$lib/basic/components/Fab.svelte');
 vi.mock('$lib/basic/components/IconButton.svelte');
 vi.mock('$lib/invite/components/InvitesBanner.svelte');
@@ -25,6 +27,7 @@ afterEach(() => {
 	lists.loading = false;
 	lists.error = null;
 	lists.pendingDelete = null;
+	network.online = true;
 });
 
 const LIST_A = {
@@ -181,6 +184,12 @@ describe('ListsScreen', () => {
 		lists.pendingDelete = { list: LIST_A, timerId: setTimeout(() => {}, 0) };
 		const { queryByDataTest } = render(ListsScreen);
 		expect(queryByDataTest('lists-fab')).toBeNull();
+	});
+
+	test('(offline-fab) the create FAB is disabled while offline', () => {
+		network.online = false;
+		const { getByDataTest } = render(ListsScreen);
+		expect((getByDataTest('lists-fab') as HTMLButtonElement).disabled).toBe(true);
 	});
 });
 
