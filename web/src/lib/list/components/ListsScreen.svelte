@@ -78,7 +78,7 @@
 			<EmptyState
 				data-test="lists-empty"
 				title="Start your first cairn"
-				body="A cairn is a small stack of stones hikers leave to mark the way. Make a list of things — movies, books, places — and share it with friends."
+				body="A cairn is a small stack of stones that hikers leave to mark the way. Make a list of things — movies, books, places — and share it with friends."
 				ctaLabel="Create your first list"
 				onCta={() => (createSheetOpen = true)}
 			>
