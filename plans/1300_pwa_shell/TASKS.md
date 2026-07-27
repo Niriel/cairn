@@ -938,10 +938,10 @@ install UI (R8).
 - `promptInstall()` consumes the captured event (a `beforeinstallprompt` is
   single-use), so `canPrompt` flips false after prompting.
 
-### [ ] 5.2 `InstallExplainerSheet` + `InstallHint`
+### [x] 5.2 `InstallExplainerSheet` + `InstallHint`
 
 **Created:** 2026-07-23T07:52:02Z
-**Completed:**
+**Completed:** 2026-07-27T10:03:39Z
 
 **Why:** iOS has no install prompt and needs an "Add to Home Screen" explainer;
 a dismissible first-launch hint points new users at installation (R8).
@@ -989,6 +989,29 @@ a dismissible first-launch hint points new users at installation (R8).
 4. GREEN — Re-run; confirm green.
 
 **Verify:** `cd web && pnpm test InstallHint InstallExplainerSheet` · `cd web && pnpm lint` · `cd web && pnpm check`
+
+**Notes:**
+
+- **Deviation — no screenshot.** The task called for a placeholder image slot
+  under `static/install/` with the real iOS share-sheet screenshot captured
+  during implementation. No iOS device is reachable from this environment, and
+  committing a fabricated or broken-link image is worse than none, so the sheet
+  instead renders the two steps as an icon-led ordered list (share glyph → plus
+  glyph). If a real screenshot is wanted later it drops in above the list.
+- **Side work** — added a `share` path to `src/lib/basic/model/icon-paths.ts`
+  (Lucide, same source as the rest) because the explainer has to point at
+  Safari's Share button by its glyph. It's the first icon not present in
+  `design/cairn-ui.jsx`; noted inline.
+- **Deviation — store shape.** Task 5.1 shipped `install` with readonly
+  getters; consumer tests need to drive `canPrompt`/`isStandalone`/`isIos`, and
+  `svelte-check` rejected assignment through the real module's type. Reshaped
+  `install` into a mutable `$state` object matching the network store (and its
+  own `__mocks__` stand-in). `isStandalone`/`isIos` are consequently computed
+  once at import rather than read live — both are fixed for a page's lifetime
+  in practice.
+- `InstallHint` takes no props: the single-banner coordination for Task 5.3 is
+  left to a `{#if}` in `ListsScreen`, the first of the two options that task
+  offers, so nothing unused ships here.
 
 ### [ ] 5.3 "Install Cairn" Settings row + mount the hint on Lists
 
