@@ -1013,10 +1013,10 @@ a dismissible first-launch hint points new users at installation (R8).
   left to a `{#if}` in `ListsScreen`, the first of the two options that task
   offers, so nothing unused ships here.
 
-### [ ] 5.3 "Install Cairn" Settings row + mount the hint on Lists
+### [x] 5.3 "Install Cairn" Settings row + mount the hint on Lists
 
 **Created:** 2026-07-23T07:52:02Z
-**Completed:**
+**Completed:** 2026-07-27T10:21:10Z
 
 **Why:** Give installation a consistent home (a Settings row) and a first-launch
 nudge on the Lists screen (R8).
@@ -1064,6 +1064,29 @@ nudge on the Lists screen (R8).
 4. GREEN — Re-run; confirm green.
 
 **Verify:** `cd web && pnpm test SettingsScreen ListsScreen` · `cd web && pnpm lint` · `cd web && pnpm check`
+
+**Notes:**
+
+- **User correction — the explainer was Safari-only.** The Settings row is
+  gated on `!isStandalone` as this task specifies, but its fallback opens the
+  explainer sheet, and that sheet (Task 5.2) was written entirely in
+  Safari/share-sheet terms. On a browser that neither prompts nor is iOS —
+  desktop Firefox, say — the row would have told the user to tap a Share icon
+  they don't have. The user spotted this mid-task. Fixed by branching the sheet
+  on `install.isIos`: the iOS share-sheet steps as before, otherwise a generic
+  "open your browser's menu and look for Install or Add to Home screen" that
+  names no browser. `InstallHint` was already safe — it only shows when
+  `canPrompt || isIos`.
+- **Doc divergence, resolved here.** `docs/ui.md` §Settings enumerates the
+  screen's navigation rows and had no install row. Added an **App → Install
+  Cairn** bullet describing the visibility gate and the prompt/explainer split.
+- The hint is mounted in `ListsScreen` behind
+  `{#if profile.displayName !== 'New user'}` — the first of the two options
+  this task offered — so `InstallHint` keeps no props and the
+  one-banner-at-a-time rule lives next to the banner it defers to.
+- Placed the row in a new **App** section between Text size and Privacy & data:
+  installing is device-local, like the theme and text-size preferences above it.
+- `e2e/welcome.spec.ts` still passes on chromium after the mount.
 
 ## Phase 6 — E2E + preview harness
 

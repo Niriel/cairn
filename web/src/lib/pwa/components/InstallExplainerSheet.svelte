@@ -2,10 +2,14 @@
 	import Button from '$lib/basic/components/Button.svelte';
 	import Icon from '$lib/basic/components/Icon.svelte';
 	import Sheet from '$lib/basic/components/Sheet.svelte';
+	import { install } from '$lib/pwa/state/install.svelte';
 
-	// iOS exposes no install prompt in any browser, so the only path onto the
-	// home screen is the manual share-sheet gesture. This sheet walks through
-	// it; every other platform gets the real prompt instead.
+	// The manual fallback for anyone the browser won't let us prompt. On iOS
+	// that's everybody, and the gesture is precise enough to walk through step
+	// by step. Elsewhere it's the handful of browsers with no
+	// `beforeinstallprompt` (Firefox, say), where the menu item exists but its
+	// name and location vary — so the copy stays generic and names no browser
+	// rather than confidently describing the wrong one.
 
 	type Props = {
 		open: boolean;
@@ -16,28 +20,44 @@
 </script>
 
 <Sheet {open} {onclose} data-test="install-explainer-sheet">
-	<h2 class="t-hero">Add Cairn to your Home Screen</h2>
+	{#if install.isIos}
+		<h2 class="t-hero">Add Cairn to your Home Screen</h2>
 
-	<p class="intro body">
-		Safari can keep Cairn on your home screen, where it opens full-screen — no address bar — and
-		still shows your lists when you're offline. It takes two taps.
-	</p>
+		<p class="intro body">
+			Safari can keep Cairn on your home screen, where it opens full-screen — no address bar — and
+			still shows your lists when you're offline. It takes two taps.
+		</p>
 
-	<ol class="steps">
-		<li class="step">
-			<span class="step-glyph" aria-hidden="true"><Icon name="share" size={20} /></span>
-			<span class="step-body body">Tap the <strong>Share</strong> button in Safari's toolbar.</span>
-		</li>
-		<li class="step">
-			<span class="step-glyph" aria-hidden="true"><Icon name="plus" size={20} /></span>
-			<span class="step-body body"
-				>Scroll down the share sheet and choose <strong>Add to Home Screen</strong>.</span
-			>
-		</li>
-	</ol>
+		<ol class="steps">
+			<li class="step">
+				<span class="step-glyph" aria-hidden="true"><Icon name="share" size={20} /></span>
+				<span class="step-body body"
+					>Tap the <strong>Share</strong> button in Safari's toolbar.</span
+				>
+			</li>
+			<li class="step">
+				<span class="step-glyph" aria-hidden="true"><Icon name="plus" size={20} /></span>
+				<span class="step-body body"
+					>Scroll down the share sheet and choose <strong>Add to Home Screen</strong>.</span
+				>
+			</li>
+		</ol>
+	{:else}
+		<h2 class="t-hero">Install Cairn</h2>
+
+		<p class="intro body">
+			Installed, Cairn opens in its own window — no address bar — and still shows your lists when
+			you're offline.
+		</p>
+
+		<p class="intro body">
+			Your browser doesn't offer us a one-tap install, but it can most likely still do it: open its
+			menu and look for <strong>Install</strong> or <strong>Add to Home screen</strong>.
+		</p>
+	{/if}
 
 	<p class="footer card-alt caption">
-		Nothing is sent anywhere — the home-screen icon is just a shortcut your device keeps.
+		Nothing is sent anywhere — the icon is just a shortcut your device keeps.
 	</p>
 
 	<div class="got-it-wrap">

@@ -5,6 +5,7 @@ import { preferences } from '$lib/shared/state/preferences.svelte';
 import { profile } from '$lib/shared/state/profile.svelte';
 import { session, signOut } from '$lib/shared/state/session.svelte';
 import { invitations } from '$lib/invite/state/invitations.svelte';
+import { install } from '$lib/pwa/state/install.svelte';
 import { render } from '$lib/test/render';
 
 import SettingsScreen from './SettingsScreen.svelte';
@@ -17,6 +18,8 @@ vi.mock('$lib/shared/state/session.svelte');
 vi.mock('$lib/basic/components/Button.svelte');
 vi.mock('$lib/invite/state/invitations.svelte');
 vi.mock('$lib/privacy/state/user-settings.svelte');
+vi.mock('$lib/pwa/state/install.svelte');
+vi.mock('$lib/pwa/components/InstallExplainerSheet.svelte');
 vi.mock('$lib/auth/model/auth-client', () => ({
 	setRecoveryEmail: vi.fn(),
 	removeRecoveryEmail: vi.fn(),
@@ -32,6 +35,9 @@ afterEach(() => {
 	profile.displayName = null;
 	invitations.inbox = [];
 	session.current = { status: 'unknown' };
+	install.canPrompt = false;
+	install.isStandalone = false;
+	install.isIos = false;
 });
 
 describe('SettingsScreen', () => {
@@ -256,5 +262,36 @@ describe('SettingsScreen', () => {
 		const recovery = headings.indexOf('Recovery');
 		expect(privacyData).toBeGreaterThan(-1);
 		expect(recovery).toBe(privacyData + 1);
+	});
+});
+
+describe('Install Cairn row', () => {
+	test('(install-a) is hidden when Cairn is already running installed', () => {
+		install.isStandalone = true;
+		const { queryByDataTest } = render(SettingsScreen);
+		expect(queryByDataTest('settings-install')).toBeNull();
+	});
+
+	test('(install-b) is shown when Cairn is running in a browser tab', () => {
+		const { queryByDataTest } = render(SettingsScreen);
+		expect(queryByDataTest('settings-install')).not.toBeNull();
+	});
+
+	test('(install-c) fires the captured prompt when there is one', async () => {
+		install.canPrompt = true;
+		const { getByDataTest, queryByDataTest } = render(SettingsScreen);
+		await fireEvent.click(getByDataTest('settings-install'));
+		expect(install.promptInstall).toHaveBeenCalledTimes(1);
+		expect(queryByDataTest('install-explainer-sheet')).toBeNull();
+	});
+
+	test('(install-d) opens the explainer when there is no prompt to fire', async () => {
+		install.isIos = true;
+		const { getByDataTest, queryByDataTest } = render(SettingsScreen);
+		expect(queryByDataTest('install-explainer-sheet')).toBeNull();
+
+		await fireEvent.click(getByDataTest('settings-install'));
+		expect(install.promptInstall).not.toHaveBeenCalled();
+		expect(queryByDataTest('install-explainer-sheet')).not.toBeNull();
 	});
 });

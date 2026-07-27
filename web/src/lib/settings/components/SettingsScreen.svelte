@@ -13,7 +13,22 @@
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { invitations } from '$lib/invite/state/invitations.svelte';
+	import InstallExplainerSheet from '$lib/pwa/components/InstallExplainerSheet.svelte';
+	import { install } from '$lib/pwa/state/install.svelte';
 	import RecoveryEmailRow from './RecoveryEmailRow.svelte';
+
+	// Settings is installation's canonical home: the first-launch hint on the
+	// Lists screen is dismissible, so this row is where someone who waved it
+	// away — or who arrived later — comes looking.
+	let installExplainerOpen = $state(false);
+
+	function onInstall() {
+		if (install.canPrompt) {
+			void install.promptInstall();
+			return;
+		}
+		installExplainerOpen = true;
+	}
 
 	const themes: { value: Theme; label: string; icon: IconName }[] = [
 		{ value: 'light', label: 'Light', icon: 'sun' },
@@ -137,6 +152,22 @@
 			</div>
 		</section>
 
+		{#if !install.isStandalone}
+			<section class="preference-group">
+				<h2>App</h2>
+				<div class="nav-rows">
+					<NavRow
+						title="Install Cairn"
+						sub="Keep it on your home screen, ready offline"
+						data-test="settings-install"
+						onclick={onInstall}
+					>
+						{#snippet lead()}<Icon name="smartphone" size={ICON_SIZE} />{/snippet}
+					</NavRow>
+				</div>
+			</section>
+		{/if}
+
 		<section class="preference-group">
 			<h2>Privacy &amp; data</h2>
 			<div class="nav-rows">
@@ -184,6 +215,8 @@
 		</section>
 	</div>
 </div>
+
+<InstallExplainerSheet open={installExplainerOpen} onclose={() => (installExplainerOpen = false)} />
 
 <style>
 	/* The profile avatar sits in NavRow's 44px lead band. 4px padding insets the
