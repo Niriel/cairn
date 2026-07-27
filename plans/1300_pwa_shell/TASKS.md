@@ -654,10 +654,10 @@ boot, the ItemsScreen empty state, and the write controls all read (R4, R5, R6).
 
 **Verify:** `cd web && pnpm test network` · `cd web && pnpm lint` · `cd web && pnpm check`
 
-### [ ] 4.2 Offline-optimistic session boot
+### [x] 4.2 Offline-optimistic session boot
 
 **Created:** 2026-07-23T07:52:02Z
-**Completed:**
+**Completed:** 2026-07-27T09:00:01Z
 
 **Why:** A signed-in user who reloads offline is currently pinned on the boot
 screen forever (a transient `refresh()` leaves status `unknown`). Persist the
@@ -725,6 +725,42 @@ semantics.
 4. GREEN — Re-run; confirm green.
 
 **Verify:** `cd web && pnpm test session` · `cd web && pnpm lint` · `cd web && pnpm check`
+
+**Notes:**
+
+- **Tier-rule conflict resolved by promoting the prefix to `shared/` (user
+  decision).** The task said to import the api-cache prefix from
+  `$lib/pwa/model/sw-cache`, but `shared/state/session.svelte.ts` importing a
+  per-domain (`pwa/`) module violates `docs/frontend-layout.md`'s one-way tier
+  rule (shared/ may import basic/ but not a per-domain folder) — the file's own
+  header documents avoiding exactly that. Per the doc's prescribed resolution
+  ("promote the shared thing to shared/"), created
+  `src/lib/shared/model/cache-names.ts` exporting `SHELL_CACHE_PREFIX` /
+  `API_CACHE_PREFIX`; `pwa/model/sw-cache.ts` now imports them from there
+  (pwa→shared, allowed) and `session.svelte.ts` imports `API_CACHE_PREFIX` from
+  there (shared→shared, allowed). This deviates from the task's literal Files
+  list (adds the shared module) and lightly touches Task 3.1's completed
+  `sw-cache.ts` (prefix constants moved out, no behaviour change — its 13 tests
+  still pass). No dedicated test for the two-constant module; `sw-cache.test.ts`
+  already asserts the composed names (`shellCache('abc') === 'cairn-shell-abc'`).
+- **Deviation (gap fix): a `revoked` boot now clears `cairn.user`.** The task
+  listed clear-points as `signOut` / `onUnauthorized` only, but an authoritative
+  `revoked` boot that left a stale persisted user would let a *subsequent*
+  offline transient boot optimistically resurrect the now-revoked session. Added
+  `clearPersistedUser()` to the revoked branch to close that. (A revoked boot is
+  always online — offline can't reach the server for a 401 — so this only affects
+  the next boot; no cache purge added there since the account-switch guard covers
+  the next sign-in.)
+- **`onUnauthorized` stays synchronous.** It returns `void` (a 401 handler calls
+  it), so the cache purge is fired `void purgeApiCaches()` (best-effort,
+  non-blocking) rather than awaited; `signOut` (already async) awaits it. The
+  offline-optimistic branch reads `navigator.onLine` directly (guarded) rather
+  than importing the `network` store, matching the task's literal condition and
+  avoiding coupling boot to the reactive store.
+- **Account-switch purge re-checks the guard after its `await`.** The ok-branch
+  purge introduces a suspension point, so it re-checks `session.current.status
+  !== 'unknown'` after the await to preserve the existing race invariant (a
+  deliberate `signOut`/`setSignedIn` during the purge wins).
 
 ### [ ] 4.3 `NoConnectionState` + ItemsScreen offline branch
 

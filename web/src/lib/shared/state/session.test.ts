@@ -24,14 +24,39 @@ let mod: typeof import('./session.svelte');
 
 beforeEach(async () => {
 	vi.resetModules();
+	localStorage.clear();
 	mod = await import('./session.svelte');
 });
 
 afterEach(() => {
 	vi.restoreAllMocks();
+	vi.unstubAllGlobals();
+	localStorage.clear();
+	stubOnLine(true);
 });
 
 const USER: AuthUser = { id: 'u1', username: 'alice' };
+const USER_KEY = 'cairn.user';
+
+function stubOnLine(value: boolean) {
+	Object.defineProperty(window.navigator, 'onLine', { configurable: true, get: () => value });
+}
+
+// A minimal Cache Storage stand-in that records deletions, so the purge can be
+// asserted without a real Cache API (happy-dom has none).
+function fakeCaches(initialKeys: string[]) {
+	const store = new Set(initialKeys);
+	const deleted: string[] = [];
+	const caches = {
+		keys: vi.fn(() => Promise.resolve([...store])),
+		delete: vi.fn((k: string) => {
+			deleted.push(k);
+			return Promise.resolve(store.delete(k));
+		})
+	};
+	vi.stubGlobal('caches', caches);
+	return { deleted, remaining: () => [...store] };
+}
 
 describe('refresh', () => {
 	test('POSTs /auth/refresh with the CSRF header and adopts the tokenless user → ok', async () => {
@@ -296,6 +321,111 @@ describe('setSignedIn', () => {
 		// token regression that silently swapped the user field would be caught
 		// here.
 		expect(mod.session.current).toEqual({ status: 'signed-in', user: u1 });
+	});
+});
+
+describe('cairn.user persistence', () => {
+	test('a successful boot persists {id, username}', async () => {
+		server.use(http.post('*/auth/refresh', () => HttpResponse.json({ user: USER })));
+		await mod.bootSession();
+		expect(JSON.parse(localStorage.getItem(USER_KEY) ?? 'null')).toEqual(USER);
+	});
+
+	test('setSignedIn persists the user', () => {
+		mod.setSignedIn(USER);
+		expect(JSON.parse(localStorage.getItem(USER_KEY) ?? 'null')).toEqual(USER);
+	});
+
+	test('signOut clears cairn.user', async () => {
+		server.use(http.post('*/auth/signout', () => new HttpResponse(null, { status: 204 })));
+		mod.setSignedIn(USER);
+		expect(localStorage.getItem(USER_KEY)).not.toBeNull();
+		await mod.signOut();
+		expect(localStorage.getItem(USER_KEY)).toBeNull();
+	});
+
+	test('onUnauthorized clears cairn.user', () => {
+		mod.setSignedIn(USER);
+		mod.onUnauthorized();
+		expect(localStorage.getItem(USER_KEY)).toBeNull();
+	});
+
+	test('a revoked boot clears any stale cairn.user (no offline resurrection later)', async () => {
+		localStorage.setItem(USER_KEY, JSON.stringify(USER));
+		// Default handler returns 401 → revoked.
+		await mod.bootSession();
+		expect(mod.session.current).toEqual({ status: 'signed-out' });
+		expect(localStorage.getItem(USER_KEY)).toBeNull();
+	});
+});
+
+describe('offline-optimistic boot', () => {
+	test('transient + offline + a valid persisted user → signed-in', async () => {
+		localStorage.setItem(USER_KEY, JSON.stringify(USER));
+		stubOnLine(false);
+		server.use(http.post('*/auth/refresh', () => new HttpResponse(null, { status: 503 })));
+		await mod.bootSession();
+		expect(mod.session.current).toEqual({ status: 'signed-in', user: USER });
+	});
+
+	test('transient while online → stays unknown (no optimistic adopt)', async () => {
+		localStorage.setItem(USER_KEY, JSON.stringify(USER));
+		stubOnLine(true);
+		server.use(http.post('*/auth/refresh', () => new HttpResponse(null, { status: 503 })));
+		await mod.bootSession();
+		expect(mod.session.current.status).toBe('unknown');
+	});
+
+	test('transient + offline but NO persisted user → stays unknown', async () => {
+		stubOnLine(false);
+		server.use(http.post('*/auth/refresh', () => new HttpResponse(null, { status: 503 })));
+		await mod.bootSession();
+		expect(mod.session.current.status).toBe('unknown');
+	});
+
+	test('transient + offline + a corrupt persisted user → stays unknown', async () => {
+		localStorage.setItem(USER_KEY, '{not json');
+		stubOnLine(false);
+		server.use(http.post('*/auth/refresh', () => new HttpResponse(null, { status: 503 })));
+		await mod.bootSession();
+		expect(mod.session.current.status).toBe('unknown');
+	});
+});
+
+describe('SW api-cache purge on sign-out / account-switch', () => {
+	test('signOut deletes only the cairn-api-* caches, leaving the shell', async () => {
+		const { deleted, remaining } = fakeCaches(['cairn-shell-x', 'cairn-api-x', 'other']);
+		server.use(http.post('*/auth/signout', () => new HttpResponse(null, { status: 204 })));
+		mod.setSignedIn(USER);
+		await mod.signOut();
+		expect(deleted).toEqual(['cairn-api-x']);
+		expect(remaining().sort()).toEqual(['cairn-shell-x', 'other']);
+	});
+
+	test('onUnauthorized deletes only the cairn-api-* caches', async () => {
+		const { deleted } = fakeCaches(['cairn-shell-x', 'cairn-api-x', 'other']);
+		mod.setSignedIn(USER);
+		mod.onUnauthorized();
+		await vi.waitFor(() => expect(deleted).toEqual(['cairn-api-x']));
+	});
+
+	test('a boot whose ok user id differs from the persisted one purges before adopting', async () => {
+		localStorage.setItem(USER_KEY, JSON.stringify({ id: 'old', username: 'oldname' }));
+		const { deleted } = fakeCaches(['cairn-api-x']);
+		const newUser: AuthUser = { id: 'new', username: 'newname' };
+		server.use(http.post('*/auth/refresh', () => HttpResponse.json({ user: newUser })));
+		await mod.bootSession();
+		expect(deleted).toEqual(['cairn-api-x']);
+		expect(mod.session.current).toEqual({ status: 'signed-in', user: newUser });
+	});
+
+	test('a same-id boot does not purge', async () => {
+		localStorage.setItem(USER_KEY, JSON.stringify(USER));
+		const { deleted } = fakeCaches(['cairn-api-x']);
+		server.use(http.post('*/auth/refresh', () => HttpResponse.json({ user: USER })));
+		await mod.bootSession();
+		expect(deleted).toEqual([]);
+		expect(mod.session.current).toEqual({ status: 'signed-in', user: USER });
 	});
 });
 

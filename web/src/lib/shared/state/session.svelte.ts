@@ -4,9 +4,16 @@
 // contracts via env instead of via import. `auth-paths` lives in
 // `shared/model/`, so importing CSRF_HEADER from it is within-tier and
 // allowed (the one shared home for the constant, byte-identical with the BFF).
+import { API_CACHE_PREFIX } from '$lib/shared/model/cache-names';
 import { CSRF_HEADER } from '$lib/shared/model/auth-paths';
 
 export const AUTH_BASE = import.meta.env.VITE_AUTH_BASE ?? '/auth';
+
+// Device-side record of the last-known signed-in user. Both fields are
+// non-private (username is public; id is the caller's own uid) — never persist
+// an e-mail or any docs/invites.md-protected field here. Read on a cold offline
+// boot so a signed-in user isn't pinned on the boot screen (see bootSession).
+const USER_KEY = 'cairn.user';
 
 export type AuthUser = { id: string; username: string };
 
@@ -45,6 +52,53 @@ function isAuthUser(value: unknown): value is AuthUser {
 		typeof (value as { id?: unknown }).id === 'string' &&
 		typeof (value as { username?: unknown }).username === 'string'
 	);
+}
+
+// `cairn.user` persistence. All localStorage access is try/catch-guarded (as
+// app.html's boot script is): a private-mode or disabled-storage failure must
+// never bounce or crash the session.
+function persistUser(user: AuthUser): void {
+	try {
+		localStorage.setItem(USER_KEY, JSON.stringify({ id: user.id, username: user.username }));
+	} catch {
+		// storage unavailable / full — non-fatal, the session still works online
+	}
+}
+
+function clearPersistedUser(): void {
+	try {
+		localStorage.removeItem(USER_KEY);
+	} catch {
+		// non-fatal
+	}
+}
+
+function readPersistedUser(): AuthUser | null {
+	try {
+		const raw = localStorage.getItem(USER_KEY);
+		if (raw === null) return null;
+		const parsed: unknown = JSON.parse(raw);
+		return isAuthUser(parsed) ? parsed : null;
+	} catch {
+		return null;
+	}
+}
+
+// Best-effort purge of the SW api-cache buckets so the next account on this
+// device is never served the previous one's cached data (the overview URL is
+// byte-identical across accounts). The shell cache is user-independent and left
+// intact. `caches` is reachable from the window, so no SW postMessage is
+// needed; a failure must not block sign-out.
+async function purgeApiCaches(): Promise<void> {
+	try {
+		if (!('caches' in globalThis)) return;
+		const keys = await caches.keys();
+		await Promise.all(
+			keys.filter((k) => k.startsWith(API_CACHE_PREFIX)).map((k) => caches.delete(k))
+		);
+	} catch {
+		// best-effort
+	}
 }
 
 // Single shared in-flight refresh. With rotation + reuse detection, two
@@ -110,13 +164,34 @@ export function bootSession(): Promise<void> {
 			// deliberate entrypoint fired while refresh was in flight, it wins.
 			if (session.current.status !== 'unknown') return;
 			if (result.status === 'ok') {
+				// Account-switch guard: if a different user was last persisted on
+				// this device, purge the previous account's api cache before adopting,
+				// so its cached data is never shown to the new account.
+				const persisted = readPersistedUser();
+				if (persisted && persisted.id !== result.user.id) {
+					await purgeApiCaches();
+					// A deliberate entrypoint may have fired during the purge await.
+					if (session.current.status !== 'unknown') return;
+				}
 				session.current = { status: 'signed-in', user: result.user };
+				persistUser(result.user);
 			} else if (result.status === 'revoked') {
 				session.current = { status: 'signed-out' };
+				// Clear any stale persisted user so a later offline boot can't
+				// optimistically resurrect this now-revoked session.
+				clearPersistedUser();
+			} else {
+				// `transient` normally leaves the status `unknown`: a momentary outage
+				// on cold start must not bounce a validly-signed-in user to sign-in, and
+				// an online blip must never optimistically adopt. BUT if we are offline
+				// and hold a valid last-known user, adopt it optimistically so cached
+				// content renders instead of pinning the boot screen.
+				const offline = typeof navigator !== 'undefined' && navigator.onLine === false;
+				const persisted = readPersistedUser();
+				if (offline && persisted) {
+					session.current = { status: 'signed-in', user: persisted };
+				}
 			}
-			// `transient` leaves the status `unknown`: a momentary outage on cold
-			// start must not bounce a validly-signed-in user to sign-in.
-			// Signed-out is reserved for an authoritative revocation.
 		} finally {
 			bootPromise = null;
 		}
@@ -139,6 +214,8 @@ export async function signOut(): Promise<void> {
 		console.error('signOut: POST /auth/signout failed', err);
 	} finally {
 		session.current = { status: 'signed-out' };
+		clearPersistedUser();
+		await purgeApiCaches();
 	}
 }
 
@@ -149,9 +226,15 @@ export function setSignedIn(user: AuthUser): void {
 	// deferred).
 	if (session.current.status === 'signed-in') return;
 	session.current = { status: 'signed-in', user };
+	persistUser(user);
 }
 
 export function onUnauthorized(): void {
 	if (session.current.status === 'signed-out') return;
 	session.current = { status: 'signed-out' };
+	clearPersistedUser();
+	// Best-effort, fire-and-forget: onUnauthorized is synchronous (a 401
+	// handler calls it) and the cache purge must not block the sign-out
+	// transition. `void` marks the floating promise intentional.
+	void purgeApiCaches();
 }

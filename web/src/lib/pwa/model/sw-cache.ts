@@ -5,14 +5,13 @@
 // No Svelte/runes — this module is imported by the worker (which has no DOM)
 // and by its Vitest suite.
 
+import { API_CACHE_PREFIX, SHELL_CACHE_PREFIX } from '$lib/shared/model/cache-names';
+
 /** The verdict for one `/api` request URL. */
 export type ApiClass =
 	| 'overview'
 	| { kind: 'list-scoped'; listId: string | null; isEntry?: boolean }
 	| null;
-
-export const SHELL_CACHE_PREFIX = 'cairn-shell-';
-export const API_CACHE_PREFIX = 'cairn-api-';
 
 /** Versioned shell-cache name, e.g. `cairn-shell-<build>`. */
 export const shellCache = (version: string): string => `${SHELL_CACHE_PREFIX}${version}`;
