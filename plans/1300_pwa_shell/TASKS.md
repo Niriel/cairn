@@ -762,10 +762,10 @@ semantics.
   !== 'unknown'` after the await to preserve the existing race invariant (a
   deliberate `signOut`/`setSignedIn` during the purge wins).
 
-### [ ] 4.3 `NoConnectionState` + ItemsScreen offline branch
+### [x] 4.3 `NoConnectionState` + ItemsScreen offline branch
 
 **Created:** 2026-07-23T07:52:02Z
-**Completed:**
+**Completed:** 2026-07-27T09:09:52Z
 
 **Why:** An un-opened list opened offline must show a clean "No connection"
 state, not stale data or a crash (R4).
@@ -804,6 +804,19 @@ state, not stale data or a crash (R4).
 4. GREEN — Re-run; confirm green.
 
 **Verify:** `cd web && pnpm test NoConnectionState ItemsScreen` · `cd web && pnpm lint` · `cd web && pnpm check`
+
+**Notes:**
+
+- **The stable `data-test` hook Task 6.2 needs is already in place.**
+  `NoConnectionState` renders `data-test="no-connection"` by default (overridable
+  via prop), so 6.2's "add a `data-test` attribute to NoConnectionState" is
+  already satisfied — 6.2 can assert on `[data-test="no-connection"]` directly.
+- ItemsScreen branch condition is `items.error && items.rows.length === 0 &&
+  !network.online`, placed **before** the "Nothing here yet" empty state so an
+  offline failed load shows No-connection; online failures (and genuinely empty
+  lists) fall through to the existing empty state unchanged. The `items.error`
+  gate ensures a genuinely-empty cached list offline still reads "Nothing here
+  yet", not "No connection".
 
 ### [ ] 4.4 Disable the FAB and vote control offline
 

@@ -21,6 +21,8 @@
 	import MoreButton from '$lib/shared/components/MoreButton.svelte';
 	import UndoSnackbar from '$lib/shared/components/UndoSnackbar.svelte';
 	import EmptyState from '$lib/shared/components/EmptyState.svelte';
+	import NoConnectionState from '$lib/shared/components/NoConnectionState.svelte';
+	import { network } from '$lib/shared/state/network.svelte';
 	import Avatar from '$lib/shared/components/Avatar.svelte';
 	import AccordionRow from '$lib/shared/components/AccordionRow.svelte';
 	import Fab from '$lib/basic/components/Fab.svelte';
@@ -152,6 +154,11 @@
 	<div class="screen-body">
 		{#if items.loading}
 			<div class="loading caption" data-test="items-loading">Loading…</div>
+		{:else if items.error && items.rows.length === 0 && !network.online}
+			<!-- Opened offline with nothing cached: a clean "No connection", not the
+			     misleading "Nothing here yet" empty state (which implies the list IS
+			     empty). Online failures fall through to the empty state as before. -->
+			<NoConnectionState />
 		{:else if items.rows.length === 0}
 			<EmptyState
 				data-test="items-empty"
