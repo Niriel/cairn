@@ -530,10 +530,10 @@ purge-on-list-change decision live in a pure module (R4).
   constants so Task 4.2's sign-out purge can filter by the `cairn-api-` prefix
   without hard-coding the string.
 
-### [ ] 3.2 Service-worker `/api` SWR fetch router
+### [x] 3.2 Service-worker `/api` SWR fetch router
 
 **Created:** 2026-07-23T07:52:02Z
-**Completed:**
+**Completed:** 2026-07-27T08:37:49Z
 
 **Why:** Give the app read-only offline access to the lists overview and the
 most-recently-viewed list, with a clean "No connection" for un-opened lists
@@ -594,6 +594,28 @@ most-recently-viewed list, with a clean "No connection" for un-opened lists
    Phase 4).
 
 **Verify:** `cd web && pnpm build` · `cd web && pnpm check` · `cd web && pnpm lint`
+
+**Notes:**
+
+- **Background revalidate uses `event.waitUntil(revalidate)`** (a small
+  refinement over the plan's "fire the promise" wording, same intent): without
+  it the SW can be terminated after `respondWith(cached)` resolves but before the
+  background `cache.put` completes, so the revalidated response would be lost.
+  The `.catch(() => undefined)` still swallows the offline reject as the plan
+  requires; the no-cache path `await`s the same promise and returns
+  `offlineResponse()` (503 `{code:'offline'}`) on failure.
+- **Shell cache-first is now gated on `SHELL_PATHS.has(url.pathname)`** (a Set of
+  `['/', ...build, ...files]`), where Task 1.1's minimal worker did cache-first
+  for *all* same-origin GETs. Necessary now that `/api` is SWR and `/auth` /
+  `/avatars` reads must pass through uncached — an ungated cache-first would have
+  swallowed them.
+- **Manual offline check not run headlessly.** Verified instead that `pnpm build`
+  emits `build/service-worker.js` (7.25 kB) with the `sw-cache` helpers inlined
+  (`classifyApiRequest` routing, `cairn-api-*`/`cairn-shell-*` names,
+  `__cairn_mru`, the `{code:'offline'}` 503), and that `pnpm check` (0 errors) /
+  `pnpm lint` (0) are clean. The interactive "tick Offline, reload, list A
+  renders; un-opened list shows the offline branch" check needs a real browser
+  and is covered by the Phase 6 e2e (`offline-read.spec.ts`).
 
 ## Phase 4 — Offline session + "No connection"
 
