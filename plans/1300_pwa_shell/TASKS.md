@@ -1175,10 +1175,10 @@ depends on it.
 - The manual probes left one throwaway account in the dev database, the same
   residue every e2e run leaves.
 
-### [ ] 6.2 Offline-read + install-path Playwright specs
+### [x] 6.2 Offline-read + install-path Playwright specs
 
 **Created:** 2026-07-23T07:52:02Z
-**Completed:**
+**Completed:** 2026-07-27T12:20:17Z
 
 **Why:** Satisfy the pre-existing PWA acceptance criteria in `docs/testing.md`
 ("Offline read"; "PWA install path — manifest served, SW registers, app shell
@@ -1222,3 +1222,61 @@ specs under `web/e2e/` for the auth-helper and `data-test` conventions.
    Chromium.
 
 **Verify:** `cd web && pnpm test:e2e:pwa` · `cd web && pnpm lint` · `cd web && pnpm check`
+
+**Notes:** The specs were the easy part; running them for real found five bugs in
+the phases they cover. The step-2 instruction to fix a genuine failure in its
+owning phase was followed, with the user's go-ahead to do it here rather than
+route it through a separate revision.
+
+- **`data-test` hooks.** `NoConnectionState` already defaulted to
+  `data-test="no-connection"`; only `ItemsScreen`'s `TopBar` needed
+  `data-test="items-topbar"` added.
+- **`setOffline` does not reach the service worker** (Chromium network
+  emulation is per-page; SW-initiated fetches are unaffected). The first green
+  runs were fraudulent — the SWR router was quietly reaching the live server
+  while the specs believed they were offline. `offline-read.spec.ts` now aborts
+  `**/api/**` via `context.route` *and* calls `setOffline`; the comment on
+  `goOffline` records why both are needed. Anything testing offline behaviour
+  behind a worker needs this, so it's worth knowing about beyond this task.
+- **First install reloaded the page** (owning phase: 1.2). `controllerchange`
+  fires on a first install too, because the worker calls `clients.claim()`, so
+  every visitor's first page load bounced — at whatever URL they'd reached,
+  mid-form and all. Now guarded on whether a controller existed when
+  `register()` ran, i.e. on this being an update. Two Vitest cases added.
+- **`vite preview` served a relative-base document** (owning phase: 6.1), so
+  the worker's cached `/` shell 404'd every asset when replayed at a nested
+  path. `svelte.config.js` now sets `paths.relative: false`. This is a
+  production-facing build change, and the right one on its own merits: Cairn is
+  served from the domain root behind an index.html fallback (nginx `try_files`
+  in prod, the cached shell offline), where one document is replayed at every
+  depth and relative asset paths resolve against the requested path.
+- **Signed-out + offline pinned the boot screen forever** (owning phase: 4.2).
+  Task 4.2 decided a `transient` refresh with no persisted user stays `unknown`;
+  offline that is a state nothing can resolve, so the boot now settles on
+  signed-out and shows sign-in. **This reverses a decision in a completed
+  task** — 4.2's two `stays unknown` tests were rewritten. Online behaviour is
+  untouched: a blip still stays `unknown` and never bounces a signed-in user.
+- **Reads after a write were served the pre-write response** (owning phase:
+  3.2). SWR hands the store the cached response and revalidates in the
+  background, but no store consumes a second response — so a list you had just
+  created stayed invisible. A landed write now marks the cached api entries with
+  `x-cairn-stale`, and a marked entry is fetched network-first with the cached
+  copy as fallback. Deleting them instead (tried first) breaks offline reads:
+  the app refetches only what the current screen needs, so the overview and the
+  list's own name are dropped with nothing to put them back. SWR as
+  `docs/architecture.md` describes it is intact; this is the write-invalidation
+  half it didn't specify.
+- **Opening list B offline left list A's rows on screen** under B's name — the
+  worst of the three, since it attributes one list's content to another.
+  `loadItems` kept the old rows when a fetch failed; it now clears rows and
+  adopts the new `listId` up front when switching lists, and still keeps them on
+  a same-list refresh so the screen doesn't blank.
+- **The offline 503 carried no `message`**, so `ApiError.message` was
+  `res.statusText` — `''` for a synthetic Response. Every `if (items.error)`
+  read that as "no failure", which is why the cold list showed "Nothing here
+  yet" instead of "No connection". `offlineResponse()` moved from
+  `service-worker.ts` to `sw-cache.ts` (testable there, per the module's own
+  rationale) and now carries `message: 'No connection'`.
+
+Full `./scripts/check.sh` green; `pnpm test:e2e` green on chromium + firefox
+(WebKit can't launch on this box, as `playwright.pwa.config.ts` documents).

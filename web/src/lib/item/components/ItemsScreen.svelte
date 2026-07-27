@@ -124,6 +124,7 @@
 <div class="screen">
 	<TopBar
 		showBack={true}
+		data-test="items-topbar"
 		sub="{items.rows.length} items · {listMeta.list_members.length} {listMeta.list_members
 			.length === 1
 			? 'member'
