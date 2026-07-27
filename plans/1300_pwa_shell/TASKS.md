@@ -884,10 +884,10 @@ must visibly disable so a tap doesn't silently do nothing (R5).
 
 ## Phase 5 — Install affordance
 
-### [ ] 5.1 `install` store
+### [x] 5.1 `install` store
 
 **Created:** 2026-07-23T07:52:02Z
-**Completed:**
+**Completed:** 2026-07-27T09:46:48Z
 
 **Why:** Capture the browser's `beforeinstallprompt`, know whether we're already
 standalone / on iOS, and remember a dismissed hint — the shared state behind the
@@ -926,6 +926,17 @@ install UI (R8).
 4. GREEN — Re-run; confirm green.
 
 **Verify:** `cd web && pnpm test install` · `cd web && pnpm lint` · `cd web && pnpm check`
+
+**Notes:**
+
+- `isStandalone` and `isIos` are live getters rather than values computed once
+  at import: both are cheap, and reading them on demand avoids a stale answer
+  if the module loads before the launch context settles.
+- `isIos` also matches iPadOS in desktop mode (`Macintosh` UA plus
+  `maxTouchPoints > 1`), which the task's "iPhone/iPad/iPod sniff" wording
+  didn't cover but which would otherwise leave iPad users with no affordance.
+- `promptInstall()` consumes the captured event (a `beforeinstallprompt` is
+  single-use), so `canPrompt` flips false after prompting.
 
 ### [ ] 5.2 `InstallExplainerSheet` + `InstallHint`
 
