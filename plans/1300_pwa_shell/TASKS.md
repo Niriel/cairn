@@ -1090,10 +1090,10 @@ nudge on the Lists screen (R8).
 
 ## Phase 6 — E2E + preview harness
 
-### [ ] 6.1 Preview-server harness (shared auth/proxy factory) + PWA Playwright config
+### [x] 6.1 Preview-server harness (shared auth/proxy factory) + PWA Playwright config
 
 **Created:** 2026-07-23T07:52:02Z
-**Completed:**
+**Completed:** 2026-07-27T10:39:40Z
 
 **Why:** The service worker is off in `pnpm dev`, so the PWA e2e must run against
 `pnpm build && pnpm preview` — but `vite preview` currently has no dev
@@ -1150,6 +1150,30 @@ depends on it.
    `/api` / `/auth` is proxied.
 
 **Verify:** `cd web && pnpm build` · `cd web && pnpm test:e2e --project=chromium` · `cd web && pnpm check`
+
+**Notes:**
+
+- **Side work — `testMatch`/`testIgnore` split.** Both configs point at
+  `./e2e`, so without a filter `playwright.pwa.config.ts` would run all 51
+  existing specs against `preview`, and `pnpm test:e2e` would run Task 6.2's
+  service-worker specs against `pnpm dev`, where the worker is inert and they
+  can only fail. The PWA config therefore takes
+  `testMatch: ['offline-read.spec.ts', 'pwa-install.spec.ts']` and
+  `playwright.config.ts` gains the mirror `testIgnore` — an edit to a file this
+  task didn't list, but the two configs have to agree.
+- **Preview verified by hand**, since Task 6.2's specs don't exist yet: against
+  `pnpm build && pnpm preview`, `/` and `/service-worker.js` are 200,
+  `/manifest.webmanifest` is 200 `application/manifest+json`, a POST to
+  `/auth/signin` without the CSRF header is 403 and with it resolves against
+  PostgREST (401 for an unknown user), `/auth/token?grant_type=password` is
+  still locked down to 403, and a full register → authenticated
+  `GET /api/lists` round trip works with the planted cookie. That last one
+  exercises both halves of the refactor at once (middleware installer + shared
+  proxy).
+- The dev path is unchanged: all 51 chromium e2e pass on `pnpm dev` after the
+  refactor.
+- The manual probes left one throwaway account in the dev database, the same
+  residue every e2e run leaves.
 
 ### [ ] 6.2 Offline-read + install-path Playwright specs
 
