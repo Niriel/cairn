@@ -619,10 +619,10 @@ most-recently-viewed list, with a clean "No connection" for un-opened lists
 
 ## Phase 4 — Offline session + "No connection"
 
-### [ ] 4.1 `network` online/offline store
+### [x] 4.1 `network` online/offline store
 
 **Created:** 2026-07-23T07:52:02Z
-**Completed:**
+**Completed:** 2026-07-27T08:47:06Z
 
 **Why:** A single reactive source of truth for connectivity that the session
 boot, the ItemsScreen empty state, and the write controls all read (R4, R5, R6).
