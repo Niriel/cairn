@@ -46,13 +46,11 @@ import { sendVerifyCode, sendResetCode } from './lib/mail.js';
 //   POST /auth/refresh   — rotate the durable refresh token, re-mint the access
 //   plus the authenticated recovery-e-mail and signed-out password-reset endpoints
 // All state-changing endpoints require the CSRF header (csrf.ts). Any other
-// /auth/* path falls through to a generic GoTrue pass-through (defence-in-depth:
-// it attaches no cookie-derived bearer, plants no cookie, and strips any token
-// from a forwarded body), with a hard lockdown on the public password grant —
+// /auth/* request gets a 404: there is no generic GoTrue pass-through, so GoTrue
+// only hears from these handlers and its public password grant is unreachable —
 // the only password-grant path is the rate-limited /auth/signin.
 
-// The Cairn-shaped refresh endpoint — not a GoTrue passthrough, so it's handled
-// before the generic fetch-to-GoTrue path below.
+// The Cairn-shaped refresh endpoint.
 const REFRESH_PATH = '/auth/refresh';
 
 // Cairn-shaped credential endpoints. These are route skeletons: they pass
@@ -86,11 +84,6 @@ const RESET_PASSWORD_PATH = '/auth/reset-password';
 const USERNAME_RE = /^[A-Za-z0-9]{3,30}$/;
 const MIN_PASSWORD_LENGTH = 8;
 
-// The GoTrue token endpoint. Retained only to anchor the password-grant lockdown
-// below: a public `grant_type=password` against it is rejected (the only
-// password-grant path is the rate-limited /auth/signin) — see authHandler.
-const TOKEN_PATH = '/auth/token';
-
 // Sign-in is rate-limited (per-IP block + per-account escalating delay) — the
 // limiter is a single long-lived in-memory instance for this process. The
 // signin handler reports each outcome to it (recordFailure on a credential miss,
@@ -99,9 +92,8 @@ const TOKEN_PATH = '/auth/token';
 const signinLimiter = new RateLimiter(rateLimitConfigFromEnv());
 const signinGuard = signinRateLimit(signinLimiter);
 
-// State-changing Cairn-shaped endpoints that require the CSRF header. The
-// generic GoTrue pass-through is the deliberate exception — it plants no cookie,
-// so SameSite has nothing there for a CSRF header to reinforce — see csrf.ts.
+// State-changing Cairn-shaped endpoints that require the CSRF header — see
+// csrf.ts.
 const CSRF_PROTECTED_PATHS = [
 	REFRESH_PATH,
 	SIGNIN_PATH,
@@ -116,12 +108,6 @@ const CSRF_PROTECTED_PATHS = [
 	...LOGOUT_PATHS
 ];
 
-// Config is read per-request (not cached at module load) so tests can point
-// GOTRUE_URL at a stub server in beforeAll after the module is imported.
-function gotrueUrl(): string {
-	return process.env.GOTRUE_URL ?? 'http://gotrue:9999';
-}
-
 // Sign-out defaults to revoking just this session; `?scope=global` revokes all.
 function logoutScope(originalUrl: string): LogoutScope {
 	const qIdx = originalUrl.indexOf('?');
@@ -130,39 +116,6 @@ function logoutScope(originalUrl: string): LogoutScope {
 		? 'global'
 		: 'local';
 }
-
-// GoTrue carries the grant kind in the query string (`/auth/token?grant_type=…`),
-// not the body, so the lockdown reads it from there. `isSegmentMatch` discards
-// the query to compare the path, so it can't be used to inspect the grant type.
-function grantTypeOf(originalUrl: string): string | null {
-	const qIdx = originalUrl.indexOf('?');
-	if (qIdx === -1) return null;
-	return new URLSearchParams(originalUrl.slice(qIdx + 1)).get('grant_type');
-}
-
-// Request headers we never forward upstream: a client-supplied Authorization
-// is stripped (only our cookie-derived bearer is trusted, and only on the
-// narrowed paths); Accept-Encoding is dropped so GoTrue replies with identity
-// JSON we can parse without inflating (the top correctness pitfall); the
-// client-IP headers Caddy adds are dropped because GoTrue copies them into the
-// `remote_addr` of its request log, and the privacy policy promises no client
-// IP reaches a log (see docs/logging.md); the rest are hop-by-hop / length
-// headers fetch must recompute.
-const SKIP_REQUEST_HEADERS = new Set([
-	'authorization',
-	'accept-encoding',
-	'x-forwarded-for',
-	'x-real-ip',
-	'forwarded',
-	'host',
-	'connection',
-	'keep-alive',
-	'content-length'
-]);
-
-// Response headers fetch already decoded (it auto-decompresses) or that Node
-// must recompute from the possibly-rewritten body.
-const SKIP_RESPONSE_HEADERS = new Set(['content-length', 'transfer-encoding', 'content-encoding']);
 
 async function authHandler(req: Request, res: Response): Promise<void> {
 	// req is mounted at /auth, so req.originalUrl is the full `/auth/...`
@@ -245,98 +198,12 @@ async function authHandler(req: Request, res: Response): Promise<void> {
 		return;
 	}
 
-	// Password-grant lockdown (defence-in-depth): the public GoTrue password grant
-	// must be unreachable, since anyone can compute `<uid>@cairn.internal` from the
-	// public resolver. The only password-grant path is the rate-limited /auth/signin
-	// above. Reject `grant_type=password` on /auth/token (read from the query string)
-	// and never forward it — this holds regardless of what Caddy routes here.
-	if (isSegmentMatch(originalUrl, [TOKEN_PATH]) && grantTypeOf(originalUrl) === 'password') {
-		res.status(403).json({ error: 'use /auth/signin' });
-		return;
-	}
-
-	const headers = new Headers();
-	for (const [key, value] of Object.entries(req.headers)) {
-		if (value === undefined) continue;
-		if (SKIP_REQUEST_HEADERS.has(key.toLowerCase())) continue;
-		headers.set(key, Array.isArray(value) ? value.join(', ') : value);
-	}
-
-	// No cookie-derived bearer is attached to the generic pass-through: it serves
-	// only anonymous GoTrue endpoints, and forwarding a session credential to one
-	// would hand it out needlessly. (A client-supplied Authorization is stripped
-	// above via SKIP_REQUEST_HEADERS.)
-
-	const hasBody = req.method !== 'GET' && req.method !== 'HEAD';
-	// `Uint8Array.from` (not the raw Buffer) so the value matches fetch's
-	// BodyInit typing; auth bodies are tiny, so the copy is negligible.
-	const body =
-		hasBody && Buffer.isBuffer(req.body) && req.body.length > 0
-			? Uint8Array.from(req.body)
-			: undefined;
-
-	let upstream: globalThis.Response;
-	try {
-		upstream = await fetch(`${gotrueUrl()}${req.url}`, {
-			method: req.method,
-			headers,
-			body,
-			// Never follow an upstream redirect — forward it to the browser
-			// verbatim. A proxy that silently followed a GoTrue 3xx would swallow
-			// a response the client must see. A 302 carries no JSON, so the token
-			// strip below never fires on it and the body passes through verbatim.
-			redirect: 'manual'
-		});
-	} catch {
-		res.status(502).json({ error: 'upstream auth service unreachable' });
-		return;
-	}
-
-	const status = upstream.status;
-	const setCookies = upstream.headers.getSetCookie();
-	upstream.headers.forEach((value, key) => {
-		const lower = key.toLowerCase();
-		if (SKIP_RESPONSE_HEADERS.has(lower)) return;
-		// Never forward GoTrue's CORS headers. The custom-header CSRF defence
-		// (csrf.ts) holds only because a cross-origin caller can't learn that
-		// X-Cairn-Auth is an allowed header; leaking an Access-Control-Allow-*
-		// would void it. Cairn is same-origin (behind Caddy), so no /auth
-		// endpoint needs CORS — strip them all, including off any OPTIONS
-		// preflight GoTrue answers.
-		if (lower.startsWith('access-control-')) return;
-		// Set-Cookie is re-emitted individually below; forwarding it through
-		// the comma-joining `forEach` value would corrupt multi-cookie replies.
-		if (lower === 'set-cookie') return;
-		res.setHeader(key, value);
-	});
-	for (const cookie of setCookies) res.appendHeader('set-cookie', cookie);
-	res.status(status);
-
-	const buf = Buffer.from(await upstream.arrayBuffer());
-	const contentType = upstream.headers.get('content-type') ?? '';
-
-	if (status === 200 && contentType.includes('application/json')) {
-		try {
-			const json = JSON.parse(buf.toString('utf8')) as {
-				access_token?: unknown;
-				refresh_token?: unknown;
-			};
-			// Strip any token from a forwarded body — page JS has no use for one,
-			// the cookie is the source of truth, and this pass-through plants no
-			// session cookie. Defence-in-depth: no GoTrue endpoint routed here
-			// should be returning tokens to the browser at all.
-			if (typeof json.access_token === 'string' || typeof json.refresh_token === 'string') {
-				delete json.access_token;
-				delete json.refresh_token;
-				res.end(Buffer.from(JSON.stringify(json)));
-				return;
-			}
-		} catch {
-			// Non-JSON or parse error — fall through and pass the body verbatim.
-		}
-	}
-
-	res.end(buf);
+	// Nothing else under /auth is served. There is deliberately no generic
+	// pass-through to GoTrue: GoTrue only ever hears from the dedicated handlers
+	// above, which send it nothing but content-type and Authorization — so no
+	// client address reaches its request log, and its public password grant is
+	// unreachable (the only password-grant path is the rate-limited /auth/signin).
+	res.status(404).json({ error: 'not found' });
 }
 
 // Build the client-facing user from a GoTrue user + the freshly minted access

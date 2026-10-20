@@ -6,14 +6,13 @@ import { CSRF_HEADER } from './auth-paths.js';
 // /auth/signout, and the 2003 /auth/signin + /auth/register). On top of the
 // cookies' SameSite=Lax, a state-changing request must carry an explicit custom
 // header. A cross-origin attacker cannot set a custom header on a request
-// without a CORS preflight, and the BFF grants no such preflight (it forwards
+// without a CORS preflight, and the BFF grants no such preflight (it sets
 // no Access-Control-Allow-* headers — see index.ts), so the header's mere
 // presence is sufficient: there is no value to validate.
 //
-// The generic GoTrue pass-through sits outside this check: it plants no session
-// cookie, so there is nothing for a CSRF header to reinforce there. Only the
-// Cairn-shaped endpoints above — which plant, rotate, or clear the dual-cookie
-// session — are gated.
+// Only the Cairn-shaped endpoints above — which plant, rotate, or clear the
+// dual-cookie session — are gated. Every other /auth request gets a 404 (there
+// is no GoTrue pass-through), so there is nothing else to protect.
 export function requireCsrf(req: Request): boolean {
 	return req.get(CSRF_HEADER) !== undefined;
 }

@@ -63,6 +63,12 @@ export function buildLicensesText(webDir) {
 	}));
 	/** @type {Map<string, { name: string, version: string, license: string, text: string | null }>} */
 	const seen = new Map();
+	// Directories already read: a package many others depend on is reached once
+	// per edge, but its package.json is parsed once. `seen` (by name@version)
+	// still decides the output — pnpm can hold one name@version in several
+	// directories that differ only by peer-dependency suffix.
+	/** @type {Set<string>} */
+	const visited = new Set();
 	// for…of re-reads the length each step, so it also visits entries pushed
 	// during the walk.
 	for (const next of queue) {
@@ -71,6 +77,8 @@ export function buildLicensesText(webDir) {
 			console.warn(`gen-licenses: cannot resolve ${next.dep} from ${next.from}; skipped`);
 			continue;
 		}
+		if (visited.has(dir)) continue;
+		visited.add(dir);
 		const pkg = readPackage(dir);
 		const key = `${pkg.name}@${pkg.version}`;
 		if (seen.has(key)) continue;

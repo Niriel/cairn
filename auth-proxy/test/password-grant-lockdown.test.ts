@@ -5,9 +5,9 @@ import request from 'supertest';
 import { app } from '../src/index.js';
 
 // Password-grant lockdown: the public GoTrue password grant must be unreachable
-// — the only password-grant path is the rate-limited /auth/signin. The lockdown
-// is surgical: it rejects only grant_type=password on /auth/token and leaves any
-// other grant forwarding through the generic pass-through.
+// — the only password-grant path is the rate-limited /auth/signin. The
+// auth-proxy has no generic GoTrue pass-through, so /auth/token answers 404 for
+// every grant type and never reaches GoTrue.
 let gotrueReqs: { method: string; url: string }[];
 let gotrue: http.Server;
 let postgrest: http.Server;
@@ -23,9 +23,8 @@ beforeAll(async () => {
 			res.end(JSON.stringify({ access_token: 'a', refresh_token: 'r', user: { id: 'u1' } }));
 		});
 	});
-	// A stub PostgREST kept for hermeticity. The generic /auth/token pass-through
-	// no longer performs a profile lookup (the cookie-plant enrichment retired),
-	// so this is defensive — no test here should reach a real PostgREST host.
+	// A stub PostgREST kept for hermeticity — no test here should reach a real
+	// PostgREST host.
 	postgrest = http.createServer((_req, res) => {
 		res.statusCode = 200;
 		res.setHeader('content-type', 'application/json');
@@ -51,21 +50,19 @@ beforeEach(() => {
 });
 
 describe('public password-grant lockdown on /auth/token', () => {
-	it('rejects grant_type=password with 403 and never forwards to GoTrue', async () => {
+	it('answers grant_type=password with 404 and never forwards to GoTrue', async () => {
 		const res = await request(app)
 			.post('/auth/token?grant_type=password')
 			.send({ email: 'u1@cairn.internal', password: 'x' });
-		expect(res.status).toBe(403);
-		expect(res.body).toEqual({ error: 'use /auth/signin' });
+		expect(res.status).toBe(404);
 		expect(gotrueReqs).toHaveLength(0);
 	});
 
-	it('still forwards grant_type=refresh_token to GoTrue', async () => {
+	it('answers any other grant type with 404 too', async () => {
 		const res = await request(app)
 			.post('/auth/token?grant_type=refresh_token')
 			.send({ refresh_token: 'r' });
-		expect(res.status).toBe(200);
-		expect(gotrueReqs).toHaveLength(1);
-		expect(gotrueReqs[0].url).toContain('grant_type=refresh_token');
+		expect(res.status).toBe(404);
+		expect(gotrueReqs).toHaveLength(0);
 	});
 });

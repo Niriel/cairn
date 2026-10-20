@@ -35,7 +35,9 @@ cairn.{$DOMAIN} {
 	# forgot-password|reset-password) are NOT listed here, so they fall through to
 	# `web`. A blanket `handle_path /auth/*` would strip /auth and break both the
 	# proxy's segment matching and the SPA auth pages (the subtlest prod-only
-	# failure).
+	# failure). The `@gotrue` name is historical: the BFF handles these POSTs
+	# itself and answers any other method with a 404 — it forwards nothing to
+	# GoTrue verbatim.
 	@gotrue path /auth/signout* /auth/refresh*
 	handle @gotrue {
 		# The auth-proxy's sign-in rate-limiter keys per-IP off X-Real-IP ONLY

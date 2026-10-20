@@ -197,20 +197,13 @@ export default defineConfig({
 					});
 				},
 			},
-			"/auth": {
-				target: "http://localhost:9999",
-				rewrite: (p) => p.replace(/^\/auth/, ""),
-				configure: (proxy) => {
-					proxy.on("proxyRes", (proxyRes, _req, res) => {
-						// Same response-side JWT → Set-Cookie translation as Caddy does.
-						// (Sketch only — the real version reads the JSON body, extracts
-						// access_token, and sets the cookie before letting the response
-						// through.)
-					});
-				},
-			},
 		},
 	},
+	// /auth/* is not proxied: dev middlewares mirror each auth-proxy BFF
+	// handler (sign-in, register, refresh, sign-out, recovery), calling GoTrue
+	// server-side and planting the cookies themselves. Any other /auth/* path
+	// gets a 404, as in production; the SPA's own /auth pages fall through to
+	// SvelteKit.
 });
 ```
 

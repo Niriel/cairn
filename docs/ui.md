@@ -465,8 +465,9 @@ roles:
   paragraph rhythm, and restores bullets on its `ul` (the global list reset
   removes them everywhere else). Section titles inside it are the ordinary
   `h2`; sub-headings are the ordinary `h3` — **not** an uppercase label (see
-  the label/title note below). `.prose .lede` is the italic opening paragraph
-  in `var(--ink-soft)`.
+  the label/title note below). A `.lede` inside it loses its top margin.
+- `.lede` — the italic opening paragraph of a screen, in `var(--ink-soft)`
+  (the legal pages, the Export hub). Its spacing stays local to the screen.
 - `.caption` — muted secondary / metadata line (1 rem, set apart by colour).
 - `.fine` — fine print: the one tier below the 1 rem floor (0.8 rem, `var(--stone)`)
   for attribution lines, the list-meta line, vote labels, and timestamps.

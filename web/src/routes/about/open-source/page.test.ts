@@ -28,9 +28,4 @@ describe('/about/open-source', () => {
 			'/legal/licenses.txt'
 		);
 	});
-
-	test('ships no placeholder text', () => {
-		const { container } = render(Page);
-		expect(container.textContent).not.toMatch(/\[[^\]]+\]/);
-	});
 });

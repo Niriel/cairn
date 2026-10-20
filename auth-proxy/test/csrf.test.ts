@@ -120,8 +120,9 @@ describe('CSRF: required custom header on state-changing /auth/*', () => {
 		expect(normal.headers['access-control-allow-headers']).toBeUndefined();
 	});
 
-	it('(f) the GoTrue pass-through does not forward GoTrue CORS headers either', async () => {
+	it('(f) an unmatched /auth request gets a 404 with no Access-Control-Allow-*', async () => {
 		const res = await request(app).get('/auth/user').set('Cookie', 'cairn_access=xxx.yyy');
+		expect(res.status).toBe(404);
 		expect(res.headers['access-control-allow-origin']).toBeUndefined();
 		expect(res.headers['access-control-allow-headers']).toBeUndefined();
 	});

@@ -936,10 +936,10 @@
 
 ## Phase 6 — post-review cleanup
 
-### [ ] 6.1 Remove the auth-proxy's GoTrue pass-through
+### [x] 6.1 Remove the auth-proxy's GoTrue pass-through
 
 **Created:** 2026-10-20T15:49:20Z
-**Completed:**
+**Completed:** 2026-10-20T15:56:35Z
 
 **Why:** The generic pass-through in `authHandler` forwards any unmatched `/auth/*` request to GoTrue, keeping client IPs out of GoTrue's log only through a deny-list of three header names. Nothing uses it: the web client only POSTs to the dedicated BFF handlers, the dev server doesn't use the auth-proxy, and in production only stray methods (e.g. `GET /auth/refresh`) reach it. Removing it makes "GoTrue never sees a client IP" structural (R17).
 
@@ -984,10 +984,19 @@
 
 **Verify:** `cd auth-proxy && pnpm test && pnpm lint && pnpm exec prettier --check .` · `cd web && pnpm check && pnpm lint && pnpm test`
 
-### [ ] 6.2 Drop `/imprint` from the public paths
+**Notes:**
+
+- **`gotrueUrl()` was deleted too.** The task said to keep it, but the pass-through was its only caller; the dedicated handlers resolve GoTrue in `src/lib/`.
+- **Dead dev code removed (user's call).** `web/vite.config.ts` stamped `req.cairnOriginalUrl` and declared a `node:http` augmentation for it, but nothing read it; it served the old `/auth` proxy's `rewrite`. Both are gone.
+- **Side fix in `docs/development.md`.** Its Vite-config sketch still showed the `/auth` → `localhost:9999` proxy; it now says `/auth` is served by the dev BFF mirrors, with a 404 for anything else.
+- **Dev check.** Against a temporary `vite dev`: `GET /auth/user`, `GET /auth/refresh` and `POST /auth/token?grant_type=password` → 404 JSON; `GET /auth/signin` and `/auth/forgot-password` → the SPA HTML.
+- **Caddy.** Comment only: the `@gotrue` matcher keeps its name and routing.
+- **Production:** the live auth-proxy keeps the pass-through until rebuilt: `docker compose -f docker-compose.yml -f docker-compose.prod.yml --env-file .env.prod up -d --build auth-proxy`.
+
+### [x] 6.2 Drop `/imprint` from the public paths
 
 **Created:** 2026-10-20T15:49:20Z
-**Completed:**
+**Completed:** 2026-10-20T15:58:25Z
 
 **Why:** `PUBLIC_CONTENT_PATHS` keeps `/imprint` "so its redirect can run for a signed-out visitor", but the guard never sees that URL. The app is client-only (`ssr = false` in `web/src/routes/+layout.ts`), and SvelteKit's client router runs the route's `load` and follows a thrown `redirect` before mounting or updating `page.url`. This was verified in `node_modules/@sveltejs/kit/src/runtime/client/client.js`: the `navigation_result.type === 'redirect'` branches in `start` (~line 444) and `navigate` (~line 1762) re-navigate first. The entry is a dead special case in the auth guard (R19).
 
@@ -1013,10 +1022,14 @@
 
 **Verify:** `cd web && pnpm test -- src/routes && pnpm check && pnpm lint` · (where runnable) `pnpm exec playwright test legal`
 
-### [ ] 6.3 Share one legal footer between Sign in and Register
+**Notes:**
+
+- **Playwright: not run.** `pnpm exec playwright test legal --project=chromium -g "legacy /imprint"` failed at launch (`browserType.launch: Executable doesn't exist … chrome-headless-shell`), so it never reached the app. That is not run, not a pass. The unit tests mock the router, so the redirect-before-guard ordering rests on the SvelteKit client source cited above until that spec runs on a machine with browsers.
+
+### [x] 6.3 Share one legal footer between Sign in and Register
 
 **Created:** 2026-10-20T15:49:20Z
-**Completed:**
+**Completed:** 2026-10-20T15:59:33Z
 
 **Why:** `SignIn.svelte` and `Register.svelte` carry identical footers (the "Wholly European…" line plus Imprint · Privacy · Terms) and identical `.legal` / `.legal a` CSS, and their tests repeat the same three-href assertion (R19).
 
@@ -1055,10 +1068,14 @@
 
 **Verify:** `cd web && pnpm test -- src/lib/auth && pnpm check && pnpm lint`
 
-### [ ] 6.4 Share the legal-page test helpers
+**Notes:**
+
+- **No `$app/paths` mock was needed.** The screens' tests don't mock it either; under Vitest `resolve()` returns the bare path.
+
+### [x] 6.4 Share the legal-page test helpers
 
 **Created:** 2026-10-20T15:49:20Z
-**Completed:**
+**Completed:** 2026-10-20T16:00:49Z
 
 **Why:** The about-page tests normalise `textContent` whitespace by hand in several places, and seven page tests carry the identical "ships no placeholder text" body. Changing what counts as a placeholder means seven edits, and a new About page can forget the check (R15, R19).
 
@@ -1091,10 +1108,16 @@
 
 **Verify:** `cd web && pnpm test -- src/routes/about src/lib/test && pnpm check && pnpm lint`
 
-### [ ] 6.5 Make `.lede` a global type role
+**Notes:**
+
+- **Guard proven.** A `[TODO]` planted in `about/contact/+page.svelte` failed exactly that page's case in `no-placeholders.test.ts`; the page was then restored.
+- **`normalizedText` accepts `null`/`undefined`.** The terms test reads `h2?.closest('section')`, which can be null, so the helper takes an optional element and reads it as empty text.
+- **Lettered test labels now skip a letter** where a placeholder test was removed, e.g. privacy `(h)`. They were left as they are rather than renumbered.
+
+### [x] 6.5 Make `.lede` a global type role
 
 **Created:** 2026-10-20T15:49:20Z
-**Completed:**
+**Completed:** 2026-10-20T16:01:37Z
 
 **Why:** The italic opening paragraph exists twice: `.prose .lede` in `typography.css` (italic, `--ink-soft`) and a scoped `.lede` in `ExportHubScreen.svelte` (italic, `--stone`). `docs/ui.md` → "Where CSS lives: layout local, visual global" makes the scoped visual rule a smell (R19).
 
@@ -1120,10 +1143,14 @@
 
 **Verify:** `cd web && pnpm test -- src/lib/export src/routes/about && pnpm check && pnpm lint` · `pnpm exec prettier --check ../docs/ui.md`
 
-### [ ] 6.6 Enforce the production log cap in the checks
+**Notes:**
+
+- **Not addressed: the font.** The design (`design/cairn-export-screens.jsx`, ~line 139) also sets the Export hub's lede in Newsreader serif, but the screen inherits the sans body face. Only the colour was in scope here; the face is a separate visual-polish call.
+
+### [x] 6.6 Enforce the production log cap in the checks
 
 **Created:** 2026-10-20T15:49:20Z
-**Completed:**
+**Completed:** 2026-10-20T16:02:15Z
 
 **Why:** The privacy policy states that each service's log is capped at about 50 MB. That holds only because every service in `docker-compose.prod.yml` repeats `logging: *default-logging`, so a new service could silently miss it (R18, R12).
 
@@ -1153,10 +1180,16 @@
 
 **Verify:** `./scripts/check-prod-logging.sh` · `shellcheck scripts/check-prod-logging.sh scripts/check.sh` · `shfmt -d scripts/`
 
-### [ ] 6.7 Tidy `gen-licenses.mjs` and the drift test
+**Notes:**
+
+- **RED run.** With `sidecar`'s `logging:` line swapped out of `docker-compose.prod.yml`, the script printed `uncapped prod container logs: sidecar` and exited 1. The file was restored from a copy and has no diff. On the real file it reports `7 prod services cap their logs`.
+- **No dummy env values needed.** `.env.prod.example` covers every variable compose interpolates; `config` rendered with no warnings.
+- **One ShellCheck directive.** The `node -e` program is single-quoted on purpose, so SC2016 is disabled on that line with a comment: its `${}` are JS template literals, not shell.
+
+### [x] 6.7 Tidy `gen-licenses.mjs` and the drift test
 
 **Created:** 2026-10-20T15:49:20Z
-**Completed:**
+**Completed:** 2026-10-20T16:02:54Z
 
 **Why:** The licence generator locates a package and parses its `package.json` once per dependency edge before deduplicating by `name@version`, and the drift test's boolean comparison looks like a mistake without a comment (R19).
 
@@ -1180,10 +1213,10 @@
 
 **Verify:** `cd web && pnpm test -- src/lib/legal && pnpm lint` · `git diff --exit-code web/static/legal/licenses.txt`
 
-### [ ] 6.8 Close out Phase 6
+### [x] 6.8 Close out Phase 6
 
 **Created:** 2026-10-20T15:49:20Z
-**Completed:**
+**Completed:** 2026-10-20T16:05:17Z
 
 **Why:** Phase 6 changes the production auth-proxy, so the master plan must record that it needs a rebuild, and the whole gauntlet must pass.
 
@@ -1204,3 +1237,9 @@
 2. Run `./scripts/check.sh`, which now includes the log-cap guard, and report each layer's result. Attempt Playwright; if the browser can't launch, report it as **not run**.
 
 **Verify:** `./scripts/check.sh`
+
+**Notes:**
+
+- **`./scripts/check.sh` passed ("all checks passed").** That covers web install, format, lint, type check and unit tests; SQL lint; shell lint and format; the new prod log-cap guard; pgTAP; and sidecar and auth-proxy format, lint and unit tests.
+- **Playwright: not run.** The browser binaries are missing on this machine (see Task 6.2's Notes).
+- **Production:** rebuild the auth-proxy (`0000` step 14 records the command). Caddy changed only in a comment, so reloading it is optional.

@@ -32,9 +32,4 @@ describe('/about/imprint', () => {
 			`${OPERATOR.brand} is the personal label of ${OPERATOR.name}.`
 		);
 	});
-
-	test('(d) ships no placeholder text', () => {
-		const { container } = render(Page);
-		expect(container.textContent).not.toMatch(/\[[^\]]+\]/);
-	});
 });

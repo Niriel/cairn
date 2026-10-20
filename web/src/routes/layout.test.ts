@@ -84,7 +84,7 @@ describe('+layout.svelte (auth guard)', () => {
 		}
 	);
 
-	test.each(['/imprint', '/p/aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', '/about', '/about/privacy'])(
+	test.each(['/p/aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', '/about', '/about/privacy'])(
 		'(e2) signed-out on public content path %s: children render, no redirect',
 		async (path) => {
 			session.current = { status: 'signed-out' };

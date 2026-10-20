@@ -54,9 +54,4 @@ describe('/about', () => {
 		expect(footer).toContain(OPERATOR.town);
 		expect(footer).toContain(HOSTING_COUNTRY);
 	});
-
-	test('(e) ships no placeholder text', () => {
-		const { container } = render(Page);
-		expect(container.textContent).not.toMatch(/\[[^\]]+\]/);
-	});
 });

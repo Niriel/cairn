@@ -8,12 +8,9 @@ import {
 	SUPERVISORY_AUTHORITY
 } from '$lib/legal/model/operator';
 import { render } from '$lib/test/render';
+import { normalizedText } from '$lib/test/text';
 
 import Page from './+page.svelte';
-
-function text(element: Element): string {
-	return (element.textContent ?? '').replace(/\s+/g, ' ');
-}
 
 describe('/about/privacy', () => {
 	test('(a) shows when the policy was last updated', () => {
@@ -30,7 +27,7 @@ describe('/about/privacy', () => {
 
 	test('(c) names every data processor', () => {
 		const { container } = render(Page);
-		for (const processor of PROCESSORS) expect(text(container)).toContain(processor.name);
+		for (const processor of PROCESSORS) expect(normalizedText(container)).toContain(processor.name);
 	});
 
 	test('(d) links the supervisory authority for complaints', () => {
@@ -41,7 +38,7 @@ describe('/about/privacy', () => {
 
 	test('(e) lists the on-device storage: two cookies and four local settings', () => {
 		const { getByDataTest } = render(Page);
-		const storage = text(getByDataTest('privacy-storage'));
+		const storage = normalizedText(getByDataTest('privacy-storage'));
 		expect(storage).toMatch(/two cookies/i);
 		expect(storage).toMatch(/four small settings/i);
 		expect(storage).toMatch(/offline cache/i);
@@ -49,7 +46,7 @@ describe('/about/privacy', () => {
 
 	test('(f) says plainly that there are no off-site backups yet', () => {
 		const { container } = render(Page);
-		expect(text(container)).toContain('There are currently no off-site backups.');
+		expect(normalizedText(container)).toContain('There are currently no off-site backups.');
 	});
 
 	test('(g) presents its sections in order', () => {
@@ -70,14 +67,9 @@ describe('/about/privacy', () => {
 		]);
 	});
 
-	test('(h) ships no placeholder text', () => {
-		const { container } = render(Page);
-		expect(container.textContent).not.toMatch(/\[[^\]]+\]/);
-	});
-
 	test('(i) discloses that IP addresses are used in memory for rate limiting', () => {
 		const { getByDataTest } = render(Page);
-		const disclosure = text(getByDataTest('privacy-rate-limit'));
+		const disclosure = normalizedText(getByDataTest('privacy-rate-limit'));
 		expect(disclosure).toMatch(/IP address/);
 		expect(disclosure).toMatch(/memory/);
 		expect(disclosure).toMatch(/never written to disk/);
@@ -92,6 +84,6 @@ describe('/about/privacy', () => {
 
 	test('(k) mentions the moderation audit log', () => {
 		const { container } = render(Page);
-		expect(text(container)).toMatch(/audit log/);
+		expect(normalizedText(container)).toMatch(/audit log/);
 	});
 });

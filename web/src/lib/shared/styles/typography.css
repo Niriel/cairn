@@ -168,10 +168,14 @@ dl {
 	font-style: normal;
 }
 
-/* The italic opening paragraph of a prose page. */
-.prose .lede {
+/* The italic opening paragraph of a screen (the legal pages, the Export hub).
+   Its spacing stays with the context that places it. */
+.lede {
 	font-style: italic;
 	color: var(--ink-soft);
+}
+
+.prose .lede {
 	margin-block-start: 0;
 }
 

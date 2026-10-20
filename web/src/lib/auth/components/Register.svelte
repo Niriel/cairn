@@ -5,6 +5,7 @@
 	import Button from '$lib/basic/components/Button.svelte';
 	import Label from '$lib/basic/components/Label.svelte';
 	import TextInput from '$lib/basic/components/TextInput.svelte';
+	import AuthLegalFooter from '$lib/auth/components/AuthLegalFooter.svelte';
 	import { HttpError, register } from '$lib/auth/model/auth-client';
 	import CairnGlyph from '$lib/shared/components/CairnGlyph.svelte';
 	import Snackbar from '$lib/shared/components/Snackbar.svelte';
@@ -109,17 +110,7 @@
 		</p>
 	</form>
 
-	<footer class="legal fine">
-		<p>Wholly European, private, and law-abiding.</p>
-
-		<p>
-			<a href={resolve('/about/imprint')} data-test="register-imprint-link">Imprint</a>
-			<span aria-hidden="true">·</span>
-			<a href={resolve('/about/privacy')} data-test="register-privacy-link">Privacy</a>
-			<span aria-hidden="true">·</span>
-			<a href={resolve('/about/terms')} data-test="register-terms-link">Terms</a>
-		</p>
-	</footer>
+	<AuthLegalFooter hookPrefix="register" />
 </div>
 
 <Snackbar
@@ -198,16 +189,6 @@
 
 	.crosslink a {
 		color: var(--accent);
-		text-decoration: none;
-	}
-
-	.legal {
-		margin-top: 32px;
-		text-align: center;
-	}
-
-	.legal a {
-		color: var(--stone);
 		text-decoration: none;
 	}
 </style>

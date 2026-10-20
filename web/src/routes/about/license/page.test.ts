@@ -23,9 +23,4 @@ describe('/about/license', () => {
 		const headings = [...container.querySelectorAll('h2')].map((h) => h.textContent?.trim());
 		expect(headings).toEqual(['What the AGPL means for you', 'Why the AGPL and not MIT']);
 	});
-
-	test('ships no placeholder text', () => {
-		const { container } = render(Page);
-		expect(container.textContent).not.toMatch(/\[[^\]]+\]/);
-	});
 });

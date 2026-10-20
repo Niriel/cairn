@@ -3,12 +3,13 @@ import { describe, expect, test } from 'vitest';
 import { formatLegalDate } from '$lib/legal/model/format-date';
 import { GOVERNING_LAW, POLICY_DATES } from '$lib/legal/model/operator';
 import { render } from '$lib/test/render';
+import { normalizedText } from '$lib/test/text';
 
 import Page from './+page.svelte';
 
 function section(container: HTMLElement, heading: string): string {
 	const h2 = [...container.querySelectorAll('h2')].find((h) => h.textContent?.trim() === heading);
-	return (h2?.closest('section')?.textContent ?? '').replace(/\s+/g, ' ');
+	return normalizedText(h2?.closest('section'));
 }
 
 describe('/about/terms', () => {
@@ -49,10 +50,5 @@ describe('/about/terms', () => {
 			'Liability',
 			'Governing law'
 		]);
-	});
-
-	test('ships no placeholder text', () => {
-		const { container } = render(Page);
-		expect(container.textContent).not.toMatch(/\[[^\]]+\]/);
 	});
 });

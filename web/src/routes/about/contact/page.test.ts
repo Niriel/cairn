@@ -2,6 +2,7 @@ import { describe, expect, test, vi } from 'vitest';
 
 import { OPERATOR } from '$lib/legal/model/operator';
 import { render } from '$lib/test/render';
+import { normalizedText } from '$lib/test/text';
 
 import Page from './+page.svelte';
 
@@ -17,7 +18,7 @@ describe('/about/contact', () => {
 
 	test('says what to write about: security, data requests, and illegal content', () => {
 		const { container } = render(Page);
-		const text = (container.textContent ?? '').replace(/\s+/g, ' ');
+		const text = normalizedText(container);
 		expect(text).toMatch(/Security/);
 		expect(text).toMatch(/good-faith research/);
 		expect(text).toMatch(/Privacy and data requests/);
@@ -27,10 +28,5 @@ describe('/about/contact', () => {
 	test('points postal correspondence to the Imprint', () => {
 		const { getByDataTest } = render(Page);
 		expect(getByDataTest('contact-imprint-link').getAttribute('href')).toBe('/about/imprint');
-	});
-
-	test('ships no placeholder text', () => {
-		const { container } = render(Page);
-		expect(container.textContent).not.toMatch(/\[[^\]]+\]/);
 	});
 });

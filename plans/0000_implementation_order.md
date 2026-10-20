@@ -307,6 +307,10 @@ in-flight branch for no gain.
     `docs/logging.md` → "Audit"). **This step ships version 1.0.0**,
     the official release. Still open: the lawyer review
     (`docs/open-questions.md`) and off-site backups (step 21).
+    Phase 6 removed the auth-proxy's generic GoTrue pass-through, so
+    production needs `docker compose -f docker-compose.yml -f
+    docker-compose.prod.yml --env-file .env.prod up -d --build
+    auth-proxy`.
 
 15. [x] **Production rollout.** Add the missing `caddy/Caddyfile.prod`,
     `.env.prod` template, Restic backup script, the avatar sidecar

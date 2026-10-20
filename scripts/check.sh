@@ -69,6 +69,9 @@ if shellcheck scripts/*.sh scripts/cairn-admin; then ok "shellcheck"; else fail 
 echo "==> shell format"
 if shfmt -d -i 2 -ci -bn scripts/; then ok "shfmt"; else fail "shfmt"; fi
 
+echo "==> prod compose: log caps"
+if ./scripts/check-prod-logging.sh; then ok "log caps"; else fail "log caps"; fi
+
 echo "==> web: type check"
 if (cd web && pnpm check) >/dev/null; then ok "svelte-check"; else fail "svelte-check"; fi
 
