@@ -52,7 +52,8 @@ test.describe.serial('items flow', () => {
 		const betaAttr = await betaRowTap.getAttribute('data-test');
 		betaId = betaAttr!.replace('row-', '');
 
-		// Vote +1 on Beta so it has a higher score than Alpha (score-sort test).
+		// Vote +1 on Beta so it outscores Alpha (alphabetical-order test: the vote
+		// must not move it).
 		// The vote control lives in the extra panel, so open Beta's row first.
 		await page.locator(`[data-test="row-${betaId}"]`).click();
 		const betaPanel = page.locator('[data-test="item-extra"]');
@@ -69,15 +70,15 @@ test.describe.serial('items flow', () => {
 		await page.close();
 	});
 
-	// (a) Navigate from lists → items; items rendered in score-sorted order.
-	test('(a) navigating into a list shows items score-sorted', async () => {
+	// (a) Navigate from lists → items; items rendered in alphabetical order.
+	test('(a) navigating into a list shows items alphabetically', async () => {
 		await page.locator(`[data-test="list-nav-${listId}"]`).click();
 		await expect(page).toHaveURL(new RegExp(`/lists/${listId}$`));
 
-		// Beta (score +1) should appear before Alpha (score 0).
+		// Alpha (score 0) stays before Beta (score +1): votes don't reorder.
 		const rows = page.locator('[data-test^="row-"]');
-		await expect(rows.first()).toContainText('Beta');
-		await expect(rows.nth(1)).toContainText('Alpha');
+		await expect(rows.first()).toContainText('Alpha');
+		await expect(rows.nth(1)).toContainText('Beta');
 	});
 
 	// (b) Tapping a row opens its panel; tapping again closes it.
@@ -226,8 +227,11 @@ test.describe.serial('items flow', () => {
 		await page.locator('[data-test="create-list-name"]').fill(`Empty test ${runId}`);
 		await page.locator('[data-test="create-list-submit"]').click();
 
-		// Navigate into it — it should be the newest list (first in the list).
-		await page.locator('[data-test^="list-nav-"]').first().click();
+		// Navigate into it — by name, not position: lists sort alphabetically.
+		await page
+			.locator('[data-test^="list-nav-"]')
+			.filter({ hasText: `Empty test ${runId}` })
+			.click();
 
 		await expect(page.locator('[data-test="items-empty"]')).toBeVisible();
 		await expect(page.locator('[data-test="items-empty"]')).toContainText('Nothing here yet');

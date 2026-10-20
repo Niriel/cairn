@@ -116,7 +116,7 @@ The JWT-claim form is also worth noting: `SET LOCAL request.jwt.claims = '{"sub"
 
 Vitest runs from the `web/` directory. It tests two kinds of thing:
 
-- **Pure logic in `src/lib/`** — sorting (votes-then-age), text helpers, date formatting, the client-side bits of soft-delete, anything testable without a DOM.
+- **Pure logic in `src/lib/`** — name ordering (`compareNames`), text helpers, date formatting, the client-side bits of soft-delete, anything testable without a DOM.
 - **Svelte components** — rendering, props, events, accessibility roles. Mounted via `@testing-library/svelte`, asserted with `@testing-library/jest-dom` matchers, run inside `happy-dom` (faster than jsdom and sufficient for our needs).
 
 ### Layout
@@ -125,8 +125,9 @@ Vitest runs from the `web/` directory. It tests two kinds of thing:
 web/
 ├── src/
 │   ├── lib/
-│   │   ├── sort.ts
-│   │   └── sort.test.ts        ← colocated unit tests
+│   │   └── basic/model/
+│   │       ├── compare-names.ts
+│   │       └── compare-names.test.ts   ← colocated unit tests
 │   └── routes/
 │       └── lists/
 │           └── ListItem.test.ts ← component test next to the component

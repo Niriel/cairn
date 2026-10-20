@@ -10,7 +10,7 @@ There is no name step. A new account's display name defaults to the username cho
 
 ## Lists screen
 
-The first screen the user sees after logging in: their lists, in order of most recently modified. Each row shows the list name and a one-line preview of its description.
+The first screen the user sees after logging in: their lists, in alphabetical order. Each row shows the list name and a one-line preview of its description.
 
 ```
 Movies for Alice
@@ -346,7 +346,7 @@ The same pattern applies to deleting a list (snackbar on the lists screen) and t
 
 ### Bin screen
 
-Each list has a **Bin** entry in its overflow menu (the `⋮` sheet reachable from each list row on the Lists screen and from the `⋮` button in the Items screen TopBar). Opening it shows the list's soft-deleted items, ordered most-recently-deleted first. Each row shows the item name, a faint _"deleted by Bob · 3 May 2026"_ attribution, and a single **Restore** button. Tapping Restore clears `deleted_at` and returns the item to the live list at its original position in the sort.
+Each list has a **Bin** entry in its overflow menu (the `⋮` sheet reachable from each list row on the Lists screen and from the `⋮` button in the Items screen TopBar). Opening it shows the list's soft-deleted items, ordered most-recently-deleted first. Each row shows the item name, a faint _"deleted by Bob · 3 May 2026"_ attribution, and a single **Restore** button. Tapping Restore clears `deleted_at` and returns the item to the live list at its alphabetical position.
 
 There is no "empty bin" action. Hard deletion is not exposed in the UI; nothing in v1 ever calls `DELETE` on items. If we ever add a server-side garbage collection for very old deletions, that's a backend decision (see the open question in `architecture.md`), not a user-facing one.
 
@@ -356,7 +356,7 @@ The bin is not a feature we promise users — it's a safety net. The copy in del
 
 ## Public lists
 
-A list can be made **public** — readable by anyone holding its link, while signed out. Public here means _unlisted_: the list id is the capability, there is no directory or browse surface, and the link reveals only a curated read-only snapshot (name, description, ranked items with scores — no members, no votes, no attribution; see `data-model.md` → "Public read access"). Any member may publish or unpublish.
+A list can be made **public** — readable by anyone holding its link, while signed out. Public here means _unlisted_: the list id is the capability, there is no directory or browse surface, and the link reveals only a curated read-only snapshot (name, description, items with scores — no members, no votes, no attribution; see `data-model.md` → "Public read access"). Any member may publish or unpublish.
 
 ### Public marker (members only)
 
@@ -375,7 +375,7 @@ Publishing lives in the per-list `⋮` overflow sheet (reachable from the Lists-
 
 ### Public read-only screen (`/p/<list_id>`)
 
-The link opens a standalone read-only page, outside the signed-in shell. It shows the list name, description, and items in ranked order with their score badges — and **nothing interactive**: no vote controls, no add-item FAB, no overflow menu, no member avatars or attribution, and no public marker. The TopBar shows a non-interactive Cairn wordmark/glyph (so the page is recognisably Cairn) and **no back button** — a signed-out stranger has no back target. Colour and type come from tokens and global rules (list name → the global title style, section rules → `var(--rule)`), never literals. When the link points at a list that is private, soft-deleted, or unknown, the page shows a single generic _"list not available"_ state (the `EmptyState` pattern) — it never distinguishes private from missing.
+The link opens a standalone read-only page, outside the signed-in shell. It shows the list name, description, and items in alphabetical order with their score badges — and **nothing interactive**: no vote controls, no add-item FAB, no overflow menu, no member avatars or attribution, and no public marker. The TopBar shows a non-interactive Cairn wordmark/glyph (so the page is recognisably Cairn) and **no back button** — a signed-out stranger has no back target. Colour and type come from tokens and global rules (list name → the global title style, section rules → `var(--rule)`), never literals. When the link points at a list that is private, soft-deleted, or unknown, the page shows a single generic _"list not available"_ state (the `EmptyState` pattern) — it never distinguishes private from missing.
 
 ## Other surfaces
 

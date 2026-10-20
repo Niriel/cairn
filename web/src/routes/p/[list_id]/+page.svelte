@@ -7,9 +7,10 @@
 	import CairnWordmark from '$lib/shared/components/CairnWordmark.svelte';
 	import EmptyState from '$lib/shared/components/EmptyState.svelte';
 	import Badge from '$lib/basic/components/Badge.svelte';
+	import { compareNamesThenAge } from '$lib/basic/model/compare-names';
 
 	// The curated anonymous payload from the public_list_view RPC: no members,
-	// votes, or attribution — just the list and its ranked items with scores
+	// votes, or attribution — just the list and its items with scores
 	// and each item's created_at (a date, not attribution — when, not who).
 	type PublicItem = {
 		id: string;
@@ -34,6 +35,8 @@
 		const listId = params.list_id;
 		pgPost<PublicList | null>('/rpc/public_list_view', { p_id: listId })
 			.then((result) => {
+				// Same order as the members' screen.
+				result?.items.sort(compareNamesThenAge);
 				list = result;
 				status = result ? 'ready' : 'unavailable';
 			})

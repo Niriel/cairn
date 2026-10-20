@@ -1,6 +1,7 @@
 import { pgGet, pgPatch } from '$lib/shared/http/postgrest';
 import { session } from '$lib/shared/state/session.svelte';
 import type { List } from '$lib/list/model/list';
+import { compareNamesThenId } from '$lib/basic/model/compare-names';
 
 export const lists = $state<{
 	items: List[];
@@ -15,6 +16,10 @@ export const lists = $state<{
 });
 
 let refreshSignal = $state(0);
+
+function sortLists(rows: List[]): List[] {
+	return [...rows].sort(compareNamesThenId);
+}
 
 export function refreshLists(): void {
 	refreshSignal++;
@@ -48,7 +53,8 @@ export async function deleteList(listId: string): Promise<void> {
 		await pgPatch<void>(`/lists?id=eq.${listId}`, { deleted_at: new Date().toISOString() });
 	} catch {
 		clearTimeout(timerId);
-		lists.items = [...lists.items.slice(0, idx), list, ...lists.items.slice(idx)];
+		// A refresh may have replaced lists.items mid-request, so re-sort.
+		lists.items = sortLists([list, ...lists.items]);
 		lists.pendingDelete = null;
 	}
 }
@@ -59,7 +65,7 @@ export async function undoDeleteList(): Promise<void> {
 	clearTimeout(timerId);
 	try {
 		await pgPatch<void>(`/lists?id=eq.${list.id}`, { deleted_at: null });
-		lists.items = [list, ...lists.items].sort((a, b) => b.modified_at.localeCompare(a.modified_at));
+		lists.items = sortLists([list, ...lists.items]);
 		lists.pendingDelete = null;
 	} catch (err) {
 		lists.error = err instanceof Error ? err.message : 'Failed to restore list';
@@ -89,10 +95,10 @@ $effect.root(() => {
 				//     collection. The lists_is_member computed column (migration 0013) gates the
 				//     collection to lists you're actually a member of, leaving the banner embed
 				//     untouched.
-				'/lists?select=id,name,description,modified_at,item_count:lists_item_count,is_public,list_members(user_id,profiles(display_name,avatar_version,username))&list_members.deleted_at=is.null&deleted_at=is.null&lists_is_member=is.true&order=modified_at.desc'
+				'/lists?select=id,name,description,modified_at,item_count:lists_item_count,is_public,list_members(user_id,profiles(display_name,avatar_version,username))&list_members.deleted_at=is.null&deleted_at=is.null&lists_is_member=is.true&order=name.asc,id.asc'
 			)
 				.then((result) => {
-					lists.items = result;
+					lists.items = sortLists(result);
 					lists.loading = false;
 				})
 				.catch((err: unknown) => {

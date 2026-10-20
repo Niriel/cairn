@@ -64,6 +64,27 @@ describe('loadItems', () => {
 		expect(itemsMod.items.listId).toBe(LIST_ID);
 	});
 
+	test('(a1) rows are alphabetical, not by score', async () => {
+		// Apple has the lower score; a score sort would put Item A first.
+		const apple = { ...RANKED_B, name: 'apple' };
+		server.use(
+			http.get('*/api/items_ranked', () => HttpResponse.json([RANKED_A, apple])),
+			http.get('*/api/votes', () => HttpResponse.json([]))
+		);
+		await itemsMod.loadItems(LIST_ID);
+		expect(itemsMod.items.rows.map((r) => r.name)).toEqual(['apple', 'Item A']);
+	});
+
+	test('(a1b) same-named items keep oldest first', async () => {
+		const twin = { ...RANKED_B, name: 'Item A' };
+		server.use(
+			http.get('*/api/items_ranked', () => HttpResponse.json([twin, RANKED_A])),
+			http.get('*/api/votes', () => HttpResponse.json([]))
+		);
+		await itemsMod.loadItems(LIST_ID);
+		expect(itemsMod.items.rows.map((r) => r.id)).toEqual([ITEM_ID, ITEM_ID_B]);
+	});
+
 	test('(a2) a failed load of a different list does not keep the previous list’s rows', async () => {
 		useItemHandlers();
 		await itemsMod.loadItems(LIST_ID);
@@ -225,9 +246,45 @@ describe('softDeleteItem', () => {
 			vi.useRealTimers();
 		}
 	});
+
+	test('(e2) a failed delete re-sorts even if rows were replaced mid-request', async () => {
+		server.use(
+			http.get('*/api/items_ranked', () => HttpResponse.json([RANKED_A, RANKED_B])),
+			http.get('*/api/votes', () => HttpResponse.json([]))
+		);
+		await itemsMod.loadItems(LIST_ID);
+		const [, itemB] = itemsMod.items.rows;
+		server.use(
+			http.patch('*/api/items', () => {
+				// A reload lands while the delete is in flight, bringing a new
+				// first row — the deleted item's old index no longer fits.
+				itemsMod.items.rows = [{ ...itemB, id: 'new-row', name: 'Aardvark' }, itemB];
+				return new HttpResponse(null, { status: 500 });
+			})
+		);
+		await itemsMod.softDeleteItem(ITEM_ID);
+		expect(itemsMod.items.rows.map((r) => r.name)).toEqual(['Aardvark', 'Item A', 'Item B']);
+	});
 });
 
 describe('undoDelete', () => {
+	test('(f2) a restored item goes back to its alphabetical slot', async () => {
+		vi.useFakeTimers();
+		try {
+			const apple = { ...RANKED_B, name: 'Apple' };
+			server.use(
+				http.get('*/api/items_ranked', () => HttpResponse.json([RANKED_A, apple])),
+				http.get('*/api/votes', () => HttpResponse.json([]))
+			);
+			await itemsMod.loadItems(LIST_ID);
+			await itemsMod.softDeleteItem(ITEM_ID_B);
+			await itemsMod.undoDelete();
+			expect(itemsMod.items.rows.map((r) => r.name)).toEqual(['Apple', 'Item A']);
+		} finally {
+			vi.useRealTimers();
+		}
+	});
+
 	test('(f) re-inserts item and clears pendingDelete when restoreItem succeeds', async () => {
 		vi.useFakeTimers();
 		try {
