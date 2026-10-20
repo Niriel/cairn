@@ -10,7 +10,6 @@ import type { IncomingMessage, ServerResponse } from 'node:http';
 import {
 	CSRF_HEADER,
 	LOGOUT_PATHS,
-	PUBLIC_AUTH_PATHS,
 	isSegmentMatch
 } from './src/lib/shared/model/auth-paths';
 import { buildDefines } from './build-defines';
@@ -825,11 +824,13 @@ function installAuthShimMiddlewares(server: ViteDevServer | PreviewServer): void
 		}
 		void handleDevResetPassword(req, res);
 	});
-	// Everything else under /auth (dev parity with the prod auth-proxy, which has
-	// no generic GoTrue pass-through): 404, never forwarded to GoTrue. The SPA's
-	// own /auth pages (sign-in, register, recovery) fall through to SvelteKit.
+	// Every other non-GET under /auth (dev parity with Caddy's method split and
+	// the prod auth-proxy, which has no generic GoTrue pass-through): 404, never
+	// forwarded to GoTrue. GET/HEAD falls through to SvelteKit, which routes the
+	// SPA's own /auth pages (sign-in, register, recovery).
 	server.middlewares.use((req, res, next) => {
-		if (!isSegmentMatch(req.url, ['/auth']) || isSegmentMatch(req.url, PUBLIC_AUTH_PATHS)) {
+		const isPage = req.method === 'GET' || req.method === 'HEAD';
+		if (isPage || !isSegmentMatch(req.url, ['/auth'])) {
 			next();
 			return;
 		}

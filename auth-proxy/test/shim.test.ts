@@ -5,9 +5,8 @@ import request from 'supertest';
 import { app } from '../src/index.js';
 
 // The auth-proxy calls GoTrue only from its dedicated BFF handlers. Any other
-// /auth/* request — an unknown path, or a stray method on a BFF path, which
-// Caddy's method-agnostic /auth/refresh* and /auth/signout* routes forward here
-// — gets a 404 and never reaches GoTrue. That is what keeps client addresses
+// /auth/* request Caddy forwards here (every non-GET) — an unknown path, or a
+// stray method on a BFF path — gets a 404 and never reaches GoTrue. That is what keeps client addresses
 // out of GoTrue's request log (see docs/logging.md).
 let gotrueReqs: { method: string; url: string }[];
 let gotrue: http.Server;

@@ -201,9 +201,9 @@ export default defineConfig({
 	},
 	// /auth/* is not proxied: dev middlewares mirror each auth-proxy BFF
 	// handler (sign-in, register, refresh, sign-out, recovery), calling GoTrue
-	// server-side and planting the cookies themselves. Any other /auth/* path
-	// gets a 404, as in production; the SPA's own /auth pages fall through to
-	// SvelteKit.
+	// server-side and planting the cookies themselves. Any other non-GET under
+	// /auth gets a 404, as in production; GETs fall through to SvelteKit, which
+	// routes the SPA's own /auth pages.
 });
 ```
 

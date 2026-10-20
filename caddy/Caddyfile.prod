@@ -51,18 +51,16 @@ cairn.{$DOMAIN} {
 		reverse_proxy postgrest:3000
 	}
 
-	# Auth plane: the SPA's own /auth pages (PUBLIC_AUTH_PATHS in
-	# web/src/lib/shared/model/auth-paths.ts) are GETs to `web`; every other /auth
-	# request goes to the auth-proxy, prefix intact. The auth-proxy owns the list of
-	# BFF endpoints and answers anything else with a 404 — it forwards nothing to
-	# GoTrue verbatim — so Caddy keeps no copy of that list, and prod answers each
-	# /auth request as the dev mirror in web/vite.config.ts does.
+	# Auth plane, split on method: every BFF endpoint is a POST and every SPA
+	# /auth page is a GET, so GET/HEAD goes to `web` (whose index.html fallback
+	# lets the SPA route it) and everything else goes to the auth-proxy, prefix
+	# intact. The auth-proxy owns the list of BFF endpoints and answers anything
+	# else with a 404 — it forwards nothing to GoTrue verbatim — so Caddy keeps no
+	# path list at all, and prod answers each /auth request as the dev mirror in
+	# web/vite.config.ts does.
 	@auth path /auth /auth/*
 	handle @auth {
-		@auth_pages {
-			method GET HEAD
-			path /auth/signin /auth/signin/* /auth/register /auth/register/* /auth/forgot-password /auth/forgot-password/* /auth/reset-password /auth/reset-password/*
-		}
+		@auth_pages method GET HEAD
 		handle @auth_pages {
 			reverse_proxy web:80
 		}

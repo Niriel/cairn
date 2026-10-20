@@ -124,7 +124,8 @@ function logoutScope(originalUrl: string): LogoutScope {
 
 async function authHandler(req: Request, res: Response): Promise<void> {
 	// Mounted at /auth, so req.originalUrl (not req.url) carries the full
-	// `/auth/...` path the auth-paths.ts lists match against.
+	// `/auth/...` path the auth-paths.ts lists match against. Every endpoint is a
+	// POST: Caddy sends each GET/HEAD under /auth to the SPA, never here.
 	const originalUrl = req.originalUrl;
 
 	// CSRF: a state-changing Cairn-shaped request must carry the custom header.
