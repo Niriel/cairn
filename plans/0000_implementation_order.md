@@ -361,8 +361,8 @@ in-flight branch for no gain.
     renders and behaves like the shared `NavRow` (full-width tap target +
     trailing chevron), with the per-list More button moved into the
     extra-info block. Front-end only. See `plans/1900_list_title_navrows/`
-    — numbered `1900`, not `1800`, because it was cut out of band after
-    the alpha shipped.
+    — numbered `1900` because `1800` was already taken by the
+    back-or-home plan (step 22).
 
 19. [x] **Item extra-panel overflow menu.** The Items screen's inline
     Delete/Edit buttons become a More (⋮) button that opens a bottom-sheet
@@ -463,6 +463,15 @@ in-flight branch for no gain.
     table: the backup location, the processor (if not Hetzner) and the
     retention window. See `plans/2100_backups/`.
 
+22. [ ] **Back-or-home top-bar control.** Opening a bookmarked or
+    reopened deep URL left the top-bar ← calling `history.back()` into
+    nothing, with no way home. The control now asks the browser
+    (`navigation.canGoBack`) whether a Cairn page is behind the current
+    one: Back when there is, a Home button to `/lists` when there isn't.
+    Front-end only. See `plans/1800_back_or_home/`. It was cut in June,
+    stalled on an unexplained live failure, and was reworked onto the
+    Navigation API in October; its plan records why.
+
 ## Sequencing rationale
 
 - DB before UI so RLS-backed product code has something real to talk
@@ -519,8 +528,8 @@ in-flight branch for no gain.
 - **Steps 16–19 were out-of-band, post-alpha plans** — public lists, the
   e-mail OTP, and two Lists/Items UI refinements — landed ad hoc once the
   alpha was live rather than planned up front, which is why their `plans/`
-  numbers don't all track the hundreds convention (no `1800`; `1901` is a
-  follow-on to `1900`). They're recorded here for completeness.
+  numbers don't all track the hundreds convention (`1800` is step 22, which
+  stalled and landed later; `1901` is a follow-on to `1900`). They're recorded here for completeness.
 - **Username identity (step 20) after those** because it is new scope
   added once the alpha was already live — it reworks the *running* auth
   surface, so it has to migrate real accounts rather than greenfield

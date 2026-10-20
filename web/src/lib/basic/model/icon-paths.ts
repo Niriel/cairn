@@ -15,6 +15,7 @@ export const ICON_PATHS = {
 	'chevron-right': 'm9 18 6-6-6-6',
 	'chevron-down': 'm6 9 6 6 6-6',
 	'chevron-left': 'm15 18-6-6 6-6',
+	home: 'M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z M9 22V12h6v10',
 	plus: 'M5 12h14 M12 5v14',
 	x: 'M18 6 6 18 M6 6l12 12',
 	check: 'M20 6 9 17l-5-5',

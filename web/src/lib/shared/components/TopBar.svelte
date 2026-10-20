@@ -1,8 +1,7 @@
 <script lang="ts">
 	import type { Snippet } from 'svelte';
 
-	import Icon from '$lib/basic/components/Icon.svelte';
-	import { ICON_SIZE } from '$lib/shared/model/constants';
+	import BackOrHome from '$lib/shared/components/BackOrHome.svelte';
 
 	let {
 		showBack = true,
@@ -30,9 +29,7 @@
 		{#if left}
 			{@render left()}
 		{:else if showBack}
-			<button class="icon-btn" onclick={() => history.back()} data-test="topbar-back">
-				<Icon name="chevron-left" size={ICON_SIZE} />
-			</button>
+			<BackOrHome />
 		{/if}
 	</div>
 	<div class="middle">
@@ -89,25 +86,8 @@
 		margin: 0;
 	}
 
-	/* Bar action button: a transparent ink-tinted icon target — chrome local to
-	   this single-instance bar. The tap-target floor centres the ICON_SIZE glyph
-	   inside it. */
-	.icon-btn {
-		background: none;
-		border: none;
-		padding: 0.25rem;
-		min-width: var(--tap-target);
-		min-height: var(--tap-target);
-		color: var(--ink);
-		cursor: pointer;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-	}
-
-	/* Icon buttons handed in via the left/right slots (IconButton, MoreButton,
-	   RefreshButton) share the same tap-target floor as the built-in back button.
-	   Scoped to the slots so it never touches the in-content variants of these
+	/* Icon buttons in the left/right slots (BackOrHome, IconButton, MoreButton,
+	   RefreshButton) share one tap-target floor. Scoped to the slots so it never touches the in-content variants of these
 	   buttons (e.g. the per-row ⋮), which carry their own alignment invariants,
 	   nor the plain text Buttons some sheets put in these slots. */
 	.left :global(.icon-btn),
