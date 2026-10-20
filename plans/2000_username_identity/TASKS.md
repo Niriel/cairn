@@ -337,7 +337,7 @@ settings layout — record the layout spec before writing screen tasks).
 **Notes:** Sub-plan `plans/2005_add_by_username/` planned and implemented task by
 task (Phase 0 doc reconciliation → DB migration `0022` → RPC wrappers + username
 fields → `@username` rendering → Playwright), then merged `--no-ff` into
-`2000_username_identity` (merge commit `7b62ca5`).
+`2000_username_identity` (merge commit `184d368`).
 
 - DB: `send_invitation` and `add_circle_by_username` resolve a public username to
   a user id (the e-mail RPCs / `invitations.target_email` retired); a "no such
@@ -347,7 +347,7 @@ fields → `@username` rendering → Playwright), then merged `--no-ff` into
   - item attribution, and circle + invite-picker rows via a new
     `.identity-handle` role.
 - **Absorbed a follow-up e2e-suite repair (`plans/2010_e2e_username_auth/`, merged
-  into 2005 first, commit `c669971`).** Running the full suite surfaced that seven
+  into 2005 first, commit `e5eed9e`).** Running the full suite surfaced that seven
   specs still used the retired magic-link login (broken since 2003's
   `/auth/signin` redirect) plus a latent `block.spec.ts` list-capture bug and a
   `password-recovery` stable-address throttle; all fixed. Not part of the 2005

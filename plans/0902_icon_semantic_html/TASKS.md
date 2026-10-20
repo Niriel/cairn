@@ -794,7 +794,7 @@ handle → global `.sheet-handle`.
 - The `.menu hr` separators get a scoped hairline (`border-top: 1px solid
 var(--rule)`); this is the action-menu divider, kept in px per the Units rule
   and not the data-list `.rows` model.
-- **Plan-file fix:** the 5.1 commit (e70a96c) accidentally dropped this task's
+- **Plan-file fix:** the 5.1 commit (2418993) accidentally dropped this task's
   `### [ ] 5.2 …` heading line (the body survived, orphaned). Restored here and
   marked done. Flagging since it already landed in a commit.
 
@@ -995,7 +995,7 @@ var(--rule)` + `padding-bottom: 0.5rem` to `.row-top`, and bumped `.desc`
   (which only flags `border-*-color:`), same as the existing item-panel rule, so
   no annotation needed.
 - **`.see-toggle` → `.fine` (0.8rem), not the task's `.caption`.** The task
-  predates the `.fine` role (commit `49f077d`); `.meta` had already been migrated
+  predates the `.fine` role (commit `8367b16`); `.meta` had already been migrated
   to `.fine` in the markup, so `.see-toggle` uses `.fine` for consistency with
   the adjacent meta line — `.caption` (now the 1rem floor) would have blown the
   inline "(see more)" hint up to body size.

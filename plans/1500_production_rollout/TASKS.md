@@ -665,7 +665,7 @@ the URL leaks. Not the full step-14 legal surface.
 **Notes:**
 
 - The bulk of this task was implemented in the pre-existing WIP commit
-  `ad527c0` (already on the branch): the route, footer link, Vitest +
+  `33e8678` (already on the branch): the route, footer link, Vitest +
   Playwright coverage, and the guard fix. This `/work` pass reviewed it
   against the task spec and ran the verifiers to green; the only file
   change here was ticking the checkbox.

@@ -45,7 +45,7 @@
 
 **Notes:** All seven paragraph edits were already on the branch when
 this task was picked up — they were bundled into the plan-write
-commit `dde0887` ("plan(privacy-ui): …") rather than landing as a
+commit `56abd3c` ("plan(privacy-ui): …") rather than landing as a
 separate `docs(invites):` commit. `git diff main -- docs/` matches
 the task's Verify expectation exactly: 2 lines added in
 `docs/invites.md`, 1 bullet added in `docs/data-model.md`, 4 copy

@@ -433,8 +433,8 @@ trips svelte-check.
   `e2e/auth.spec.ts:28` assertion — the callback page does not strip
   the hash fragment and navigate to `/`. Verified by checking out
   `main`'s files: the same failure reproduces, so it is _pre-existing
-  breakage_ in the magic-link callback flow added by commit `8ba30d0`
-  / `f6c06c2`, not a regression introduced by this plan. Flagging for
+  breakage_ in the magic-link callback flow added by commit `1cd0c1b`
+  / `7c5299a`, not a regression introduced by this plan. Flagging for
   the user — likely a fix for a future task or its own follow-up
   plan. The webkit row of the same suite separately fails with a
   Playwright system-deps error, unrelated.

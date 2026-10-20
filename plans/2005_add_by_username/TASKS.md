@@ -548,7 +548,7 @@ add-card at `web/src/lib/privacy/components/CircleScreen.svelte:89`.
   shellcheck, shfmt, svelte-check 0 errors, pgTAP 776, Vitest 813, plus sidecar
   + auth-proxy). E2E not run (no local stack / WebKit).
 - Closes the DB↔frontend gap the 0022 migration opened: `add_circle_by_email`
-  was dropped in `b5ab1c5` but the circle UI still called it until now.
+  was dropped in `96a46b5` but the circle UI still called it until now.
 
 ## Phase 3 — `@username` rendering
 
