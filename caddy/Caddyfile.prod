@@ -6,8 +6,8 @@
 #
 # Prefix-stripping is asymmetric and deliberate:
 #   /api/*      strip /api  (PostgREST expects the bare path; mirrors dev Vite)
-#   /auth/<ep>  NO strip     (auth-proxy matches /auth/...-shaped lists and
-#                             strips /auth itself before calling GoTrue)
+#   /auth/*     NO strip     (the auth-proxy routes on the full /auth/... path,
+#                             and the SPA's /auth pages need it too)
 #   /avatars*   writes: NO strip (sidecar routes on the /avatars prefix)
 #               reads:  strip /avatars (file_server serves from the volume root)
 
@@ -51,47 +51,32 @@ cairn.{$DOMAIN} {
 		reverse_proxy postgrest:3000
 	}
 
-	# Auth plane: explicit allow-list of the BFF session endpoints -> auth-proxy,
-	# with NO prefix strip. The SvelteKit client routes (/auth/signin|register|
-	# forgot-password|reset-password) are NOT listed here, so they fall through to
-	# `web`. A blanket `handle_path /auth/*` would strip /auth and break both the
-	# proxy's segment matching and the SPA auth pages (the subtlest prod-only
-	# failure). The `@gotrue` name is historical: the BFF handles these POSTs
-	# itself and answers any other method with a 404 — it forwards nothing to
-	# GoTrue verbatim.
-	@gotrue path /auth/signout* /auth/refresh*
-	handle @gotrue {
-		# The auth-proxy's sign-in rate-limiter keys per-IP off X-Real-IP ONLY
-		# (it ignores the spoofable X-Forwarded-For). Caddy does not set
-		# X-Real-IP by default, so set it here to the real socket peer — Caddy
-		# OVERWRITES any client-supplied value, which both gives the limiter a
-		# true client IP and closes the spoof. Without this, X-Real-IP is absent
-		# and clientIp() falls back to Caddy's container IP, collapsing every
-		# client into one shared bucket. See auth-proxy/src/lib/rate-limit.ts.
-		reverse_proxy auth-proxy:3002 {
-			header_up X-Real-IP {remote_host}
+	# Auth plane: the SPA's own /auth pages (PUBLIC_AUTH_PATHS in
+	# web/src/lib/shared/model/auth-paths.ts) are GETs to `web`; every other /auth
+	# request goes to the auth-proxy, prefix intact. The auth-proxy owns the list of
+	# BFF endpoints and answers anything else with a 404 — it forwards nothing to
+	# GoTrue verbatim — so Caddy keeps no copy of that list, and prod answers each
+	# /auth request as the dev mirror in web/vite.config.ts does.
+	@auth path /auth /auth/*
+	handle @auth {
+		@auth_pages {
+			method GET HEAD
+			path /auth/signin /auth/signin/* /auth/register /auth/register/* /auth/forgot-password /auth/forgot-password/* /auth/reset-password /auth/reset-password/*
 		}
-	}
-
-	# Credential endpoints -> auth-proxy, but ONLY for POST (the precedent is
-	# @avatar_writes' method gate). Several of these are also SvelteKit page
-	# routes: a GET must fall through to `web` so the SPA can serve the sign-in /
-	# register / forgot-password / reset-password screens. Listing them under
-	# @gotrue (all methods) would swallow the GET page — the subtlest prod-only
-	# failure the block above warns about. Same X-Real-IP rationale as @gotrue
-	# (these are the rate-limited paths).
-	#
-	# The recovery endpoints are all POST (the recovery-e-mail removal path is
-	# POST {remove:true}, NOT DELETE, so this method gate covers it). The
-	# /auth/recovery-email* glob also matches /auth/recovery-email/confirm; it is
-	# listed explicitly for clarity.
-	@auth_credentials {
-		method POST
-		path /auth/signin* /auth/register* /auth/recovery-email* /auth/recovery-email/confirm* /auth/forgot-password* /auth/reset-password*
-	}
-	handle @auth_credentials {
-		reverse_proxy auth-proxy:3002 {
-			header_up X-Real-IP {remote_host}
+		handle @auth_pages {
+			reverse_proxy web:80
+		}
+		# The auth-proxy's rate limiter keys per-IP off X-Real-IP ONLY (it ignores
+		# the spoofable X-Forwarded-For). Caddy does not set X-Real-IP by default,
+		# so set it here to the real socket peer — Caddy OVERWRITES any
+		# client-supplied value, which both gives the limiter a true client IP and
+		# closes the spoof. Without this, X-Real-IP is absent and clientIp() falls
+		# back to Caddy's container IP, collapsing every client into one shared
+		# bucket. See auth-proxy/src/lib/rate-limit.ts.
+		handle {
+			reverse_proxy auth-proxy:3002 {
+				header_up X-Real-IP {remote_host}
+			}
 		}
 	}
 
@@ -115,7 +100,7 @@ cairn.{$DOMAIN} {
 		header Cache-Control "public, max-age=31536000, immutable"
 	}
 
-	# Everything else (the SPA and the /auth client routes) -> the web container.
+	# Everything else (the SPA) -> the web container.
 	handle {
 		reverse_proxy web:80
 	}
