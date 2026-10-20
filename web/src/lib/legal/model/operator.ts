@@ -8,16 +8,23 @@ export const OPERATOR = {
 	name: 'Bertrand Delforge',
 	addressLines: ['van Imhoffstraat 26', '9721 CP Groningen'],
 	country: 'Netherlands',
-	email: 'bdelforge@protonmail.com',
+	email: 'lynn@lynnscape.eu',
 	// The town in the About screen's footer line.
-	town: 'Groningen'
+	town: 'Groningen',
+	// The operator's personal label for their apps — a name, not a legal
+	// entity. The legal pages still name the operator as controller and party.
+	brand: 'Lynnscape'
 } as const;
 
 export const HOSTING_COUNTRY = 'Germany';
 
 export const PROCESSORS = [
 	{ name: 'Hetzner Online GmbH', role: 'Server hosting', country: 'Germany' },
-	{ name: 'Gandi SAS', role: 'Outgoing e-mail (password-recovery codes)', country: 'France' }
+	{
+		name: 'Gandi SAS',
+		role: 'Outgoing e-mail (password-reset codes and service notices)',
+		country: 'France'
+	}
 ] as const;
 
 export const SUPERVISORY_AUTHORITY = {

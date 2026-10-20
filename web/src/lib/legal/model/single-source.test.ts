@@ -20,9 +20,15 @@ function sourceFiles(dir: string): string[] {
 }
 
 describe('deployment facts live only in operator.ts', () => {
-	const needles = [OPERATOR.name, OPERATOR.email, OPERATOR.addressLines[0], SOURCE_REPO_URL];
+	const needles = [
+		OPERATOR.name,
+		OPERATOR.email,
+		OPERATOR.addressLines[0],
+		OPERATOR.brand,
+		SOURCE_REPO_URL
+	];
 
-	test('no other source file spells out the operator name, e-mail, address, or repo URL', () => {
+	test('no other source file spells out the operator name, e-mail, address, brand, or repo URL', () => {
 		const offenders = sourceFiles(SRC)
 			.filter((file) => !EXEMPT.has(file.split(/[\\/]/).pop() ?? ''))
 			.flatMap((file) => {

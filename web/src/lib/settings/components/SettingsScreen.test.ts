@@ -253,6 +253,27 @@ describe('SettingsScreen', () => {
 		expect(vi.mocked(goto)).toHaveBeenCalledWith(vi.mocked(resolve)('/settings/data-export'));
 	});
 
+	test('(j-about) clicking the About Cairn row navigates to /about', async () => {
+		const { goto } = await import('$app/navigation');
+		const { resolve } = await import('$app/paths');
+		const { getByDataTest } = render(SettingsScreen);
+		expect(getByDataTest('settings-about').textContent).toContain('About Cairn');
+		await fireEvent.click(getByDataTest('settings-about'));
+		expect(vi.mocked(resolve)).toHaveBeenCalledWith('/about');
+		expect(vi.mocked(goto)).toHaveBeenCalledOnce();
+	});
+
+	test('(q) About section sits between Recovery and Account', () => {
+		const { container } = render(SettingsScreen);
+		const headings = [...container.querySelectorAll('section.preference-group h2')].map(
+			(h) => h.textContent
+		);
+		const about = headings.indexOf('About');
+		expect(about).toBeGreaterThan(-1);
+		expect(headings[about - 1]).toBe('Recovery');
+		expect(headings[about + 1]).toBe('Account');
+	});
+
 	test('(p) Privacy & data section sits immediately before Recovery', () => {
 		const { container } = render(SettingsScreen);
 		const headings = [...container.querySelectorAll('section.preference-group h2')].map(

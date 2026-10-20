@@ -197,6 +197,20 @@
 		</section>
 
 		<section class="preference-group">
+			<h2>About</h2>
+			<div class="nav-rows">
+				<NavRow
+					title="About Cairn"
+					sub="Version, privacy, terms and licence"
+					data-test="settings-about"
+					onclick={() => goto(resolve('/about'))}
+				>
+					{#snippet lead()}<Icon name="info" size={ICON_SIZE} />{/snippet}
+				</NavRow>
+			</div>
+		</section>
+
+		<section class="preference-group">
 			<h2>Account</h2>
 			<div class="nav-rows">
 				<RecoveryEmailRow />
