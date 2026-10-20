@@ -461,10 +461,10 @@
 
 ## Phase 3 — screens
 
-### [ ] 3.1 Imprint at `/about/imprint`, with real values; `/imprint` redirects
+### [x] 3.1 Imprint at `/about/imprint`, with real values; `/imprint` redirects
 
 **Created:** 2026-10-20T13:37:50Z
-**Completed:**
+**Completed:** 2026-10-20T15:08:10Z
 
 **Why:** The imprint is the launch-blocker. The current stub has bracketed placeholders, and a test that requires them.
 
@@ -509,10 +509,16 @@
 
 **Verify:** `cd web && pnpm test -- src/routes/about src/routes/imprint src/lib/legal` · `pnpm check` · `pnpm lint`
 
-### [ ] 3.2 Privacy policy at `/about/privacy`
+**Notes:**
+
+- **Deviation.** `address { font-style: normal }` went into the global `.prose` role (`typography.css`), not a scoped block on the page. `docs/ui.md` → "layout local, visual global" makes a visual property in a scoped rule a smell, and every later prose page with an address inherits it.
+- **No lint escape was needed** for the `mailto:` link: `svelte/no-navigation-without-resolve` doesn't flag it.
+- **`web/e2e/imprint.spec.ts` is stale until Task 4.2.** It still expects the old stub's fields, so it would fail against this page. Playwright can't run here anyway.
+
+### [x] 3.2 Privacy policy at `/about/privacy`
 
 **Created:** 2026-10-20T13:37:50Z
-**Completed:**
+**Completed:** 2026-10-20T15:10:56Z
 
 **Why:** GDPR Art. 13 requires telling users what's collected, why, on what basis, by whom, for how long, and their rights. It must be accurate for the live deployment.
 
@@ -588,10 +594,17 @@
 
 **Verify:** `cd web && pnpm test -- src/routes/about/privacy src/lib/legal` · `pnpm check` · `pnpm lint`
 
-### [ ] 3.3 Terms of service at `/about/terms`
+**Notes:**
+
+- **Rate-limit wording.** The policy says the IP address "stops counting after 15 minutes", not that it is deleted then. `auth-proxy/src/lib/rate-limit.ts` prunes entries lazily, the next time that address is checked (or on restart). It never writes them to disk.
+- **Public lists.** The copy matches `public_list_view` exactly: list name and description, and each item's name, notes, score and age. No members, votes or attribution.
+- **Side work.** Gandi's role in `operator.ts` (`PROCESSORS`) changed to "Outgoing e-mail (password-reset codes and service notices)", to match the recovery-e-mail scope. The processors line reads "These companies" rather than a count, so a fork with a different list stays correct.
+- **Lint escape.** The supervisory-authority link uses the pre-approved per-line escape, as a template comment. Its `href` is a variable, so `svelte/no-navigation-without-resolve` can't tell it is external.
+
+### [x] 3.3 Terms of service at `/about/terms`
 
 **Created:** 2026-10-20T13:37:50Z
-**Completed:**
+**Completed:** 2026-10-20T15:11:47Z
 
 **Why:** A short, honest agreement covering use, responsibilities, liability limits and governing law, correct for a Dutch private operator.
 
@@ -622,10 +635,10 @@
 
 **Verify:** `cd web && pnpm test -- src/routes/about/terms` · `pnpm check` · `pnpm lint`
 
-### [ ] 3.4 Contact and Source code / licence pages
+### [x] 3.4 Contact and Source code / licence pages
 
 **Created:** 2026-10-20T13:37:50Z
-**Completed:**
+**Completed:** 2026-10-20T15:12:55Z
 
 **Why:** Contact gives users one way to reach the operator for bugs, security, data requests and illegal-content reports. The Source code page states the AGPL and links to the source, as the AGPL network clause expects.
 
@@ -668,10 +681,15 @@
 
 **Verify:** `cd web && pnpm test -- src/routes/about` · `pnpm check` · `pnpm lint`
 
-### [ ] 3.5 Open-source attributions, generated licence texts, drift guards
+**Notes:**
+
+- **Global surface classes.** The cards use the existing global `.card` (Contact) and `.card-alt` (repository box) from `surfaces.css`, rather than scoped border and background rules. Those classes already carry exactly the `--rule` border, the 0.75rem radius and the `--paper-alt` tint. The scoped styles hold only padding, spacing and the flex row.
+- **Lint escape.** The repository link uses the pre-approved per-line escape for a variable external `href`. The `mailto:` links need none.
+
+### [x] 3.5 Open-source attributions, generated licence texts, drift guards
 
 **Created:** 2026-10-20T13:37:50Z
-**Completed:**
+**Completed:** 2026-10-20T15:17:34Z
 
 **Why:** MIT, BSD and similar licences require their notices to travel with the code, and the SIL OFL requires the same of the fonts. Both ship to every browser. The design's dependency list is stale, and its `/legal/licenses.txt` doesn't exist.
 
@@ -721,10 +739,22 @@
 
 **Verify:** `cd web && pnpm gen:licenses && git diff --exit-code static/legal/licenses.txt` (after committing, or compare before and after) · `pnpm test -- src/lib/legal src/routes/about/open-source` · `pnpm check` · `pnpm lint` · `pnpm build && ls build/legal/licenses.txt`
 
-### [ ] 3.6 About hub at `/about`, and the Settings → About row
+**Notes:**
+
+- **`attributions.json` uses a `package` field** for the npm entries, and the coverage guard matches on it rather than on the display `name`, so "Svelte" can credit `svelte`. There are 15 entries: 3 app, 2 fonts, 10 server.
+- **Generated output.** `licenses.txt` covers 45 packages, about 104 KB, and is deterministic (identical SHA-256 across reruns).
+  - Five packages ship no licence file, so they get the "no licence file shipped" fallback line.
+  - Four of those (`@polka/url`, `sirv`, `is-reference`, `locate-character`) are kit server or Svelte compiler dependencies that don't reach the browser.
+  - The fifth, `isarray`, is in the JSZip tree.
+- **Deviation from the JSX's bordered card.** The credits render as a `.rows` list with `.row` items (the global row-divider model in `surfaces.css`, per `docs/ui.md`'s row convention), not a `.card`. A card plus row dividers would double the outer borders.
+- **Side work in `typography.css`.** `.prose`'s bullets now apply only to unclassed lists (`.prose ul:not([class])`). Otherwise the structural `.rows` list inside the prose body picked up disc bullets and indentation.
+- **Link helpers.** The `licenses.txt` link uses `asset()` from `$app/paths`, which needs no lint escape. The per-entry project links use the pre-approved per-line escape.
+- **The service worker precaches `licenses.txt`**, as it does every `static/` file. That's fine, and it makes the texts available offline.
+
+### [x] 3.6 About hub at `/about`, and the Settings → About row
 
 **Created:** 2026-10-20T13:37:50Z
-**Completed:**
+**Completed:** 2026-10-20T15:24:02Z
 
 **Why:** The hub is the entry point that ties the six pages together and shows the app version. Settings is where signed-in users look for it (`docs/ui.md` Settings sections).
 
@@ -744,7 +774,7 @@
     - star: "Open source" / "Libraries we use, with thanks" (`about-open-source`)
     - mail: "Contact" / "Bugs, security, data requests" (`about-contact`)
     - compass: "Source code" / "Cairn is open source" (`about-license`)
-  - **Footer.** Centred, serif italic, `--stone-lt`, small, padding `1.25rem 1.375rem`: `Made with care in {OPERATOR.town} · hosted in {HOSTING_COUNTRY} · no trackers`.
+  - **Footer.** Centred, serif italic, `--stone-lt`, small, padding `1.25rem 1.375rem`: `A {OPERATOR.brand} app · made with care in {OPERATOR.town} · hosted in {HOSTING_COUNTRY} · no trackers`. Lynnscape is the operator's personal label, not a legal entity, so it appears here as a name only, with no link: the `lynnscape.eu` apex hosts nothing yet.
 - **Settings.** In `web/src/lib/settings/components/SettingsScreen.svelte`, add `<section class="preference-group"><h2>About</h2><div class="nav-rows"><NavRow …/></div></section>` between Recovery (around line 186) and Account (around line 200).
   - The row: `lead` `<Icon name="info" …/>`, title "About Cairn", sub "Version, privacy, terms and licence", `data-test="settings-about"`, `onclick={() => goto(resolve('/about'))}`.
 
@@ -759,7 +789,7 @@
    - (a) the version line equals `formatBuildLine(APP_VERSION, BUILD_DATE)`;
    - (b) the six rows render in order with their titles;
    - (c) clicking each row calls `goto` with `resolve('/about/<slug>')`;
-   - (d) the footer contains `OPERATOR.town` and `HOSTING_COUNTRY`;
+   - (d) the footer contains `OPERATOR.brand`, `OPERATOR.town` and `HOSTING_COUNTRY`;
    - (e) there is no placeholder.
 2. RED: `SettingsScreen.test.ts`:
    - add `(j-about)`: `settings-about` click → `goto(resolve('/about'))`;
@@ -767,6 +797,13 @@
 3. GREEN: write the hub and the Settings section.
 
 **Verify:** `cd web && pnpm test -- src/routes/about src/lib/settings` · `pnpm check` · `pnpm lint` · `pnpm build && grep -rl '"1.0.0"' build/_app | head -1` (deferred from Task 2.1: confirms the build-time version reaches the production bundle now that the hub imports it)
+
+**Notes:**
+
+- **Bundle check passed.** The deferred check from Task 2.1 succeeded: the production bundle carries ``var b=`1.0.0`,x=`2026-10-20` `` beside the `v${e} · build ${t}` formatter. The Verify line's `grep '"1.0.0"'` finds nothing, because the minifier emits template literals (backticks); `grep -F 1.0.0` finds it.
+- **Italics without scoped visual CSS.** The tagline and footer use `<i>` (HTML's element for an "alternate voice") inside the global `.caption` and `.fine` roles, rather than a scoped `font-style`, per `docs/ui.md`'s "visual global" rule.
+- **No identity border.** The identity block has no `border-bottom` of its own: the global `.nav-rows` band already draws the rule above the first row, which gives the design's divider.
+- **Brand in the footer.** The footer includes the brand, per the user's later decision: "A Lynnscape app · made with care in Groningen · hosted in Germany · no trackers".
 
 ## Phase 4 — entry points and e2e
 

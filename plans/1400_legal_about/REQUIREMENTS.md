@@ -26,7 +26,7 @@ A screen at `/about` titled "About" shows, in order:
 
    Each row opens the matching sub-screen (R4–R9).
 
-3. An italic footer line: _"Made with care in `<operator town>` · hosted in `<hosting country>` · no trackers"_, with both values taken from the operator module (R3).
+3. An italic footer line: _"A `<brand>` app · made with care in `<operator town>` · hosted in `<hosting country>` · no trackers"_, with all three values taken from the operator module (R3).
 
 The row is titled "Privacy policy", not "Privacy", so it can't be confused with the existing Settings → People → Privacy (invite-privacy) screen.
 
@@ -43,6 +43,7 @@ The row is titled "Privacy policy", not "Privacy", so it can't be confused with 
 Every fact that would change if someone else ran Cairn is defined once, in `web/src/lib/legal/model/operator.ts`. Pages import these facts; they never write them out as literal text:
 
 - operator name
+- the operator's brand (personal label)
 - postal address lines
 - country
 - contact e-mail
@@ -59,7 +60,8 @@ A Vitest guard fails if the operator's name, e-mail, or the repository URL appea
 The values for this deployment:
 
 - **Operator:** Bertrand Delforge, van Imhoffstraat 26, 9721 CP Groningen, Netherlands. A private individual.
-- **E-mail:** `bdelforge@protonmail.com`
+- **E-mail:** `lynn@lynnscape.eu`
+- **Brand:** Lynnscape, the operator's personal label for their apps. It is a name, not a legal entity, so the legal pages still name the operator as controller and contracting party.
 - **Supervisory authority:** Autoriteit Persoonsgegevens
 - **Governing law:** Dutch law, with the competent court in Groningen (Rechtbank Noord-Nederland)
 - **Hosting:** Germany
@@ -73,7 +75,7 @@ The values for this deployment:
 - the operator's name, postal address and country, and a contact e-mail, all from R3;
 - a "Responsible for content" line stating it is the same person.
 
-It shows no VAT ID or chamber-of-commerce number, because the operator is a private individual running a free, non-commercial service. It shows no EU ODR-platform block, because that platform was shut down in July 2025. No statute is cited in the subtitle; the legal citation is left for the lawyer review (see Non-requirements). No placeholder text ships (R15).
+It adds one line, "`<brand>` is the personal label of `<operator name>`." It shows no VAT ID or chamber-of-commerce number, because the operator is a private individual running a free, non-commercial service. It shows no EU ODR-platform block, because that platform was shut down in July 2025. No statute is cited in the subtitle; the legal citation is left for the lawyer review (see Non-requirements). No placeholder text ships (R15).
 
 ## R5. The Privacy policy describes what Cairn actually does
 

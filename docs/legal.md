@@ -36,9 +36,9 @@ The German statutes the design cites (TMG, DDG, RStV, MStV, TDDDG) and the Germa
 
 ## Single source for deployment facts
 
-Every fact that changes when someone else runs Cairn lives in **`web/src/lib/legal/model/operator.ts`**: the operator's name, postal address, country and contact e-mail; the town in the About footer; the hosting country; the processor list; the supervisory authority; the governing law and court; the source-repository URL; and each policy's "last updated" date. Pages import these values; they never spell them out.
+Every fact that changes when someone else runs Cairn lives in **`web/src/lib/legal/model/operator.ts`**: the operator's name, postal address, country and contact e-mail; their brand (Lynnscape, a personal label, not a legal entity, so the legal pages still name the person); the town in the About footer; the hosting country; the processor list; the supervisory authority; the governing law and court; the source-repository URL; and each policy's "last updated" date. Pages import these values; they never spell them out.
 
-A Vitest guard (`web/src/lib/legal/model/single-source.test.ts`) fails if the operator's name, e-mail, address or the repository URL appears anywhere under `web/src` outside that module and its own test. A fork edits one file — and rewrites the jurisdiction-specific prose (Dutch law, GDPR basis), which can't meaningfully be parameterised.
+A Vitest guard (`web/src/lib/legal/model/single-source.test.ts`) fails if the operator's name, e-mail, address, brand or the repository URL appears anywhere under `web/src` outside that module and its own test. A fork edits one file — and rewrites the jurisdiction-specific prose (Dutch law, GDPR basis), which can't meaningfully be parameterised.
 
 ## Claims table
 
