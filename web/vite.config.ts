@@ -7,11 +7,7 @@ import { defineConfig, loadEnv } from 'vite';
 import type { PreviewServer, ProxyOptions, ViteDevServer } from 'vite';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 
-import {
-	CSRF_HEADER,
-	LOGOUT_PATHS,
-	isSegmentMatch
-} from './src/lib/shared/model/auth-paths';
+import { CSRF_HEADER, LOGOUT_PATHS, isSegmentMatch } from './src/lib/shared/model/auth-paths';
 import { buildDefines } from './build-defines';
 
 // Dev-only cookie shim. In production Caddy translates between the
