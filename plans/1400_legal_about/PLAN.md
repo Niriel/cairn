@@ -29,7 +29,7 @@ The operator chose:
 
 - **Public prefix.** One `PUBLIC_CONTENT_PATHS` entry (`'/about'`) covers them all, because the guard's `isSegmentMatch` matches by prefix. They sit outside the `(app)` group, like the existing stub.
 - **Why not `/legal/*`.** It would split the hub from its children for no gain.
-- **`/imprint`.** It stays as a redirect, because its URL is in the wild.
+- **`/imprint`.** It is removed, not redirected: Cairn is unreleased, so no URL needs keeping.
 - **Header bar.** These screens use the plain `TopBar`. `AppTopBar` reads the profile store for "Signed in as …", and there may be no user.
 
 **One module for deployment facts (R3).** The operator asked that a forker be able to retarget the site without hunting through pages. `web/src/lib/legal/model/operator.ts` holds every deployment-specific fact; pages only import them. A Vitest guard scans `web/src` for the operator's name, e-mail and repo URL outside that module, so a later edit can't quietly hard-code them.
@@ -211,6 +211,6 @@ These were decided after Phases 0–2 had landed. The task blocks for Phases 3 a
 Decided after Phases 0–5 had landed, from the `/simplify` review of the branch.
 
 - **The pass-through is removed, not allow-listed.** Task 1.2 stripped three client-IP headers from the auth-proxy's generic GoTrue pass-through. The review found that a deny-list depends on naming every IP-ish header correctly. Tracing the traffic showed that nothing uses the pass-through: the web client only POSTs to the dedicated BFF handlers, the dev server doesn't use the auth-proxy, and in production only stray methods (e.g. `GET /auth/refresh`) reach it. Removing it is simpler than allow-listing it, and GoTrue cannot log a request it never receives (R17).
-- **Caddy's `@gotrue` matcher stays as is.** It still routes every method on `/auth/signout*` and `/auth/refresh*` to the auth-proxy, which now answers non-POSTs with 404. Narrowing it to POST would be a routing change on the live box for no gain; only its comment is corrected.
-- **`/imprint` leaves the public paths.** Under `ssr = false`, SvelteKit's client router runs the route's `load` and follows its redirect before mounting, so the layout guard only ever sees `/about/imprint`.
+- **Caddy has one auth rule.** Its two matchers (`@gotrue`, `@auth_credentials`) are replaced by one rule. A `GET`/`HEAD` to one of the SPA's four `/auth` pages goes to `web`; every other `/auth` request goes to the auth-proxy, which owns the endpoint list and 404s the rest. Caddy no longer copies that list, and prod answers each `/auth` request as dev does (a direct `POST /auth/token` is a 404 in both).
+- **`/imprint` is removed** (see the `/imprint` decision above), so it leaves the public paths.
 - **The Export hub's lede changes colour** from `--stone` to `--ink-soft` when `.lede` becomes global. That matches its design reference (`design/cairn-export-screens.jsx`, `theme.inkSoft`).
