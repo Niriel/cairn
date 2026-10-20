@@ -55,9 +55,6 @@
 				if (e.key === 'Enter' && !submitting) {
 					e.preventDefault();
 					void handleSave();
-				} else if (e.key === 'Escape') {
-					e.preventDefault();
-					onclose();
 				}
 			}}
 		/>

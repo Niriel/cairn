@@ -113,18 +113,6 @@ describe('EditDescriptionSheet', () => {
 		expect(onclose).not.toHaveBeenCalled();
 	});
 
-	test('(g) Escape on textarea calls onclose without PATCH', async () => {
-		const onclose = vi.fn();
-		const { getByDataTest } = render(EditDescriptionSheet, {
-			listId: 'list-1',
-			currentDescription: null,
-			onclose
-		});
-		await fireEvent.keyDown(getByDataTest('edit-description-textarea'), { key: 'Escape' });
-		expect(onclose).toHaveBeenCalledTimes(1);
-		expect(vi.mocked(pgPatch)).not.toHaveBeenCalled();
-	});
-
 	test('(d) Cancel calls onclose', async () => {
 		const onclose = vi.fn();
 		const { getByDataTest } = render(EditDescriptionSheet, {

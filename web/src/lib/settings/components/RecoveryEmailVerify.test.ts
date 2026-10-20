@@ -60,4 +60,12 @@ describe('RecoveryEmailVerify', () => {
 		expect(queryByDataTest('recovery-email-code-error')).not.toBeNull();
 		expect(onConfirmed).not.toHaveBeenCalled();
 	});
+
+	test('the code input is focused on mount', () => {
+		const { getByDataTest } = render(RecoveryEmailVerify, {
+			email: 'alice@example.test',
+			onConfirmed: () => {}
+		});
+		expect(document.activeElement).toBe(getByDataTest('recovery-email-code'));
+	});
 });

@@ -80,18 +80,6 @@ describe('RenameListSheet', () => {
 		});
 	});
 
-	test('(g) Escape on input calls onclose without PATCH', async () => {
-		const onclose = vi.fn();
-		const { getByDataTest } = render(RenameListSheet, {
-			listId: 'list-1',
-			currentName: 'My List',
-			onclose
-		});
-		await fireEvent.keyDown(getByDataTest('rename-list-name'), { key: 'Escape' });
-		expect(onclose).toHaveBeenCalledTimes(1);
-		expect(vi.mocked(pgPatch)).not.toHaveBeenCalled();
-	});
-
 	test('(e) Save with name > 200 chars shows max-length error and does not call PATCH', async () => {
 		const { getByDataTest, queryByDataTest, container } = render(RenameListSheet, {
 			listId: 'list-1',

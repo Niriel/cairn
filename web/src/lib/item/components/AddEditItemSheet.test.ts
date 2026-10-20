@@ -124,33 +124,6 @@ describe('AddEditItemSheet', () => {
 		expect(vi.mocked(addItem)).not.toHaveBeenCalled();
 	});
 
-	test('(h) Escape on name input calls oncancel', async () => {
-		const oncancel = vi.fn();
-		const { getByDataTest } = render(AddEditItemSheet, {
-			mode: 'add',
-			listId: 'test-list-id',
-			listName: 'My list',
-			onsubmit: vi.fn(),
-			oncancel
-		});
-		await fireEvent.keyDown(getByDataTest('add-edit-name'), { key: 'Escape' });
-		expect(oncancel).toHaveBeenCalledTimes(1);
-		expect(vi.mocked(addItem)).not.toHaveBeenCalled();
-	});
-
-	test('(i) Escape on notes textarea calls oncancel', async () => {
-		const oncancel = vi.fn();
-		const { getByDataTest } = render(AddEditItemSheet, {
-			mode: 'add',
-			listId: 'test-list-id',
-			listName: 'My list',
-			onsubmit: vi.fn(),
-			oncancel
-		});
-		await fireEvent.keyDown(getByDataTest('add-edit-notes'), { key: 'Escape' });
-		expect(oncancel).toHaveBeenCalledTimes(1);
-	});
-
 	test('(e) cancel calls oncancel without calling addItem or editItem', async () => {
 		const oncancel = vi.fn();
 		const { getByDataTest } = render(AddEditItemSheet, {

@@ -1,6 +1,8 @@
 <script lang="ts">
 	import type { HTMLInputAttributes } from 'svelte/elements';
 
+	import { focusAtEnd } from '../model/focus-at-end';
+
 	type Props = {
 		value: string;
 		type?: 'text' | 'email' | 'password';
@@ -12,6 +14,8 @@
 		autocomplete?: HTMLInputAttributes['autocomplete'];
 		inputmode?: HTMLInputAttributes['inputmode'];
 		maxlength?: number;
+		// Focus on mount, caret at the end — see focusAtEnd.
+		autofocus?: boolean;
 		'data-test'?: string;
 		oninput?: (e: Event) => void;
 		onchange?: (e: Event) => void;
@@ -19,10 +23,16 @@
 		onkeydown?: (e: KeyboardEvent) => void;
 	};
 
-	let { value = $bindable(), type = 'text', disabled = false, ...rest }: Props = $props();
+	let {
+		value = $bindable(),
+		type = 'text',
+		disabled = false,
+		autofocus = false,
+		...rest
+	}: Props = $props();
 </script>
 
-<input bind:value {type} {disabled} {...rest} />
+<input {@attach autofocus && focusAtEnd} bind:value {type} {disabled} {...rest} />
 
 <style>
 	input {

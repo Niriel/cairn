@@ -19,9 +19,11 @@ test.describe.serial('items flow', () => {
 		const runId = Date.now().toString(36);
 		await register(page, uniqueUsername('itemsuser'), PASSWORD);
 
-		// Create a list.
+		// Create a list. The name field is focused on open, so typing goes
+		// straight into it.
 		await page.locator('[data-test="lists-fab"]').click();
-		await page.locator('[data-test="create-list-name"]').fill(`Items test ${runId}`);
+		await expect(page.locator('[data-test="create-list-name"]')).toBeFocused();
+		await page.keyboard.type(`Items test ${runId}`);
 		await page.locator('[data-test="create-list-submit"]').click();
 
 		// The new list appears — navigate into it.
@@ -37,11 +39,19 @@ test.describe.serial('items flow', () => {
 		await page.locator('[data-test="add-edit-submit"]').click();
 		await expect(page.locator('[data-test="add-edit-name"]')).not.toBeVisible();
 
-		// Add "Beta".
+		// Add "Beta" by typing straight into the auto-focused name field.
 		await page.locator('[data-test="items-fab"]').click();
-		await page.locator('[data-test="add-edit-name"]').fill('Beta');
+		await expect(page.locator('[data-test="add-edit-name"]')).toBeFocused();
+		await page.keyboard.type('Beta');
 		await page.locator('[data-test="add-edit-submit"]').click();
 		await expect(page.locator('[data-test="add-edit-name"]')).not.toBeVisible();
+
+		// Escape closes the sheet and hands focus back to the FAB that opened it.
+		await page.locator('[data-test="items-fab"]').click();
+		await expect(page.locator('[data-test="add-edit-name"]')).toBeFocused();
+		await page.keyboard.press('Escape');
+		await expect(page.locator('[data-test="add-edit-name"]')).not.toBeVisible();
+		await expect(page.locator('[data-test="items-fab"]')).toBeFocused();
 
 		// Capture item IDs from data-test attributes.
 		const alphaRowTap = page.locator('[data-test^="row-"]', { hasText: 'Alpha' }).first();
