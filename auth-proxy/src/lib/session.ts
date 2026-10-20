@@ -6,7 +6,7 @@
 // rotated could later trip reuse-detection into a spurious global revoke.
 
 // Config is read per-request (not cached at module load) so tests can point
-// GOTRUE_URL at a stub server after the module is imported. Mirrors index.ts.
+// GOTRUE_URL at a stub server after the module is imported.
 function gotrueUrl(): string {
 	return process.env.GOTRUE_URL ?? 'http://gotrue:9999';
 }

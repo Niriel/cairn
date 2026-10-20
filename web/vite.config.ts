@@ -829,8 +829,7 @@ function installAuthShimMiddlewares(server: ViteDevServer | PreviewServer): void
 	// no generic GoTrue pass-through): 404, never forwarded to GoTrue. The SPA's
 	// own /auth pages (sign-in, register, recovery) fall through to SvelteKit.
 	server.middlewares.use((req, res, next) => {
-		const inAuth = req.url?.startsWith('/auth/') || req.url === '/auth';
-		if (!inAuth || isSegmentMatch(req.url, PUBLIC_AUTH_PATHS)) {
+		if (!isSegmentMatch(req.url, ['/auth']) || isSegmentMatch(req.url, PUBLIC_AUTH_PATHS)) {
 			next();
 			return;
 		}
@@ -891,10 +890,8 @@ export default defineConfig(({ mode }) => {
 	return {
 		plugins: [
 			{
-				// Stamps the original `/auth/...` URL onto the request before
-				// Vite's internal proxy rewrites it. The `proxyReq` and `proxyRes`
-				// handlers below need the original path to match against the
-				// path lists in auth-paths.ts (which are all `/auth/...`-shaped).
+				// Installs the dev mirror of the auth-proxy BFF (see
+				// installAuthShimMiddlewares).
 				name: 'cairn-auth-shim',
 				enforce: 'pre',
 				configureServer(server) {

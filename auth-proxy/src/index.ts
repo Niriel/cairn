@@ -118,10 +118,8 @@ function logoutScope(originalUrl: string): LogoutScope {
 }
 
 async function authHandler(req: Request, res: Response): Promise<void> {
-	// req is mounted at /auth, so req.originalUrl is the full `/auth/...`
-	// path the narrowing lists match against, while req.url is already
-	// `/auth`-stripped — exactly what GoTrue expects (mirrors the dev
-	// `rewrite: (p) => p.replace(/^\/auth/, '')`).
+	// Mounted at /auth, so req.originalUrl (not req.url) carries the full
+	// `/auth/...` path the auth-paths.ts lists match against.
 	const originalUrl = req.originalUrl;
 
 	// CSRF: a state-changing Cairn-shaped request must carry the custom header.
@@ -624,10 +622,10 @@ app.get('/healthz', (_req, res) => {
 	res.json({ ok: true });
 });
 
-// Buffer the raw request body (any content-type) so it can be forwarded to
-// GoTrue verbatim, then run the shim. Mounted at /auth so req.originalUrl
-// keeps the full path while req.url is `/auth`-stripped for the upstream call.
-app.use('/auth', express.raw({ type: () => true, limit: '1mb' }), (req, res) => {
+// Buffer the raw request body (any content-type) as a Buffer for the handlers'
+// JSON.parse, then run the shim. Every handler takes a small JSON body, so the
+// limit is tight: an oversized body is refused with a 413 before any handler.
+app.use('/auth', express.raw({ type: () => true, limit: '16kb' }), (req, res) => {
 	void authHandler(req, res);
 });
 

@@ -25,8 +25,7 @@ async function postJson<T>(path: string, body: unknown): Promise<T> {
 		headers: {
 			'Content-Type': 'application/json',
 			Accept: 'application/json',
-			// Required on the Cairn-shaped /auth/* endpoints; harmless on the
-			// GoTrue pass-throughs (the named CSRF exception). Sent uniformly.
+			// Required on every Cairn-shaped /auth/* POST.
 			[CSRF_HEADER]: '1'
 		},
 		body: JSON.stringify(body)

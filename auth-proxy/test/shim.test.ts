@@ -33,29 +33,42 @@ beforeEach(() => {
 	gotrueReqs = [];
 });
 
+// Caddy sets X-Real-IP and adds X-Forwarded-For on every request it routes
+// here; GoTrue would copy either into the `remote_addr` of its log line.
+const FORWARDED = {
+	'X-Forwarded-For': '203.0.113.7',
+	'X-Real-IP': '203.0.113.7',
+	Forwarded: 'for=203.0.113.7'
+};
+
 describe('auth-proxy: no generic GoTrue pass-through', () => {
-	it('(a) answers an unknown /auth path with 404 and never calls GoTrue', async () => {
-		const res = await request(app).get('/auth/user').set('Cookie', 'cairn_access=xxx.yyy.zzz');
+	// The public password grant is among these: the only password-grant path is
+	// the rate-limited /auth/signin.
+	it.each([
+		[
+			'an unknown /auth path',
+			() => request(app).get('/auth/user').set('Cookie', 'cairn_access=xxx.yyy.zzz')
+		],
+		[
+			'a GoTrue-native endpoint',
+			() => request(app).post('/auth/magiclink').send({ email: 'x@y.z' })
+		],
+		[
+			'the public password grant',
+			() =>
+				request(app)
+					.post('/auth/token?grant_type=password')
+					.send({ email: 'u1@cairn.internal', password: 'x' })
+		],
+		[
+			'any other grant type',
+			() => request(app).post('/auth/token?grant_type=refresh_token').send({ refresh_token: 'r' })
+		],
+		['a stray method on a BFF path', () => request(app).get('/auth/refresh').set(FORWARDED)]
+	])('answers %s with 404 and never calls GoTrue', async (_name, send) => {
+		const res = await send();
 		expect(res.status).toBe(404);
 		expect(res.body).toEqual({ error: 'not found' });
-		expect(gotrueReqs).toHaveLength(0);
-	});
-
-	it('(b) answers a GoTrue-native endpoint with 404 and never calls GoTrue', async () => {
-		const res = await request(app).post('/auth/magiclink').send({ email: 'x@y.z' });
-		expect(res.status).toBe(404);
-		expect(gotrueReqs).toHaveLength(0);
-	});
-
-	it('(c) answers a stray method on a BFF path with 404, so no client address reaches GoTrue', async () => {
-		// Caddy sets X-Real-IP and adds X-Forwarded-For on every request it routes
-		// here; GoTrue would copy either into the `remote_addr` of its log line.
-		const res = await request(app)
-			.get('/auth/refresh')
-			.set('X-Forwarded-For', '203.0.113.7')
-			.set('X-Real-IP', '203.0.113.7')
-			.set('Forwarded', 'for=203.0.113.7');
-		expect(res.status).toBe(404);
 		expect(gotrueReqs).toHaveLength(0);
 	});
 });
