@@ -10,8 +10,8 @@
 -- schema and fires `tg_profile_on_signup` to create the matching
 -- public.profiles + user_settings rows.
 --
--- The trigger seeds every row with `display_name = 'New user'`
--- (see db/migrations/0004_domain_schema.sql `tg_profile_on_signup`).
+-- The trigger seeds every row with `display_name` = the provisional username
+-- (see db/migrations/0024_display_name_default.sql `tg_profile_on_signup`).
 -- The UPDATEs below overwrite that placeholder for the three
 -- well-known dev users so they render as Alice / Bob / Carol in the
 -- UI. If a matching auth user is missing the UPDATE is a no-op,

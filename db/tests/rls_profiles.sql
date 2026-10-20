@@ -26,7 +26,7 @@ SELECT plan(6);
 
 -- The fixture inserted Alice/Bob/Carol into auth.users; the
 -- `tg_profile_on_signup` AFTER-INSERT trigger created profile
--- rows for each with display_name = 'New user'.
+-- rows for each with display_name = the provisional username.
 
 -- 1. SELECT positive: Alice sees Bob's profile.
 SELECT set_config(
@@ -105,7 +105,7 @@ SELECT is(
 -- 6. UPDATE other negative: Alice tries to patch Bob's row.
 -- The UPDATE syntax succeeds but RLS makes WHERE match zero
 -- rows for her — Bob's display_name stays at the trigger's
--- placeholder. Assert by reading Bob's row.
+-- default (their provisional username). Assert by reading Bob's row.
 UPDATE public.profiles
 SET display_name = 'Bob, edited by Alice'
 WHERE id = 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb';
@@ -114,7 +114,7 @@ SELECT is(
     SELECT display_name FROM public.profiles
     WHERE id = 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb'
   ),
-  'New user',
+  'u' || repeat('b', 29),
   'profiles UPDATE negative: Alice cannot patch Bob''s display_name'
 );
 

@@ -14,11 +14,9 @@
 	import NavRow from '$lib/shared/components/NavRow.svelte';
 	import UndoSnackbar from '$lib/shared/components/UndoSnackbar.svelte';
 	import EmptyState from '$lib/shared/components/EmptyState.svelte';
-	import WelcomeBanner from '$lib/shared/components/WelcomeBanner.svelte';
 	import InstallHint from '$lib/pwa/components/InstallHint.svelte';
 	import { lists, refreshLists, undoDeleteList } from '$lib/list/state/lists.svelte';
 	import { network } from '$lib/shared/state/network.svelte';
-	import { profile } from '$lib/shared/state/profile.svelte';
 	import { ICON_SIZE } from '$lib/shared/model/constants';
 	import { timeAgo } from '$lib/shared/model/time-ago';
 	import type { List } from '$lib/list/model/list';
@@ -71,14 +69,7 @@
 	</AppTopBar>
 
 	<div class="screen-body">
-		<WelcomeBanner />
-
-		<!-- One banner at a time. WelcomeBanner shows exactly while the display
-		     name is still the signup default, so the install hint waits its turn
-		     rather than stacking a second card above the lists. -->
-		{#if profile.displayName !== 'New user'}
-			<InstallHint />
-		{/if}
+		<InstallHint />
 
 		<InvitesBanner />
 

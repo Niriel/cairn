@@ -7,7 +7,7 @@
 #      creates the matching public.profiles + user_settings rows
 #      synchronously.
 #   2. Run db/seed/dev_seed.sql to set display_name on those rows
-#      (the trigger seeds them as "New user"; the SQL overwrites).
+#      (the trigger seeds them with the provisional username; the SQL overwrites).
 set -euo pipefail
 
 cd "$(dirname "$0")/.."

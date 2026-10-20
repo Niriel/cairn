@@ -4,9 +4,9 @@ This document captures user-interface decisions that affect more than one screen
 
 Cairn is a Progressive Web App built with SvelteKit. "The app" in this document means the running web app — installed to the home screen on phones, or running in a browser tab on desktop. The conventions below apply identically across both presentations except where called out.
 
-## First launch — choose your name
+## First launch — your name
 
-Brand-new accounts land on a single-field screen (_"What should we call you?"_) before anything else loads. The on-signup trigger seeds `profiles.display_name` with the fixed placeholder `'New user'` (see `data-model.md` → `tg_profile_on_signup` for why the placeholder isn't derived from the email's local part), and the app forces this screen whenever it reads that placeholder back. A short input, a single **Continue** button, no skip — the user can rename later from Settings → Edit profile, but they can't reach the Lists screen carrying the placeholder. The avatar is also `avatar_version = 0` at this point, so the user is rendered as the initials disc of whatever name they pick from here on (see "Avatars" below).
+There is no name step. A new account's display name defaults to the username chosen at registration (see `data-model.md` → `profiles`), so registration lands straight on the Lists screen. The user can rename themselves any time from Settings → Edit profile; until they do, the display name follows any username change. The avatar is `avatar_version = 0` at this point, so the user is rendered as the initials disc of their name (see "Avatars" below).
 
 ## Lists screen
 
