@@ -807,10 +807,10 @@
 
 ## Phase 4 — entry points and e2e
 
-### [ ] 4.1 Footer links on Sign in and Register
+### [x] 4.1 Footer links on Sign in and Register
 
 **Created:** 2026-10-20T13:37:50Z
-**Completed:**
+**Completed:** 2026-10-20T15:28:39Z
 
 **Why:** The privacy notice must be reachable where data is collected (registration) and before sign-in. Today the footers only link the old `/imprint`.
 
@@ -836,10 +836,15 @@
 
 **Verify:** `cd web && pnpm test -- src/lib/auth` · `pnpm check` · `pnpm lint`
 
-### [ ] 4.2 Playwright: legal surface journeys
+**Notes:**
+
+- **`LoginRequest.test.ts` no longer exists.** The e-mail login surface was retired in step 20, so only `SignIn.test.ts` and `Register.test.ts` changed.
+- **Markup.** The three links sit in their own `<p>` inside the existing `.legal` footer, separated by `aria-hidden` dots, and reuse the existing `.legal a` styling with no new CSS.
+
+### [x] 4.2 Playwright: legal surface journeys
 
 **Created:** 2026-10-20T13:37:50Z
-**Completed:**
+**Completed:** 2026-10-20T15:30:24Z
 
 **Why:** New user-visible flows need an end-to-end touch (CLAUDE.md), and the signed-out reachability is exactly the kind of thing unit tests with a mocked guard can miss.
 
@@ -869,6 +874,13 @@
 2. Type-check and lint them. Attempt `pnpm test:e2e -- legal imprint`; if it can't launch, record that in Notes.
 
 **Verify:** `cd web && pnpm check` · `pnpm lint` · (where runnable) `pnpm test:e2e -- legal imprint`
+
+**Notes:**
+
+- **`imprint.spec.ts` was folded into `legal.spec.ts` and deleted.** The new spec covers the operator name and e-mail on the imprint, and the `/imprint` redirect.
+- **Run status: 1 of 7 tests ran; 6 were not run.** `pnpm exec playwright test legal --project=chromium` was attempted. The six browser tests fail at launch (`browserType.launch: Executable doesn't exist … chrome-headless-shell`), so they never reached the app. That is **not run**, not a pass or a failure. The one request-only test (`/legal/licenses.txt` returns 200 and contains "MIT") needs no browser and **passed** against the dev server Playwright started.
+- **Static checks.** The spec type-checks (`pnpm check`, plus `tsc -p e2e/tsconfig.json`) and lints clean.
+- **To finish the run:** run `cd web && pnpm exec playwright install && pnpm test:e2e -- legal` on a machine with browsers.
 
 ## Phase 5 — close out
 

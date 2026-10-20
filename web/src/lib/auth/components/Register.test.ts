@@ -66,4 +66,11 @@ describe('Register', () => {
 		const link = getByDataTest('register-signin-link') as HTMLAnchorElement;
 		expect(link.getAttribute('href')).toContain('/auth/signin');
 	});
+
+	test('(legal) the footer links the Imprint, Privacy policy and Terms', () => {
+		const { getByDataTest } = render(Register);
+		expect(getByDataTest('register-imprint-link').getAttribute('href')).toBe('/about/imprint');
+		expect(getByDataTest('register-privacy-link').getAttribute('href')).toBe('/about/privacy');
+		expect(getByDataTest('register-terms-link').getAttribute('href')).toBe('/about/terms');
+	});
 });

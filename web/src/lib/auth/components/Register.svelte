@@ -112,7 +112,13 @@
 	<footer class="legal fine">
 		<p>Wholly European, private, and law-abiding.</p>
 
-		<a href={resolve('/imprint')} data-test="register-imprint-link">Imprint</a>
+		<p>
+			<a href={resolve('/about/imprint')} data-test="register-imprint-link">Imprint</a>
+			<span aria-hidden="true">·</span>
+			<a href={resolve('/about/privacy')} data-test="register-privacy-link">Privacy</a>
+			<span aria-hidden="true">·</span>
+			<a href={resolve('/about/terms')} data-test="register-terms-link">Terms</a>
+		</p>
 	</footer>
 </div>
 
