@@ -10,6 +10,27 @@
 #                             strips /auth itself before calling GoTrue)
 #   /avatars*   writes: NO strip (sidecar routes on the /avatars prefix)
 #               reads:  strip /avatars (file_server serves from the volume root)
+
+# Caddy writes no access log (no `log` directive below), but it still logs an
+# error line, request included, for every 5xx it generates itself — an upstream
+# that is down or restarting, which is every redeploy. Strip the client address,
+# the headers and the query string from those lines so no IP address or row
+# value reaches the log (docs/logging.md).
+{
+	log default {
+		format filter {
+			wrap json
+			fields {
+				request>remote_ip delete
+				request>remote_port delete
+				request>client_ip delete
+				request>headers delete
+				request>uri regexp \?.*$ ""
+			}
+		}
+	}
+}
+
 cairn.{$DOMAIN} {
 	encode gzip
 
