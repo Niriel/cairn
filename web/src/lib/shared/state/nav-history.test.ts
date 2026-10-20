@@ -1,30 +1,47 @@
-import { beforeEach, describe, expect, test } from 'vitest';
+import { afterEach, describe, expect, test, vi } from 'vitest';
 
-import { _resetForTesting, navHistory, recordInAppNavigation } from './nav-history.svelte';
+// The module reads the Navigation API at import, so each test installs its own
+// fake `navigation` and re-imports the module fresh.
+class FakeNavigation extends EventTarget {
+	canGoBack = false;
+}
+
+async function load() {
+	vi.resetModules();
+	return (await import('./nav-history.svelte')).navHistory;
+}
+
+afterEach(() => {
+	vi.unstubAllGlobals();
+});
 
 describe('nav-history', () => {
-	beforeEach(() => {
-		_resetForTesting();
+	test('(a) mirrors the initial navigation.canGoBack', async () => {
+		const nav = new FakeNavigation();
+		nav.canGoBack = true;
+		vi.stubGlobal('navigation', nav);
+
+		expect((await load()).canGoBack).toBe(true);
 	});
 
-	test('(a) starts with no in-app history', () => {
-		expect(navHistory.hasInApp).toBe(false);
+	test('(b) follows currententrychange', async () => {
+		const nav = new FakeNavigation();
+		vi.stubGlobal('navigation', nav);
+		const navHistory = await load();
+		expect(navHistory.canGoBack).toBe(false);
+
+		nav.canGoBack = true;
+		nav.dispatchEvent(new Event('currententrychange'));
+		expect(navHistory.canGoBack).toBe(true);
+
+		nav.canGoBack = false;
+		nav.dispatchEvent(new Event('currententrychange'));
+		expect(navHistory.canGoBack).toBe(false);
 	});
 
-	test('(b) recordInAppNavigation flips the flag true', () => {
-		recordInAppNavigation();
-		expect(navHistory.hasInApp).toBe(true);
-	});
+	test('(c) reports false without the Navigation API', async () => {
+		vi.stubGlobal('navigation', undefined);
 
-	test('(c) recordInAppNavigation is idempotent', () => {
-		recordInAppNavigation();
-		recordInAppNavigation();
-		expect(navHistory.hasInApp).toBe(true);
-	});
-
-	test('(d) _resetForTesting clears the flag', () => {
-		recordInAppNavigation();
-		_resetForTesting();
-		expect(navHistory.hasInApp).toBe(false);
+		expect((await load()).canGoBack).toBe(false);
 	});
 });

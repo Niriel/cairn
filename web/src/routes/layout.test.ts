@@ -9,7 +9,7 @@ import { render } from '$lib/test/render';
 import Layout from './+layout.svelte';
 
 vi.mock('$app/state', async () => await import('$lib/test/app-state-mock.svelte'));
-vi.mock('$app/navigation', () => ({ goto: vi.fn(), afterNavigate: vi.fn() }));
+vi.mock('$app/navigation', () => ({ goto: vi.fn() }));
 vi.mock('$lib/shared/state/session.svelte');
 
 const SEED_USER = { id: '11111111-1111-1111-1111-111111111111', username: 'dev' };

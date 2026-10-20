@@ -269,10 +269,10 @@ Background, root cause, and rejected alternatives: `PLAN.md` → "Design revisio
 (2026-10-20): ask the browser". Tasks 1.2 and 1.3 are superseded by 3.1; their
 code is replaced, not kept.
 
-### [ ] 3.1 Mirror `navigation.canGoBack` instead of tracking an in-app flag
+### [x] 3.1 Mirror `navigation.canGoBack` instead of tracking an in-app flag
 
 **Created:** 2026-10-20T18:10:00Z
-**Completed:**
+**Completed:** 2026-10-20T18:40:00Z
 
 **Why:** The `afterNavigate` flag flips on every cold load in client-only mode,
 and even fixed it stays true after back-then-back. The browser's
@@ -323,6 +323,15 @@ Cairn page?) exactly.
 4. Remove the layout hook and its mock entry.
 
 **Verify:** `cd web && pnpm test` · `pnpm check` · `pnpm lint`
+
+**Notes:**
+
+- Done as specified. `BackOrHome.test.ts` gained (c), a live flip from Home to
+  Back through the mock, and types its `history.back` spy as
+  `MockInstance<typeof history.back>` like `back-stack.test.ts` (lint rejects
+  `ReturnType<typeof vi.spyOn>` as `any`).
+- `+layout.svelte` and `layout.test.ts` are byte-identical to `main` again.
+- Full Vitest suite green (953 tests); `pnpm check` and `pnpm lint` clean.
 
 ### [ ] 3.2 Build `BackOrHome` on `IconButton`'s `icon` prop
 

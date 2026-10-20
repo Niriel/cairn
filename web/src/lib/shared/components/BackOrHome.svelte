@@ -6,21 +6,23 @@
 	import IconButton from '$lib/basic/components/IconButton.svelte';
 	import { navHistory } from '$lib/shared/state/nav-history.svelte';
 
-	// With an in-app page behind us, plain back is correct. On a cold load
-	// (a reopened tab or a pasted/bookmarked deep URL) there's nothing to go
-	// back to, so the control becomes a Home button to /lists instead — the
-	// affordance (icon + label) matches the destination.
-	const atRoot = $derived(!navHistory.hasInApp);
-
+	// Plain back while a Cairn page is behind us. Otherwise (a cold load onto a
+	// bookmarked or reopened deep URL, or after backing down to that first page)
+	// history.back() would leave the app, so the control becomes a Home button
+	// to /lists instead — the affordance (icon + label) matches the destination.
 	function goBack() {
-		if (atRoot) {
-			void goto(resolve('/lists'));
-		} else {
+		if (navHistory.canGoBack) {
 			history.back();
+		} else {
+			void goto(resolve('/lists'));
 		}
 	}
 </script>
 
-<IconButton onclick={goBack} aria-label={atRoot ? 'Home' : 'Back'} data-test="topbar-back">
-	<Icon name={atRoot ? 'home' : 'chevron-left'} size={22} />
+<IconButton
+	onclick={goBack}
+	aria-label={navHistory.canGoBack ? 'Back' : 'Home'}
+	data-test="topbar-back"
+>
+	<Icon name={navHistory.canGoBack ? 'chevron-left' : 'home'} size={22} />
 </IconButton>

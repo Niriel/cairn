@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onMount, type Snippet } from 'svelte';
 
-	import { afterNavigate, goto } from '$app/navigation';
+	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
 
@@ -15,7 +15,6 @@
 		isSegmentMatch
 	} from '$lib/shared/model/auth-paths';
 	import { PUBLIC_CONTENT_PATHS } from '$lib/shared/model/public-paths';
-	import { recordInAppNavigation } from '$lib/shared/state/nav-history.svelte';
 	import { bootSession, session } from '$lib/shared/state/session.svelte';
 	import '$lib/shared/styles/tokens.css';
 	import '$lib/shared/styles/reset.css';
@@ -53,15 +52,6 @@
 			(session.current.status === 'signed-in' &&
 				isSegmentMatch(page.url.pathname, SIGNED_IN_REDIRECT_PATHS))
 	);
-
-	// Seed the in-app-history flag: `nav.from` is null only on the initial
-	// `enter`, so this flips the flag the first time the user navigates
-	// within the app. The default TopBar back control reads it to choose
-	// between history.back() and a home fallback. Must run during component
-	// init, not in onMount.
-	afterNavigate((nav) => {
-		if (nav.from) recordInAppNavigation();
-	});
 
 	onMount(() => {
 		void bootSession();

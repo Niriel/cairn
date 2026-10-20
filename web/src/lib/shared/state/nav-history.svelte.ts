@@ -1,34 +1,23 @@
-// Tracks whether the app has performed at least one client-side
-// navigation since the document was loaded — an "in-app referrer".
-// The default TopBar back control reads this to decide whether
-// `history.back()` is safe (there's an in-app page behind us) or
-// whether it should fall back to navigating home instead.
+// Whether the entry directly behind the current one in this tab's history is a
+// Cairn page, i.e. whether history.back() stays inside the app. The default
+// TopBar back control (BackOrHome) reads it: Back when true; when false (a cold
+// load onto a bookmarked or reopened deep URL, or after pressing back down to
+// that first page) it becomes a Home button instead.
 //
-// `history.length` cannot answer this: it counts unrelated entries
-// from earlier in the same browser tab, so a bookmarked deep URL
-// opened over the top of another site reports length > 1 even though
-// going back walks out of Cairn. Instead the root layout feeds this
-// flag from SvelteKit's `afterNavigate` (whose `from` is null only on
-// the initial `enter`). Once true it stays true — going back is then
-// always safe.
+// The browser answers this exactly: the Navigation API's `canGoBack` is true
+// only when the previous session-history entry is same-origin, and it stays
+// right across replaceState redirects, shallow pushState guards and reloads.
+// Don't rebuild it from SvelteKit's `afterNavigate`: in a client-only app the
+// first load already arrives with a non-null `from`, and a navigation can't
+// tell a replaceState redirect from a push.
+//
+// Without the API (older browsers, happy-dom) this reports false, so the
+// control shows Home: never stranding, just less convenient.
 
-let hasInApp = $state(false);
+type NavigationLike = EventTarget & { readonly canGoBack: boolean };
 
-// Boxed behind a getter so consumers read `navHistory.hasInApp`
-// reactively without being able to flip it directly — the only writer
-// is `recordInAppNavigation`, called from the layout.
-export const navHistory = {
-	get hasInApp() {
-		return hasInApp;
-	}
-};
+const nav = (globalThis as { navigation?: NavigationLike }).navigation;
 
-/** Record that an in-app client-side navigation occurred. Idempotent. */
-export function recordInAppNavigation(): void {
-	hasInApp = true;
-}
+export const navHistory = $state<{ canGoBack: boolean }>({ canGoBack: nav?.canGoBack ?? false });
 
-/** Reset module state between tests. Not for production use. */
-export function _resetForTesting(): void {
-	hasInApp = false;
-}
+nav?.addEventListener('currententrychange', () => (navHistory.canGoBack = nav.canGoBack));
