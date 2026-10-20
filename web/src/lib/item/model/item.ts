@@ -51,7 +51,7 @@ export type VoteRow = {
 
 export async function fetchItems(listId: string, uid: string): Promise<Item[]> {
 	const ranked = await pgGet<ItemRanked[]>(
-		`/items_ranked?list_id=eq.${listId}&select=*,created_by_profile:profiles!created_by(display_name,username),modified_by_profile:profiles!modified_by(display_name,username)&order=score.desc,created_at.asc`
+		`/items_ranked?list_id=eq.${listId}&select=*,created_by_profile:profiles!created_by(display_name,username),modified_by_profile:profiles!modified_by(display_name,username)&order=name.asc,created_at.asc`
 	);
 
 	const ids = ranked.map((r) => r.id).join(',');

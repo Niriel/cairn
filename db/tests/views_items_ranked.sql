@@ -1,6 +1,6 @@
 -- views_items_ranked.sql — locks in the per-list ranked view the
 -- web app's main UI surface queries (`GET /items_ranked?list_id=
--- eq.<uuid>&order=score.desc,created_at.asc`).
+-- eq.<uuid>&order=name.asc,created_at.asc`).
 --
 -- The view is `security_invoker = true`, so RLS inheritance from
 -- `items_select` + `votes_select` is the authorisation gate; the

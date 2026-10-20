@@ -3,7 +3,7 @@
 -- which is the *only* thing `anon` may touch.
 --
 -- The RPC returns a curated jsonb snapshot — id/name/description plus
--- a score-ranked `items` array (id/name/notes/score) — and SQL NULL
+-- a name-ordered `items` array (id/name/notes/score) — and SQL NULL
 -- for any list that is private, soft-deleted, or unknown. The NULL is
 -- the security boundary: private, deleted, and missing all collapse to
 -- the same indistinguishable result. The payload carries no members,
@@ -22,11 +22,11 @@
 --   2.  name is exposed.
 --   3.  description is exposed.
 --   4.  items length = 2 (the soft-deleted item is excluded).
---   5.  items[0] is the top-scored item (name).
---   6.  items[0].score is present and correct (4 — definer reads
+--   5.  items[0] is first by name, though lower-scored.
+--   6.  items[0].score correct (1).
+--   7.  items[1] is second by name, though higher-scored.
+--   8.  items[1].score is present and correct (4 — definer reads
 --       items_ranked despite anon's own RLS).
---   7.  items[1] is the runner-up (score-desc ordering).
---   8.  items[1].score correct (1).
 --   9.  items carry `created_at` (so the public view can show item age).
 --   10. no top-level `created_by` key (no attribution).
 --   11. no item-level `created_by` key (no attribution).
@@ -81,40 +81,41 @@ SELECT is(
   'public_list_view: soft-deleted items are excluded (2 of 3 remain)'
 );
 
--- 5. items[0] is the top-scored item.
+-- 5. items[0] is first by name ("Runner up" < "Top pick") even though it
+-- has the lower score: votes change the score, never the position.
 SELECT is(
   public.public_list_view('0a000000-0000-0000-0000-000000000001')
   -> 'items' -> 0 ->> 'name',
-  'Top pick',
-  'public_list_view: items ordered by score desc (Top pick first)'
+  'Runner up',
+  'public_list_view: items ordered by name (Runner up first)'
 );
 
--- 6. items[0].score present and correct (alice +3 + bob +1 = 4).
+-- 6. items[0].score = 1.
 SELECT is(
   (
     public.public_list_view('0a000000-0000-0000-0000-000000000001')
     -> 'items' -> 0 ->> 'score'
   )::int,
-  4,
-  'public_list_view: score is present and read from items_ranked (4)'
+  1,
+  'public_list_view: score is present and read from items_ranked (1)'
 );
 
--- 7. items[1] is the runner-up (score-desc ordering holds).
+-- 7. items[1] is "Top pick" despite its higher score.
 SELECT is(
   public.public_list_view('0a000000-0000-0000-0000-000000000001')
   -> 'items' -> 1 ->> 'name',
-  'Runner up',
-  'public_list_view: second item is the runner-up'
+  'Top pick',
+  'public_list_view: second item by name is Top pick'
 );
 
--- 8. items[1].score = 1.
+-- 8. items[1].score present and correct (alice +3 + bob +1 = 4).
 SELECT is(
   (
     public.public_list_view('0a000000-0000-0000-0000-000000000001')
     -> 'items' -> 1 ->> 'score'
   )::int,
-  1,
-  'public_list_view: runner-up score correct (1)'
+  4,
+  'public_list_view: higher-scored item keeps its name-order slot (4)'
 );
 
 -- 9. Items carry a non-null `created_at` (drives the public view's

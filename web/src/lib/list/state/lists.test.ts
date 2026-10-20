@@ -143,6 +143,30 @@ async function setupWithLists(data = [LIST_A, LIST_B]) {
 	});
 }
 
+describe('ordering', () => {
+	test('(a) lists are alphabetical, case-insensitively, whatever order the server returns', async () => {
+		const banana = { ...LIST_A, id: 'cccccccc-cccc-cccc-cccc-cccccccccccc', name: 'banana' };
+		const apple = { ...LIST_B, name: 'Apple' };
+		await setupWithLists([banana, LIST_A, apple]);
+		expect(listsMod.lists.items.map((l) => l.name)).toEqual(['Apple', 'banana', 'List A']);
+	});
+
+	test('(b) the query asks the server for name order', async () => {
+		let url = '';
+		server.use(
+			http.get('*/api/lists', ({ request }) => {
+				url = request.url;
+				return HttpResponse.json([]);
+			})
+		);
+		sessionMod.setSignedIn({ id: TEST_UID, username: 'dev' });
+		await tick();
+		await vi.waitFor(() => {
+			expect(url).toContain('order=name.asc,id.asc');
+		});
+	});
+});
+
 describe('deleteList', () => {
 	test('(a) optimistically removes the list from lists.items', async () => {
 		await setupWithLists();
@@ -216,6 +240,14 @@ describe('undoDeleteList', () => {
 		await listsMod.undoDeleteList();
 		expect(listsMod.lists.items).toHaveLength(2);
 		expect(listsMod.lists.pendingDelete).toBeNull();
+	});
+
+	test('(b2) a restored list goes back to its alphabetical slot', async () => {
+		// LIST_B is the more recently modified, so a recency sort would put it first.
+		await setupWithLists();
+		await listsMod.deleteList(LIST_A.id);
+		await listsMod.undoDeleteList();
+		expect(listsMod.lists.items.map((l) => l.name)).toEqual(['List A', 'List B']);
 	});
 
 	test('(c) on error, keeps pendingDelete and sets lists.error; 4s timer clears both', async () => {

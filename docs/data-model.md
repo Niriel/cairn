@@ -58,7 +58,7 @@ lists               ← a named collection
               └──── votes    ← per-user upvote/downvote on an item
 ```
 
-And three views. `items_ranked` joins items to vote tallies and applies the sort order — the web app reads the main list view from it, not from the `items` table directly. `items_deleted` and `lists_deleted` are its trash counterparts: they surface soft-deleted items (per list) and soft-deleted lists (per user) for the trash screens, running as the view owner so they can read rows the live RLS policies hide. All three are documented in full below.
+And three views. `items_ranked` joins items to vote tallies — the web app reads the main list view from it, not from the `items` table directly. `items_deleted` and `lists_deleted` are its trash counterparts: they surface soft-deleted items (per list) and soft-deleted lists (per user) for the trash screens, running as the view owner so they can read rows the live RLS policies hide. All three are documented in full below.
 
 The two tables added in `invites.md` — `relationships`, `invitations` — along with the `invite_policy` column on `user_settings`, are documented in detail in that doc; this doc is the canonical reference for their SQL but the prose is over there.
 
@@ -320,7 +320,7 @@ The dual `target_user_id` / `target_email` keys handle both paths: a Cairn user 
 
 ## The `items_ranked` view
 
-This is what the web app actually queries. It joins items to their votes, filters out soft-deleted rows, and computes the columns the UI needs. The sort order from the project description — highest score first, ties broken by oldest first — is applied as a client-side `ORDER BY` on the view (PostgREST exposes this via the `order` query parameter).
+This is what the web app actually queries. It joins items to their votes, filters out soft-deleted rows, and computes the columns the UI needs. Items are shown **alphabetically by name**, oldest first among same-named items; the score is displayed but never moves an item. The query asks PostgREST for `order=name.asc,created_at.asc` as a first pass, but the client re-sorts with one shared comparator (`web/src/lib/basic/model/compare-names.ts`, an `Intl.Collator` that is case- and accent-insensitive with natural number order), because the database's `en_US` collation and the browser's can disagree on punctuation and accents. The same comparator orders the Lists screen (`order=name.asc,id.asc`) and the public list page, so every screen agrees.
 
 ```sql
 create view public.items_ranked
@@ -346,8 +346,8 @@ group by i.id;
 
 A few notes:
 
-- **`score` is a simple sum of vote values.** A single +3 from one excited person outweighs three +1s from mildly interested people. This is deliberate — the seven-step scale exists precisely so that enthusiasm registers, and averaging would erase that. If "two people kinda-like" should ever beat "one person loves," that's a future tweak: change the sort to `(score desc, total_voters desc, created_at asc)` and the items table won't need to know.
-- **The view does not encode the `ORDER BY`.** Sorting is applied by the client query (`?order=score.desc,created_at.asc` in PostgREST). This lets the same view serve other orderings later — by date, by who added it — without duplication.
+- **`score` is a simple sum of vote values.** A single +3 from one excited person outweighs three +1s from mildly interested people. This is deliberate — the seven-step scale exists precisely so that enthusiasm registers, and averaging would erase that. If "two people kinda-like" should ever beat "one person loves," that's a change to how the score is computed or displayed; the items table won't need to know.
+- **The view does not encode the `ORDER BY`.** Sorting is applied by the client (`?order=name.asc,created_at.asc` in PostgREST, then the shared comparator). This lets the same view serve other orderings later — by score, by date, by who added it — without duplication.
 - **`positive_voters` and `negative_voters` are counts, not sums.** They tell the UI _how many people_ are on each side, regardless of intensity. Combined with `score`, this is enough for any of the displays we might want ("Alice +3, Bob +1, Carol −2" or just a numeric score or a small bar chart).
 - **`security_invoker = true` makes the view inherit the caller's RLS.** A user only sees rows for items in lists they're a member of, automatically — and soft-deleted items are hidden by `items_select`'s `deleted_at is null` clause for everyone except the user who soft-deleted them (the `or deleted_by = public.uid()` disjunct admits the deleter on the base-table path; see `items_select` below). The `where i.deleted_at is null` in the view body is therefore **load-bearing**, not defensive — it's what keeps the deleter's own soft-deletes out of the live-feed view too, even though the base-table policy admits them for the deleter alone. This is deliberately the _opposite_ setting from the trash views below: the live aggregation view leans on policies plus this filter, while the trash views run as owner and gate themselves with an explicit membership check. The asymmetry is the whole point — the live view never exposes soft-deleted content to anyone; the trash is an explicit, separately-authorized read path.
 
@@ -719,7 +719,7 @@ To translate the schema into the API the web app actually consumes, here are the
 - `PATCH /lists?id=eq.<uuid>` — rename or soft-delete a list
 - `GET /list_members?list_id=eq.<uuid>` — who's on a list
 - `PATCH /list_members?list_id=eq.<uuid>&user_id=eq.<my-uid>` — leave a list (soft-remove yourself)
-- `GET /items_ranked?list_id=eq.<uuid>&order=score.desc,created_at.asc` — the main list view
+- `GET /items_ranked?list_id=eq.<uuid>&order=name.asc,created_at.asc` — the main list view
 - `GET /items_deleted?list_id=eq.<uuid>&order=deleted_at.desc` — the trash view for a list
 - `POST /items` — add an item
 - `PATCH /items?id=eq.<uuid>` — edit, soft-delete, or restore an item (restore = `PATCH` with `deleted_at: null`)
@@ -766,7 +766,7 @@ Adding a member to a list goes through `/rpc/send_invitation` and `/rpc/accept_i
 
 - `/rpc/public_list_view` — body `{p_id: <uuid>}`, returns a single `jsonb` snapshot of one public list, or SQL `NULL` (PostgREST `null`) when the list is private, soft-deleted, or unknown. `EXECUTE` is granted to `anon` **and** `authenticated`; signed-in callers can use the same path for the public view. This is the only RPC `anon` may call and the only thing in the schema `anon` may touch at all.
 
-The payload is curated by construction — it carries `id`, `name`, `description`, and an `items` array (each item's `id`, `name`, `notes`, `score`, and `created_at`, ordered by `score desc, created_at asc`). The public read-only screen uses `created_at` to show each item's age as a relative line; a date is _when_, not _who_, so it is not attribution. The payload deliberately **omits** members, votes, raw vote tallies, and all attribution (`created_by` / `modified_by` / `deleted_by`). Soft-deleted items are excluded; a soft-deleted or private list returns `null` rather than a partial object — that `null` is the security boundary the pgTAP tests pin down (private, soft-deleted, and unknown ids all collapse to the same indistinguishable `null`).
+The payload is curated by construction — it carries `id`, `name`, `description`, and an `items` array (each item's `id`, `name`, `notes`, `score`, and `created_at`, ordered by `name, created_at`; the public page re-sorts with the same comparator as the members' screens). The public read-only screen uses `created_at` to show each item's age as a relative line; a date is _when_, not _who_, so it is not attribution. The payload deliberately **omits** members, votes, raw vote tallies, and all attribution (`created_by` / `modified_by` / `deleted_by`). Soft-deleted items are excluded; a soft-deleted or private list returns `null` rather than a partial object — that `null` is the security boundary the pgTAP tests pin down (private, soft-deleted, and unknown ids all collapse to the same indistinguishable `null`).
 
 The `score` comes from `public.items_ranked`, which the function can read even though `anon` cannot: `items_ranked` is `security_invoker = true`, so under a `cairn`-owned `security definer` function it runs as the owner (exempt from RLS) and yields real scores.
 

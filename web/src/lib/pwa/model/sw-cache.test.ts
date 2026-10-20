@@ -23,12 +23,12 @@ const B = '22222222-2222-2222-2222-222222222222';
 //   items     -> item/model/item.ts (fetchItems, first request = the entry marker)
 //   votes     -> item/model/item.ts (fetchItems, second request; no list_id)
 const overview = new URL(
-	`${ORIGIN}/api/lists?select=id,name,description,modified_at&list_members.deleted_at=is.null&deleted_at=is.null&lists_is_member=is.true&order=modified_at.desc`
+	`${ORIGIN}/api/lists?select=id,name,description,modified_at&list_members.deleted_at=is.null&deleted_at=is.null&lists_is_member=is.true&order=name.asc,id.asc`
 );
 const meta = (id: string) =>
 	new URL(`${ORIGIN}/api/lists?id=eq.${id}&select=name,description,is_public`);
 const items = (id: string) =>
-	new URL(`${ORIGIN}/api/items_ranked?list_id=eq.${id}&select=*&order=score.desc,created_at.asc`);
+	new URL(`${ORIGIN}/api/items_ranked?list_id=eq.${id}&select=*&order=name.asc,created_at.asc`);
 const votes = new URL(`${ORIGIN}/api/votes?item_id=in.(a,b)&select=item_id,user_id,value`);
 const sentinel = new URL(MRU_SENTINEL_KEY, ORIGIN);
 

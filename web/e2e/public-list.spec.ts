@@ -48,7 +48,11 @@ test.describe.serial('public list flow', () => {
 		await page.locator('[data-test="lists-fab"]').click();
 		await page.locator('[data-test="create-list-name"]').fill(`Private test ${runId}`);
 		await page.locator('[data-test="create-list-submit"]').click();
-		await page.locator('[data-test^="list-nav-"]').first().click();
+		// Capture by name, not position: the user now has two lists.
+		await page
+			.locator('[data-test^="list-nav-"]')
+			.filter({ hasText: `Private test ${runId}` })
+			.click();
 		await expect(page).toHaveURL(/\/lists\/[0-9a-f-]+$/);
 		privateListId = page.url().split('/lists/')[1];
 

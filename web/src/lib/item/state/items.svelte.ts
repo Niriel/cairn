@@ -11,6 +11,7 @@ import {
 	deleteVote as apiDeleteVote
 } from '$lib/item/model/item';
 import type { Item } from '$lib/item/model/item';
+import { compareNamesThenAge } from '$lib/basic/model/compare-names';
 
 export const items = $state<{
 	rows: Item[];
@@ -20,11 +21,10 @@ export const items = $state<{
 	pendingDelete: { item: Item; timerId: ReturnType<typeof setTimeout> } | null;
 }>({ rows: [], loading: false, error: null, listId: null, pendingDelete: null });
 
+// Alphabetical, oldest first among same-named items. Votes change the score
+// badge, never the position.
 function sortRows(rows: Item[]): Item[] {
-	return [...rows].sort((a, b) => {
-		if (b.score !== a.score) return b.score - a.score;
-		return a.created_at.localeCompare(b.created_at);
-	});
+	return [...rows].sort(compareNamesThenAge);
 }
 
 export async function loadItems(listId: string): Promise<void> {
@@ -118,7 +118,8 @@ export async function softDeleteItem(itemId: string): Promise<void> {
 		adjustItemCount(item.list_id, -1);
 	} catch {
 		clearTimeout(timerId);
-		items.rows = [...items.rows.slice(0, idx), item, ...items.rows.slice(idx)];
+		// A reload may have replaced items.rows mid-request, so re-sort.
+		items.rows = sortRows([item, ...items.rows]);
 		items.pendingDelete = null;
 	}
 }

@@ -6,7 +6,7 @@ A simple app for small groups to share lists of anything — movies to watch, bo
 
 Alice loves old black-and-white films; Bob is a sci-fi nerd. They keep swapping recommendations and losing track in chat. With Cairn they share a list for Alice, a list for Bob, and a list for the two of them — and stop forgetting.
 
-A list is a named collection of items. An item has a name, optional notes, timestamps, and per-member votes on a seven-step scale from −3 to +3. Lists default to sorting by score (the sum of all votes), with ties broken oldest-first. Anyone with access to a list can add, edit, soft-delete, or vote on items.
+A list is a named collection of items. An item has a name, optional notes, timestamps, and per-member votes on a seven-step scale from −3 to +3. Lists and items are sorted alphabetically (case- and accent-insensitive, numbers in natural order; same-named items oldest-first). An item's score (the sum of all votes) is shown as a badge but never changes its position. Anyone with access to a list can add, edit, soft-delete, or vote on items.
 
 ## What it values
 

@@ -30,7 +30,7 @@ beforeEach(() => {
 });
 
 describe('/p/[list_id]', () => {
-	test('renders the list name, description, and ranked items with scores', async () => {
+	test('renders the list name, description, and items with scores', async () => {
 		vi.mocked(pgMod.pgPost).mockResolvedValue(PUBLIC_LIST);
 		const { container, getByDataTest } = render(Page, PROPS);
 		await vi.waitFor(() => {
@@ -41,6 +41,16 @@ describe('/p/[list_id]', () => {
 		const top = getByDataTest('public-item-i1');
 		expect(top.textContent).toContain('Top Pick');
 		expect(top.textContent).toContain('5');
+	});
+
+	test('lists items alphabetically, not by score', async () => {
+		vi.mocked(pgMod.pgPost).mockResolvedValue(PUBLIC_LIST);
+		const { container, getByDataTest } = render(Page, PROPS);
+		await vi.waitFor(() => {
+			expect(getByDataTest('public-list')).toBeTruthy();
+		});
+		const text = container.textContent ?? '';
+		expect(text.indexOf('Runner Up')).toBeLessThan(text.indexOf('Top Pick'));
 	});
 
 	test('shows each item’s age via timeAgo', async () => {
