@@ -137,6 +137,22 @@ describe('auth-proxy shim', () => {
 		expect(capturedAuthHeader()).toBeUndefined();
 	});
 
+	it('(h) forwards no client-IP header to GoTrue, so its request log never records a client address', async () => {
+		// Caddy adds X-Forwarded-For and sets X-Real-IP on every request it
+		// routes here; GoTrue copies either into the `remote_addr` of its log
+		// line. Any request that reaches the generic pass-through (e.g. a GET
+		// on a POST-only BFF path) must arrive without them.
+		await request(app)
+			.get('/auth/refresh')
+			.set('X-Forwarded-For', '203.0.113.7')
+			.set('X-Real-IP', '203.0.113.7')
+			.set('Forwarded', 'for=203.0.113.7');
+		expect(lastReq).not.toBeNull();
+		expect(lastReq?.headers['x-forwarded-for']).toBeUndefined();
+		expect(lastReq?.headers['x-real-ip']).toBeUndefined();
+		expect(lastReq?.headers.forwarded).toBeUndefined();
+	});
+
 	// Sign-out moved to POST /auth/signout (revocable, server-side); its
 	// behaviour is covered by signout.test.ts. The cookie Secure + __Host-
 	// prefix behaviour is covered by cookies.test.ts (plantSession directly),

@@ -143,11 +143,17 @@ function grantTypeOf(originalUrl: string): string | null {
 // Request headers we never forward upstream: a client-supplied Authorization
 // is stripped (only our cookie-derived bearer is trusted, and only on the
 // narrowed paths); Accept-Encoding is dropped so GoTrue replies with identity
-// JSON we can parse without inflating (the top correctness pitfall); the rest
-// are hop-by-hop / length headers fetch must recompute.
+// JSON we can parse without inflating (the top correctness pitfall); the
+// client-IP headers Caddy adds are dropped because GoTrue copies them into the
+// `remote_addr` of its request log, and the privacy policy promises no client
+// IP reaches a log (see docs/logging.md); the rest are hop-by-hop / length
+// headers fetch must recompute.
 const SKIP_REQUEST_HEADERS = new Set([
 	'authorization',
 	'accept-encoding',
+	'x-forwarded-for',
+	'x-real-ip',
+	'forwarded',
 	'host',
 	'connection',
 	'keep-alive',

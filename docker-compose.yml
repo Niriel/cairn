@@ -2,6 +2,12 @@ services:
   postgres:
     build:
       context: ./db
+    # Terse error logs: keep the error line and the (parameterised) statement,
+    # drop DETAIL/HINT/CONTEXT. A constraint violation's DETAIL repeats the
+    # offending row ("Failing row contains (...)"), which would put user
+    # content in the log (see docs/logging.md). Server log only; clients still
+    # receive full error details.
+    command: ["postgres", "-c", "log_error_verbosity=terse"]
     environment:
       POSTGRES_USER: cairn
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
@@ -23,6 +29,10 @@ services:
       PGRST_DB_ANON_ROLE: anon
       PGRST_JWT_SECRET: ${JWT_SECRET}
       PGRST_OPENAPI_SERVER_PROXY_URI: http://localhost:3000
+      # No request lines: at its default level PostgREST still logs every 5xx
+      # with the full query string and User-Agent. The same failures reach
+      # Postgres's own (terse) error log without them. See docs/logging.md.
+      PGRST_LOG_LEVEL: crit
     depends_on:
       postgres:
         condition: service_healthy
