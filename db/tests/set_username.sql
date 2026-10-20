@@ -15,7 +15,7 @@
 
 BEGIN;
 
-SELECT plan(9);
+SELECT plan(14);
 
 \i /db/tests/fixtures/users_alice_bob_carol.sql
 
@@ -45,6 +45,17 @@ SELECT is(
   ),
   'NewName',
   'set_username updates profiles.username (case preserved)'
+);
+
+-- (a2) Alice's display_name was the untouched signup default (equal to her
+-- provisional username), so it follows the rename.
+SELECT is(
+  (
+    SELECT display_name FROM public.profiles
+    WHERE id = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'
+  ),
+  'NewName',
+  'set_username carries an untouched display_name along'
 );
 
 -- (b) reads auth.users as the superuser owner (authenticated has no grant
@@ -103,6 +114,45 @@ SELECT throws_ok(
 SELECT lives_ok(
   $$SELECT public.set_username('newname')$$,
   'set_username accepts a case-variant of the caller''s own handle'
+);
+
+-- (f2) the rejected renames above left both columns alone, and the
+-- case-only rename carried the still-untouched display_name along.
+SELECT is(
+  (
+    SELECT display_name || '/' || username FROM public.profiles
+    WHERE id = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'
+  ),
+  'newname/newname',
+  'rejected renames change nothing; a case-only rename carries display_name'
+);
+
+-- (f3) once the user picks their own display name, a rename leaves it alone.
+SELECT public.set_display_name('Alice Custom');
+SELECT lives_ok(
+  $$SELECT public.set_username('AliceAgain')$$,
+  'set_username succeeds after a custom display name'
+);
+SELECT is(
+  (
+    SELECT display_name FROM public.profiles
+    WHERE id = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'
+  ),
+  'Alice Custom',
+  'set_username leaves a customised display_name unchanged'
+);
+
+-- (f4) a display name that merely differs in case from the username counts
+-- as customised: the follow comparison is exact.
+SELECT public.set_display_name('aliceagain');
+SELECT public.set_username('AliceThird');
+SELECT is(
+  (
+    SELECT display_name FROM public.profiles
+    WHERE id = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'
+  ),
+  'aliceagain',
+  'set_username only carries a display_name that equals the username exactly'
 );
 
 -- (g) an unauthenticated caller raises 28000.

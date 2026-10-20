@@ -28,14 +28,15 @@ SELECT plan(8);
 INSERT INTO auth.users (id, email) VALUES
 ('dddddddd-dddd-dddd-dddd-dddddddddddd', 'dave@test');
 
--- 1. profile row created with the placeholder display_name -------
+-- 1. profile row created with display_name = the provisional username
+-- (set_username then carries it along to the chosen handle).
 SELECT is(
   (
     SELECT display_name FROM public.profiles
     WHERE id = 'dddddddd-dddd-dddd-dddd-dddddddddddd'
   ),
-  'New user',
-  'tg_profile_on_signup inserts a profile row with display_name = ''New user'''
+  'u' || repeat('d', 29),
+  'tg_profile_on_signup seeds display_name with the provisional username'
 );
 
 -- 2. user_settings row created with the default invite_policy ----
@@ -120,7 +121,7 @@ INSERT INTO auth.users (id, email) VALUES
 ('00000000-0000-0000-0000-000000000000', 'tombstone@test');
 
 -- 6. profiles skip-branch -----------------------------------------
--- The trigger must NOT insert a 'New user' profile row for the
+-- The trigger must NOT insert a placeholder profile row for the
 -- tombstone — without an independent assertion, a regression that
 -- drops only the user_settings skip would still appear green here
 -- because the migration's profile seed had already been wiped.

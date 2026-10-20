@@ -199,14 +199,15 @@ SELECT is(
   'clear_avatar() as Alice leaves Bob''s avatar_version unchanged'
 );
 
--- n. Cross-user set_display_name: Bob's display_name still 'New user'.
+-- n. Cross-user set_display_name: Bob's display_name still their signup
+-- default (the provisional username the trigger seeded).
 SELECT public.set_display_name('Hacker');
 SELECT is(
   (
     SELECT display_name FROM public.profiles
     WHERE id = 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb'
   ),
-  'New user',
+  'u' || repeat('b', 29),
   'set_display_name() as Alice leaves Bob''s display_name unchanged'
 );
 

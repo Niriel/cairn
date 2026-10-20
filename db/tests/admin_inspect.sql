@@ -15,7 +15,8 @@
 -- 18 assertions:
 --   Executability + shape (Alice has 1 membership, 0 items, 0 votes):
 --     1. inspect_user runs for cairn_admin (inherits cairn_readonly).
---     2. profile->>'display_name' is the signup default 'New user'.
+--     2. profile->>'display_name' is the signup default (the
+--        provisional username).
 --     3. memberships array length is 1.
 --     4. item_count is 0.
 --     5. vote_count is 0.
@@ -64,7 +65,7 @@ SELECT admin.inspect_user('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa') AS j;
 -- 2-5. Shape.
 SELECT is(
   (SELECT j -> 'profile' ->> 'display_name' FROM _doc),
-  'New user',
+  'u' || repeat('a', 29),
   'inspect_user returns the profile display_name'
 );
 SELECT is(

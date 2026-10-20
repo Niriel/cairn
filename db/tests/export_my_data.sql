@@ -36,7 +36,7 @@ SELECT plan(33);
 \i /db/tests/fixtures/list_shared_alice_bob.sql
 
 -- Distinct display names so the display-name assertions are
--- non-vacuous (the signup default is the shared placeholder 'New user').
+-- non-vacuous (the signup default is the per-user provisional username).
 UPDATE public.profiles SET display_name = 'Alice'
 WHERE id = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
 UPDATE public.profiles SET display_name = 'Bob'
