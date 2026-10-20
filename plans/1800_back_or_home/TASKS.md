@@ -358,10 +358,10 @@ child `Icon` and its import.
 
 **Notes:** Done as specified; icon-path assertions unchanged and green.
 
-### [ ] 3.3 Record the cold-entry rule in `docs/ui.md`
+### [x] 3.3 Record the cold-entry rule in `docs/ui.md`
 
 **Created:** 2026-10-20T18:10:00Z
-**Completed:**
+**Completed:** 2026-10-20T18:50:00Z
 
 **Why:** "Navigation and back" says the in-app **←** always calls
 `history.back()`. That is no longer true when back would leave Cairn, and the
@@ -381,6 +381,9 @@ the **←** becomes a **Home** button to `/lists`. System back is left native.
 1. Edit the section; keep it short.
 
 **Verify:** `cd web && pnpm exec prettier --check ../docs/ui.md`
+
+**Notes:** Done as specified: one clause on the route-changes bullet, one new
+bullet after "The Lists screen is the back-stack root".
 
 ## Phase 4 — e2e and close-out
 
