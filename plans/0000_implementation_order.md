@@ -463,7 +463,7 @@ in-flight branch for no gain.
     table: the backup location, the processor (if not Hetzner) and the
     retention window. See `plans/2100_backups/`.
 
-22. [ ] **Back-or-home top-bar control.** Opening a bookmarked or
+22. [x] **Back-or-home top-bar control.** Opening a bookmarked or
     reopened deep URL left the top-bar ← calling `history.back()` into
     nothing, with no way home. The control now asks the browser
     (`navigation.canGoBack`) whether a Cairn page is behind the current
