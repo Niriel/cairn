@@ -133,10 +133,10 @@
 
 ## Phase 1 — production truth
 
-### [ ] 1.1 Size-cap production container logs
+### [x] 1.1 Size-cap production container logs
 
 **Created:** 2026-10-20T13:37:50Z
-**Completed:**
+**Completed:** 2026-10-20T13:51:37Z
 
 **Why:** Container logs currently grow without limit, so the privacy policy can't state any retention. A size cap is the cheapest fix that makes a retention statement true.
 
@@ -170,10 +170,10 @@
 
 **Verify:** `docker compose -f docker-compose.yml -f docker-compose.prod.yml --env-file .env.prod.example config -q` · the grep from step 3
 
-### [ ] 1.2 Audit what the logs actually contain
+### [x] 1.2 Audit what the logs actually contain
 
 **Created:** 2026-10-20T13:37:50Z
-**Completed:**
+**Completed:** 2026-10-20T14:45:52Z
 
 **Why:** The privacy policy must describe real log contents. `docs/logging.md` is a design that was never verified. The known suspects:
 
@@ -218,10 +218,30 @@
 
 **Verify:** `grep -n "Audit" docs/logging.md` shows the findings, not "pending" · Prettier check on both docs
 
-### [ ] 1.3 License Cairn as AGPL-3.0-or-later
+**Notes:**
+
+- **The STOP condition was hit and resolved with the user.** Three findings came out of the dev-stack probes, which sent requests with `203.0.113.7` in the forwarding headers:
+  - **GoTrue copies `X-Forwarded-For` / `X-Real-IP` into `remote_addr`.** The auth-proxy's generic pass-through forwarded both headers, so any request reaching it (for example `GET /auth/refresh`, because Caddy's `/auth/refresh*` route accepts every method) would log a real client IP.
+  - **Postgres repeats row contents** in the `DETAIL` of constraint-violation errors.
+  - **PostgREST's request lines carry the full query string and the User-Agent.** It logs Caddy's address, not the client's.
+- **The user chose the fixes**, and they were made here:
+  - `x-forwarded-for`, `x-real-ip` and `forwarded` are added to `SKIP_REQUEST_HEADERS` in `auth-proxy/src/index.ts`, covered by the new test `(h)` in `auth-proxy/test/shim.test.ts`. It was confirmed red, then green; all 96 auth-proxy tests pass.
+  - Postgres runs with `command: ["postgres", "-c", "log_error_verbosity=terse"]` in the base `docker-compose.yml`.
+  - `PGRST_LOG_LEVEL: crit` is set in the base `docker-compose.yml`.
+
+  Both compose settings are re-verified on the recreated dev services: the `DETAIL` line is gone from the server log, and PostgREST prints no request lines. pgTAP still passes (805 tests).
+- **Not done:** limiting Caddy's `/auth/refresh*` and `/auth/signout*` routes to POST. With the headers stripped it isn't needed for privacy.
+- **Doc corrections found by the audit:**
+  - slow-query logging is off (`log_min_duration_statement = -1`), not set to 1 s;
+  - PostgREST didn't log one line per request;
+  - the sidecar doesn't log upload attempts;
+  - Postgres and PostgREST write plain text, not JSON.
+- **Prod-facing.** The three fixes take effect on the next prod deploy: rebuild auth-proxy, then `up -d` to recreate postgres and postgrest.
+
+### [x] 1.3 License Cairn as AGPL-3.0-or-later
 
 **Created:** 2026-10-20T13:37:50Z
-**Completed:**
+**Completed:** 2026-10-20T14:46:20Z
 
 **Why:** The repo is going public under the AGPL (operator decision), but there is no LICENSE file and no `license` metadata. The in-app Source code page (Task 3.4) states the licence, so the repo must actually carry it.
 
