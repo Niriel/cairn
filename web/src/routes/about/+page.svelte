@@ -2,7 +2,7 @@
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import Icon from '$lib/basic/components/Icon.svelte';
-	import { APP_VERSION, BUILD_DATE, formatBuildLine } from '$lib/legal/model/build-info';
+	import { BUILD_LINE } from '$lib/legal/model/build-info';
 	import { HOSTING_COUNTRY, OPERATOR } from '$lib/legal/model/operator';
 	import CairnWordmark from '$lib/shared/components/CairnWordmark.svelte';
 	import NavRow from '$lib/shared/components/NavRow.svelte';
@@ -63,7 +63,7 @@
 			<CairnWordmark size={30} />
 			<p class="caption"><i>here's the way, you'll like this</i></p>
 			<p class="fine version" data-test="about-version">
-				{formatBuildLine(APP_VERSION, BUILD_DATE)}
+				{BUILD_LINE}
 			</p>
 		</header>
 

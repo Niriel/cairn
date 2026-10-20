@@ -12,7 +12,7 @@
 			<h3>{label}</h3>
 			<ul class="rows">
 				{#each ATTRIBUTIONS.filter((entry) => entry.group === group) as entry (entry.name)}
-					<li class="row credit">
+					<li class="row media credit">
 						<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -- external project site, not an app route -->
 						<a href={entry.url} rel="noopener">{entry.name}</a>
 						<span class="fine">{entry.license}</span>
@@ -31,10 +31,8 @@
 
 <style>
 	.credit {
-		display: flex;
 		align-items: baseline;
 		justify-content: space-between;
-		gap: 0.75rem;
 		padding-block: 0.75rem;
 	}
 </style>

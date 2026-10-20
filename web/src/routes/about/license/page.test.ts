@@ -2,6 +2,7 @@ import { describe, expect, test } from 'vitest';
 
 import { SOURCE_REPO_URL } from '$lib/legal/model/operator';
 import { render } from '$lib/test/render';
+import { headingTexts } from '$lib/test/text';
 
 import Page from './+page.svelte';
 
@@ -20,7 +21,7 @@ describe('/about/license', () => {
 
 	test('explains what the AGPL means and why it was chosen', () => {
 		const { container } = render(Page);
-		const headings = [...container.querySelectorAll('h2')].map((h) => h.textContent?.trim());
+		const headings = headingTexts(container);
 		expect(headings).toEqual(['What the AGPL means for you', 'Why the AGPL and not MIT']);
 	});
 });

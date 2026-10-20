@@ -10,7 +10,7 @@ describe('open-source attributions', () => {
 		const credited = new Set(ATTRIBUTIONS.map((entry) => entry.package).filter(Boolean));
 		const shipped = [...Object.keys(pkg.dependencies), ...EXTRA_ROOTS];
 		const missing = shipped.filter((name) => !credited.has(name));
-		expect(missing, 'add these to src/lib/legal/model/attributions.json').toEqual([]);
+		expect(missing, 'add these to src/lib/legal/model/attributions.ts').toEqual([]);
 	});
 
 	test('every entry names its licence and links to the project', () => {

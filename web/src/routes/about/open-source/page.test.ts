@@ -2,6 +2,7 @@ import { describe, expect, test, vi } from 'vitest';
 
 import { ATTRIBUTIONS, GROUP_LABELS } from '$lib/legal/model/attributions';
 import { render } from '$lib/test/render';
+import { headingTexts } from '$lib/test/text';
 
 import Page from './+page.svelte';
 
@@ -18,7 +19,7 @@ describe('/about/open-source', () => {
 
 	test('groups the credits under their headings', () => {
 		const { container } = render(Page);
-		const headings = [...container.querySelectorAll('h3')].map((h) => h.textContent?.trim());
+		const headings = headingTexts(container, 'h3');
 		expect(headings).toEqual(Object.values(GROUP_LABELS));
 	});
 

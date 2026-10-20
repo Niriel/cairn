@@ -9,7 +9,7 @@ import { OPERATOR, SOURCE_REPO_URL } from './operator';
 // file. This guard rejects the operator's identifying values anywhere else
 // under src/ — import them from $lib/legal/model/operator instead.
 const SRC = resolve(process.cwd(), 'src');
-const EXEMPT = new Set(['operator.ts', 'operator.test.ts', 'single-source.test.ts']);
+const EXEMPT = new Set(['operator.ts']);
 
 function sourceFiles(dir: string): string[] {
 	return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {

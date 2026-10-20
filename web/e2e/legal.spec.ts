@@ -10,9 +10,9 @@ const PASSWORD = 'cairn-e2e-pw';
 // readable before anyone signs up. See docs/legal.md.
 test.describe('legal pages, signed out', () => {
 	for (const [link, path, screen] of [
-		['signin-privacy-link', '/about/privacy', 'privacy-screen'],
-		['signin-terms-link', '/about/terms', 'terms-screen'],
-		['signin-imprint-link', '/about/imprint', 'imprint-screen']
+		['legal-privacy-link', '/about/privacy', 'privacy-screen'],
+		['legal-terms-link', '/about/terms', 'terms-screen'],
+		['legal-imprint-link', '/about/imprint', 'imprint-screen']
 	] as const) {
 		test(`the sign-in footer opens ${path}`, async ({ page }) => {
 			await page.goto('/');

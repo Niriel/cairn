@@ -110,7 +110,7 @@
 		</p>
 	</form>
 
-	<AuthLegalFooter hookPrefix="register" />
+	<AuthLegalFooter />
 </div>
 
 <Snackbar

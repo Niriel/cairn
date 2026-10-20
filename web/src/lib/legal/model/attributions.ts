@@ -1,5 +1,3 @@
-import entries from './attributions.json';
-
 // The open-source projects Cairn credits on the About → Open source screen.
 // `package` is set for npm packages that ship to the browser; a guard test
 // fails if a runtime dependency of the web app is missing from the list. The
@@ -15,7 +13,103 @@ export type Attribution = {
 	group: AttributionGroup;
 };
 
-export const ATTRIBUTIONS = entries as Attribution[];
+export const ATTRIBUTIONS: readonly Attribution[] = [
+	{
+		name: 'Svelte',
+		package: 'svelte',
+		license: 'MIT',
+		url: 'https://svelte.dev',
+		group: 'app'
+	},
+	{
+		name: 'SvelteKit',
+		package: '@sveltejs/kit',
+		license: 'MIT',
+		url: 'https://svelte.dev/docs/kit',
+		group: 'app'
+	},
+	{
+		name: 'JSZip',
+		package: 'jszip',
+		license: 'MIT or GPL-3.0',
+		url: 'https://stuk.github.io/jszip/',
+		group: 'app'
+	},
+	{
+		name: 'Newsreader',
+		package: '@fontsource-variable/newsreader',
+		license: 'SIL OFL 1.1',
+		url: 'https://fontsource.org/fonts/newsreader',
+		group: 'fonts'
+	},
+	{
+		name: 'JetBrains Mono',
+		package: '@fontsource-variable/jetbrains-mono',
+		license: 'SIL OFL 1.1',
+		url: 'https://fontsource.org/fonts/jetbrains-mono',
+		group: 'fonts'
+	},
+	{
+		name: 'PostgreSQL',
+		license: 'PostgreSQL',
+		url: 'https://www.postgresql.org',
+		group: 'server'
+	},
+	{
+		name: 'PostgREST',
+		license: 'MIT',
+		url: 'https://postgrest.org',
+		group: 'server'
+	},
+	{
+		name: 'GoTrue (Supabase Auth)',
+		license: 'MIT',
+		url: 'https://github.com/supabase/auth',
+		group: 'server'
+	},
+	{
+		name: 'Caddy',
+		license: 'Apache 2.0',
+		url: 'https://caddyserver.com',
+		group: 'server'
+	},
+	{
+		name: 'Express',
+		license: 'MIT',
+		url: 'https://expressjs.com',
+		group: 'server'
+	},
+	{
+		name: 'Nodemailer',
+		license: 'MIT-0',
+		url: 'https://nodemailer.com',
+		group: 'server'
+	},
+	{
+		name: 'Multer',
+		license: 'MIT',
+		url: 'https://github.com/expressjs/multer',
+		group: 'server'
+	},
+	{
+		name: 'sharp',
+		license: 'Apache 2.0',
+		url: 'https://sharp.pixelplumbing.com',
+		group: 'server'
+	},
+	{
+		name: 'file-type',
+		license: 'MIT',
+		url: 'https://github.com/sindresorhus/file-type',
+		group: 'server'
+	},
+	{
+		name: 'jose',
+		license: 'MIT',
+		url: 'https://github.com/panva/jose',
+		group: 'server'
+	}
+];
 
 export const GROUP_LABELS: Record<AttributionGroup, string> = {
 	app: 'In the app',

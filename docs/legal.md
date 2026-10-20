@@ -64,7 +64,7 @@ Each statement the privacy policy makes, the doc or file that makes it true, and
 
 Cairn is **AGPL-3.0-or-later**: the full text is `LICENSE` at the repository root, the copyright notice is in the root `README.md`, and every `package.json` declares the licence. `/about/license` states it in plain words and links to the source repository.
 
-Third-party code that ships to the browser carries notice obligations (MIT, BSD, and similar licences for code; the SIL OFL for the two self-hosted fonts). `/about/open-source` lists the main components by name and licence; `web/static/legal/licenses.txt` carries the full texts. That file is generated from `node_modules` by `pnpm gen:licenses` (`web/scripts/gen-licenses.mjs`) and committed; a Vitest drift guard fails when it no longer matches the installed dependencies, and another fails when a runtime dependency is missing from the curated list (`web/src/lib/legal/model/attributions.json`).
+Third-party code that ships to the browser carries notice obligations (MIT, BSD, and similar licences for code; the SIL OFL for the two self-hosted fonts). `/about/open-source` lists the main components by name and licence; `web/static/legal/licenses.txt` carries the full texts. That file is generated from `node_modules` by `pnpm gen:licenses` (`web/scripts/gen-licenses.mjs`) and committed; a Vitest drift guard fails when it no longer matches the installed dependencies, and another fails when a runtime dependency is missing from the curated list (`web/src/lib/legal/model/attributions.ts`).
 
 ## Open items
 

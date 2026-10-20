@@ -175,10 +175,6 @@ dl {
 	color: var(--ink-soft);
 }
 
-.prose .lede {
-	margin-block-start: 0;
-}
-
 /* Muted secondary / metadata line. Same 1rem floor as body — it is set apart
    by colour (--stone), not by being tiny. Genuinely-small text is the job of
    the Text-size setting, not a hardcoded sub-1rem role. */

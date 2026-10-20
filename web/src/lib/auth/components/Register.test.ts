@@ -69,6 +69,6 @@ describe('Register', () => {
 
 	test('(legal) shows the legal footer', () => {
 		const { getByDataTest } = render(Register);
-		expect(getByDataTest('register-privacy-link')).toBeTruthy();
+		expect(getByDataTest('legal-privacy-link')).toBeTruthy();
 	});
 });

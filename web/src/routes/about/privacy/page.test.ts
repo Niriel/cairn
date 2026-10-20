@@ -8,7 +8,7 @@ import {
 	SUPERVISORY_AUTHORITY
 } from '$lib/legal/model/operator';
 import { render } from '$lib/test/render';
-import { normalizedText } from '$lib/test/text';
+import { headingTexts, normalizedText } from '$lib/test/text';
 
 import Page from './+page.svelte';
 
@@ -51,7 +51,7 @@ describe('/about/privacy', () => {
 
 	test('(g) presents its sections in order', () => {
 		const { container } = render(Page);
-		const headings = [...container.querySelectorAll('h2')].map((h) => h.textContent?.trim());
+		const headings = headingTexts(container);
 		expect(headings).toEqual([
 			"Who's responsible",
 			'What we store',

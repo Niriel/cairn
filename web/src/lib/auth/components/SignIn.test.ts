@@ -71,6 +71,6 @@ describe('SignIn', () => {
 
 	test('(legal) shows the legal footer', () => {
 		const { getByDataTest } = render(SignIn);
-		expect(getByDataTest('signin-privacy-link')).toBeTruthy();
+		expect(getByDataTest('legal-privacy-link')).toBeTruthy();
 	});
 });

@@ -2,7 +2,7 @@ import { fireEvent } from '@testing-library/svelte';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 
 import { goto } from '$app/navigation';
-import { APP_VERSION, BUILD_DATE, formatBuildLine } from '$lib/legal/model/build-info';
+import { BUILD_LINE } from '$lib/legal/model/build-info';
 import { HOSTING_COUNTRY, OPERATOR } from '$lib/legal/model/operator';
 import { render } from '$lib/test/render';
 
@@ -27,17 +27,15 @@ const ROWS = [
 describe('/about', () => {
 	test('(a) shows the app version and build date', () => {
 		const { getByDataTest } = render(Page);
-		expect(getByDataTest('about-version').textContent?.trim()).toBe(
-			formatBuildLine(APP_VERSION, BUILD_DATE)
-		);
+		expect(getByDataTest('about-version').textContent?.trim()).toBe(BUILD_LINE);
 	});
 
 	test('(b) lists the six legal and project pages, in order', () => {
 		const { getByDataTest, container } = render(Page);
 		for (const [hook, title] of ROWS) expect(getByDataTest(hook).textContent).toContain(title);
-		const order = [...container.querySelectorAll('[data-test^="about-"]')]
-			.map((el) => el.getAttribute('data-test'))
-			.filter((hook) => ROWS.some(([rowHook]) => rowHook === hook));
+		const order = [...container.querySelectorAll('.nav-rows [data-test]')].map((el) =>
+			el.getAttribute('data-test')
+		);
 		expect(order).toEqual(ROWS.map(([hook]) => hook));
 	});
 
