@@ -204,7 +204,7 @@ These were decided after Phases 0–2 had landed. The task blocks for Phases 3 a
   - `.prose h3` is the ordinary normal-case `h3`, not an uppercase label;
   - the version line, the contact e-mail and the repo URL are not monospace, because `.mono` is reserved for numerics.
 - **Release.** This plan ships **1.0.0**, the official release. Off-site backups (master-plan step 21) remain open.
-- **Brand and contact address.** The operator brands their apps as **Lynnscape**, a personal label backed by the `lynnscape.eu` domain and not a legal entity. `operator.ts` gains `brand`, and the single-source guard covers it. The About footer reads "A Lynnscape app · …". The Imprint adds "Lynnscape is the personal label of Bertrand Delforge." The controller and the party to the Terms remain the person. The contact e-mail changed to `lynn@lynnscape.eu`.
+- **Brand and contact address.** The operator brands their apps as **Lynnscape**, a personal label backed by the `lynnscape.eu` domain and not a legal entity. `operator.ts` gains `brand`, and the single-source guard covers it. The About footer reads "A Lynnscape app · …". The Imprint adds "Lynnscape is the personal label of {operator name}." The controller and the party to the Terms remain the person. The contact e-mail changed to `lynn@lynnscape.eu`.
 
 ## Revision: post-review cleanup (Phase 6)
 

@@ -6,7 +6,7 @@ The doc is expected to evolve. Add to it as new items surface; strike items as t
 
 ## Operator context
 
-- **Sole developer.** Lynn is the only person committing to this repo and the only operator of the VPS. The remote (currently a private repo) is used to sync between machines and as off-laptop backup, not for collaboration.
+- **Sole developer.** Lynn is the only person committing to this repo and the only operator of the VPS. The remote is public, but it is used to sync between machines and as off-laptop backup, not for collaboration.
 - **History rewrites are acceptable.** Because no one else pulls from the remote, force-pushing after a `git filter-repo` is a non-event — re-clone any other machine and move on. This is worth stating explicitly because most git advice assumes shared history.
 - **Email today vs. tomorrow.** Commits today are authored as `Lynn <bdelforge@protonmail.com>`. Once `lynn@lynnscape.eu` exists, that becomes the canonical identity and prior history will be rewritten to match (see "Git identity migration" below).
 

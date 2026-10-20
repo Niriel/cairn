@@ -59,7 +59,7 @@ A Vitest guard fails if the operator's name, e-mail, or the repository URL appea
 
 The values for this deployment:
 
-- **Operator:** Bertrand Delforge, van Imhoffstraat 26, 9721 CP Groningen, Netherlands. A private individual.
+- **Operator:** a private individual in the Netherlands. Their name and postal address live only in `operator.ts`.
 - **E-mail:** `lynn@lynnscape.eu`
 - **Brand:** Lynnscape, the operator's personal label for their apps. It is a name, not a legal entity, so the legal pages still name the operator as controller and contracting party.
 - **Supervisory authority:** Autoriteit Persoonsgegevens

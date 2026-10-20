@@ -461,7 +461,7 @@ no-recovery-e-mail accounts, if added).
 - Implemented as the 7-task `plans/2006_alpha_migration/` sub-plan (merged here
   `--no-ff`); see its per-task Notes for detail. Its Verify was green on the
   sub-branch: full non-e2e gauntlet passed and `pnpm test:e2e --project=chromium
-  --project=firefox` was 102/102 (**WebKit not run — can't launch on this box**,
+--project=firefox` was 102/102 (**WebKit not run — can't launch on this box**,
   the standing `docs/testing.md` rule). The merge into `2000` is strictly
   fast-forward-equivalent (2006 was cut from 2000 with no divergence), so the
   merged tree is byte-identical to that verified sub-branch tree; the gauntlet is

@@ -252,7 +252,7 @@
 **Decisions:**
 
 - **`LICENSE`:** the verbatim GNU AGPL v3 text from `https://www.gnu.org/licenses/agpl-3.0.txt`. Fetch it, and check that it begins "GNU AFFERO GENERAL PUBLIC LICENSE / Version 3, 19 November 2007" and ends with the "How to Apply These Terms" appendix. Don't edit the text.
-- **README notice.** Add a short "Licence" section at the end of the root `README.md`: "Copyright (C) 2026 Bertrand Delforge. Cairn is free software under the GNU Affero General Public License v3.0 or later — see [`LICENSE`](LICENSE)."
+- **README notice.** Add a short "Licence" section at the end of the root `README.md`: "Copyright (C) 2026 <operator name>. Cairn is free software under the GNU Affero General Public License v3.0 or later — see [`LICENSE`](LICENSE)."
 - **Package metadata.** Set `"license": "AGPL-3.0-or-later"` in `web/package.json`, `auth-proxy/package.json` and `sidecar/package.json`. Place it after `"version"` (or after `"name"` if there's no version), and keep each file's key order otherwise.
 
 **Files:**
@@ -284,11 +284,11 @@
 - Create `web/src/lib/legal/model/operator.ts`. It is non-reactive and has no Svelte imports. It exports `as const` objects:
   ```ts
   export const OPERATOR = {
-  	name: "Bertrand Delforge",
-  	addressLines: ["van Imhoffstraat 26", "9721 CP Groningen"],
+  	name: "<operator name>",
+  	addressLines: ["<street and number>", "<postcode and town>"],
   	country: "Netherlands",
-  	email: "bdelforge@protonmail.com",
-  	town: "Groningen", // About-hub footer
+  	email: "<contact e-mail>",
+  	town: "<town>", // About-hub footer
   } as const;
   export const HOSTING_COUNTRY = "Germany";
   export const PROCESSORS = [

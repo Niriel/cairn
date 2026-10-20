@@ -577,7 +577,8 @@ unrunnable on the laptop — report, don't fake) · `./scripts/check.sh`
 - **Attempted the run; confirmed unrunnable on this box.** `pnpm exec playwright
 test --project=chromium` fails immediately with "browsers not installed"
   (`pnpm exec playwright install` never run on the laptop) — the launch dies in
-  `beforeAll`, so no assertion executed. Per project memory this is the laptop; the spec is left for the work box / CI (chromium + firefox; skip
+  `beforeAll`, so no assertion executed. Per project memory this is the laptop; the
+  spec is left for the work box / CI (chromium + firefox; skip
   webkit). **No pass is claimed.**
 - **`./scripts/check.sh` couldn't complete its `pnpm install --frozen-lockfile`
   step** in this non-TTY sandbox (`ERR_PNPM_ABORTED_REMOVE_MODULES_DIR_NO_TTY`).
