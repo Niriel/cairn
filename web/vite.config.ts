@@ -13,6 +13,7 @@ import {
 	PUBLIC_AUTH_PATHS,
 	isSegmentMatch
 } from './src/lib/shared/model/auth-paths';
+import { buildDefines } from './build-defines';
 
 // Module augmentation: every read site for the stamped original URL
 // goes through `req.cairnOriginalUrl` with full type safety, so a typo
@@ -978,6 +979,7 @@ export default defineConfig(({ mode }) => {
 			},
 			sveltekit()
 		],
+		define: buildDefines(),
 		server: { proxy: CAIRN_PROXY },
 		preview: { proxy: CAIRN_PROXY }
 	};

@@ -49,6 +49,7 @@ export default [
 			'*.config.{js,ts}',
 			'svelte.config.js',
 			'vite.config.ts',
+			'build-defines.ts',
 			'vitest.setup.ts',
 			'playwright.config.ts',
 			'scripts/**/*.{js,mjs}'
