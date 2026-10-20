@@ -29,12 +29,6 @@ test.describe('legal pages, signed out', () => {
 		await expect(page.locator('[data-test="imprint-email"]')).toHaveText(OPERATOR.email);
 	});
 
-	test('the legacy /imprint URL redirects to /about/imprint', async ({ page }) => {
-		await page.goto('/imprint');
-		await expect(page).toHaveURL(/\/about\/imprint$/);
-		await expect(page.locator('[data-test="imprint-screen"]')).toBeVisible();
-	});
-
 	test('the third-party licence texts are served', async ({ request }) => {
 		const response = await request.get('/legal/licenses.txt');
 		expect(response.status()).toBe(200);

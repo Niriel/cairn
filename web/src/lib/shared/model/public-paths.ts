@@ -5,8 +5,7 @@
 // against drift, so content routes must NOT be added there.
 // `/about` covers the About hub and every legal page beneath it (privacy
 // policy, terms, imprint, …): the privacy notice must be readable before
-// anyone signs up. The legacy `/imprint` needs no entry: its `load` redirects
-// to `/about/imprint` in the client router, before this guard sees the URL.
+// anyone signs up.
 // `/p` covers the read-only public-list view (`/p/<list_id>`): a signed-out
 // visitor with the link sees the list without being bounced to /auth/signin.
 export const PUBLIC_CONTENT_PATHS = ['/about', '/p'] as const;
