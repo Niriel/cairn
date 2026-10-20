@@ -29,9 +29,59 @@ There is no existing in-app-history signal to reuse — the closest module,
 `web/src/lib/shared/state/back-stack.svelte.ts`, tracks per-panel popstate
 guards, not page-level navigation — so a small new state module is warranted.
 
+## Design revision (2026-10-20): ask the browser
+
+The first two decisions below (an `afterNavigate` flag seeded from the root
+layout) shipped in Phases 1–2 and **did not work**. The branch then sat unmerged
+from June to October; it was rebased onto `main` and reworked in Phase 3.
+
+- **Why the flag never flipped correctly.** Cairn is client-only
+  (`ssr = false` in `src/routes/+layout.ts`). In that mode SvelteKit (2.59) runs
+  the first load through `navigate({ type: 'enter' })`, whose `from` is an object
+  with `url: null`, never `null` itself. `if (nav.from)` was therefore true on
+  every cold load. The flag flipped immediately, and a cold deep load still
+  showed the chevron with a dead `history.back()`. That is the "open bug" in
+  task 2.2's notes; the service-worker hypothesis was wrong. The unit tests
+  passed because they simulated `from: null`.
+- **Why fixing the check would not have been enough.** "Once true it stays
+  true" is wrong. Cold-load a list, open a sub-screen, press back (now on the
+  list), press back again: the flag is still true, `history.back()` runs, and
+  the user walks out of Cairn. The control needs to know whether the entry
+  **directly behind the current one** is a Cairn page, re-evaluated after
+  every history change.
+- **The decision: read `navigation.canGoBack`.** The browser's Navigation API
+  answers exactly that question. `canGoBack` is true only when the previous
+  entry in this tab's session history is same-origin. It is exact for cold
+  loads, back-then-back, `replaceState` redirects, shallow `pushState` guards,
+  and reloads (the browser keeps the entries). `nav-history.svelte.ts` mirrors
+  `navigation.canGoBack` into `$state`, refreshed on the API's
+  `currententrychange` event, in the same shape as `network.svelte.ts`.
+  The `afterNavigate` hook in the root layout is removed. The API is Baseline
+  since January 2026. A browser without it reports `false`, so the control
+  shows Home: always safe, never stranding.
+
+Rejected alternatives (recorded so later passes don't reopen them):
+
+- **The `afterNavigate` flag, fixed to check `nav.type !== 'enter'`.** It still
+  walks out of the app on back-then-back (above).
+- **An app-side depth counter** (reset on `enter`, +1 per link/goto, +`delta` on
+  popstate). `afterNavigate` doesn't say whether a `goto` replaced the
+  current entry, so redirects over-count, and a reload resets it. The app would
+  be guessing at what the browser already knows.
+- **SvelteKit's history index** (`history.state['sveltekit:history']`). Exact,
+  but a private key that could break silently on an upgrade.
+- **"Up" to a per-route parent instead of `history.back()`**, Android-style.
+  The arrow would disagree with system back (against `docs/ui.md` → "Navigation
+  and back"), and pushing the parent grows history with duplicates.
+- **A synthetic back stack** (on a cold deep load, replace the entry with the
+  parent and push the deep route back). It fakes entries the user never
+  visited, and Chrome's history-manipulation intervention skips entries
+  added without a user gesture, so system back would still leave the app.
+
 ## Decisions
 
-**Track an "in-app referrer" via `afterNavigate`, not `history.length`.**
+**[Superseded by the design revision above.] Track an "in-app referrer" via
+`afterNavigate`, not `history.length`.**
 `history.length` is unreliable (R2): a bookmarked URL opened in a tab that
 previously showed other sites reports `length > 1`, yet `history.back()` walks
 out of the app. SvelteKit's `afterNavigate` callback receives a `navigation`
@@ -40,7 +90,9 @@ subsequent link/goto/popstate. A boolean that flips true the first time `from`
 is non-null is exactly the "is there an in-app page behind us" signal, and once
 true it stays true — going back is then always safe.
 
-**A dedicated reactive state module, seeded from the root layout.** The flag
+**[Superseded by the design revision above: the module now mirrors
+`navigation.canGoBack` and nothing seeds it.] A dedicated reactive state
+module, seeded from the root layout.** The flag
 lives in `nav-history.svelte.ts` as a `$state` boolean behind a `navHistory`
 accessor object (same shape as the existing `session.current`), with a
 `recordInAppNavigation()` setter and a `_resetForTesting()` reset (mirroring
@@ -71,10 +123,13 @@ happy — `/lists` is an existing route, so no toolchain-coupling trap here).
 
 ### New files
 
-- **`web/src/lib/shared/state/nav-history.svelte.ts`** — reactive `navHistory`
-  accessor (`get hasInApp()`), `recordInAppNavigation()`, `_resetForTesting()`.
-- **`web/src/lib/shared/state/nav-history.test.ts`** — unit test for the flag
-  lifecycle.
+- **`web/src/lib/shared/state/nav-history.svelte.ts`** — `navHistory`, a
+  `$state` mirror of `navigation.canGoBack` refreshed on `currententrychange`
+  (`false` without the Navigation API).
+- **`web/src/lib/shared/state/__mocks__/nav-history.svelte.ts`** — controllable
+  stand-in for the consumer tests (BackOrHome, TopBar, ItemsScreen).
+- **`web/src/lib/shared/state/nav-history.test.ts`** — unit test against a fake
+  `navigation` object: initial value, change event, missing API.
 - **`web/src/lib/shared/components/BackOrHome.svelte`** — the back-or-home
   control; reads `navHistory`, swaps icon/label/behaviour.
 - **`web/src/lib/shared/components/BackOrHome.test.ts`** — both modes.
@@ -83,8 +138,9 @@ happy — `/lists` is an existing route, so no toolchain-coupling trap here).
 
 - **`web/src/lib/basic/model/icon-paths.ts`** — add the `home` icon path to
   `ICON_PATHS` (new `IconName` member).
-- **`web/src/routes/+layout.svelte`** — register `afterNavigate` to seed the
-  in-app-history flag.
+- **`web/src/routes/+layout.svelte`** — unchanged from `main` after Phase 3
+  (Phase 1's `afterNavigate` hook is removed again).
+- **`docs/ui.md`** — "Navigation and back" gains the cold-entry rule.
 - **`web/src/lib/shared/components/TopBar.svelte`** — replace the inline back
   `<button>` with `<BackOrHome />`; remove the now-dead `.icon-btn` CSS block.
 - **`web/src/lib/shared/components/TopBar.test.ts`** — update test (b) so the
@@ -95,12 +151,12 @@ happy — `/lists` is an existing route, so no toolchain-coupling trap here).
 Data flow:
 
 ```
-afterNavigate(nav.from != null)  ──►  recordInAppNavigation()  ──►  navHistory.hasInApp = true
-        (in +layout.svelte)                (nav-history module)              │
-                                                                            ▼
-                                                          BackOrHome reads navHistory.hasInApp
-                                                          ├─ true  → chevron-left, history.back()
-                                                          └─ false → home,        goto('/lists')
+browser: navigation.canGoBack  ──(currententrychange)──►  navHistory.canGoBack
+                                                                  │
+                                                                  ▼
+                                               BackOrHome reads navHistory.canGoBack
+                                               ├─ true  → chevron-left "Back", history.back()
+                                               └─ false → home "Home",         goto('/lists')
 ```
 
 Test layers (per `docs/testing.md`): all changes are web-only — Vitest for the
@@ -118,8 +174,13 @@ TDD throughout: each unit's RED (failing test) precedes its GREEN
 2. **Phase 2 — the control and wiring.** Build `BackOrHome` with its test
    (both modes, icon/label/behaviour swap), swap it into TopBar, update the
    TopBar test, and remove the dead `.icon-btn` CSS. (R1, R3, R4.)
-3. **Phase 3 — e2e and close-out.** Add the cold-load Playwright touch, run the
-   full check, and tick TODO #8.
+3. **Phase 3 — design revision.** Replace the flag with the
+   `navigation.canGoBack` mirror and its mock, drop the layout hook, move
+   `BackOrHome` onto `IconButton`'s `icon` prop, and record the cold-entry rule
+   in `docs/ui.md`. (R1, R2.)
+4. **Phase 4 — e2e and close-out.** Add the Playwright touch (cold load, and
+   back-then-back), run the full check, tick TODO #8, and restore step 1800 in
+   the roadmap.
 
 ## Reference docs and skills
 
@@ -133,7 +194,7 @@ TDD throughout: each unit's RED (failing test) precedes its GREEN
 
 ## Open questions
 
-- **Signed-out Home target.** A signed-out visitor cold-loading `/imprint` and
-  pressing Home goes to `/lists`, which the layout redirect bounces to
-  `/auth/login`. That's acceptable (Home = "the app's front door"); revisit
+- **Signed-out Home target.** A signed-out visitor cold-loading `/about/imprint`
+  and pressing Home goes to `/lists`, which the layout redirect bounces to
+  `/auth/signin`. That's acceptable (Home = "the app's front door"); revisit
   only if it reads oddly in review.
