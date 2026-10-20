@@ -246,7 +246,7 @@ This is fast — the whole rebuild takes a few seconds. Don't be precious about 
 
 ## Seed data
 
-`./scripts/seed.sh` first waits for GoTrue to be reachable, then POSTs `/signup` to GoTrue for Alice/Bob/Carol (emails `alice@example.test`, `bob@example.test`, `carol@example.test`; password `cairn-dev` for all three). `tg_profile_on_signup` synchronously creates the matching `profiles` and `user_settings` rows inside each signup transaction. The script then runs `db/seed/dev_seed.sql`, which `UPDATE`s the three profiles' `display_name` from the trigger's `'New user'` placeholder to `Alice`, `Bob`, `Carol`. The whole flow is idempotent: GoTrue's 422 "User already registered" is treated as success on rerun, and the SQL `UPDATE`s are naturally idempotent.
+`./scripts/seed.sh` first waits for GoTrue to be reachable, then POSTs `/signup` to GoTrue for Alice/Bob/Carol (emails `alice@example.test`, `bob@example.test`, `carol@example.test`; password `cairn-dev` for all three). `tg_profile_on_signup` synchronously creates the matching `profiles` and `user_settings` rows inside each signup transaction. The script then runs `db/seed/dev_seed.sql`, which `UPDATE`s the three profiles' `display_name` from the trigger's default (the provisional username) to `Alice`, `Bob`, `Carol`. The whole flow is idempotent: GoTrue's 422 "User already registered" is treated as success on rerun, and the SQL `UPDATE`s are naturally idempotent.
 
 We deliberately don't `INSERT` directly into `auth.users` — GoTrue's schema has version-dependent NOT NULL columns that a bare insert can't satisfy reliably, and any row we hand-craft would be one GoTrue refuses to authenticate against. The signup-then-UPDATE shape lets each side do what it's good at.
 
