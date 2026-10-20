@@ -127,9 +127,10 @@ dl {
 /* Long-form reading text (the legal pages). Applied to the container: a serif
    body with a generous line height and paragraph rhythm. Inside it, section
    titles are the ordinary h2 and sub-headings the ordinary h3 — never the
-   upper-cased form-label look. Plain (unclassed) lists get their bullets back
-   here because the global ul reset above removes them everywhere else; a list
-   with a class (e.g. .rows) is structural and stays bullet-free. */
+   upper-cased form-label look. Lists get their bullets back here because the
+   global ul reset above removes them everywhere else; a .rows list is
+   structural and stays bullet-free. (Not keyed on "has no class": Svelte adds
+   its scoping class to any list a component style touches.) */
 .prose {
 	font-family: 'Newsreader Variable', Georgia, serif;
 	font-size: 1rem;
@@ -149,13 +150,13 @@ dl {
 	margin-block: 1.125rem 0.375rem;
 }
 
-.prose ul:not([class]) {
+.prose ul:not(.rows) {
 	list-style: disc;
 	padding-inline-start: 1.125rem;
 	margin-block: 0.5rem 0.75rem;
 }
 
-.prose ul:not([class]) > li + li {
+.prose ul:not(.rows) > li + li {
 	margin-block-start: 0.25rem;
 }
 
