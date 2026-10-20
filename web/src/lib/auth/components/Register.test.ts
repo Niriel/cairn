@@ -66,4 +66,9 @@ describe('Register', () => {
 		const link = getByDataTest('register-signin-link') as HTMLAnchorElement;
 		expect(link.getAttribute('href')).toContain('/auth/signin');
 	});
+
+	test('(legal) shows the legal footer', () => {
+		const { getByDataTest } = render(Register);
+		expect(getByDataTest('legal-privacy-link')).toBeTruthy();
+	});
 });

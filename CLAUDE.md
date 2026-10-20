@@ -40,6 +40,16 @@ by running the code — stop and discuss it with the user directly, then fix
 it at its cheapest home (adjust the task, update the doc, or `/write-plan`
 a revision). Don't reach for `/concerns` to "handle" such a discovery.
 
+**Review findings are suggestions, not orders.** Before applying a
+`/simplify` or `/code-review` finding, check why the code is there:
+`git log -S'<snippet>'` on the lines it targets, and the plan's decision
+notes. Never reverse a choice recorded on this branch — a recent commit,
+or a decision in its `PLAN.md` — on a reviewer's say-so; raise it with the
+user instead. When a choice is a close call, record the rejected
+alternative in the plan's decisions so later passes don't reopen it. Prefer
+reviewing only the new work (`/simplify HEAD~N..HEAD`, or the uncommitted
+changes) over re-reviewing the whole branch.
+
 Cairn is in **alpha** — it's now live at `https://cairn.lynnscape.eu`
 (see "We are going live" below). The docs in `docs/` are living
 specifications, not holy tablets — when a plan finds a better

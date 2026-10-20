@@ -177,7 +177,7 @@ The other sections are navigation rows that open dedicated screens:
 - **App → Install Cairn** — only present when Cairn isn't already running installed. Fires the browser's install prompt where there is one, and otherwise opens an explainer sheet: the Safari share-sheet gesture on iOS, a generic "look in your browser's menu" elsewhere. Settings is installation's canonical home, since the first-launch hint on the Lists screen is dismissible.
 - **Privacy & data → Download my data** — produce a per-user export archive. See `data-export.md` and `design/cairn-export-screens.jsx`.
 - **Recovery → Deleted lists** — restore lists you've soft-deleted.
-- **About → About Cairn** — version, privacy policy, terms, open-source attributions, contact, license. See `design/cairn-legal-screens.jsx`.
+- **About → About Cairn** — opens `/about`: version, privacy policy, terms, imprint, open-source attributions, contact, licence. The legal pages are public (reachable signed out, linked from the sign-in footer), so they use the raw `<TopBar>`, not `<AppTopBar>`. See `legal.md` and `design/cairn-legal-screens.jsx`.
 - **Account → Sign out**, **Account → Delete account**.
 
 The **Sign out** action is the first row of the Account section. **Delete account** is in red, below Sign out, and opens a dedicated screen, not a confirmation dialog — see "Account deletion" below and `account-deletion.md` for the full model.
@@ -460,6 +460,14 @@ roles:
   attribution** and **item created/modified attribution**; **invite-picker**
   rows; and **circle** rows. Own-handle display in Settings uses the same role.
 - `.body` — default body copy.
+- `.prose` — long-form reading text (the legal pages). Applied to the
+  container, it sets the Newsreader serif body at a ~1.6 line height with
+  paragraph rhythm, and restores bullets on its `ul` (the global list reset
+  removes them everywhere else). Section titles inside it are the ordinary
+  `h2`; sub-headings are the ordinary `h3` — **not** an uppercase label (see
+  the label/title note below). A `.lede` inside it loses its top margin.
+- `.lede` — the italic opening paragraph of a screen, in `var(--ink-soft)`
+  (the legal pages, the Export hub). Its spacing stays local to the screen.
 - `.caption` — muted secondary / metadata line (1 rem, set apart by colour).
 - `.fine` — fine print: the one tier below the 1 rem floor (0.8 rem, `var(--stone)`)
   for attribution lines, the list-meta line, vote labels, and timestamps.
@@ -649,7 +657,7 @@ The TopBar uses `display: flex; align-items: flex-start; gap: 10px` (flex-start,
 
 These styles live inside `TopBar.svelte` — callers do not re-apply them. Screens that are the navigation root (e.g. Lists) pass a `left` snippet instead of `showBack={false}`.
 
-Inside the authenticated app, screens use `<AppTopBar>` instead of the raw `<TopBar>`. It's a thin wrapper that defaults `sub` to _"Signed in as Alice"_ (read from the profile state) when the caller doesn't supply one, so a screen with only a title — _Settings_, _Edit profile_, _Deleted lists_, _Crop_ — keeps the same two-line layout as screens that do have a real subtitle, instead of looking visually shorter than its neighbours. Pass `sub` explicitly to override (e.g. `<AppTopBar sub="3 items · 2 members">`), or use the raw `<TopBar>` if the screen is outside the signed-in context (auth pages).
+Inside the authenticated app, screens use `<AppTopBar>` instead of the raw `<TopBar>`. It's a thin wrapper that defaults `sub` to _"Signed in as Alice"_ (read from the profile state) when the caller doesn't supply one, so a screen with only a title — _Settings_, _Edit profile_, _Deleted lists_, _Crop_ — keeps the same two-line layout as screens that do have a real subtitle, instead of looking visually shorter than its neighbours. Pass `sub` explicitly to override (e.g. `<AppTopBar sub="3 items · 2 members">`), or use the raw `<TopBar>` if the screen is outside the signed-in context (auth pages, and the public `/about` legal pages).
 
 ### Row navigation pattern
 

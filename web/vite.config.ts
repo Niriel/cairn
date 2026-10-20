@@ -10,19 +10,9 @@ import type { IncomingMessage, ServerResponse } from 'node:http';
 import {
 	CSRF_HEADER,
 	LOGOUT_PATHS,
-	PUBLIC_AUTH_PATHS,
 	isSegmentMatch
 } from './src/lib/shared/model/auth-paths';
-
-// Module augmentation: every read site for the stamped original URL
-// goes through `req.cairnOriginalUrl` with full type safety, so a typo
-// can't silently fall through to the rewritten `req.url`. See
-// auth-paths.ts and Task 1.4 Decisions.
-declare module 'node:http' {
-	interface IncomingMessage {
-		cairnOriginalUrl?: string;
-	}
-}
+import { buildDefines } from './build-defines';
 
 // Dev-only cookie shim. In production Caddy translates between the
 // HttpOnly cookies and the `Authorization: Bearer …` header that
@@ -726,14 +716,6 @@ async function handleDevResetPassword(req: IncomingMessage, res: ServerResponse)
 // the dev server has, or the specs can't authenticate. Both hosts expose the
 // same Connect middleware stack, so one installer serves both.
 function installAuthShimMiddlewares(server: ViteDevServer | PreviewServer): void {
-	// Neither hook returns a function → these install before Vite's internal
-	// proxy; see auth-paths.ts and Task 1.4 Decisions.
-	server.middlewares.use((req, _res, next) => {
-		if (req.url?.startsWith('/auth/') || req.url === '/auth') {
-			req.cairnOriginalUrl = req.url;
-		}
-		next();
-	});
 	// Sign-out: dev mirror of the prod POST /auth/signout handler
 	// (auth-proxy/src/index.ts) — revoke server-side at GoTrue, then
 	// clear both cookies (cleared regardless of the revoke outcome).
@@ -842,22 +824,19 @@ function installAuthShimMiddlewares(server: ViteDevServer | PreviewServer): void
 		}
 		void handleDevResetPassword(req, res);
 	});
-	// Password-grant lockdown (dev parity): the public GoTrue password
-	// grant must be unreachable; the only password-grant path is
-	// /auth/signin above. The lockdown is surgical — reject only
-	// grant_type=password (read from the query string), forward any other.
+	// Every other non-GET under /auth (dev parity with Caddy's method split and
+	// the prod auth-proxy, which has no generic GoTrue pass-through): 404, never
+	// forwarded to GoTrue. GET/HEAD falls through to SvelteKit, which routes the
+	// SPA's own /auth pages (sign-in, register, recovery).
 	server.middlewares.use((req, res, next) => {
-		if (req.url?.split('?')[0] !== '/auth/token' || req.method !== 'POST') {
+		const isPage = req.method === 'GET' || req.method === 'HEAD';
+		if (isPage || !isSegmentMatch(req.url, ['/auth'])) {
 			next();
 			return;
 		}
-		const grantType = new URLSearchParams(req.url.split('?')[1] ?? '').get('grant_type');
-		if (grantType === 'password') {
-			res.statusCode = 403;
-			res.end(JSON.stringify({ error: 'use /auth/signin' }));
-			return;
-		}
-		next();
+		res.statusCode = 404;
+		res.setHeader('content-type', 'application/json');
+		res.end(JSON.stringify({ error: 'not found' }));
 	});
 }
 
@@ -890,57 +869,6 @@ const CAIRN_PROXY: Record<string, ProxyOptions> = {
 				}
 			});
 		}
-	},
-	'/auth': {
-		target: 'http://localhost:9999',
-		changeOrigin: false,
-		rewrite: (p) => p.replace(/^\/auth/, ''),
-		// `bypass` runs before `rewrite`, so `req.url` is still the
-		// original `/auth/...` here. Returning a string short-circuits
-		// the proxy entirely and lets SvelteKit's router serve the
-		// page (e.g. `/auth/reset-password?code=…`); see auth-paths.ts.
-		bypass: (req) => (isSegmentMatch(req.url, PUBLIC_AUTH_PATHS) ? req.url : undefined),
-		selfHandleResponse: true,
-		configure: (proxy) => {
-			// This pass-through serves only anonymous GoTrue endpoints, so it
-			// attaches no cookie-derived bearer (bearer-attach retired).
-			proxy.on('proxyRes', (proxyRes, req: IncomingMessage, res: ServerResponse) => {
-				const chunks: Buffer[] = [];
-				proxyRes.on('data', (c: Buffer) => chunks.push(c));
-				proxyRes.on('end', () => {
-					let body = Buffer.concat(chunks);
-					for (const [k, v] of Object.entries(proxyRes.headers)) {
-						if (v === undefined) continue;
-						// Skip content-length so Node recomputes it from the
-						// (possibly rewritten) body in `res.end(body)`.
-						if (k.toLowerCase() === 'content-length') continue;
-						res.setHeader(k, v as string | string[]);
-					}
-					res.statusCode = proxyRes.statusCode ?? 502;
-					const ct = String(proxyRes.headers['content-type'] ?? '');
-					if (ct.includes('application/json') && proxyRes.statusCode === 200) {
-						try {
-							const json = JSON.parse(body.toString('utf8'));
-							// Strip any token from a forwarded body — JS has no use
-							// for one, the cookie is the source of truth, and this
-							// pass-through plants no session cookie (dev parity with
-							// the prod auth-proxy).
-							if (
-								typeof json?.access_token === 'string' ||
-								typeof json?.refresh_token === 'string'
-							) {
-								delete json.access_token;
-								delete json.refresh_token;
-								body = Buffer.from(JSON.stringify(json));
-							}
-						} catch {
-							// non-JSON or parse error — pass through unchanged.
-						}
-					}
-					res.end(body);
-				});
-			});
-		}
 	}
 };
 
@@ -963,10 +891,10 @@ export default defineConfig(({ mode }) => {
 	return {
 		plugins: [
 			{
-				// Stamps the original `/auth/...` URL onto the request before
-				// Vite's internal proxy rewrites it. The `proxyReq` and `proxyRes`
-				// handlers below need the original path to match against the
-				// path lists in auth-paths.ts (which are all `/auth/...`-shaped).
+				// Installs the dev mirror of the auth-proxy BFF (see
+				// installAuthShimMiddlewares). Neither hook returns a function, so the
+				// middlewares install before Vite's and SvelteKit's own — the /auth
+				// handlers and the catch-all 404 depend on running first.
 				name: 'cairn-auth-shim',
 				enforce: 'pre',
 				configureServer(server) {
@@ -978,6 +906,7 @@ export default defineConfig(({ mode }) => {
 			},
 			sveltekit()
 		],
+		define: buildDefines(),
 		server: { proxy: CAIRN_PROXY },
 		preview: { proxy: CAIRN_PROXY }
 	};

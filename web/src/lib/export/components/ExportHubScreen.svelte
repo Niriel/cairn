@@ -103,8 +103,6 @@
 	}
 
 	.lede {
-		font-style: italic;
-		color: var(--stone);
 		margin-bottom: 1.125rem;
 	}
 

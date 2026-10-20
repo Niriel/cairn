@@ -91,6 +91,20 @@ describe('sign-in rate limiting', () => {
 		expect(blocked.status).toBe(429);
 	});
 
+	it('sweep forgets callers whose failures have aged out, even if they never return', async () => {
+		await fail({ ip: '3.3.3.3', username: 'erin' });
+		clock += CONFIG.ipWindowMs / 2;
+		await fail({ ip: '4.4.4.4' });
+		limiter.sweep();
+		expect(limiter.size).toBe(3); // nothing has aged out yet
+		clock += CONFIG.ipWindowMs / 2 + 1; // the first caller's failures age out
+		limiter.sweep();
+		expect(limiter.size).toBe(1); // only 4.4.4.4 is still held
+		clock += CONFIG.ipWindowMs;
+		limiter.sweep();
+		expect(limiter.size).toBe(0);
+	});
+
 	it('the per-IP window slides: failures age out and the block lifts', async () => {
 		for (let i = 0; i < CONFIG.ipMax; i++) await fail({ ip: '1.1.1.1' });
 		expect((await fail({ ip: '1.1.1.1' })).status).toBe(429);

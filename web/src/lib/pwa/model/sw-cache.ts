@@ -84,6 +84,16 @@ export function shouldKeepOnPurge(url: URL, incomingListId: string): boolean {
 }
 
 /**
+ * True for a navigation the cached SPA shell should answer. No app route ends
+ * in a file extension (the only route params are UUIDs), so a navigation to a
+ * path that does — `/legal/licenses.txt`, an avatar opened in its own tab — is
+ * for a static file the server holds and goes to the network instead.
+ */
+export function servesShell(url: URL): boolean {
+	return !url.pathname.slice(url.pathname.lastIndexOf('/') + 1).includes('.');
+}
+
+/**
  * True for a write against PostgREST — any non-GET under `/api`. Deliberately
  * broader than `classifyApiRequest`, which only knows the paths worth caching:
  * `POST /api/rpc/create_list` is unclassifiable yet changes the overview, so

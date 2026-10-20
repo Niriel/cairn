@@ -4,8 +4,21 @@
 # docker-compose.override.yml, so none of the dev-only services/ports
 # (static, mailpit, public Postgres/PostgREST/GoTrue) reach production.
 # This overlay adds only what prod needs on top of the prod-safe base.
+
+# Every prod service caps its container log: json-file, 10 MB x 5 files,
+# so at most ~50 MB per service before Docker drops the oldest lines. The
+# driver's default is unbounded, and the privacy policy states this cap (see
+# docs/logging.md and docs/legal.md). Takes effect when a container is
+# recreated (docker compose up -d), which also discards its existing log.
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "5"
+
 services:
   postgres:
+    logging: *default-logging
     # Loopback-only publish so migrate.sh can reach localhost:5432. This is
     # the only published port besides Caddy's, and binding to 127.0.0.1 keeps
     # it off the internet even though Docker bypasses ufw's INPUT filter.
@@ -14,6 +27,7 @@ services:
     restart: unless-stopped
 
   gotrue:
+    logging: *default-logging
     environment:
       # GoTrue reads this without the GOTRUE_ prefix (envconfig quirk).
       API_EXTERNAL_URL: https://cairn.${DOMAIN}/auth
@@ -35,6 +49,7 @@ services:
     restart: unless-stopped
 
   auth-proxy:
+    logging: *default-logging
     build: ./auth-proxy
     environment:
       GOTRUE_URL: http://gotrue:9999
@@ -71,13 +86,21 @@ services:
       retries: 3
     restart: unless-stopped
 
+  postgrest:
+    logging: *default-logging
+
+  sidecar:
+    logging: *default-logging
+
   web:
+    logging: *default-logging
     build: ./web
     depends_on:
       - postgrest
     restart: unless-stopped
 
   caddy:
+    logging: *default-logging
     ports:
       - "80:80"
       - "443:443"

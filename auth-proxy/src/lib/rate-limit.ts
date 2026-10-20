@@ -111,6 +111,25 @@ export class RateLimiter {
 		if (username) this.accountFailures.delete(username);
 	}
 
+	// Drop every bucket whose failures have all aged out. countRecent only prunes
+	// the key it is asked about, so a caller who never returns would otherwise
+	// stay in memory until the process restarts; index.ts runs this on a timer,
+	// which bounds how long a client IP or username is held to about one window.
+	sweep(): void {
+		const now = this.now();
+		for (const key of [...this.ipFailures.keys()]) {
+			this.countRecent(this.ipFailures, key, now, this.config.ipWindowMs);
+		}
+		for (const key of [...this.accountFailures.keys()]) {
+			this.countRecent(this.accountFailures, key, now, this.config.accountWindowMs);
+		}
+	}
+
+	/** Number of IPs and usernames currently held in memory. */
+	get size(): number {
+		return this.ipFailures.size + this.accountFailures.size;
+	}
+
 	private push(map: Map<string, number[]>, key: string, now: number): void {
 		const arr = map.get(key);
 		if (arr) arr.push(now);
@@ -118,7 +137,7 @@ export class RateLimiter {
 	}
 
 	// Count timestamps still inside the window, pruning the expired ones in place
-	// (lazy cleanup — bounds the maps without a separate sweep timer).
+	// (lazy cleanup for the key being checked; sweep() covers the rest).
 	private countRecent(
 		map: Map<string, number[]>,
 		key: string,

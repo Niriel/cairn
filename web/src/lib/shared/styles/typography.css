@@ -124,6 +124,58 @@ dl {
 	line-height: 1.5;
 }
 
+/* Long-form reading text (the legal pages). Applied to the container: a serif
+   body with a generous line height and paragraph rhythm. Inside it, section
+   titles are the ordinary h2 and sub-headings the ordinary h3 — never the
+   upper-cased form-label look. Lists get their bullets back here because the
+   global ul reset above removes them everywhere else; a .rows list is
+   structural and stays bullet-free. (Not keyed on "has no class": Svelte adds
+   its scoping class to any list a component style touches.) */
+.prose {
+	font-family: 'Newsreader Variable', Georgia, serif;
+	font-size: 1rem;
+	line-height: 1.6;
+	color: var(--ink);
+}
+
+.prose p {
+	margin-block: 0 0.75rem;
+}
+
+.prose h2 {
+	margin-block: 1.375rem 0.5rem;
+}
+
+.prose h3 {
+	margin-block: 1.125rem 0.375rem;
+}
+
+.prose ul:not(.rows) {
+	list-style: disc;
+	padding-inline-start: 1.125rem;
+	margin-block: 0.5rem 0.75rem;
+}
+
+.prose ul:not(.rows) > li + li {
+	margin-block-start: 0.25rem;
+}
+
+.prose a {
+	color: var(--accent);
+}
+
+/* Postal addresses read as ordinary text, not the browser's default italic. */
+.prose address {
+	font-style: normal;
+}
+
+/* The italic opening paragraph of a screen (the legal pages, the Export hub).
+   Its spacing stays with the context that places it. */
+.lede {
+	font-style: italic;
+	color: var(--ink-soft);
+}
+
 /* Muted secondary / metadata line. Same 1rem floor as body — it is set apart
    by colour (--stone), not by being tiny. Genuinely-small text is the job of
    the Text-size setting, not a hardcoded sub-1rem role. */

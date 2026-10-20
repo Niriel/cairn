@@ -1,158 +1,73 @@
-import { describe, it, expect, beforeAll, afterAll, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
 import http from 'node:http';
 import type { AddressInfo } from 'node:net';
 import request from 'supertest';
 import { app } from '../src/index.js';
 
-// A stub GoTrue: records the last request it received and replies via a
-// per-test `respond` callback (default: a 200 JSON carrying tokens, so the
-// narrowing tests prove the cookie-plant/bearer fire *only* where allowed,
-// not merely because the response lacked tokens).
-interface CapturedRequest {
-	method: string;
-	url: string;
-	headers: http.IncomingHttpHeaders;
-	body: string;
-}
-
-let lastReq: CapturedRequest | null;
-let respond: (req: http.IncomingMessage, res: http.ServerResponse) => void;
+// The auth-proxy calls GoTrue only from its dedicated BFF handlers. Any other
+// /auth/* request Caddy forwards here (every non-GET) — an unknown path, or a
+// stray method on a BFF path — gets a 404 and never reaches GoTrue. That is what keeps client addresses
+// out of GoTrue's request log (see docs/logging.md).
+let gotrueReqs: { method: string; url: string }[];
 let gotrue: http.Server;
-// A stub PostgREST kept so these tests stay offline and hermetic. The generic
-// /auth pass-through does not itself call PostgREST (the cookie-plant
-// enrichment retired with the magic-link surface), so the stub is defensive.
-let postgrest: http.Server;
-
-function defaultRespond(_req: http.IncomingMessage, res: http.ServerResponse) {
-	res.statusCode = 200;
-	res.setHeader('content-type', 'application/json');
-	res.end(
-		JSON.stringify({ access_token: 'AAA.token', refresh_token: 'RRR.token', user: { id: 'u1' } })
-	);
-}
 
 beforeAll(async () => {
 	gotrue = http.createServer((req, res) => {
-		const chunks: Buffer[] = [];
-		req.on('data', (c: Buffer) => chunks.push(c));
-		req.on('end', () => {
-			lastReq = {
-				method: req.method ?? '',
-				url: req.url ?? '',
-				headers: req.headers,
-				body: Buffer.concat(chunks).toString('utf8')
-			};
-			respond(req, res);
-		});
-	});
-	postgrest = http.createServer((_req, res) => {
+		gotrueReqs.push({ method: req.method ?? '', url: req.url ?? '' });
 		res.statusCode = 200;
 		res.setHeader('content-type', 'application/json');
-		res.end('[]'); // no profile row → enrichment degrades to { id }
+		res.end('{}');
 	});
 	await new Promise<void>((resolve) => gotrue.listen(0, '127.0.0.1', resolve));
-	await new Promise<void>((resolve) => postgrest.listen(0, '127.0.0.1', resolve));
 	process.env.GOTRUE_URL = `http://127.0.0.1:${(gotrue.address() as AddressInfo).port}`;
-	process.env.POSTGREST_URL = `http://127.0.0.1:${(postgrest.address() as AddressInfo).port}`;
 });
 
 afterAll(async () => {
 	await new Promise<void>((resolve, reject) =>
 		gotrue.close((err) => (err ? reject(err) : resolve()))
 	);
-	await new Promise<void>((resolve, reject) =>
-		postgrest.close((err) => (err ? reject(err) : resolve()))
-	);
 });
 
 beforeEach(() => {
-	lastReq = null;
-	respond = defaultRespond;
-	delete process.env.COOKIE_SECURE;
+	gotrueReqs = [];
 });
 
-afterEach(() => {
-	delete process.env.COOKIE_SECURE;
-});
+// Caddy sets X-Real-IP and adds X-Forwarded-For on every request it routes
+// here; GoTrue would copy either into the `remote_addr` of its log line.
+const FORWARDED = {
+	'X-Forwarded-For': '203.0.113.7',
+	'X-Real-IP': '203.0.113.7',
+	Forwarded: 'for=203.0.113.7'
+};
 
-function sessionCookie(res: request.Response): string | undefined {
-	// Prefix-aware: in prod (COOKIE_SECURE=true) the durable cookie is
-	// __Host-cairn_session; in dev it is unprefixed. Match either.
-	const raw: unknown = res.headers['set-cookie'];
-	const list = Array.isArray(raw) ? (raw as string[]) : [];
-	return list.find((c) => /^(?:__Host-)?cairn_session=/.test(c));
-}
-
-function accessCookie(res: request.Response): string | undefined {
-	const raw: unknown = res.headers['set-cookie'];
-	const list = Array.isArray(raw) ? (raw as string[]) : [];
-	return list.find((c) => c.startsWith('cairn_access='));
-}
-
-// Read the Authorization header GoTrue saw, via a helper so the assertions
-// aren't tripped by TS narrowing `lastReq` to `null` after a `lastReq = null`
-// reset (the value is repopulated asynchronously by the stub's request handler).
-function capturedAuthHeader(): string | undefined {
-	return lastReq?.headers.authorization;
-}
-
-describe('auth-proxy shim', () => {
-	it('(a) plants no cookies on a GoTrue pass-through, even on a token-returning 200 (cookie-plant retired)', async () => {
-		const onToken = await request(app).post('/auth/token').send({ grant_type: 'refresh_token' });
-		expect(sessionCookie(onToken)).toBeUndefined();
-		expect(accessCookie(onToken)).toBeUndefined();
-
-		const onMagiclink = await request(app).post('/auth/magiclink').send({ email: 'x@y.z' });
-		expect(sessionCookie(onMagiclink)).toBeUndefined();
-		expect(accessCookie(onMagiclink)).toBeUndefined();
-	});
-
-	it('(b) strips access_token and refresh_token from the forwarded body', async () => {
-		const res = await request(app).post('/auth/token').send({ grant_type: 'refresh_token' });
-		const body = res.body as { access_token?: string; refresh_token?: string; user?: unknown };
-		expect(body.access_token).toBeUndefined();
-		expect(body.refresh_token).toBeUndefined();
-		expect(body.user).toEqual({ id: 'u1' });
-	});
-
-	it('(c) attaches no cookie-derived bearer on any GoTrue pass-through (bearer-attach retired)', async () => {
-		// The BFF no longer reads a cookie into an upstream Authorization header;
-		// GoTrue sees no bearer even when the access cookie is present.
-		await request(app).get('/auth/user').set('Cookie', 'cairn_access=xxx.yyy.zzz');
-		expect(capturedAuthHeader()).toBeUndefined();
-
-		lastReq = null;
-		await request(app)
-			.post('/auth/magiclink')
-			.set('Cookie', 'cairn_access=xxx.yyy.zzz')
-			.send({ email: 'x@y.z' });
-		expect(capturedAuthHeader()).toBeUndefined();
-	});
-
-	it('(d) drops a client-supplied Authorization header on an anonymous endpoint', async () => {
-		await request(app)
-			.post('/auth/magiclink')
-			.set('Authorization', 'Bearer client-supplied')
-			.send({ email: 'x@y.z' });
-		expect(capturedAuthHeader()).toBeUndefined();
-	});
-
-	// Sign-out moved to POST /auth/signout (revocable, server-side); its
-	// behaviour is covered by signout.test.ts. The cookie Secure + __Host-
-	// prefix behaviour is covered by cookies.test.ts (plantSession directly),
-	// now that no /auth pass-through plants a cookie.
-
-	it('(g) forwards a GoTrue 302 unfollowed — Location verbatim, no cookie, no body rewrite', async () => {
-		const location = 'https://cairn.example/auth/callback#access_token=ZZZ&refresh_token=QQQ';
-		respond = (_req, res) => {
-			res.statusCode = 302;
-			res.setHeader('Location', location);
-			res.end('redirecting');
-		};
-		const res = await request(app).get('/auth/verify?token=abc&type=magiclink');
-		expect(res.status).toBe(302);
-		expect(res.headers.location).toBe(location);
-		expect(sessionCookie(res)).toBeUndefined();
-		expect(res.text).toBe('redirecting');
+describe('auth-proxy: no generic GoTrue pass-through', () => {
+	// The public password grant is among these: the only password-grant path is
+	// the rate-limited /auth/signin.
+	it.each([
+		[
+			'an unknown /auth path',
+			() => request(app).get('/auth/user').set('Cookie', 'cairn_access=xxx.yyy.zzz')
+		],
+		[
+			'a GoTrue-native endpoint',
+			() => request(app).post('/auth/magiclink').send({ email: 'x@y.z' })
+		],
+		[
+			'the public password grant',
+			() =>
+				request(app)
+					.post('/auth/token?grant_type=password')
+					.send({ email: 'u1@cairn.internal', password: 'x' })
+		],
+		[
+			'any other grant type',
+			() => request(app).post('/auth/token?grant_type=refresh_token').send({ refresh_token: 'r' })
+		],
+		['a stray method on a BFF path', () => request(app).get('/auth/refresh').set(FORWARDED)]
+	])('answers %s with 404 and never calls GoTrue', async (_name, send) => {
+		const res = await send();
+		expect(res.status).toBe(404);
+		expect(res.body).toEqual({ error: 'not found' });
+		expect(gotrueReqs).toHaveLength(0);
 	});
 });

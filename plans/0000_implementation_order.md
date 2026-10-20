@@ -294,13 +294,23 @@ in-flight branch for no gain.
     described in `docs/architecture.md` (offline-first conflict
     resolution is explicitly *not* a v1 goal).
 
-14. [ ] **Legal & About surface.** About hub (L1), Privacy policy (L2 —
+14. [x] **Legal & About surface.** About hub (L1), Privacy policy (L2 —
     references `docs/logging.md`), Terms of service (L3), Imprint
     (L4 — every legally-required field must be filled in by launch;
-    needs a German-speaking lawyer's pass — see
+    needs a review under Dutch/EU law, since the operator is
+    established in the Netherlands — see `docs/legal.md` and
     `docs/open-questions.md`), Open source attributions (L5), Contact
     (L6), Cairn license (L7). Mostly static content; no DB work. See
-    `design/cairn-legal-screens.jsx`.
+    `design/cairn-legal-screens.jsx` and `plans/1400_legal_about/`.
+    Making the privacy policy true also capped production container
+    logs and kept client IPs and row contents out of them (see
+    `docs/logging.md` → "Audit"). **This step ships version 1.0.0**,
+    the official release. Still open: the lawyer review
+    (`docs/open-questions.md`) and off-site backups (step 21).
+    Phase 6 removed the auth-proxy's generic GoTrue pass-through, so
+    production needs `docker compose -f docker-compose.yml -f
+    docker-compose.prod.yml --env-file .env.prod up -d --build
+    auth-proxy`.
 
 15. [x] **Production rollout.** Add the missing `caddy/Caddyfile.prod`,
     `.env.prod` template, Restic backup script, the avatar sidecar
@@ -309,35 +319,32 @@ in-flight branch for no gain.
     the first Hetzner deploy following `docs/deployment.md`. The
     imprint screen's placeholders must be replaced with the real
     company / contact details before the deploy goes public.
-    Production smoke check. **Auth hardening from Step 3:** the
-    production GoTrue service MUST set
+    Production smoke check. **Auth hardening from Step 3:** this
+    step originally required production to set
     `GOTRUE_MAILER_AUTOCONFIRM=false` and
-    `GOTRUE_DISABLE_SIGNUP=true` so the committed dev password
-    (`cairn-dev`, used by Step 3's seed flow and dev login
-    shortcut) cannot be used against prod and so `POST
-    /auth/signup` cannot create unsolicited accounts. Cairn is
-    invite-only per `docs/invites.md`, so signup-disabled is the
-    correct default; this line exists as a checklist item so the
-    step-15 owner can't miss it. See also the same forward-note
-    in `docs/development.md` under "Seed data".
+    `GOTRUE_DISABLE_SIGNUP=true`. Superseded: production
+    deliberately runs **open signup with autoconfirm** (the auth-proxy's
+    `/auth/register` flow needs both, and the per-IP register throttle
+    bounds mass signup), and the committed dev password never reaches
+    prod because no production path runs the seed script. Invitations
+    govern who joins a *list*, not who may register. The decision and
+    its reasoning are in `docs/development.md` → "Production posture".
 
     > **Done out of order.** Step 15 was executed and merged ahead of
     > steps 10–14 — the deploy infrastructure was validated first, on
     > purpose, before finishing the app. The box is ticked for the
-    > **infrastructure rollout** (Caddyfile.prod, `.env.prod`, Restic
-    > backups, avatar sidecar in `docker-compose.prod.yml`,
-    > `/srv/cairn/avatars/`, first Hetzner deploy, prod smoke check —
-    > all done; the box at `cairn.lynnscape.eu` is live). **Still
+    > **infrastructure rollout** (Caddyfile.prod, `.env.prod`, avatar
+    > sidecar in `docker-compose.prod.yml`, `/srv/cairn/avatars/`,
+    > first Hetzner deploy, prod smoke check — all done; the box at
+    > `cairn.lynnscape.eu` is live). **Restic backups were deferred,
+    > not done, and are not running** — see step 21. **Still
     > outstanding**, because they depend on unstarted steps:
-    > - The **imprint** (step 14, L4). A temporary imprint page exists
-    >   but its fields are **not filled in** — it carries placeholders,
-    >   not the real company / contact details. This is a launch-blocker
-    >   under German law (see the sequencing rationale below) and must be
-    >   completed before the deploy is treated as publicly launched.
-    > - Account deletion (step 10), admin (step 11), and data export
-    >   (step 12) have since landed and merged — their boxes are ticked
-    >   above. Still genuinely unstarted are the **PWA shell** (step 13)
-    >   and **legal & about** (step 14).
+    > - The **imprint** (step 14, L4) is now complete with the real
+    >   operator details, as part of the full legal surface. The lawyer
+    >   review is still open (`docs/open-questions.md`).
+    > - Account deletion (step 10), admin (step 11), data export
+    >   (step 12), the PWA shell (step 13) and legal & about (step 14)
+    >   have all since landed and merged — their boxes are ticked above.
 
 16. [x] **Public, read-only, shareable lists.** A member can flag a list
     public, producing a link anyone (no account, no invite) can open to a
@@ -431,6 +438,31 @@ in-flight branch for no gain.
       proven recovery address), then remove the magic-link / e-mail-OTP
       sign-in surface. Prod-facing.
 
+21. [ ] **Off-site backups.** The live box has **no backups**. Step 15's
+    infrastructure rollout deferred Restic (see
+    `plans/1500_production_rollout/REQUIREMENTS.md` → deferred items),
+    even though `docs/architecture.md` and `docs/deployment.md` describe
+    it as in place. Covers:
+    - Nightly encrypted, deduplicated backups of the Postgres database
+      (`pg_dump -Fc`) **and** the avatar files under
+      `/srv/cairn/avatars/` (the current `deployment.md` script misses
+      them, contradicting `docs/avatars.md`).
+    - An off-machine EU target, the Hetzner Storage Box by default,
+      with the Restic password held off the VPS.
+    - Automatic pruning to a stated retention (the docs propose 7
+      daily, 4 weekly, 12 monthly).
+    - The backup script committed under `scripts/`, plus a
+      `crontab.example` entry.
+    - Failure that doesn't go unnoticed: at minimum, a non-zero exit
+      that cron mails to the operator.
+    - A **restore drill** run once against a scratch database and
+      written up in `docs/deployment.md`.
+
+    Prod-facing. When it lands, update the privacy policy's "no
+    off-site backups" line and its row in the `docs/legal.md` claims
+    table: the backup location, the processor (if not Hetzner) and the
+    retention window. See `plans/2100_backups/`.
+
 ## Sequencing rationale
 
 - DB before UI so RLS-backed product code has something real to talk
@@ -478,9 +510,10 @@ in-flight branch for no gain.
   imprint / OSS attribution screens that a careful user will look
   for around installation.
 - **Legal & About (step 14) before production rollout (step 15)**
-  because the imprint is a launch-blocker under German law (operating
-  out of a Hetzner DE box) — the page must exist and must carry real
-  fields, not placeholders, on the day the box goes public.
+  because the imprint and an accurate privacy notice are launch-blockers
+  (the operator is established in the Netherlands, so Dutch/EU law
+  applies — see `docs/legal.md`) — the pages must exist and must carry
+  real facts, not placeholders, on the day the box goes public.
 - Production rollout (step 15) last: deployable and installable is
   the polish layer once the product works.
 - **Steps 16–19 were out-of-band, post-alpha plans** — public lists, the
@@ -493,6 +526,15 @@ in-flight branch for no gain.
   surface, so it has to migrate real accounts rather than greenfield
   ones, and it deliberately supersedes the e-mail-login work (0302, and
   step 17's e-mail OTP) that shipped first.
+- **Off-site backups (step 21) are a gap found late, not a late
+  priority.** They belonged in step 15's rollout, were deferred there,
+  and the docs went on describing them as done. That came to light
+  while writing step 14's privacy policy, which has to state truthfully
+  that there are none yet. The live box carries real users' data with
+  no copy off the machine, so this step should run as soon as
+  possible, independent of step 14. Whichever lands second updates the
+  other: if backups land first, step 14's policy describes them; if
+  step 14 lands first, step 21 changes the policy line.
 
 ## Verification
 

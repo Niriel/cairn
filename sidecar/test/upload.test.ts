@@ -75,4 +75,19 @@ describe('POST /avatars', () => {
 			expect(res.status).toBe(400);
 		});
 	});
+
+	describe('JSON body', () => {
+		it('is neither parsed nor logged', async () => {
+			const logged = vi.spyOn(console, 'error').mockImplementation(() => {});
+			const token = await validToken();
+			const res = await request(app)
+				.post('/avatars')
+				.set('Authorization', `Bearer ${token}`)
+				.set('Content-Type', 'application/json')
+				.send('{"note": "private words"');
+			expect(res.status).toBe(400);
+			expect(JSON.stringify(logged.mock.calls)).not.toContain('private words');
+			logged.mockRestore();
+		});
+	});
 });

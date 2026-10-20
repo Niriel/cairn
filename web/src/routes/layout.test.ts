@@ -84,25 +84,18 @@ describe('+layout.svelte (auth guard)', () => {
 		}
 	);
 
-	test('(e2) signed-out on /imprint (public content path): children render, no redirect', async () => {
-		session.current = { status: 'signed-out' };
-		setUrl('/imprint');
-		const { queryByDataTest } = render(Layout, { children: childStub });
-		await tick();
-		expect(queryByDataTest('layout-children')).not.toBeNull();
-		expect(queryByDataTest('boot-screen')).toBeNull();
-		expect(vi.mocked(goto)).not.toHaveBeenCalled();
-	});
-
-	test('(e3) signed-out on /p/<id> (public list view): children render, no redirect', async () => {
-		session.current = { status: 'signed-out' };
-		setUrl('/p/aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa');
-		const { queryByDataTest } = render(Layout, { children: childStub });
-		await tick();
-		expect(queryByDataTest('layout-children')).not.toBeNull();
-		expect(queryByDataTest('boot-screen')).toBeNull();
-		expect(vi.mocked(goto)).not.toHaveBeenCalled();
-	});
+	test.each(['/p/aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', '/about', '/about/privacy'])(
+		'(e2) signed-out on public content path %s: children render, no redirect',
+		async (path) => {
+			session.current = { status: 'signed-out' };
+			setUrl(path);
+			const { queryByDataTest } = render(Layout, { children: childStub });
+			await tick();
+			expect(queryByDataTest('layout-children')).not.toBeNull();
+			expect(queryByDataTest('boot-screen')).toBeNull();
+			expect(vi.mocked(goto)).not.toHaveBeenCalled();
+		}
+	);
 
 	test('(f) signed-out on /auth/signinx (sibling-prefix): redirects (segment-anchored predicate)', async () => {
 		session.current = { status: 'signed-out' };

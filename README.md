@@ -220,3 +220,8 @@ The full toolchain is documented in [`docs/quality.md`](docs/quality.md).
 - [`docs/testing.md`](docs/testing.md) — the three test layers (pgTAP, Vitest, Playwright).
 - [`docs/quality.md`](docs/quality.md) — lint, format, type check, hooks.
 - `design/Cairn - Design Canvas.html` — open in a browser to see every screen.
+
+## Licence
+
+Copyright (C) 2026 Bertrand Delforge. Cairn is free software under the GNU
+Affero General Public License v3.0 or later — see [`LICENSE`](LICENSE).

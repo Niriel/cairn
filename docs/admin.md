@@ -159,10 +159,10 @@ grant  execute on function admin.ban_user(uuid, text) to cairn_admin;
 
 `banned_until` only governs _new_ token issuance (a fresh sign-in or a refresh). A user who is banned but holds a still-valid session cookie will continue to make authenticated requests until the access JWT expires or the cookie is cleared. Two defences:
 
-- **JWT lifetime.** GoTrue's `GOTRUE_JWT_EXP` is set to one hour in production (the cookie's `Max-Age` is longer; Caddy refreshes the cookie value when GoTrue issues a new token via its refresh-token flow, which the ban breaks). One hour is the worst-case window between a ban landing and the banned user being unable to make API calls.
-- **Hard expiry.** If "one hour is too long" is ever true (it isn't, today), the ban can be made effective immediately by either rotating `JWT_SECRET` (invalidates every session for every user — heavy) or by adding a `revoked_at` column on a session table and consulting it in the `public.uid()` helper. The latter is a v2 problem, deliberately not designed for v1. The audit row records the moment of ban; if a follow-up "session continued for N minutes after ban" question matters, the Caddy access log filtered by `cairn_session=<that user's cookie>` answers it within the 24-hour IP-retention window.
+- **JWT lifetime.** GoTrue's `GOTRUE_JWT_EXP` is 300 seconds (`docker-compose.yml`, so dev and production alike). The durable session cookie lives longer, but turning it into a fresh access token goes through the auth-proxy's refresh exchange, which the ban breaks. About five minutes is the worst-case window between a ban landing and the banned user being unable to make API calls.
+- **Hard expiry.** If "five minutes is too long" is ever true (it isn't, today), the ban can be made effective immediately by either rotating `JWT_SECRET` (invalidates every session for every user — heavy) or by adding a `revoked_at` column on a session table and consulting it in the `public.uid()` helper. The latter is a v2 problem, deliberately not designed for v1. The audit row records the moment of ban. There is no access log to reconstruct what a session did afterwards — by design, see `logging.md` — and with a five-minute token the window is too short to matter.
 
-For Cairn's threat model — a small group of friends, the rare bad actor — one-hour worst case is fine.
+For Cairn's threat model — a small group of friends, the rare bad actor — a five-minute worst case is fine.
 
 ### What the web app shows when a banned user tries to sign in
 
