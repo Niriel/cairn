@@ -1,6 +1,8 @@
 <script lang="ts">
 	import type { HTMLTextareaAttributes } from 'svelte/elements';
 
+	import { focusAtEnd } from '../model/focus-at-end';
+
 	type Props = {
 		value: string;
 		id?: string;
@@ -12,6 +14,8 @@
 		// minHeight wins over rows when both are provided
 		rows?: number;
 		minHeight?: string;
+		// Focus on mount, caret at the end — see focusAtEnd.
+		autofocus?: boolean;
 		'data-test'?: string;
 		oninput?: (e: Event) => void;
 		onchange?: (e: Event) => void;
@@ -19,12 +23,20 @@
 		onkeydown?: (e: KeyboardEvent) => void;
 	};
 
-	let { value = $bindable(), disabled = false, rows, minHeight, ...rest }: Props = $props();
+	let {
+		value = $bindable(),
+		disabled = false,
+		rows,
+		minHeight,
+		autofocus = false,
+		...rest
+	}: Props = $props();
 
 	const rowsProp = $derived(minHeight ? undefined : rows);
 </script>
 
 <textarea
+	{@attach autofocus && focusAtEnd}
 	bind:value
 	{disabled}
 	rows={rowsProp}

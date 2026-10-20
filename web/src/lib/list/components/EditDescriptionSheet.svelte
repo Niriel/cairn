@@ -50,9 +50,6 @@
 				if (e.key === 'Enter' && !e.shiftKey && !submitting) {
 					e.preventDefault();
 					void handleSave();
-				} else if (e.key === 'Escape') {
-					e.preventDefault();
-					onclose();
 				}
 			}}
 		/>

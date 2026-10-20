@@ -22,6 +22,16 @@
 
 	const SERVER_ERROR_MESSAGE = "Couldn't reach the server. Try again.";
 
+	// Leaving a mode removes the element that had focus (the field, or the
+	// Remove button), dropping focus to the page body. Set before such a switch;
+	// the Add / Change button that renders next takes focus back.
+	let returnFocus = false;
+	function takeReturnedFocus(node: HTMLElement) {
+		if (!returnFocus) return;
+		returnFocus = false;
+		node.focus();
+	}
+
 	function startEditing() {
 		email = '';
 		emailValid = false;
@@ -30,6 +40,7 @@
 	}
 
 	function cancel() {
+		returnFocus = true;
 		mode = 'idle';
 		error = null;
 	}
@@ -58,6 +69,7 @@
 
 	function onConfirmed() {
 		userSettings.recoveryEmail = pendingEmail;
+		returnFocus = true;
 		mode = 'idle';
 	}
 
@@ -67,6 +79,7 @@
 		error = null;
 		try {
 			await removeRecoveryEmail();
+			returnFocus = true;
 			userSettings.recoveryEmail = null;
 		} catch {
 			error = SERVER_ERROR_MESSAGE;
@@ -91,6 +104,7 @@
 					autocomplete="email"
 					inputmode="email"
 					data-test="recovery-email-input"
+					autofocus
 					oninput={onEmailInput}
 				/>
 			</div>
@@ -129,6 +143,7 @@
 					type="button"
 					data-test="recovery-email-change"
 					onclick={startEditing}
+					{@attach takeReturnedFocus}
 				>
 					Change
 				</Button>
@@ -156,6 +171,7 @@
 			type="button"
 			data-test="recovery-email-add"
 			onclick={startEditing}
+			{@attach takeReturnedFocus}
 		>
 			Add recovery e-mail
 		</Button>

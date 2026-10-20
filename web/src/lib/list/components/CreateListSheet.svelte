@@ -51,12 +51,6 @@
 				bind:value={name}
 				required
 				placeholder="List name"
-				onkeydown={(e: KeyboardEvent) => {
-					if (e.key === 'Escape') {
-						e.preventDefault();
-						onclose();
-					}
-				}}
 			/>
 		</div>
 		<div class="field">
@@ -71,9 +65,6 @@
 					if (e.key === 'Enter' && !e.shiftKey && !submitting) {
 						e.preventDefault();
 						void handleSubmit();
-					} else if (e.key === 'Escape') {
-						e.preventDefault();
-						onclose();
 					}
 				}}
 			/>

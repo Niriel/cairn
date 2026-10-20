@@ -107,4 +107,22 @@ describe('TextInput', () => {
 		const input = container.querySelector('input') as HTMLInputElement;
 		expect(input.getAttribute('maxlength')).toBe('6');
 	});
+
+	test('autofocus focuses the input with the caret at the end', () => {
+		const { container } = render(TextInput, { value: 'hello', autofocus: true });
+		const input = container.querySelector('input') as HTMLInputElement;
+		expect(document.activeElement).toBe(input);
+		expect(input.selectionStart).toBe(5);
+		expect(input.selectionEnd).toBe(5);
+	});
+
+	test('autofocus works on type="email"', () => {
+		const { container } = render(TextInput, { value: 'a@b.test', type: 'email', autofocus: true });
+		expect(document.activeElement).toBe(container.querySelector('input'));
+	});
+
+	test('without autofocus the input is not focused', () => {
+		const { container } = render(TextInput, { value: '' });
+		expect(document.activeElement).not.toBe(container.querySelector('input'));
+	});
 });

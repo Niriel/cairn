@@ -64,4 +64,24 @@ describe('RecoveryEmailRow', () => {
 		expect(queryByDataTest('recovery-email-add')).not.toBeNull();
 		expect(queryByDataTest('recovery-email-address')).toBeNull();
 	});
+
+	test('the e-mail input is focused when the edit form opens', async () => {
+		const { getByDataTest } = render(RecoveryEmailRow);
+		await fireEvent.click(getByDataTest('recovery-email-add'));
+		expect(document.activeElement).toBe(getByDataTest('recovery-email-input'));
+	});
+
+	test('Cancel returns focus to the Add button', async () => {
+		const { getByDataTest } = render(RecoveryEmailRow);
+		await fireEvent.click(getByDataTest('recovery-email-add'));
+		await fireEvent.click(getByDataTest('recovery-email-cancel'));
+		expect(document.activeElement).toBe(getByDataTest('recovery-email-add'));
+	});
+
+	test('Remove moves focus to the Add button that replaces it', async () => {
+		userSettings.recoveryEmail = 'alice@example.test';
+		const { getByDataTest } = render(RecoveryEmailRow);
+		await fireEvent.click(getByDataTest('recovery-email-remove'));
+		expect(document.activeElement).toBe(getByDataTest('recovery-email-add'));
+	});
 });

@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { untrack } from 'svelte';
 	import Button from '$lib/basic/components/Button.svelte';
 	import Label from '$lib/basic/components/Label.svelte';
 	import Sheet from '$lib/basic/components/Sheet.svelte';
@@ -24,8 +25,11 @@
 	const initialName = $derived(item?.name ?? '');
 	const initialNotes = $derived(item?.notes ?? '');
 
-	let name = $state('');
-	let notes = $state('');
+	// Seeded at creation, not only by the effect below: Sheet focuses the name
+	// field (caret at the end) as soon as it mounts, which needn't wait for
+	// this component's effects, so the value must already be there.
+	let name = $state(untrack(() => initialName));
+	let notes = $state(untrack(() => initialNotes));
 
 	$effect(() => {
 		name = initialName;
@@ -70,12 +74,6 @@
 				bind:value={name}
 				required
 				placeholder="Name"
-				onkeydown={(e: KeyboardEvent) => {
-					if (e.key === 'Escape') {
-						e.preventDefault();
-						oncancel();
-					}
-				}}
 			/>
 		</div>
 
@@ -93,9 +91,6 @@
 					if (e.key === 'Enter' && !e.shiftKey && !submitting) {
 						e.preventDefault();
 						void handleSubmit();
-					} else if (e.key === 'Escape') {
-						e.preventDefault();
-						oncancel();
 					}
 				}}
 			/>

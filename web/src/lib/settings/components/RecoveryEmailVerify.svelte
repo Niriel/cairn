@@ -62,6 +62,7 @@
 			maxlength={6}
 			placeholder="000000"
 			data-test="recovery-email-code"
+			autofocus
 			oninput={onCodeInput}
 		/>
 		{#if error}

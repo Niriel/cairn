@@ -108,4 +108,17 @@ describe('Textarea', () => {
 		const { getByDataTest } = render(Textarea, { value: '', 'data-test': 'notes-field' });
 		expect(getByDataTest('notes-field').tagName.toLowerCase()).toBe('textarea');
 	});
+
+	test('autofocus focuses the textarea with the caret at the end', () => {
+		const { container } = render(Textarea, { value: 'hello', autofocus: true });
+		const ta = container.querySelector('textarea') as HTMLTextAreaElement;
+		expect(document.activeElement).toBe(ta);
+		expect(ta.selectionStart).toBe(5);
+		expect(ta.selectionEnd).toBe(5);
+	});
+
+	test('without autofocus the textarea is not focused', () => {
+		const { container } = render(Textarea, { value: '' });
+		expect(document.activeElement).not.toBe(container.querySelector('textarea'));
+	});
 });
