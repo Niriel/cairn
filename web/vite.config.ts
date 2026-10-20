@@ -891,7 +891,9 @@ export default defineConfig(({ mode }) => {
 		plugins: [
 			{
 				// Installs the dev mirror of the auth-proxy BFF (see
-				// installAuthShimMiddlewares).
+				// installAuthShimMiddlewares). Neither hook returns a function, so the
+				// middlewares install before Vite's and SvelteKit's own — the /auth
+				// handlers and the catch-all 404 depend on running first.
 				name: 'cairn-auth-shim',
 				enforce: 'pre',
 				configureServer(server) {
