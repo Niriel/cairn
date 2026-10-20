@@ -126,6 +126,7 @@
   - Task 3.4 puts the contact e-mail and the repository URL in mono.
 
   The `.prose` entry in `docs/ui.md` follows the existing rules: sub-headings are the ordinary `h3`. Run `/concerns` to align Tasks 2.2, 3.4 and 3.6.
+
 - **Stale docs outside this task's scope.**
   - `docs/data-model.md`'s device-storage inventory claims to be canonical but omits `cairn.user` and `cairn.install_hint_dismissed`.
   - `docs/account-deletion.md:168` still says data export is "not yet built".
@@ -230,6 +231,7 @@
   - `PGRST_LOG_LEVEL: crit` is set in the base `docker-compose.yml`.
 
   Both compose settings are re-verified on the recreated dev services: the `DETAIL` line is gone from the server log, and PostgREST prints no request lines. pgTAP still passes (805 tests).
+
 - **Not done:** limiting Caddy's `/auth/refresh*` and `/auth/signout*` routes to POST. With the headers stripped it isn't needed for privacy.
 - **Doc corrections found by the audit:**
   - slow-query logging is off (`log_min_duration_statement = -1`), not set to 1 s;
@@ -268,10 +270,10 @@
 
 ## Phase 2 — legal foundation
 
-### [ ] 2.1 Add deployment facts, build info and the single-source guard
+### [x] 2.1 Add deployment facts, build info and the single-source guard
 
 **Created:** 2026-10-20T13:37:50Z
-**Completed:**
+**Completed:** 2026-10-20T14:49:31Z
 
 **Why:** Every legal page needs the operator's identity, processors and dates. The operator asked that a forker can retarget the site by editing **one file**. The About hub needs the app version and build date.
 
@@ -357,10 +359,18 @@
 
 **Verify:** `cd web && pnpm test -- src/lib/legal` · `pnpm check` · `pnpm lint` · `pnpm build` (check that the define reaches the production bundle: `grep -r "build 20" build/ || grep -rl "0.0.1" build/_app | head -1`)
 
-### [ ] 2.2 Add the `.prose` type role and the `LegalPage` shell
+**Notes:**
+
+- **Path fix in the guard.** `single-source.test.ts` locates `src/` with `resolve(process.cwd(), 'src')`, the same pattern as `pwa/model/manifest.test.ts`. Under happy-dom, `import.meta.url` isn't a `file:` URL, so `fileURLToPath` throws.
+- **The guard was proven to fire.** A planted `OPERATOR.email` in `format-date.ts` failed the test, naming the file, and was then reverted.
+- **Side work.** `build-defines.ts` was added to ESLint's untyped tooling-file list in `eslint.config.js`, alongside `vite.config.ts`.
+- **Bundle check deferred.** The `define` can't be confirmed in the production bundle yet: nothing imports `build-info.ts` until the About hub (Task 3.6), so the constants are tree-shaken out. The Vitest assertion that `APP_VERSION` equals `package.json`'s version shows the shared define reaches Vitest. Re-check the bundle in Task 3.6.
+- **Release version.** The user set the release version to **1.0.0**: this plan is the last step before the official release. `web/`, `auth-proxy/` and `sidecar/` `package.json` were bumped from `0.0.1`, so the About hub reads `v1.0.0 · build <date>`.
+
+### [x] 2.2 Add the `.prose` type role and the `LegalPage` shell
 
 **Created:** 2026-10-20T13:37:50Z
-**Completed:**
+**Completed:** 2026-10-20T14:50:35Z
 
 **Why:** All six sub-screens share one look: a top bar with title and subtitle, then a long serif text with section headings, uppercase sub-labels and bulleted lists. Global typography resets lists to no bullets. Per `docs/ui.md`, visual styling is global and layout is local.
 
@@ -412,10 +422,15 @@
 
 **Verify:** `cd web && pnpm test -- src/lib/legal` · `pnpm check` · `pnpm lint`
 
-### [ ] 2.3 Make `/about` and its children public
+**Notes:**
+
+- **Deviation: `.prose h3` is the ordinary `h3`, not an uppercase label.** The Decisions above asked for an uppercase, tracked, `--stone` sub-label. `docs/ui.md` → "Label vs. title" reserves that look for the form `<Label>` and says "Do not re-introduce uppercase section headers". The `.prose` entry written in Task 0.2 follows that rule, so `.prose h3` only adds vertical rhythm and inherits the global `h3` role. Later tasks that use `h3` inside `.prose` (3.2, 3.4, 3.5) get a normal-case sub-heading.
+- **Global paragraph rhythm.** `.prose`'s margins (`p`, `h2`, `h3`, `ul`, `li`) live in the global role, because they are the reading rhythm of long-form text, not one component's layout. `LegalPage`'s scoped style holds only its padding.
+
+### [x] 2.3 Make `/about` and its children public
 
 **Created:** 2026-10-20T13:37:50Z
-**Completed:**
+**Completed:** 2026-10-20T14:52:21Z
 
 **Why:** The legal pages must render for signed-out visitors (sign-in footer links, shared URLs). The client-side guard in `web/src/routes/+layout.svelte` bounces any path not on an allowlist.
 
@@ -511,11 +526,12 @@
   1. **Lede**: "Cairn is built with privacy as its first constraint. This page tells you what that means in practice — no jargon, no hedging."
   2. **Who's responsible.** `OPERATOR.name`, the address lines, the country, and a `mailto:` e-mail. "As a private individual, I'm the data controller." Use first person singular for the operator only here and where natural. Otherwise keep the design's "we/us" voice consistently, so choose one voice and apply it to the whole page. **Recommended:** "we" throughout, with the controller sentence "Cairn is run by {name}, who is the data controller."
   3. **What we store.**
-     - `h3` _About you_: username (visible to anyone signed in to Cairn), display name, profile photo if uploaded (resized to a small square image; the original is discarded), password (stored only as a one-way hash), and optionally a recovery e-mail address (used only to send password-reset codes, never shown to anyone, including other members).
+     - `h3` _About you_: username (visible to anyone signed in to Cairn), display name, profile photo if uploaded (resized to a small square image; the original is discarded), password (stored only as a one-way hash), and optionally a recovery e-mail address (used to send password-reset codes and, rarely, essential service notices such as a shutdown; never shown to anyone, including other members, and never used for marketing).
      - `h3` _About what you do_: lists you create or join, their items and notes, your votes, memberships, invitations, the people in your circle and the people you've blocked, and when each of these happened.
-     - `h3` _Technical_: the server logs per `docs/logging.md` (as found in Task 1.2), size-capped at about 50 MB per service with the oldest lines discarded, and never containing what you write. No web access log.
+     - `h3` _Technical_: the server logs per `docs/logging.md` → "Audit" (Task 1.2): size-capped at about 50 MB per service with the oldest lines discarded, never containing what you write, and holding no IP address. No web access log.
+     - Also under _Technical_: **your IP address is used, in memory only, to rate-limit sign-in and registration attempts.** It is never written to disk and is forgotten when the throttle window passes (`auth-proxy/src/lib/rate-limit.ts`). This is processing of personal data under GDPR, so it must be disclosed even though nothing is stored.
   4. **Public lists.** A member can turn on a list's public link. Anyone with the link can then see the read-only snapshot that `public_list_view` returns. List exactly what it exposes: read `docs/data-model.md` "Public read access" and the RPC in `db/migrations/`. Turning the link off ends access.
-  5. **Why, and on what basis.** Running the service you signed up for: GDPR Art. 6(1)(b). Keeping it secure (rate limiting and logs): our legitimate interest, Art. 6(1)(f).
+  5. **Why, and on what basis.** Running the service you signed up for: GDPR Art. 6(1)(b). Keeping it secure (in-memory IP rate limiting, technical logs, and moderation records): our legitimate interest, Art. 6(1)(f).
   6. **Where it lives.**
      - Render `PROCESSORS` as a list.
      - "One server in {HOSTING_COUNTRY}; everything stays inside the EU. Nothing touches Google, Amazon, Microsoft, or any other hyperscaler."
@@ -523,11 +539,13 @@
   7. **Who sees it.**
      - People you share a list with see that list's contents, and who added and voted on what.
      - Anyone signed in can see your username, display name and photo.
-     - The operator can technically read the database, and only does so to fix problems or when the law requires it.
+     - The operator can technically read the database, and only does so to fix problems, to act on abuse reports, or when the law requires it.
+     - When the operator moderates content, suspends an account, or acts on a data request, the action is recorded with a reason in an internal audit log (`admin.actions`; see `docs/admin.md`). Only the operator can read it.
   8. **How long we keep it.**
      - As long as you have an account.
      - Deleting your account is immediate. Summarise `docs/account-deletion.md`: what's erased, and what stays on shared lists under "Deleted user".
      - Things you delete inside a list go to that list's bin, where members can restore them. Don't promise a retention window (`docs/ui.md` bin rule).
+     - Records of moderation and data-request actions are kept as proof that they were carried out; an erasure record keeps only the account identifier, not the erased data (`docs/admin.md` → `delete_account_as`). Read `docs/admin.md` first and describe it exactly; don't promise a retention window the code doesn't enforce.
   9. **Your rights.**
      - Access and portability: _Settings → Privacy & data → Download my data_.
      - Correction: edit your profile in Settings.
@@ -562,7 +580,10 @@
    - (e) the storage section mentions "two cookies" and four local-storage settings;
    - (f) the "no off-site backups" sentence is present;
    - (g) the `h2` headings appear in the order above;
-   - (h) there is no placeholder (`/\[[^\]]+\]/`).
+   - (h) there is no placeholder (`/\[[^\]]+\]/`);
+   - (i) the in-memory IP rate-limiting disclosure is present;
+   - (j) the recovery-e-mail description mentions essential service notices;
+   - (k) the moderation audit log is mentioned.
 3. GREEN: write the page.
 
 **Verify:** `cd web && pnpm test -- src/routes/about/privacy src/lib/legal` · `pnpm check` · `pnpm lint`
@@ -585,7 +606,7 @@
   - **Your account**: you're responsible for what you put on lists and who you invite. Nothing illegal, harassing, or infringing someone else's rights. Don't try to break the service for others.
   - **Your content**: it stays yours. You let us store it and show it to the people you share it with, and nothing more.
   - **Our promises**: we'll do our best to keep Cairn running and your data safe, but it's provided as-is, without warranty, to the extent the law allows. It's run by one person; treat it as such.
-  - **Suspension**: for abuse (spam, harassment, attacks) we may suspend or delete an account, and we'll say why unless the law forbids it.
+  - **Suspension**: for abuse (spam, harassment, attacks) we may suspend or delete an account. You won't get a notice in the app — a suspended account simply can't sign in (`docs/admin.md` keeps admin actions invisible) — but you can write to us to ask why.
   - **Ending the deal**: you can delete your account any time from Settings. We may shut Cairn down with at least 30 days' notice in the app, and by e-mail if you've set a recovery address, so you can download your data first.
   - **Liability**: to the extent the law allows, we're not liable for indirect or consequential losses. Mandatory consumer rights are unaffected.
   - **Governing law**: `{GOVERNING_LAW.law}`. Disputes go to `{GOVERNING_LAW.court}`, unless the consumer-protection rules of the country you live in say otherwise.
@@ -596,7 +617,7 @@
 
 **Steps:**
 
-1. RED: test that the sub shows the formatted date, that the governing-law section contains `GOVERNING_LAW.law` and `GOVERNING_LAW.court`, that the "30 days" notice is present, that the `h2` order matches Decisions, and that there is no placeholder.
+1. RED: test that the sub shows the formatted date, that the governing-law section contains `GOVERNING_LAW.law` and `GOVERNING_LAW.court`, that the "30 days" notice is present, that the suspension section says you can write to ask why (and promises no in-app notice), that the `h2` order matches Decisions, and that there is no placeholder.
 2. GREEN: write the page.
 
 **Verify:** `cd web && pnpm test -- src/routes/about/terms` · `pnpm check` · `pnpm lint`
@@ -616,7 +637,7 @@
   - Lede: "One address for everything. We usually answer within a few days."
   - **E-mail card.** Bordered with `--rule`, radius 12px → `0.75rem`, padding about `0.875rem 1rem`, with layout styles local. Contents:
     - an `h3` label "E-mail";
-    - a mono, `--accent`, weight-600 `mailto:` link to `OPERATOR.email` (`data-test="contact-email"`);
+    - a `mailto:` link to `OPERATOR.email` (`data-test="contact-email"`) in the ordinary `.prose a` style. **Not** monospace: `docs/ui.md` reserves `.mono` for numerics;
     - a `ul` of what to write about:
       - bugs, questions and feedback;
       - **security**: vulnerabilities or concerns about how Cairn handles your data. We won't pursue legal action against good-faith research;
@@ -626,7 +647,7 @@
   - No PGP-key claim, and no role aliases.
 - **`/about/license`**: `<LegalPage title="Source code" sub="Cairn is open source" data-test="license-screen">`.
   - The intro paragraph (not a lede): "Cairn itself is published under the **GNU Affero General Public License, version 3 or later** (AGPL-3.0-or-later). The source — every line that runs on the server and in your browser — is public:"
-  - **Repository box.** `--paper-alt` background, `--rule` border, radius `0.75rem`, mono `--accent`. It holds an `Icon name="compass"` and a link to `SOURCE_REPO_URL` (`data-test="license-repo-link"`), with the URL shown without its `https://`.
+  - **Repository box.** `--paper-alt` background, `--rule` border, radius `0.75rem`; the link in the ordinary `.prose a` style (not monospace — `.mono` is numerics-only per `docs/ui.md`). It holds an `Icon name="compass"` and a link to `SOURCE_REPO_URL` (`data-test="license-repo-link"`), with the URL shown without its `https://`.
   - `h2` **What the AGPL means for you**, as a `ul`:
     - you can read the code, run your own copy, and change it;
     - if you run a modified version as a network service, you must publish your changes — that's the difference between the AGPL and the plain GPL;
@@ -715,7 +736,7 @@
   - **Identity block.** Centred, padding `1.75rem 1.375rem 1.375rem`, `border-bottom: 1px solid var(--rule)`. Contents:
     - the wordmark: `CairnWordmark` from `$lib/shared/components/` if it exists, otherwise a serif "Cairn" using the `.t-hero` role or similar;
     - the tagline "here's the way, you'll like this" in serif italic, `--stone`, small;
-    - the version line `formatBuildLine(APP_VERSION, BUILD_DATE)` in the global `.mono`, `--stone-lt`, small, with `margin-top: 0.75rem` (`data-test="about-version"`).
+    - the version line `formatBuildLine(APP_VERSION, BUILD_DATE)` (`v1.0.0 · build <date>`) in the global `.fine` role, with `margin-top: 0.75rem` (`data-test="about-version"`). **Not** `.mono`: `docs/ui.md` reserves it for numerics and says dates are never mono.
   - **Six rows** inside `<div class="nav-rows">`. Each is a `NavRow` with a `lead` snippet `<Icon name=… size={ICON_SIZE} />` (match `SettingsScreen.svelte`'s `ICON_SIZE`), a `title`, a `sub`, and `onclick={() => goto(resolve('/about/…'))}`:
     - shield: "Privacy policy" / "What we store and why" (`about-privacy`)
     - book-open: "Terms of service" / "The deal, in plain English" (`about-terms`)
@@ -745,7 +766,7 @@
    - add `(q)`: the About section sits immediately after Recovery and immediately before Account, following the `(p)` pattern around line 256.
 3. GREEN: write the hub and the Settings section.
 
-**Verify:** `cd web && pnpm test -- src/routes/about src/lib/settings` · `pnpm check` · `pnpm lint`
+**Verify:** `cd web && pnpm test -- src/routes/about src/lib/settings` · `pnpm check` · `pnpm lint` · `pnpm build && grep -rl '"1.0.0"' build/_app | head -1` (deferred from Task 2.1: confirms the build-time version reaches the production bundle now that the hub imports it)
 
 ## Phase 4 — entry points and e2e
 
@@ -829,8 +850,14 @@
   - tick step 14 `[x]`;
   - in the step-15 "Done out of order" note, change the imprint bullet to say the imprint is complete with real values as of step 14. The lawyer review is still open (`docs/open-questions.md`).
 - Make sure `docs/legal.md`'s claims table has no "pending" rows left.
+- Fix the stale docs flagged during this plan (Tasks 0.2 and the post-Phase-2 review):
+  - `docs/data-model.md`: the device-storage inventory, which claims to be canonical, is missing `cairn.user` and `cairn.install_hint_dismissed` (add them, matching `docs/architecture.md` → "Client-side storage");
+  - `docs/account-deletion.md:168`: still says data export is "not yet built"; it shipped in step 12;
+  - `plans/0000_implementation_order.md`, step 15's auth-hardening lines (around 312–322): say production MUST disable signup; production deliberately runs open signup (`docs/development.md` → "Production posture"). Reword to record the decision;
+  - `docs/admin.md:163`: cites the Caddy access log and a 24-hour IP window, neither of which exists (see `docs/logging.md`).
+- Record the release: this plan ships **1.0.0** (`web/`, `auth-proxy/`, `sidecar/` `package.json`). Say so in the step-14 entry in `0000`.
 - Remind the user in the final report about the actions outside the code:
-  - redeploy with `docker compose … up -d` so the log caps apply;
+  - redeploy with `docker compose -f docker-compose.yml -f docker-compose.prod.yml --env-file .env.prod up -d --build`: this rebuilds the auth-proxy (client-IP headers stripped) and recreates every container, which applies the log caps, Postgres's terse errors and PostgREST's `crit` level, and discards the old, uncapped logs;
   - scan git history for secrets before making the repo public;
   - the lawyer review;
   - backups are master-plan step 21 and should run as soon as possible.
@@ -839,10 +866,11 @@
 
 - `plans/0000_implementation_order.md` (modify)
 - `docs/legal.md` (modify, if any rows were pending)
+- `docs/data-model.md`, `docs/account-deletion.md`, `docs/admin.md` (modify)
 
 **Steps:**
 
-1. Make the edits.
+1. Make the edits. Run Prettier on the touched `docs/*.md` only, never on `plans/0000_implementation_order.md`.
 2. Run `./scripts/check.sh`. Report each layer's result honestly. Playwright isn't run here (see Task 4.2).
 
 **Verify:** `./scripts/check.sh`

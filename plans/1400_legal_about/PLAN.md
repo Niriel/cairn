@@ -178,3 +178,22 @@ Every task is RED-before-GREEN inside a single commit. The phases are ordered so
 
 - **Lawyer review.** The Imprint, Privacy policy and Terms need a review under Dutch/EU law, including whether the DSA's duties apply. Default: merge, keep it as an open question in `docs/open-questions.md`, and revise the copy afterwards in a small follow-up plan.
 - **Log audit outcome.** If Task 1.2 finds real client IPs in GoTrue or sidecar logs, the fix (stripping `X-Forwarded-For` at the proxy, or disclosing short retention) is the operator's call. Default: stop at Task 1.2 and ask.
+
+## Revision: decisions made during execution
+
+These were decided after Phases 0–2 had landed. The task blocks for Phases 3 and 5 were updated to match; Phases 0–2 stay as their historical record.
+
+- **The log audit found real leaks (Task 1.2).**
+  - GoTrue was copying forwarded client IPs into its log.
+  - Postgres repeated row contents when a write broke a constraint.
+  - PostgREST logged full query strings.
+
+  The operator chose to fix all three rather than disclose them: the auth-proxy now strips client-IP headers, Postgres runs with `log_error_verbosity=terse`, and PostgREST runs with `PGRST_LOG_LEVEL=crit`. As a result, the privacy policy can say that logs hold no IP addresses. It still has to disclose that IPs are used in memory for rate limiting.
+
+- **Suspension wording (R6).** `docs/admin.md` deliberately keeps admin actions invisible: a banned user's sign-in looks like a wrong password. So the Terms can't promise to explain a suspension. They say there is no in-app notice, but "you can write to us to ask why". The ban mechanism was not changed.
+- **Recovery e-mail scope (R5).** The Terms promise a shutdown notice by e-mail to users who set a recovery address. So the privacy policy says that address is used for reset codes **and essential service notices such as a shutdown**, never for marketing. "Used only for reset codes" would contradict the Terms.
+- **Moderation records (R5).** The policy discloses the `admin.actions` audit trail, a processing activity the original outline missed.
+- **Type roles.** `docs/ui.md` won over the original task wording:
+  - `.prose h3` is the ordinary normal-case `h3`, not an uppercase label;
+  - the version line, the contact e-mail and the repo URL are not monospace, because `.mono` is reserved for numerics.
+- **Release.** This plan ships **1.0.0**, the official release. Off-site backups (master-plan step 21) remain open.

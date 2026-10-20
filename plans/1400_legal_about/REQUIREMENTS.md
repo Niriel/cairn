@@ -15,7 +15,7 @@ These replace the placeholder `/imprint` stub that shipped with the production r
 
 A screen at `/about` titled "About" shows, in order:
 
-1. A centred identity block: the Cairn wordmark, the tagline _"here's the way, you'll like this"_, and a monospace version line `v<version> · build <YYYY-MM-DD>` (R10). A `--rule` border runs below it.
+1. A centred identity block: the Cairn wordmark, the tagline _"here's the way, you'll like this"_, and a version line `v<version> · build <YYYY-MM-DD>` (R10) in the `.fine` role, not monospace, because `docs/ui.md` reserves `.mono` for numerics. A `--rule` border runs below it.
 2. Six navigation rows. Each has a leading icon, a title and a one-line subtitle:
    - **Privacy policy**: "What we store and why"
    - **Terms of service**: "The deal, in plain English"
@@ -83,14 +83,15 @@ It shows no VAT ID or chamber-of-commerce number, because the operator is a priv
 - **What we store:**
   - username (visible to signed-in users), display name, and profile photo (a 256px WebP; the original upload is discarded);
   - a password hash;
-  - an optional recovery e-mail, used only for password resets and never shown to anyone;
+  - an optional recovery e-mail, used for password-reset codes and essential service notices such as a shutdown, never for marketing, and never shown to anyone;
   - lists, items, notes, votes, memberships, invitations, circle and block lists, and their timestamps.
 - **Public lists:** what anyone holding a public list's link can see, as defined by `public_list_view`.
-- **Why, and on what legal basis:** Art. 6(1)(b) to provide the service; Art. 6(1)(f) for security logging and rate limiting.
+- **Why, and on what legal basis:** Art. 6(1)(b) to provide the service; Art. 6(1)(f) for security logging, rate limiting and moderation records.
 - **Logs:** what the server logs actually contain (R13), that they are size-capped (R12), and that request contents are never logged.
+- **IP addresses:** used in memory only, to rate-limit sign-in and registration. Never written to disk and forgotten when the throttle window passes.
 - **Where it lives:** the processors from R3. Everything stays within the EU. There are **no off-site backups at present**.
-- **Who sees it:** fellow list members; other signed-in users, who see profile basics only; and the operator.
-- **How long we keep it:** for the life of the account. Account deletion is immediate. What stays behind on shared lists, attributed to "Deleted user", is as described in `docs/account-deletion.md`.
+- **Who sees it:** fellow list members; other signed-in users, who see profile basics only; and the operator. When the operator moderates content, suspends an account or acts on a data request, the action is recorded with a reason in an internal audit log (`admin.actions`) that only the operator can read.
+- **How long we keep it:** for the life of the account. Account deletion is immediate. What stays behind on shared lists, attributed to "Deleted user", is as described in `docs/account-deletion.md`. Moderation and data-request records are kept as proof that the action was carried out, as `docs/admin.md` describes.
 - **Your rights:** access, rectification, erasure, restriction, objection and portability, with the in-app path for each where one exists. Complaints go to the Autoriteit Persoonsgegevens or the user's own data protection authority.
 - **On-device storage:** the complete inventory from `docs/architecture.md`:
   - the cookies `__Host-cairn_session` (slides forward, about 30 days) and `__Host-cairn_access` (about 5 minutes);
@@ -110,7 +111,7 @@ It shows no VAT ID or chamber-of-commerce number, because the operator is a priv
 - **The user's responsibilities:** nothing illegal or harassing, nothing that infringes someone else's rights, and no attacks on the service.
 - **Content ownership:** users keep their rights to their content, and grant only what is needed to store it and show it to the people they share with.
 - **No warranty:** "as-is", to the extent the law allows.
-- **Suspension:** suspension for abuse, with reasons given unless the law forbids.
+- **Suspension:** suspension for abuse. There is no in-app notice, because `docs/admin.md` keeps admin actions invisible: a suspended account simply can't sign in. The user can write to the operator to ask why.
 - **Ending:** the user can delete their account at any time. The operator may shut the service down with at least 30 days' notice, given in the app and also by e-mail to anyone who has set a recovery address.
 - **Liability:** limited to the extent the law allows.
 - **Governing law:** Dutch law and the court from R3, without prejudice to mandatory consumer protections in the user's country of residence.
@@ -153,7 +154,7 @@ A static file at `/legal/licenses.txt` contains the full licence text for every 
 
 ## R10. The app shows its version and build date
 
-The web bundle exposes `web/package.json`'s `version` and the build date in ISO `YYYY-MM-DD` format, injected at build time. The About hub renders these as `v<version> · build <date>`. The injection doesn't depend on git metadata, because the Docker build context has none. Vitest sees the same values as the production build.
+The web bundle exposes `web/package.json`'s `version` and the build date in ISO `YYYY-MM-DD` format, injected at build time. The About hub renders these as `v<version> · build <date>`. This plan ships version **1.0.0**, the official release, in `web/`, `auth-proxy/` and `sidecar/`. The injection doesn't depend on git metadata, because the Docker build context has none. Vitest sees the same values as the production build.
 
 ## R11. The legal pages can be reached from Settings and from the sign-in screens
 
