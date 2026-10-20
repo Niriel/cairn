@@ -7,6 +7,7 @@ import {
 	markStale,
 	offlineResponse,
 	MRU_SENTINEL_KEY,
+	servesShell,
 	shellCache,
 	shouldKeepOnPurge,
 	shouldMarkStaleOnWrite,
@@ -90,6 +91,23 @@ describe('shouldKeepOnPurge (entering list B)', () => {
 		expect(shouldKeepOnPurge(votes, B)).toBe(false);
 		expect(shouldKeepOnPurge(meta(A), B)).toBe(false);
 		expect(shouldKeepOnPurge(items(A), B)).toBe(false);
+	});
+});
+
+describe('servesShell', () => {
+	test('app routes get the shell', () => {
+		for (const path of ['/', '/lists', `/lists/${A}`, `/lists/${A}/trash`, '/about/open-source']) {
+			expect(servesShell(new URL(path, ORIGIN))).toBe(true);
+		}
+	});
+
+	test('a query string does not make an app route a file', () => {
+		expect(servesShell(new URL('/auth/reset-password?code=a.b', ORIGIN))).toBe(true);
+	});
+
+	test('static files go to the network', () => {
+		expect(servesShell(new URL('/legal/licenses.txt', ORIGIN))).toBe(false);
+		expect(servesShell(new URL(`/avatars/${A}.webp?v=3`, ORIGIN))).toBe(false);
 	});
 });
 

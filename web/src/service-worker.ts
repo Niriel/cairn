@@ -9,6 +9,7 @@ import {
 	markStale,
 	MRU_SENTINEL_KEY,
 	offlineResponse,
+	servesShell,
 	shellCache,
 	shouldKeepOnPurge,
 	shouldMarkStaleOnWrite,
@@ -70,8 +71,10 @@ sw.addEventListener('fetch', (event) => {
 		return;
 	}
 
-	// Navigations: serve the cached shell, falling back to the network.
-	if (request.mode === 'navigate') {
+	// Navigations to app routes: serve the cached shell, falling back to the
+	// network. A navigation to a static file (e.g. the licence texts, which are
+	// not precached) falls through to the network untouched.
+	if (request.mode === 'navigate' && servesShell(url)) {
 		event.respondWith(
 			caches.open(SHELL_CACHE).then(async (cache) => (await cache.match('/')) ?? fetch(request))
 		);

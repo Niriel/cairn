@@ -24,8 +24,9 @@ const config = {
 			register: false,
 			// Keep the third-party licence texts (~100 KB) out of the precached
 			// shell: nobody needs them offline, and every client would re-download
-			// them on each version bump.
-			files: (filepath) => !filepath.startsWith('legal/')
+			// them on each version bump. Supplying a filter replaces SvelteKit's
+			// default one, so its .DS_Store exclusion is repeated here.
+			files: (filepath) => !filepath.startsWith('legal/') && !/\.DS_Store/.test(filepath)
 		}
 	}
 };

@@ -46,4 +46,15 @@ test.describe.serial('pwa install path', () => {
 
 		await page.context().setOffline(false);
 	});
+
+	test('(d) a static file opens past the worker, not as the app shell', async () => {
+		// The worker answers app-route navigations with the cached shell; the
+		// licence texts are a plain file it must leave to the network.
+		await page.goto('/about/open-source');
+		await page.locator('[data-test="open-source-licenses-link"]').click();
+		await expect(page).toHaveURL(/\/legal\/licenses\.txt$/);
+		await expect(page.locator('body')).toContainText(
+			'Third-party software shipped with the Cairn web app'
+		);
+	});
 });
