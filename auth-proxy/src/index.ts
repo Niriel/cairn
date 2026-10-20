@@ -91,6 +91,11 @@ const MIN_PASSWORD_LENGTH = 8;
 // instance's per-IP leg so the two share one mass-signup/brute-force bound.
 const signinLimiter = new RateLimiter(rateLimitConfigFromEnv());
 const signinGuard = signinRateLimit(signinLimiter);
+// Forget aged-out failures once a minute, so a client IP or username leaves
+// memory about one window after its last attempt even if it never comes back
+// (the privacy policy promises this). unref() keeps the timer from holding the
+// process open.
+setInterval(() => signinLimiter.sweep(), 60_000).unref();
 
 // State-changing Cairn-shaped endpoints that require the CSRF header — see
 // csrf.ts.

@@ -64,7 +64,7 @@
 		<p data-test="privacy-rate-limit">
 			When someone tries to sign in or register, the server uses the IP address the attempt came
 			from to slow down repeated attempts. That address is held in the server's memory only and is
-			never written to disk; it stops counting after 15 minutes.
+			never written to disk; it is forgotten about 15 minutes after the last attempt.
 		</p>
 	</section>
 
