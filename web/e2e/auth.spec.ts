@@ -182,6 +182,23 @@ test.describe('username + password credential', () => {
 		expect(access?.sameSite).toBe('Lax');
 	});
 
+	// (a2) A new account's display name defaults to its chosen username: the
+	// signup trigger seeds the provisional handle into both columns and the
+	// register flow's set_username carries the display name along.
+	test('register defaults the display name to the username', async ({ page }) => {
+		const username = uniqueUsername('named');
+		await register(page, username, PASSWORD);
+
+		const rows = await page.evaluate(async (handle) => {
+			const res = await fetch(
+				'/api/profiles?select=display_name&username=eq.' + encodeURIComponent(handle),
+				{ credentials: 'same-origin' }
+			);
+			return (await res.json()) as { display_name: string }[];
+		}, username);
+		expect(rows).toEqual([{ display_name: username }]);
+	});
+
 	// (b) Sign-in happy path: register, sign out, then sign in again with the
 	// same credentials.
 	test('sign-in after sign-out signs back in', async ({ page }) => {

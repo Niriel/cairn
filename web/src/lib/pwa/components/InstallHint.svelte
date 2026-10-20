@@ -4,10 +4,9 @@
 	import InstallExplainerSheet from '$lib/pwa/components/InstallExplainerSheet.svelte';
 	import { install } from '$lib/pwa/state/install.svelte';
 
-	// A dismissible first-launch nudge towards installing. Unlike WelcomeBanner
-	// — which self-clears on the profile name and has no dismiss — this one
-	// carries its own dismissal, because there's no other signal that the user
-	// has considered and declined installing.
+	// A dismissible first-launch nudge towards installing. It carries its own
+	// dismissal, because there's no other signal that the user has considered
+	// and declined installing.
 
 	let explainerOpen = $state(false);
 
