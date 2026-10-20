@@ -12,7 +12,7 @@ import { existsSync, readdirSync, readFileSync, realpathSync, writeFileSync } fr
 import { basename, dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
-const EXTRA_ROOTS = ['svelte', '@sveltejs/kit'];
+export const EXTRA_ROOTS = ['svelte', '@sveltejs/kit'];
 const LICENSE_FILE = /^(licen[cs]e|copying)(\.[a-z]+)?$/i;
 
 /**
@@ -63,9 +63,9 @@ export function buildLicensesText(webDir) {
 	}));
 	/** @type {Map<string, { name: string, version: string, license: string, text: string | null }>} */
 	const seen = new Map();
-	while (queue.length > 0) {
-		const next = queue.shift();
-		if (!next) break;
+	// for…of re-reads the length each step, so it also visits entries pushed
+	// during the walk.
+	for (const next of queue) {
 		const dir = locate(next.from, next.dep);
 		if (!dir) {
 			console.warn(`gen-licenses: cannot resolve ${next.dep} from ${next.from}; skipped`);

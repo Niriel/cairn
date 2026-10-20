@@ -11,8 +11,8 @@ import { render } from '$lib/test/render';
 
 import Page from './+page.svelte';
 
-function text(container: HTMLElement): string {
-	return (container.textContent ?? '').replace(/\s+/g, ' ');
+function text(element: Element): string {
+	return (element.textContent ?? '').replace(/\s+/g, ' ');
 }
 
 describe('/about/privacy', () => {
@@ -41,7 +41,7 @@ describe('/about/privacy', () => {
 
 	test('(e) lists the on-device storage: two cookies and four local settings', () => {
 		const { getByDataTest } = render(Page);
-		const storage = (getByDataTest('privacy-storage').textContent ?? '').replace(/\s+/g, ' ');
+		const storage = text(getByDataTest('privacy-storage'));
 		expect(storage).toMatch(/two cookies/i);
 		expect(storage).toMatch(/four small settings/i);
 		expect(storage).toMatch(/offline cache/i);
@@ -77,7 +77,7 @@ describe('/about/privacy', () => {
 
 	test('(i) discloses that IP addresses are used in memory for rate limiting', () => {
 		const { getByDataTest } = render(Page);
-		const disclosure = (getByDataTest('privacy-rate-limit').textContent ?? '').replace(/\s+/g, ' ');
+		const disclosure = text(getByDataTest('privacy-rate-limit'));
 		expect(disclosure).toMatch(/IP address/);
 		expect(disclosure).toMatch(/memory/);
 		expect(disclosure).toMatch(/never written to disk/);

@@ -1,5 +1,5 @@
 import { readdirSync, readFileSync } from 'node:fs';
-import { join, relative, resolve } from 'node:path';
+import { basename, join, relative, resolve } from 'node:path';
 
 import { describe, expect, test } from 'vitest';
 
@@ -30,7 +30,7 @@ describe('deployment facts live only in operator.ts', () => {
 
 	test('no other source file spells out the operator name, e-mail, address, brand, or repo URL', () => {
 		const offenders = sourceFiles(SRC)
-			.filter((file) => !EXEMPT.has(file.split(/[\\/]/).pop() ?? ''))
+			.filter((file) => !EXEMPT.has(basename(file)))
 			.flatMap((file) => {
 				const text = readFileSync(file, 'utf8');
 				return needles

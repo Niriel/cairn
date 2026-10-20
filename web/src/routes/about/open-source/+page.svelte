@@ -1,17 +1,15 @@
 <script lang="ts">
 	import { asset } from '$app/paths';
 	import LegalPage from '$lib/legal/components/LegalPage.svelte';
-	import { ATTRIBUTIONS, GROUP_LABELS, type AttributionGroup } from '$lib/legal/model/attributions';
-
-	const groups = Object.keys(GROUP_LABELS) as AttributionGroup[];
+	import { ATTRIBUTIONS, GROUP_LABELS } from '$lib/legal/model/attributions';
 </script>
 
 <LegalPage title="Open source" sub="Standing on shoulders" data-test="open-source-screen">
 	<p class="lede">Cairn would not exist without these. Thanks to everyone who works on them.</p>
 
-	{#each groups as group (group)}
+	{#each Object.entries(GROUP_LABELS) as [group, label] (group)}
 		<section>
-			<h3>{GROUP_LABELS[group]}</h3>
+			<h3>{label}</h3>
 			<ul class="rows">
 				{#each ATTRIBUTIONS.filter((entry) => entry.group === group) as entry (entry.name)}
 					<li class="row credit">

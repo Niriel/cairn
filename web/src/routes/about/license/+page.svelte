@@ -15,7 +15,7 @@
 		(AGPL-3.0-or-later). The source — every line that runs on the server and in your browser — is public:
 	</p>
 
-	<div class="card-alt repo">
+	<div class="card-alt media repo">
 		<Icon name="compass" size={ICON_SIZE} />
 		<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -- external site (the source repository), not an app route -->
 		<a href={SOURCE_REPO_URL} rel="noopener" data-test="license-repo-link">{repoLabel}</a>
@@ -46,8 +46,6 @@
 
 <style>
 	.repo {
-		display: flex;
-		align-items: center;
 		gap: 0.625rem;
 		padding: 0.875rem 1rem;
 		margin-block: 0.875rem;

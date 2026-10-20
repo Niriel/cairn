@@ -2,7 +2,6 @@
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import Icon from '$lib/basic/components/Icon.svelte';
-	import type { IconName } from '$lib/basic/model/icon-paths';
 	import { APP_VERSION, BUILD_DATE, formatBuildLine } from '$lib/legal/model/build-info';
 	import { HOSTING_COUNTRY, OPERATOR } from '$lib/legal/model/operator';
 	import CairnWordmark from '$lib/shared/components/CairnWordmark.svelte';
@@ -10,21 +9,7 @@
 	import TopBar from '$lib/shared/components/TopBar.svelte';
 	import { ICON_SIZE } from '$lib/shared/model/constants';
 
-	type Row = {
-		icon: IconName;
-		title: string;
-		sub: string;
-		path:
-			| '/about/privacy'
-			| '/about/terms'
-			| '/about/imprint'
-			| '/about/open-source'
-			| '/about/contact'
-			| '/about/license';
-		hook: string;
-	};
-
-	const rows: Row[] = [
+	const rows = [
 		{
 			icon: 'shield',
 			title: 'Privacy policy',
@@ -67,7 +52,7 @@
 			path: '/about/license',
 			hook: 'about-license'
 		}
-	];
+	] as const;
 </script>
 
 <div class="screen" data-test="about-screen">

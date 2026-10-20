@@ -1,13 +1,14 @@
 import { describe, expect, test } from 'vitest';
 
 import pkg from '../../../../package.json';
+import { EXTRA_ROOTS } from '../../../../scripts/gen-licenses.mjs';
 
 import { ATTRIBUTIONS } from './attributions';
 
 describe('open-source attributions', () => {
 	test('credit every package that ships to the browser', () => {
 		const credited = new Set(ATTRIBUTIONS.map((entry) => entry.package).filter(Boolean));
-		const shipped = [...Object.keys(pkg.dependencies), 'svelte', '@sveltejs/kit'];
+		const shipped = [...Object.keys(pkg.dependencies), ...EXTRA_ROOTS];
 		const missing = shipped.filter((name) => !credited.has(name));
 		expect(missing, 'add these to src/lib/legal/model/attributions.json').toEqual([]);
 	});
