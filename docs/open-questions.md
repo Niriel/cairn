@@ -43,14 +43,18 @@ the matching entry in the underlying doc.
 
 ## Legal
 
-- **Imprint contents.** Every legally-required field on the Imprint
-  screen is currently marked with a red **Placeholder** chip:
-  operator name, postal address, contact email, register number,
-  responsible person under §55 RStV / §18 MStV, and so on. These
-  must be filled with real values before public launch, and the
-  filled imprint should get a glance from a German-speaking lawyer
-  given the Hetzner-DE hosting. Launch-blocker for step 13. See
-  `design/cairn-legal-screens.jsx` → L4 and `plans/0000_implementation_order.md` § step 12.
+- **Lawyer review of the legal pages.** Step 14 fills the Imprint
+  with the real operator details and writes the Privacy policy and
+  Terms. The operator is a private individual established in the
+  Netherlands (the servers are in Germany), so the pages should be
+  reviewed under **Dutch/EU law** — including the exact statute
+  citations, which the pages deliberately leave out — before Cairn is
+  treated as publicly launched. See `legal.md` → "Jurisdiction".
+- **DSA applicability.** Whether the Digital Services Act's
+  point-of-contact and notice-and-action duties apply to a private,
+  free service with open registration. The Contact page invites
+  reports of illegal content in the meantime. See `legal.md` →
+  "Open items".
 
 ## Admin
 

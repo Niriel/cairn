@@ -6,15 +6,18 @@ The headline rule: **logs exist to help the operator fix the operator's problem.
 
 ## What's logged, by container
 
-| Container          | What it logs                                                                                            | Where it goes                                                        | Retention         |
-| ------------------ | ------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------- | ----------------- |
-| **PostgreSQL**     | Startup, shutdown, slow queries (>1s), errors, role login attempts                                      | `docker logs cairn-postgres`, rotated by Docker's `json-file` driver | 7 days, 50 MB cap |
-| **PostgREST**      | One line per request: method, path (without query string), status code, duration, anon-or-authenticated | `docker logs cairn-postgrest`, same rotation                         | 7 days, 50 MB cap |
-| **GoTrue**         | Sign-in / refresh token exchanges and signup events, keyed by user-id (never a deliverable address)     | `docker logs cairn-gotrue`, same rotation                            | 7 days, 50 MB cap |
-| **Caddy**          | Standard access log (method, path, status, size, duration) plus TLS handshake errors                    | `/var/log/cairn/caddy-access.log`, rotated daily via `logrotate`     | 30 days           |
-| **Avatar sidecar** | Upload attempts (size, accept/reject reason), resize errors                                             | `docker logs cairn-avatars`, same rotation                           | 7 days, 50 MB cap |
+| Container          | What it logs                                                                                            | Where it goes                                                          |
+| ------------------ | ------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
+| **PostgreSQL**     | Startup, shutdown, slow queries (>1s), errors, role login attempts                                      | `docker compose logs postgres`, rotated by Docker's `json-file` driver |
+| **PostgREST**      | One line per request: method, path (without query string), status code, duration, anon-or-authenticated | `docker compose logs postgrest`, same rotation                         |
+| **GoTrue**         | Sign-in / refresh token exchanges and signup events, keyed by user-id (never a deliverable address)     | `docker compose logs gotrue`, same rotation                            |
+| **auth-proxy**     | Startup and errors; never credentials, usernames, recovery addresses, codes, or tokens (see below)      | `docker compose logs auth-proxy`, same rotation                        |
+| **Caddy**          | Runtime and TLS errors only — **no access log** in production                                           | `docker compose logs caddy`, same rotation                             |
+| **Avatar sidecar** | Upload attempts (size, accept/reject reason), resize errors                                             | `docker compose logs sidecar`, same rotation                           |
 
-The retention numbers are caps, not floors — disk pressure on a 40 GB Hetzner VPS makes "keep forever" the wrong default. The Caddy access log lives longest at 30 days because it's the only line of defence against abuse complaints and TLS-failure debugging where a multi-day timeline matters.
+**Retention is by size, not by days.** Every production container uses the `json-file` driver with `max-size: 10m` and `max-file: 5` (the `x-logging` anchor in `docker-compose.prod.yml`), so each service keeps at most ~50 MB and Docker discards the oldest lines beyond that. On a quiet box that can mean weeks of history; on a busy one, days. The caps exist because the driver's default is unbounded — "keep forever" is the wrong default on a 40 GB VPS and the wrong posture for a privacy policy. Recreating a container (`docker compose up -d` after a config change) also discards its log.
+
+**No access log.** Caddy writes no per-request access log in production (`caddy/Caddyfile.prod` has no `log` directive). An access log would be the one place client IP addresses accumulate, and keeping it honest would need a rotation policy plus an IP-stripping job. Not having one is simpler and more private. Abuse response leans on the auth-proxy's in-memory rate limiter instead (see below).
 
 ## What's deliberately not logged
 
@@ -24,14 +27,18 @@ The retention numbers are caps, not floors — disk pressure on a 40 GB Hetzner 
 - **Sign-in credentials and usernames at the auth BFF.** The auth-proxy (the Cairn-shaped backend-for-frontend; see `architecture.md`) never logs the submitted username, password, recovery e-mail, or any token — not on a sign-in, a registration, a refresh, or a rate-limit decision. A username is _public_ (it's the `@handle`), but a _sign-in attempt_ keyed to a username is behavioural data the log has no reason to keep, and a password must never touch a log under any circumstance. The per-IP / per-account sign-in rate-limiter holds its counters in memory only (`auth-proxy/src/lib/rate-limit.ts`), so even the throttle state is never written to disk.
 - **Recovery addresses, codes, and the reset password at the auth BFF.** Cairn-orchestrated password recovery (see `architecture.md`) adds new sensitive values the BFF handles — the candidate/on-file recovery address, the 6-digit verification and reset codes, the scoped-role JWT, and the **new password** submitted on a reset. None of these ever appears in a log line: no recovery e-mail (at most a hash, like the GoTrue rule below), no code, no token, no JWT, and the BFF must **never log the reset request body** (it carries the plaintext new password). The codes cross to the database only as a SHA-256 hash, never plaintext. The one unavoidable plaintext crossing is the new password itself: R6's pgcrypto design means `reset_password` receives it as an RPC argument so `crypt()` can run in the DB. That argument therefore transits the PostgREST→Postgres boundary, which is why Postgres full-statement logging (`log_statement`) must stay **off** — it is by default (`none`) — and must not be turned on for the auth/recovery path. (The slow-query logger `log_min_duration_statement = 1000` logs the _parameterized_ statement text, not the bound argument values, so it does not expand the password; the rule is "don't enable `log_statement`," not "disable the slow-query log.")
 - **JWT contents.** No log line in any container ever decodes or prints a JWT. PostgREST logs the role (`anon` or `authenticated`); GoTrue logs the user-id only in events where the user-id is the _subject_ of the event, never as a contextual annotation on an unrelated request.
-- **Client IP addresses past 1 hour.** Caddy's access log includes the client IP — it has to, for rate-limiting and abuse triage — but a daily cron strips the IP column from all log lines older than 24 hours, replacing it with `x.x.x.x`. The recent hour is enough for real-time abuse response; older lines don't need the IP to be useful for debugging.
+- **Client IP addresses.** There is no access log (see above), and no service is meant to record a client IP. Whether any upstream log picks one up from a forwarded header (`X-Forwarded-For`, which Caddy's `reverse_proxy` adds by default) is exactly what the audit below verifies.
 - **Anything that would be useful for analytics.** Page view tracking, feature-usage counters, A/B test buckets, marketing-attribution headers — none of these exist because the underlying behaviour doesn't exist. Cairn is not a product that needs to know what its users do beyond what's needed to fix bugs.
+
+## Audit
+
+_Pending — step 14, Task 1.2 (`plans/1400_legal_about/`)._ The table above is the design; the audit records what each container's log output actually contains after exercising sign-in, registration, password recovery, and avatar upload, and whether a real client IP can reach any log on the production request path. Until it lands, the privacy policy must not claim more than the design.
 
 ## What the user is told
 
-The privacy page (see `design/cairn-legal-screens.jsx` → Privacy Policy) lists the logged categories in plain language, with the same retention numbers as above. The list is short:
+The privacy policy (`/about/privacy`; see `legal.md` for the claims table) describes the logs in plain language:
 
-- _"We keep server logs for up to 30 days for the access log and 7 days for everything else."_
+- _"Our servers keep short technical logs to keep Cairn running. Each service keeps at most about 50 MB; older lines are deleted automatically. There is no web access log."_
 - _"We do not log the contents of your requests — your list names, item names, notes, and votes do not appear in any log file."_
 - _"We do not use third-party analytics, crash reporting, or telemetry of any kind."_
 
@@ -42,26 +49,26 @@ The uid-only identification of accounts in the logs is a level of detail most us
 When something is broken, the operator's first three commands are:
 
 ```bash
-docker logs --tail 200 cairn-postgrest
-tail -100 /var/log/cairn/caddy-access.log
-docker logs --tail 200 cairn-postgres
+docker compose logs --tail 200 postgrest
+docker compose logs --tail 200 auth-proxy
+docker compose logs --tail 200 postgres
 ```
 
-The Caddy access log is plain text; PostgREST and Postgres logs are JSON-shaped one-line records. `jq` is installed on the VPS for filtering. There is no central log aggregator and no dashboard — `grep` and `jq` are the operator's tools, by design.
+PostgREST and Postgres logs are JSON-shaped one-line records. `jq` is installed on the VPS for filtering. There is no central log aggregator and no dashboard — `grep` and `jq` are the operator's tools, by design.
 
-For a slow-query investigation, Postgres's `log_min_duration_statement = 1000` ensures every >1s query lands in the log with its (parameterized) text. The path from "user complained the items screen is slow" to "see exact statement plus duration" is one `docker logs cairn-postgres | jq 'select(.duration > 1000)'` away.
+For a slow-query investigation, Postgres's `log_min_duration_statement = 1000` ensures every >1s query lands in the log with its (parameterized) text. The path from "user complained the items screen is slow" to "see exact statement plus duration" is one `docker compose logs --no-log-prefix postgres | jq 'select(.duration > 1000)'` away.
 
-For an abuse investigation, Caddy's access log is the source of truth — IP, path, status, count. The IP-stripping cron means the operator has at most 24 hours of recent IP-grouped abuse data, which is enough for a same-day rate-limit response and short of a week-long surveillance window.
+For abuse, there is no IP-grouped history to investigate, by design: the auth-proxy's per-IP and per-account rate limiter throttles sign-in and registration in memory, and a persistent problem is handled at the firewall or with `GOTRUE_DISABLE_SIGNUP` rather than by mining logs.
 
-For a "user says their account is broken" report, the operator resolves the account's user-id (`select id from profiles where lower(username) = lower(?)`), then filters GoTrue's log by that uid to see their sign-in / refresh history and PostgREST's log by the same uid to see their recent API activity. Nothing in the logs reveals what they were doing — just that they were.
+For a "user says their account is broken" report, the operator resolves the account's user-id (`select id from profiles where lower(username) = lower(?)`), then filters GoTrue's log by that uid to see their sign-in / refresh history. PostgREST logs only the role (`anon` / `authenticated`), not the user, so its log can't be filtered per account — that's deliberate. Nothing in the logs reveals what anyone was doing.
 
 ## What the operator must not do
 
 A few rules the operator is expected to keep, written down because they're easy to violate by accident:
 
 - **Don't add a request-body logger to PostgREST.** PostgREST has one; it's off; leave it off. The bodies contain user content. This is the single fastest way to turn a clean privacy posture into a violation.
-- **Don't ship logs off-VPS without re-checking the retention windows.** A "let me grep on my laptop" copy of `/var/log/cairn/caddy-access.log` is fine; uploading it to a shared cloud drive is not.
-- **Don't lengthen retention without a reason.** The defaults are short on purpose. If "I wish I still had last month's access log" comes up often enough to matter, raise the cap deliberately — don't drift up by editing logrotate on a whim.
+- **Don't ship logs off-VPS without re-checking the retention windows.** A "let me grep on my laptop" copy of `docker compose logs` output is fine; uploading it to a shared cloud drive is not.
+- **Don't lengthen retention without a reason.** The defaults are short on purpose. If "I wish I still had last month's access log" comes up often enough to matter, raise the cap deliberately — don't drift up by editing the compose `x-logging` options on a whim — and update the privacy policy when you do (see `legal.md`).
 - **Don't add `pg_stat_statements` extension dumps to the public privacy page.** That extension records query text including parameterized values, which can include user content. We use it for tuning _on the operator's session only_, not as a logged artifact.
 
 ## What we'd change

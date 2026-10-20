@@ -177,6 +177,8 @@ Same script as in development, against the production Postgres. Two prerequisite
 
 ## Backups
 
+> **Not yet in place.** Planned as master-plan step 21 (`plans/2100_backups/`); no off-site backups exist today, and the privacy policy says so (see `legal.md` → claims table). The design below is the plan, not a description of the live box.
+
 Encrypted, deduplicated, off-machine. The setup uses [Restic](https://restic.net/) pushing to a separate **Hetzner Storage Box** (~€4/month for 1 TB).
 
 ### One-time setup

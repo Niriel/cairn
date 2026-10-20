@@ -17,10 +17,10 @@
 
 ## Phase 0 — reconcile docs
 
-### [ ] 0.1 Write `docs/legal.md`
+### [x] 0.1 Write `docs/legal.md`
 
 **Created:** 2026-10-20T13:37:50Z
-**Completed:**
+**Completed:** 2026-10-20T13:49:59Z
 
 **Why:** No doc specifies the legal surface. The privacy policy is a set of factual claims that will rot unless each one is mapped to the doc or file that backs it.
 
@@ -68,10 +68,10 @@
 
 **Verify:** `cd web && pnpm exec prettier --check ../docs/legal.md ../docs/README.md`
 
-### [ ] 0.2 Correct the existing docs to match reality and the new design
+### [x] 0.2 Correct the existing docs to match reality and the new design
 
 **Created:** 2026-10-20T13:37:50Z
-**Completed:**
+**Completed:** 2026-10-20T13:49:59Z
 
 **Why:** Several docs describe things that aren't true: the access log, the IP-strip cron, running backups, and a German operator. Later plans would build on a stale spec.
 
@@ -112,6 +112,24 @@
 2. Run Prettier on the touched `docs/*.md` files only. Never run it on `plans/0000_implementation_order.md`: that file is not Prettier-formatted, and formatting it rewraps the whole file.
 
 **Verify:** `cd web && pnpm exec prettier --check ../docs` · `git diff --stat plans/0000_implementation_order.md` shows only the intended lines
+
+**Notes:**
+
+- **Side work in `logging.md`.**
+  - No compose service sets `container_name`, so the old `docker logs cairn-postgres` commands pointed at containers that don't exist (the real names are `cairn-postgres-1` etc.). They are now `docker compose logs <service>`.
+  - Added an auth-proxy row to the table.
+- **Side work in the `0000` step-15 note.** It still called the PWA shell (step 13) unstarted. Corrected.
+- **Side work in `docs/README.md`.** Its stack paragraph claimed backups go to a Storage Box. Marked "not yet in place".
+- **Doc vs. plan conflict, flagged and not resolved here.** `docs/ui.md` → "Label vs. title" says uppercase, tracked small-stone text is the form-label look only, and "Do not re-introduce uppercase section headers". It also says `.mono` is for numerics only ("Dates and ages are … never mono"). Several plan tasks contradict this:
+  - Task 2.2 styles `.prose h3` as an uppercase label.
+  - Task 3.6 puts the version and date line in `.mono`.
+  - Task 3.4 puts the contact e-mail and the repository URL in mono.
+
+  The `.prose` entry in `docs/ui.md` follows the existing rules: sub-headings are the ordinary `h3`. Run `/concerns` to align Tasks 2.2, 3.4 and 3.6.
+- **Stale docs outside this task's scope.**
+  - `docs/data-model.md`'s device-storage inventory claims to be canonical but omits `cairn.user` and `cairn.install_hint_dismissed`.
+  - `docs/account-deletion.md:168` still says data export is "not yet built".
+  - `0000` lines 312–322 still say production MUST disable signup, while production deliberately runs open signup.
 
 ## Phase 1 — production truth
 

@@ -297,7 +297,8 @@ in-flight branch for no gain.
 14. [ ] **Legal & About surface.** About hub (L1), Privacy policy (L2 —
     references `docs/logging.md`), Terms of service (L3), Imprint
     (L4 — every legally-required field must be filled in by launch;
-    needs a German-speaking lawyer's pass — see
+    needs a review under Dutch/EU law, since the operator is
+    established in the Netherlands — see `docs/legal.md` and
     `docs/open-questions.md`), Open source attributions (L5), Contact
     (L6), Cairn license (L7). Mostly static content; no DB work. See
     `design/cairn-legal-screens.jsx`.
@@ -324,20 +325,21 @@ in-flight branch for no gain.
     > **Done out of order.** Step 15 was executed and merged ahead of
     > steps 10–14 — the deploy infrastructure was validated first, on
     > purpose, before finishing the app. The box is ticked for the
-    > **infrastructure rollout** (Caddyfile.prod, `.env.prod`, Restic
-    > backups, avatar sidecar in `docker-compose.prod.yml`,
-    > `/srv/cairn/avatars/`, first Hetzner deploy, prod smoke check —
-    > all done; the box at `cairn.lynnscape.eu` is live). **Still
+    > **infrastructure rollout** (Caddyfile.prod, `.env.prod`, avatar
+    > sidecar in `docker-compose.prod.yml`, `/srv/cairn/avatars/`,
+    > first Hetzner deploy, prod smoke check — all done; the box at
+    > `cairn.lynnscape.eu` is live). **Restic backups were deferred,
+    > not done, and are not running** — see step 21. **Still
     > outstanding**, because they depend on unstarted steps:
     > - The **imprint** (step 14, L4). A temporary imprint page exists
     >   but its fields are **not filled in** — it carries placeholders,
-    >   not the real company / contact details. This is a launch-blocker
-    >   under German law (see the sequencing rationale below) and must be
-    >   completed before the deploy is treated as publicly launched.
+    >   not the real operator / contact details. This is a launch-blocker
+    >   (see the sequencing rationale below and `docs/legal.md`) and must
+    >   be completed before the deploy is treated as publicly launched.
     > - Account deletion (step 10), admin (step 11), and data export
     >   (step 12) have since landed and merged — their boxes are ticked
-    >   above. Still genuinely unstarted are the **PWA shell** (step 13)
-    >   and **legal & about** (step 14).
+    >   above, and so has the **PWA shell** (step 13). Still unstarted
+    >   is **legal & about** (step 14).
 
 16. [x] **Public, read-only, shareable lists.** A member can flag a list
     public, producing a link anyone (no account, no invite) can open to a
@@ -503,9 +505,10 @@ in-flight branch for no gain.
   imprint / OSS attribution screens that a careful user will look
   for around installation.
 - **Legal & About (step 14) before production rollout (step 15)**
-  because the imprint is a launch-blocker under German law (operating
-  out of a Hetzner DE box) — the page must exist and must carry real
-  fields, not placeholders, on the day the box goes public.
+  because the imprint and an accurate privacy notice are launch-blockers
+  (the operator is established in the Netherlands, so Dutch/EU law
+  applies — see `docs/legal.md`) — the pages must exist and must carry
+  real facts, not placeholders, on the day the box goes public.
 - Production rollout (step 15) last: deployable and installable is
   the polish layer once the product works.
 - **Steps 16–19 were out-of-band, post-alpha plans** — public lists, the

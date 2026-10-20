@@ -17,7 +17,7 @@ A list is a named collection of items. An item has a name, optional notes, times
 
 ## The stack, in one paragraph
 
-A small Hetzner VPS in Germany runs PostgreSQL, [PostgREST](https://postgrest.org/) (which exposes the schema directly as a REST API), [GoTrue](https://github.com/supabase/gotrue) (username + password authentication), and [Caddy](https://caddyserver.com/) (reverse proxy with automatic TLS) — all as Docker containers. A fifth container serves the web app: a [SvelteKit](https://kit.svelte.dev/) bundle compiled to static files, runnable as a Progressive Web App on any modern browser. Backups go encrypted to a Hetzner Storage Box via [Restic](https://restic.net/).
+A small Hetzner VPS in Germany runs PostgreSQL, [PostgREST](https://postgrest.org/) (which exposes the schema directly as a REST API), [GoTrue](https://github.com/supabase/gotrue) (username + password authentication), and [Caddy](https://caddyserver.com/) (reverse proxy with automatic TLS) — all as Docker containers. A fifth container serves the web app: a [SvelteKit](https://kit.svelte.dev/) bundle compiled to static files, runnable as a Progressive Web App on any modern browser. Backups are planned to go encrypted to a Hetzner Storage Box via [Restic](https://restic.net/) — not yet in place (see `deployment.md` → "Backups").
 
 For the reasoning behind each choice — and the alternatives we considered and rejected — see `architecture.md`.
 
@@ -46,6 +46,7 @@ The same code, the same data, every device.
 - **`quality.md`** — linting, formatting, type checking, and the pre-commit hook that runs them.
 - **`deployment.md`** — how Cairn runs in production on a Hetzner VPS, including TLS, backups, and releases.
 - **`logging.md`** — what each container logs, what's deliberately not logged, retention windows, and the operator's debugging workflow.
+- **`legal.md`** — the legal surface (About hub, privacy policy, terms, imprint, licences): the jurisdiction it's written for, where the deployment facts live, and the claims table mapping every privacy-policy statement to the doc that backs it.
 - **`admin.md`** — how the operator does admin tasks (banning a user, GDPR erasure, moderating an item after a complaint): the `admin` schema, the audit table, the RPCs, the `cairn-admin` CLI, and the runbook. Plus the user-facing contract the web app has to honour so admin actions stay invisible to the user.
 - **`open-questions.md`** — an index of currently-unresolved design decisions across the docs. Each bullet points at the doc section that holds the full context.
 
