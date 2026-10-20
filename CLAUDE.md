@@ -50,8 +50,12 @@ alternative in the plan's decisions so later passes don't reopen it. Prefer
 reviewing only the new work (`/simplify HEAD~N..HEAD`, or the uncommitted
 changes) over re-reviewing the whole branch.
 
-Cairn is in **alpha** — it's now live at `https://cairn.lynnscape.eu`
-(see "We are going live" below). The docs in `docs/` are living
+Cairn is **released (1.0.0)** and live at `https://cairn.lynnscape.eu`
+(see "We are going live" below). New work ships as additions: a minor version
+for features, a patch for fixes, and a major version only for a change that
+breaks existing users. Record user-visible changes under `## [Unreleased]` in
+`CHANGELOG.md`; cutting a version is `docs/deployment.md` → "Releases". The
+docs in `docs/` are living
 specifications, not holy tablets — when a plan finds a better
 design than the doc describes, the right move is often to update
 the doc (sometimes via a Phase 0 in the plan) rather than to wedge
