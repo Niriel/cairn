@@ -333,10 +333,10 @@ Cairn page?) exactly.
 - `+layout.svelte` and `layout.test.ts` are byte-identical to `main` again.
 - Full Vitest suite green (953 tests); `pnpm check` and `pnpm lint` clean.
 
-### [ ] 3.2 Build `BackOrHome` on `IconButton`'s `icon` prop
+### [x] 3.2 Build `BackOrHome` on `IconButton`'s `icon` prop
 
 **Created:** 2026-10-20T18:10:00Z
-**Completed:**
+**Completed:** 2026-10-20T18:45:00Z
 
 **Why:** Since June, `IconButton` takes an `icon` prop and renders the standard
 `ICON_SIZE` glyph itself; BackOrHome still hand-renders an `Icon` at a
@@ -355,6 +355,8 @@ child `Icon` and its import.
    passing unchanged.
 
 **Verify:** `cd web && pnpm test BackOrHome` · `pnpm check`
+
+**Notes:** Done as specified; icon-path assertions unchanged and green.
 
 ### [ ] 3.3 Record the cold-entry rule in `docs/ui.md`
 

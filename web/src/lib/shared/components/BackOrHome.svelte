@@ -2,7 +2,6 @@
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 
-	import Icon from '$lib/basic/components/Icon.svelte';
 	import IconButton from '$lib/basic/components/IconButton.svelte';
 	import { navHistory } from '$lib/shared/state/nav-history.svelte';
 
@@ -20,9 +19,8 @@
 </script>
 
 <IconButton
+	icon={navHistory.canGoBack ? 'chevron-left' : 'home'}
 	onclick={goBack}
 	aria-label={navHistory.canGoBack ? 'Back' : 'Home'}
 	data-test="topbar-back"
->
-	<Icon name={navHistory.canGoBack ? 'chevron-left' : 'home'} size={22} />
-</IconButton>
+/>
