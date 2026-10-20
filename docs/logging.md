@@ -38,6 +38,7 @@ Verified in step 14 (`plans/1400_legal_about/`, Task 1.2) against the dev stack 
 - **Postgres repeated row contents** in the `DETAIL` of constraint-violation errors. Username and recovery-e-mail RPCs were already safe (they catch the violation and raise a generic message), but item and list writes were not. **Fixed:** `log_error_verbosity=terse`.
 - **PostgREST's request lines carried the full query string and User-Agent** (at its default level, for every 5xx). It logs the socket peer (Caddy), not the client. **Fixed:** `PGRST_LOG_LEVEL=crit`.
 - **Caddy's error lines carried the client IP, the request headers and the full URI** for each 5xx it generated itself (found in the branch's code review, reproduced with `caddy:2.9.1` against a dead upstream). **Fixed:** the `log default` filter described above.
+- **The sidecar could log a request body.** Its `express.json()` parser, which no route used, attached the raw text of a malformed JSON body to the error the sidecar logged. **Fixed:** the parser is removed.
 - **No e-mail address, username, password, code, or token** appeared in any log after exercising the flows; GoTrue identities are `<uid>@cairn.internal`. The auth-proxy logs only its startup line; the sidecar only startup and uncaught errors; Caddy only runtime/TLS errors and its filtered 5xx lines.
 - **Doc corrections.** Slow-query logging is off (`log_min_duration_statement = -1`), PostgREST does not log one line per request, and the sidecar does not log upload attempts — the table above now says so.
 

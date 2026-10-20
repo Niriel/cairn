@@ -5,7 +5,9 @@ import { avatarsRouter } from './routes/avatars.js';
 
 const app = express();
 
-app.use(express.json());
+// No body parser: uploads are multipart (multer, in the avatars router) and no
+// route reads a JSON body. A JSON parser would attach the raw text of a
+// malformed body to the error the handler below logs (docs/logging.md).
 app.use('/healthz', healthzRouter);
 app.use('/avatars', avatarsRouter);
 
