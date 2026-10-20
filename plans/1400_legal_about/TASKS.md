@@ -884,10 +884,10 @@
 
 ## Phase 5 — close out
 
-### [ ] 5.1 Tick step 14 and run the full gauntlet
+### [x] 5.1 Tick step 14 and run the full gauntlet
 
 **Created:** 2026-10-20T13:37:50Z
-**Completed:**
+**Completed:** 2026-10-20T15:34:03Z
 
 **Why:** The master plan must reflect that the legal surface has shipped, and that the imprint launch-blocker in the step-15 note is resolved.
 
@@ -923,3 +923,13 @@
 2. Run `./scripts/check.sh`. Report each layer's result honestly. Playwright isn't run here (see Task 4.2).
 
 **Verify:** `./scripts/check.sh`
+
+**Notes:**
+
+- **`./scripts/check.sh` passed (exit 0).** That covers web format, lint, type check and unit tests; SQL lint; shell lint and format; pgTAP; and the sidecar and auth-proxy format, lint and unit tests. Playwright isn't part of it (see Task 4.2).
+- **Side fix in `docs/admin.md`.** It said the access JWT lasts one hour and that Caddy refreshes the cookie. In fact `GOTRUE_JWT_EXP` is 300 s in the base compose file, and the auth-proxy owns refresh. Both are corrected along with the stale Caddy-access-log line, so the worst-case window after a ban now reads about five minutes.
+- **Side fix in `docs/account-deletion.md`.** It now points at the privacy policy instead of saying "if we ever publish one".
+- **`0000`.**
+  - Step 14 is ticked and records the 1.0.0 release and its open items (lawyer review, step 21).
+  - Step 15's auth-hardening paragraph records open signup as a deliberate, superseding decision.
+  - The "done out of order" note no longer lists anything as unstarted.

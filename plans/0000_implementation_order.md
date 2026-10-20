@@ -294,14 +294,19 @@ in-flight branch for no gain.
     described in `docs/architecture.md` (offline-first conflict
     resolution is explicitly *not* a v1 goal).
 
-14. [ ] **Legal & About surface.** About hub (L1), Privacy policy (L2 —
+14. [x] **Legal & About surface.** About hub (L1), Privacy policy (L2 —
     references `docs/logging.md`), Terms of service (L3), Imprint
     (L4 — every legally-required field must be filled in by launch;
     needs a review under Dutch/EU law, since the operator is
     established in the Netherlands — see `docs/legal.md` and
     `docs/open-questions.md`), Open source attributions (L5), Contact
     (L6), Cairn license (L7). Mostly static content; no DB work. See
-    `design/cairn-legal-screens.jsx`.
+    `design/cairn-legal-screens.jsx` and `plans/1400_legal_about/`.
+    Making the privacy policy true also capped production container
+    logs and kept client IPs and row contents out of them (see
+    `docs/logging.md` → "Audit"). **This step ships version 1.0.0**,
+    the official release. Still open: the lawyer review
+    (`docs/open-questions.md`) and off-site backups (step 21).
 
 15. [x] **Production rollout.** Add the missing `caddy/Caddyfile.prod`,
     `.env.prod` template, Restic backup script, the avatar sidecar
@@ -310,17 +315,16 @@ in-flight branch for no gain.
     the first Hetzner deploy following `docs/deployment.md`. The
     imprint screen's placeholders must be replaced with the real
     company / contact details before the deploy goes public.
-    Production smoke check. **Auth hardening from Step 3:** the
-    production GoTrue service MUST set
+    Production smoke check. **Auth hardening from Step 3:** this
+    step originally required production to set
     `GOTRUE_MAILER_AUTOCONFIRM=false` and
-    `GOTRUE_DISABLE_SIGNUP=true` so the committed dev password
-    (`cairn-dev`, used by Step 3's seed flow and dev login
-    shortcut) cannot be used against prod and so `POST
-    /auth/signup` cannot create unsolicited accounts. Cairn is
-    invite-only per `docs/invites.md`, so signup-disabled is the
-    correct default; this line exists as a checklist item so the
-    step-15 owner can't miss it. See also the same forward-note
-    in `docs/development.md` under "Seed data".
+    `GOTRUE_DISABLE_SIGNUP=true`. Superseded: production
+    deliberately runs **open signup with autoconfirm** (the auth-proxy's
+    `/auth/register` flow needs both, and the per-IP register throttle
+    bounds mass signup), and the committed dev password never reaches
+    prod because no production path runs the seed script. Invitations
+    govern who joins a *list*, not who may register. The decision and
+    its reasoning are in `docs/development.md` → "Production posture".
 
     > **Done out of order.** Step 15 was executed and merged ahead of
     > steps 10–14 — the deploy infrastructure was validated first, on
@@ -331,15 +335,12 @@ in-flight branch for no gain.
     > `cairn.lynnscape.eu` is live). **Restic backups were deferred,
     > not done, and are not running** — see step 21. **Still
     > outstanding**, because they depend on unstarted steps:
-    > - The **imprint** (step 14, L4). A temporary imprint page exists
-    >   but its fields are **not filled in** — it carries placeholders,
-    >   not the real operator / contact details. This is a launch-blocker
-    >   (see the sequencing rationale below and `docs/legal.md`) and must
-    >   be completed before the deploy is treated as publicly launched.
-    > - Account deletion (step 10), admin (step 11), and data export
-    >   (step 12) have since landed and merged — their boxes are ticked
-    >   above, and so has the **PWA shell** (step 13). Still unstarted
-    >   is **legal & about** (step 14).
+    > - The **imprint** (step 14, L4) is now complete with the real
+    >   operator details, as part of the full legal surface. The lawyer
+    >   review is still open (`docs/open-questions.md`).
+    > - Account deletion (step 10), admin (step 11), data export
+    >   (step 12), the PWA shell (step 13) and legal & about (step 14)
+    >   have all since landed and merged — their boxes are ticked above.
 
 16. [x] **Public, read-only, shareable lists.** A member can flag a list
     public, producing a link anyone (no account, no invite) can open to a

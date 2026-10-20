@@ -161,10 +161,10 @@ The copy avoids legalese and avoids euphemism. We say "permanently removed," not
 
 ## What we tell users in advance
 
-Cairn's onboarding doesn't currently surface this as a feature. It shouldn't need to — account deletion is a right, not a feature. The Settings entry is enough. If we ever publish a privacy policy (we should), it should reference this document's behavior in plain terms: what's deleted, what's anonymized, what's kept.
+Cairn's onboarding doesn't currently surface this as a feature. It shouldn't need to — account deletion is a right, not a feature. The Settings entry is enough. The privacy policy (`/about/privacy`, see `legal.md`) summarizes this document's behavior in plain terms: what's deleted, what's anonymized, what's kept. Change one, change the other.
 
 ## Future work
 
-- **Export before delete — step 12, not yet built.** See `data-export.md` for the planned format, the `export_my_data()` RPC, and the in-screen integration: the Delete account screen carries a small non-blocking _"Want a copy first?"_ panel above the destructive button, intended to link to the Data export hub (screen E5 in `design/cairn-export-screens.jsx`). Until export lands (step 12), that panel is present but its Download action is disabled ("coming soon"). Export and delete are independent flows — neither blocks the other; the panel is a courtesy.
+- **Export before delete — shipped in step 12.** The Delete account screen carries a small non-blocking _"Want a copy first?"_ panel above the destructive button, linking to the Data export hub (screen E5 in `design/cairn-export-screens.jsx`); see `data-export.md` for the format and the `export_my_data()` RPC. Export and delete are independent flows — neither blocks the other; the panel is a courtesy.
 - **Grace period.** Some products soft-delete the account for 30 days before hard-deleting, so a regretful user can recover. Cairn does not — the trash already exists for items and lists; an account-level undo adds complexity for a rare case. Re-evaluate if we ever see a user request it.
 - **Tombstone hygiene.** Over years, the tombstone user accumulates attribution for content from many deleted users. That's fine — they're indistinguishable to other members anyway, and the tombstone has no privacy impact. No cleanup needed.
