@@ -431,6 +431,31 @@ in-flight branch for no gain.
       proven recovery address), then remove the magic-link / e-mail-OTP
       sign-in surface. Prod-facing.
 
+21. [ ] **Off-site backups.** The live box has **no backups**. Step 15's
+    infrastructure rollout deferred Restic (see
+    `plans/1500_production_rollout/REQUIREMENTS.md` → deferred items),
+    even though `docs/architecture.md` and `docs/deployment.md` describe
+    it as in place. Covers:
+    - Nightly encrypted, deduplicated backups of the Postgres database
+      (`pg_dump -Fc`) **and** the avatar files under
+      `/srv/cairn/avatars/` (the current `deployment.md` script misses
+      them, contradicting `docs/avatars.md`).
+    - An off-machine EU target, the Hetzner Storage Box by default,
+      with the Restic password held off the VPS.
+    - Automatic pruning to a stated retention (the docs propose 7
+      daily, 4 weekly, 12 monthly).
+    - The backup script committed under `scripts/`, plus a
+      `crontab.example` entry.
+    - Failure that doesn't go unnoticed: at minimum, a non-zero exit
+      that cron mails to the operator.
+    - A **restore drill** run once against a scratch database and
+      written up in `docs/deployment.md`.
+
+    Prod-facing. When it lands, update the privacy policy's "no
+    off-site backups" line and its row in the `docs/legal.md` claims
+    table: the backup location, the processor (if not Hetzner) and the
+    retention window. See `plans/2100_backups/`.
+
 ## Sequencing rationale
 
 - DB before UI so RLS-backed product code has something real to talk
@@ -493,6 +518,15 @@ in-flight branch for no gain.
   surface, so it has to migrate real accounts rather than greenfield
   ones, and it deliberately supersedes the e-mail-login work (0302, and
   step 17's e-mail OTP) that shipped first.
+- **Off-site backups (step 21) are a gap found late, not a late
+  priority.** They belonged in step 15's rollout, were deferred there,
+  and the docs went on describing them as done. That came to light
+  while writing step 14's privacy policy, which has to state truthfully
+  that there are none yet. The live box carries real users' data with
+  no copy off the machine, so this step should run as soon as
+  possible, independent of step 14. Whichever lands second updates the
+  other: if backups land first, step 14's policy describes them; if
+  step 14 lands first, step 21 changes the policy line.
 
 ## Verification
 
