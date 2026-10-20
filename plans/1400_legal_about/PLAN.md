@@ -161,6 +161,13 @@ Every task is RED-before-GREEN inside a single commit. The phases are ordered so
 
 4. **Phase 4 — entry points and e2e.** Add the sign-in and register footer links, write `legal.spec.ts`, and update `imprint.spec.ts`. Playwright can't run on the current dev machine, so the specs are written and reported as not run. Tasks 4.1–4.2.
 5. **Phase 5 — close out.** Tick step 14 in `0000`, update the step-15 note to say the imprint is complete, and run the full check (Task 5.1).
+6. **Phase 6 — post-review cleanup.** Fix what the `/simplify` review of this branch skipped.
+   - Remove the auth-proxy's generic GoTrue pass-through, with dev parity (R17). Prod-facing: the auth-proxy needs a rebuild.
+   - Drop `/imprint` from the public paths; share the sign-in/register footer; share the legal-page test helpers and fold the placeholder checks into one test; make `.lede` global (R15, R19).
+   - Enforce the production log cap in `scripts/check.sh` (R18).
+   - Small tidy-ups in `gen-licenses.mjs` and the drift test, then close out.
+
+   Tasks 6.1–6.8.
 
 ## Reference docs and skills
 
@@ -198,3 +205,12 @@ These were decided after Phases 0–2 had landed. The task blocks for Phases 3 a
   - the version line, the contact e-mail and the repo URL are not monospace, because `.mono` is reserved for numerics.
 - **Release.** This plan ships **1.0.0**, the official release. Off-site backups (master-plan step 21) remain open.
 - **Brand and contact address.** The operator brands their apps as **Lynnscape**, a personal label backed by the `lynnscape.eu` domain and not a legal entity. `operator.ts` gains `brand`, and the single-source guard covers it. The About footer reads "A Lynnscape app · …". The Imprint adds "Lynnscape is the personal label of Bertrand Delforge." The controller and the party to the Terms remain the person. The contact e-mail changed to `lynn@lynnscape.eu`.
+
+## Revision: post-review cleanup (Phase 6)
+
+Decided after Phases 0–5 had landed, from the `/simplify` review of the branch.
+
+- **The pass-through is removed, not allow-listed.** Task 1.2 stripped three client-IP headers from the auth-proxy's generic GoTrue pass-through. The review found that a deny-list depends on naming every IP-ish header correctly. Tracing the traffic showed that nothing uses the pass-through: the web client only POSTs to the dedicated BFF handlers, the dev server doesn't use the auth-proxy, and in production only stray methods (e.g. `GET /auth/refresh`) reach it. Removing it is simpler than allow-listing it, and GoTrue cannot log a request it never receives (R17).
+- **Caddy's `@gotrue` matcher stays as is.** It still routes every method on `/auth/signout*` and `/auth/refresh*` to the auth-proxy, which now answers non-POSTs with 404. Narrowing it to POST would be a routing change on the live box for no gain; only its comment is corrected.
+- **`/imprint` leaves the public paths.** Under `ssr = false`, SvelteKit's client router runs the route's `load` and follows its redirect before mounting, so the layout guard only ever sees `/about/imprint`.
+- **The Export hub's lede changes colour** from `--stone` to `--ink-soft` when `.lede` becomes global. That matches its design reference (`design/cairn-export-screens.jsx`, `theme.inkSoft`).

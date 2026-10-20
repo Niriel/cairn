@@ -933,3 +933,274 @@
   - Step 14 is ticked and records the 1.0.0 release and its open items (lawyer review, step 21).
   - Step 15's auth-hardening paragraph records open signup as a deliberate, superseding decision.
   - The "done out of order" note no longer lists anything as unstarted.
+
+## Phase 6 — post-review cleanup
+
+### [ ] 6.1 Remove the auth-proxy's GoTrue pass-through
+
+**Created:** 2026-10-20T15:49:20Z
+**Completed:**
+
+**Why:** The generic pass-through in `authHandler` forwards any unmatched `/auth/*` request to GoTrue, keeping client IPs out of GoTrue's log only through a deny-list of three header names. Nothing uses it: the web client only POSTs to the dedicated BFF handlers, the dev server doesn't use the auth-proxy, and in production only stray methods (e.g. `GET /auth/refresh`) reach it. Removing it makes "GoTrue never sees a client IP" structural (R17).
+
+**Prerequisites:** None.
+
+**Decisions:**
+
+- **Prod (`auth-proxy/src/index.ts`).** In `authHandler`, everything after the reset-password dispatch becomes `res.status(404).json({ error: 'not found' });`. That removes the password-grant lockdown, the header-copy loop, the `fetch` to GoTrue, response-header forwarding, the CORS strip, the token strip and the 302 handling.
+  - Delete `SKIP_REQUEST_HEADERS`, `SKIP_RESPONSE_HEADERS`, `TOKEN_PATH` and `grantTypeOf`. Grep first: if anything else uses one, keep it and say so in Notes.
+  - Keep `gotrueUrl()` and every dedicated handler unchanged.
+  - Rewrite the comments that describe the pass-through: the file header (around lines 48–52, "Any other /auth/\* path falls through to a generic GoTrue pass-through…"), the `CSRF_PROTECTED_PATHS` comment (around line 102, "The generic GoTrue pass-through is the deliberate exception…"), and `auth-proxy/src/lib/csrf.ts:13`.
+- **Tests (`auth-proxy/test/`).**
+  - `shim.test.ts`: tests (a), (b), (c), (d), (g) and (h) all exercise the pass-through's safety nets. Replace them with: an unknown path (`GET /auth/user`) → 404 and the GoTrue stub receives no request; a stray method on a BFF path (`GET /auth/refresh` carrying `X-Forwarded-For`, `X-Real-IP` and `Forwarded`) → 404 and GoTrue receives nothing. Update the file's header comment.
+  - `csrf.test.ts` test (f) ("the GoTrue pass-through does not forward GoTrue CORS headers either") becomes "an unmatched `/auth` request returns 404 with no `access-control-*` header".
+  - `password-grant-lockdown.test.ts`: `POST /auth/token?grant_type=password` now expects **404** and still asserts GoTrue received nothing. Add a case for another grant type (`grant_type=refresh_token`, also 404, nothing forwarded). Rewrite the header comment: the lockdown is now a consequence of there being no pass-through. `docs/deployment.md:334` relies on this guarantee.
+- **Dev parity (`web/vite.config.ts`).**
+  - Delete the `'/auth'` entry from `CAIRN_PROXY` (around lines 895–945; the proxy to `localhost:9999` with the token-strip `proxyRes` handler) and the dev password-grant middleware (around lines 846–862).
+  - Add one last middleware at the end of `installAuthShimMiddlewares`: if `req.url` is under `/auth/` and `!isSegmentMatch(req.url, PUBLIC_AUTH_PATHS)` (the SPA pages such as `/auth/signin`), answer 404 with `{ "error": "not found" }`; otherwise `next()`. GETs of the SPA auth pages must still reach SvelteKit.
+  - Drop imports that become unused; lint will flag them.
+- **Caddy.** `caddy/Caddyfile.prod` keeps the `@gotrue` matcher exactly as is: every method on `/auth/signout*` and `/auth/refresh*` still goes to the auth-proxy, which now answers non-POSTs with 404. Don't narrow it to POST; that would be a routing change on the live box for no gain. Only correct its comment: these are BFF-handled endpoints, not forwarded to GoTrue. Consider renaming the matcher to `@auth_session` only if the comment alone reads wrongly; if renamed, update `docs/deployment.md` too.
+- **Docs.**
+  - `docs/logging.md:30` ("Client IP addresses"): the auth-proxy calls GoTrue only from its dedicated handlers, which send only `content-type` / `Authorization`; anything else under `/auth` gets a 404. Drop the `SKIP_REQUEST_HEADERS` reference.
+  - `docs/logging.md:37` (Audit → GoTrue): append that Phase 6 replaced the header strip by removing the pass-through.
+  - `docs/legal.md:51` (claims table, "No client IP … reaches a log"): change "backed by" to the dedicated-handler structure, tested in `auth-proxy/test/shim.test.ts`; change "invalidated by" to "the auth-proxy gains a generic forward to GoTrue, or a dedicated handler forwards client headers".
+  - `docs/deployment.md:139` (the `@gotrue` description, "session endpoints the BFF forwards to GoTrue") and `:334` ("exactly one route reaches it").
+- **Production-facing.** The live auth-proxy keeps the pass-through until rebuilt. Record the redeploy command in Notes: `docker compose -f docker-compose.yml -f docker-compose.prod.yml --env-file .env.prod up -d --build auth-proxy`.
+
+**Files:**
+
+- `auth-proxy/src/index.ts`, `auth-proxy/src/lib/csrf.ts` (modify)
+- `auth-proxy/test/shim.test.ts`, `csrf.test.ts`, `password-grant-lockdown.test.ts` (modify)
+- `web/vite.config.ts` (modify)
+- `caddy/Caddyfile.prod` (modify, comment only)
+- `docs/logging.md`, `docs/legal.md`, `docs/deployment.md` (modify)
+
+**Steps:**
+
+1. RED: rewrite the auth-proxy tests per Decisions. Run `cd auth-proxy && pnpm test` and confirm the new 404 expectations fail (the pass-through still answers).
+2. GREEN: replace the pass-through with the 404 and delete the dead constants and helpers.
+3. Make the dev-parity change in `vite.config.ts`. Sanity-check under `cd web && pnpm dev` if the stack is up: `curl -i localhost:5173/auth/user` → 404; `curl -i localhost:5173/auth/signin` → the SPA HTML.
+4. Correct the Caddy comment and the docs. Run Prettier on the touched `docs/*.md`.
+
+**Verify:** `cd auth-proxy && pnpm test && pnpm lint && pnpm exec prettier --check .` · `cd web && pnpm check && pnpm lint && pnpm test`
+
+### [ ] 6.2 Drop `/imprint` from the public paths
+
+**Created:** 2026-10-20T15:49:20Z
+**Completed:**
+
+**Why:** `PUBLIC_CONTENT_PATHS` keeps `/imprint` "so its redirect can run for a signed-out visitor", but the guard never sees that URL. The app is client-only (`ssr = false` in `web/src/routes/+layout.ts`), and SvelteKit's client router runs the route's `load` and follows a thrown `redirect` before mounting or updating `page.url`. This was verified in `node_modules/@sveltejs/kit/src/runtime/client/client.js`: the `navigation_result.type === 'redirect'` branches in `start` (~line 444) and `navigate` (~line 1762) re-navigate first. The entry is a dead special case in the auth guard (R19).
+
+**Prerequisites:** None.
+
+**Decisions:**
+
+- In `web/src/lib/shared/model/public-paths.ts`, set `PUBLIC_CONTENT_PATHS = ['/about', '/p']`. Replace the `/imprint` sentence in the header comment with one saying the legacy `/imprint` needs no entry, because its `load` redirects before the guard sees the URL.
+- In `web/src/routes/layout.test.ts`, remove `'/imprint'` from the `(e2)` `test.each` list of public content paths.
+- Comment nit in `web/src/routes/imprint/+page.ts`: say the 308 is nominal. Under `ssr = false` the redirect runs in the client router and never produces an HTTP response.
+- The behaviour is covered end to end by `web/e2e/legal.spec.ts` → "the legacy /imprint URL redirects to /about/imprint", which runs signed out. **Playwright can't run on this machine:** attempt it, and report it as **not run** if the browser can't launch. Never claim it passed.
+
+**Files:**
+
+- `web/src/lib/shared/model/public-paths.ts` (modify)
+- `web/src/routes/layout.test.ts` (modify)
+- `web/src/routes/imprint/+page.ts` (modify, comment only)
+
+**Steps:**
+
+1. Edit the test list and the constant together; there's no meaningful RED here, because the unit tests mock the router.
+2. Run the unit tests and attempt the e2e spec.
+
+**Verify:** `cd web && pnpm test -- src/routes && pnpm check && pnpm lint` · (where runnable) `pnpm exec playwright test legal`
+
+### [ ] 6.3 Share one legal footer between Sign in and Register
+
+**Created:** 2026-10-20T15:49:20Z
+**Completed:**
+
+**Why:** `SignIn.svelte` and `Register.svelte` carry identical footers (the "Wholly European…" line plus Imprint · Privacy · Terms) and identical `.legal` / `.legal a` CSS, and their tests repeat the same three-href assertion (R19).
+
+**Prerequisites:** None.
+
+**Decisions:**
+
+- New `web/src/lib/auth/components/AuthLegalFooter.svelte` with one prop, `hookPrefix: string`. It renders exactly today's markup:
+  ```svelte
+  <footer class="legal fine">
+  	<p>Wholly European, private, and law-abiding.</p>
+  	<p>
+  		<a href={resolve('/about/imprint')} data-test="{hookPrefix}-imprint-link">Imprint</a>
+  		<span aria-hidden="true">·</span>
+  		<a href={resolve('/about/privacy')} data-test="{hookPrefix}-privacy-link">Privacy</a>
+  		<span aria-hidden="true">·</span>
+  		<a href={resolve('/about/terms')} data-test="{hookPrefix}-terms-link">Terms</a>
+  	</p>
+  </footer>
+  ```
+  The derived hooks keep the existing `signin-*-link` / `register-*-link` selectors, so `web/e2e/legal.spec.ts` is unaffected. (This follows the derived-sub-hook idea in `Snackbar.svelte` / `Accordion.svelte`.)
+- Move the `.legal` and `.legal a` rules into the component (SignIn ~line 212, Register ~line 425), converting `margin-top: 32px` to `2rem` per the rem rule in `docs/ui.md`. Delete both local copies.
+- `SignIn.svelte` uses `<AuthLegalFooter hookPrefix="signin" />`; `Register.svelte` uses `hookPrefix="register"`.
+- Tests: new `AuthLegalFooter.test.ts` asserts the three hrefs for a given prefix (mock `$app/paths` `resolve` as the screens' tests do). Replace the `(legal)` tests in `SignIn.test.ts` and `Register.test.ts` with a single check each that `signin-privacy-link` / `register-privacy-link` is present.
+
+**Files:**
+
+- `web/src/lib/auth/components/AuthLegalFooter.svelte`, `AuthLegalFooter.test.ts` (create)
+- `web/src/lib/auth/components/SignIn.svelte`, `Register.svelte`, `SignIn.test.ts`, `Register.test.ts` (modify)
+
+**Steps:**
+
+1. RED: write `AuthLegalFooter.test.ts`; it fails because the component doesn't exist.
+2. GREEN: create the component, then swap it into both screens and delete their footer markup and `.legal` CSS.
+3. Slim the screens' `(legal)` tests.
+
+**Verify:** `cd web && pnpm test -- src/lib/auth && pnpm check && pnpm lint`
+
+### [ ] 6.4 Share the legal-page test helpers
+
+**Created:** 2026-10-20T15:49:20Z
+**Completed:**
+
+**Why:** The about-page tests normalise `textContent` whitespace by hand in several places, and seven page tests carry the identical "ships no placeholder text" body. Changing what counts as a placeholder means seven edits, and a new About page can forget the check (R15, R19).
+
+**Prerequisites:** None.
+
+**Decisions:**
+
+- New `web/src/lib/test/text.ts` exporting `normalizedText(el: Element): string`, i.e. `(el.textContent ?? '').replace(/\s+/g, ' ')`. Normalising is needed because Svelte 5 keeps template whitespace inside text nodes. Add a small `text.test.ts` (CLAUDE.md: new `src/lib` functions ship with tests).
+- Use it instead of:
+  - the local `text()` in `web/src/routes/about/privacy/page.test.ts` (delete the local helper);
+  - the inline replace inside `section()` in `about/terms/page.test.ts`;
+  - the inline replace in `about/contact/page.test.ts`.
+- New `web/src/routes/about/no-placeholders.test.ts`:
+  - `const pages = import.meta.glob('./**/+page.svelte', { eager: true })`, which includes `./+page.svelte` (the hub) and every sub-page, including future ones;
+  - mock `$app/paths` (`resolve` and `asset` as identity) and `$app/navigation` (`goto: vi.fn()`);
+  - `expect(Object.keys(pages).length).toBeGreaterThanOrEqual(7)`, so an empty glob can't pass vacuously;
+  - `test.each` over the entries: render the default export and assert `container.textContent` doesn't match `/\[[^\]]+\]/`.
+- Delete the seven per-page "ships no placeholder text" tests: `about/page.test.ts`, and the `page.test.ts` under privacy, terms, imprint, contact, license and open-source.
+
+**Files:**
+
+- `web/src/lib/test/text.ts`, `web/src/lib/test/text.test.ts` (create)
+- `web/src/routes/about/no-placeholders.test.ts` (create)
+- `web/src/routes/about/page.test.ts` and `web/src/routes/about/*/page.test.ts` (modify)
+
+**Steps:**
+
+1. RED: write `text.test.ts` and `no-placeholders.test.ts`. The helper test fails because the module doesn't exist. Temporarily add a `[TODO]` to one page and confirm `no-placeholders.test.ts` catches it, then remove it.
+2. GREEN: create `text.ts`, swap it into the three page tests, and delete the seven per-page placeholder tests.
+
+**Verify:** `cd web && pnpm test -- src/routes/about src/lib/test && pnpm check && pnpm lint`
+
+### [ ] 6.5 Make `.lede` a global type role
+
+**Created:** 2026-10-20T15:49:20Z
+**Completed:**
+
+**Why:** The italic opening paragraph exists twice: `.prose .lede` in `typography.css` (italic, `--ink-soft`) and a scoped `.lede` in `ExportHubScreen.svelte` (italic, `--stone`). `docs/ui.md` → "Where CSS lives: layout local, visual global" makes the scoped visual rule a smell (R19).
+
+**Prerequisites:** None.
+
+**Decisions:**
+
+- In `web/src/lib/shared/styles/typography.css`, replace the `.prose .lede` block with a top-level role, `.lede { font-style: italic; color: var(--ink-soft); }`, and keep `.prose .lede { margin-block-start: 0; }` for the prose context. Reword the comment: the italic opening paragraph of a screen.
+- In `web/src/lib/export/components/ExportHubScreen.svelte` (~lines 105–109), delete `font-style` and `color` from the local `.lede`. Keep only `margin-bottom: 1.125rem` (layout stays local).
+- **Visible change:** the Export hub's lede goes from `--stone` to `--ink-soft`. That matches its design reference, `design/cairn-export-screens.jsx` (~line 136, `color: theme.inkSoft`).
+- `docs/ui.md` (~line 468, the `.prose` bullet): `.lede` becomes its own bullet as a global role ("the italic opening paragraph of a screen, in `var(--ink-soft)`"); the `.prose` bullet just mentions it.
+
+**Files:**
+
+- `web/src/lib/shared/styles/typography.css` (modify)
+- `web/src/lib/export/components/ExportHubScreen.svelte` (modify)
+- `docs/ui.md` (modify)
+
+**Steps:**
+
+1. Make the CSS and doc edits. There's no RED: component tests don't assert colours.
+2. Run the export and about tests to confirm nothing keyed on the class changed.
+
+**Verify:** `cd web && pnpm test -- src/lib/export src/routes/about && pnpm check && pnpm lint` · `pnpm exec prettier --check ../docs/ui.md`
+
+### [ ] 6.6 Enforce the production log cap in the checks
+
+**Created:** 2026-10-20T15:49:20Z
+**Completed:**
+
+**Why:** The privacy policy states that each service's log is capped at about 50 MB. That holds only because every service in `docker-compose.prod.yml` repeats `logging: *default-logging`, so a new service could silently miss it (R18, R12).
+
+**Prerequisites:** None.
+
+**Decisions:**
+
+- New `scripts/check-prod-logging.sh` (bash, `set -euo pipefail`, run from the repo root like the other scripts):
+  - run `docker compose -f docker-compose.yml -f docker-compose.prod.yml --env-file .env.prod.example config --format json`;
+  - pipe it into `node -e` (node is already a dependency of `check.sh`) and check that every entry in `.services` has `logging.driver === 'json-file'` plus non-empty `logging.options['max-size']` and `logging.options['max-file']`;
+  - on failure, print the offending service names and exit 1; on success, print the number of services checked.
+  - If compose interpolation needs a variable that `.env.prod.example` lacks, supply a dummy value inline in the script and say which in Notes. Don't edit `.env.prod.example` just for this.
+- Call it from `scripts/check.sh` after the shell-format step, as `echo "==> prod compose: log caps"` followed by `./scripts/check-prod-logging.sh`. `check.sh` already requires docker.
+- The script must pass ShellCheck and shfmt (lefthook runs both).
+- Docs: in `docs/logging.md`, at the "Retention is by size" paragraph (~line 18), mention that `scripts/check-prod-logging.sh` enforces the cap. In the `docs/legal.md` claims table, extend the log-cap row's "backed by" cell with that script.
+
+**Files:**
+
+- `scripts/check-prod-logging.sh` (create, executable)
+- `scripts/check.sh` (modify)
+- `docs/logging.md`, `docs/legal.md` (modify)
+
+**Steps:**
+
+1. RED: write the script, then temporarily delete one service's `logging:` line from `docker-compose.prod.yml` and confirm the script names that service and exits 1. Restore the file; never commit the broken state. Record the run in Notes.
+2. GREEN: confirm it passes on the real file, then wire it into `check.sh` and update the docs.
+
+**Verify:** `./scripts/check-prod-logging.sh` · `shellcheck scripts/check-prod-logging.sh scripts/check.sh` · `shfmt -d scripts/`
+
+### [ ] 6.7 Tidy `gen-licenses.mjs` and the drift test
+
+**Created:** 2026-10-20T15:49:20Z
+**Completed:**
+
+**Why:** The licence generator locates a package and parses its `package.json` once per dependency edge before deduplicating by `name@version`, and the drift test's boolean comparison looks like a mistake without a comment (R19).
+
+**Prerequisites:** None.
+
+**Decisions:**
+
+- In `web/scripts/gen-licenses.mjs`, `buildLicensesText`: add a `visited` `Set` of resolved package directories. Check it right after `locate()` returns, and `continue` before `readPackage()` when the directory was already seen. Keep the `seen` map keyed by `name@version`; it still controls the output. pnpm can hold the same `name@version` in two directories with different peer suffixes, so `visited` must not replace it.
+- In `web/src/lib/legal/model/licenses-drift.test.ts`, add a one-line comment above the assertion: it compares as a boolean deliberately, because `toBe(committed)` would print a ~100 KB diff on failure.
+- The output must be byte-identical: `licenses-drift.test.ts` proves it.
+
+**Files:**
+
+- `web/scripts/gen-licenses.mjs` (modify)
+- `web/src/lib/legal/model/licenses-drift.test.ts` (modify, comment only)
+
+**Steps:**
+
+1. Make both edits.
+2. Run the drift test; it must pass without regenerating `static/legal/licenses.txt`.
+
+**Verify:** `cd web && pnpm test -- src/lib/legal && pnpm lint` · `git diff --exit-code web/static/legal/licenses.txt`
+
+### [ ] 6.8 Close out Phase 6
+
+**Created:** 2026-10-20T15:49:20Z
+**Completed:**
+
+**Why:** Phase 6 changes the production auth-proxy, so the master plan must record that it needs a rebuild, and the whole gauntlet must pass.
+
+**Prerequisites:** Tasks 6.1–6.7.
+
+**Decisions:**
+
+- In `plans/0000_implementation_order.md`, add one line to the step-14 entry: Phase 6 removed the auth-proxy's GoTrue pass-through, so production needs `docker compose -f docker-compose.yml -f docker-compose.prod.yml --env-file .env.prod up -d --build auth-proxy`. Don't run Prettier on `0000`.
+- The final report must remind the user of that redeploy. Caddy is unchanged apart from a comment; reloading it is optional.
+
+**Files:**
+
+- `plans/0000_implementation_order.md` (modify)
+
+**Steps:**
+
+1. Edit `0000`.
+2. Run `./scripts/check.sh`, which now includes the log-cap guard, and report each layer's result. Attempt Playwright; if the browser can't launch, report it as **not run**.
+
+**Verify:** `./scripts/check.sh`

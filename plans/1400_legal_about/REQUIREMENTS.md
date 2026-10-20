@@ -185,7 +185,7 @@ Colours come only from design tokens. All copy is British English, with "e-mail"
 
 ## R15. No placeholder text ships
 
-No legal page renders bracketed placeholder text such as `[Operator name]`. Each page's Vitest test asserts this. The stub's old "every field is a placeholder" deploy-gate test is removed.
+No legal page renders bracketed placeholder text such as `[Operator name]`. A single Vitest test renders every page under `/about` and asserts this (revised in Phase 6; it was one assertion per page test). The stub's old "every field is a placeholder" deploy-gate test is removed.
 
 ## R16. Docs describe the legal surface and the facts behind it
 
@@ -199,6 +199,24 @@ No legal page renders bracketed placeholder text such as `[Operator name]`. Each
   - The design of `logging.md` changes: no access log, container caps, no IP-strip cron.
   - Stale step numbers and the stale cookie description are fixed.
   - The legal open question now calls for a review under Dutch/EU law, not by a "German-speaking lawyer".
+
+## R17. GoTrue only hears from the auth-proxy's dedicated handlers
+
+An `/auth/*` request that matches none of the auth-proxy's BFF handlers gets a 404, and GoTrue is never called; the generic GoTrue pass-through is removed. The dev server mirrors this. The privacy claim "no client IP reaches a log" then rests on that structure (the dedicated handlers send GoTrue only `content-type` and `Authorization`), not on a deny-list of header names.
+
+## R18. The production log cap is enforced by a check
+
+`scripts/check.sh` fails if any service in the merged production compose config (`docker-compose.yml` + `docker-compose.prod.yml`) lacks the `json-file` log driver with both `max-size` and `max-file`. A new service cannot silently escape the cap the privacy policy states (R12).
+
+## R19. Post-review hygiene
+
+Follow-ups from the `/simplify` review of this branch:
+
+- `/imprint` is not a public content path: its redirect runs in the client router's `load`, before the layout guard sees the URL.
+- The sign-in and register footers are one shared component.
+- Legal-page tests share a whitespace-normalising text helper, and one test covers the no-placeholder rule (R15).
+- `.lede` is a global type role, shared by the legal pages and the Export hub.
+- `gen-licenses.mjs` reads each package directory once.
 
 ## Non-requirements (explicitly excluded)
 
