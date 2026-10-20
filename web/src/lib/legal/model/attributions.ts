@@ -31,7 +31,7 @@ export const ATTRIBUTIONS: readonly Attribution[] = [
 	{
 		name: 'JSZip',
 		package: 'jszip',
-		license: 'MIT or GPL-3.0',
+		license: 'MIT or GPL-3.0-or-later',
 		url: 'https://stuk.github.io/jszip/',
 		group: 'app'
 	},
