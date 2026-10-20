@@ -430,10 +430,10 @@ unit tests and failed live. A Playwright touch drives the real browser.
 - `afterAll` closes the context with `context?.close()`: without the guard, a
   failed `beforeAll` surfaced as a `TypeError` that masked the real error.
 
-### [ ] 4.2 Run the full check, tick TODO #8, restore step 1800 in the roadmap
+### [x] 4.2 Run the full check, tick TODO #8, restore step 1800 in the roadmap
 
 **Created:** 2026-06-12T15:24:00Z (revised 2026-10-20)
-**Completed:**
+**Completed:** 2026-10-20T19:20:00Z
 
 **Why:** Close the loop and record the item as shipped.
 
@@ -455,3 +455,15 @@ unit tests and failed live. A Playwright touch drives the real browser.
 2. GREEN — Tick TODO #8; update the roadmap.
 
 **Verify:** `./scripts/check.sh`
+
+**Notes:**
+
+- `./scripts/check.sh` passes, all 18 gates. `--e2e` not run: no Playwright
+  browsers on this machine (see 4.1).
+- Side fix: the first run failed the web Prettier gate on `web/vite.config.ts`,
+  an import left multi-line by `main`'s "route /auth on method alone"
+  refactor. Formatted in its own `chore(web)` commit.
+- TODO #8 ticked. Roadmap step 22 added, unticked until the branch merges;
+  steps 18's and the sequencing note's "no `1800`" remarks corrected. The
+  roadmap file was already not Prettier-clean on `main`; it was not
+  reformatted, to keep the diff to these lines.

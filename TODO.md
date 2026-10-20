@@ -88,7 +88,7 @@
    - `ListsScreen.svelte:47` — Settings gear (covered by task 4.1 of plan 0601)
    - `ItemsScreen.svelte:71` — `⋮` button in TopBar (covered by task 4.2 of plan 0601)
 
-8. [ ] **Back button dead-ends on cold loads with empty history** — the TopBar
+8. [x] **Back button dead-ends on cold loads with empty history** — the TopBar
        Back button calls `history.back()` unconditionally
        (`web/src/lib/shared/components/TopBar.svelte:32`). When Cairn is opened
        directly onto a deep route — a reopened browser restoring a list tab, or a
@@ -99,6 +99,9 @@
        chevron-left icon for a `home` icon (lucide has one) in that case, so the
        affordance matches the destination. Applies anywhere TopBar shows the
        default back button.
+       Shipped via `1800_back_or_home`: the control reads the browser's
+       `navigation.canGoBack` and becomes a Home button when no Cairn page is
+       behind the current one.
 
 9. [ ] **Minimum 44 px touch targets for all interactive controls** — some of
        the devices Cairn runs on have terrible touch resolution, so small tappable
