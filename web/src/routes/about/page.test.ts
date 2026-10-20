@@ -9,7 +9,6 @@ import { render } from '$lib/test/render';
 import Page from './+page.svelte';
 
 vi.mock('$app/navigation', () => ({ goto: vi.fn() }));
-vi.mock('$app/paths', () => ({ resolve: vi.fn((path: string) => path) }));
 
 afterEach(() => {
 	vi.clearAllMocks();

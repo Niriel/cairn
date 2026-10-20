@@ -3,10 +3,6 @@ import { describe, expect, test, vi } from 'vitest';
 
 import { render } from '$lib/test/render';
 
-vi.mock('$app/paths', () => ({
-	resolve: vi.fn((path: string) => path),
-	asset: vi.fn((path: string) => path)
-}));
 vi.mock('$app/navigation', () => ({ goto: vi.fn() }));
 
 // Every page under /about — the hub and each legal page, including any added

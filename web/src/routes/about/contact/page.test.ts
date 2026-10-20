@@ -1,12 +1,10 @@
-import { describe, expect, test, vi } from 'vitest';
+import { describe, expect, test } from 'vitest';
 
 import { OPERATOR } from '$lib/legal/model/operator';
 import { render } from '$lib/test/render';
 import { normalizedText } from '$lib/test/text';
 
 import Page from './+page.svelte';
-
-vi.mock('$app/paths', () => ({ resolve: vi.fn((path: string) => path) }));
 
 describe('/about/contact', () => {
 	test('offers the contact e-mail as a mail link', () => {

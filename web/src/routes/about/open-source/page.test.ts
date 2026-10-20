@@ -1,15 +1,10 @@
-import { describe, expect, test, vi } from 'vitest';
+import { describe, expect, test } from 'vitest';
 
 import { ATTRIBUTIONS, GROUP_LABELS } from '$lib/legal/model/attributions';
 import { render } from '$lib/test/render';
 import { headingTexts } from '$lib/test/text';
 
 import Page from './+page.svelte';
-
-vi.mock('$app/paths', () => ({
-	resolve: vi.fn((path: string) => path),
-	asset: vi.fn((path: string) => path)
-}));
 
 describe('/about/open-source', () => {
 	test('credits every attributed project by name', () => {

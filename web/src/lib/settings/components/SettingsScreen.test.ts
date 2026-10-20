@@ -7,6 +7,7 @@ import { session, signOut } from '$lib/shared/state/session.svelte';
 import { invitations } from '$lib/invite/state/invitations.svelte';
 import { install } from '$lib/pwa/state/install.svelte';
 import { render } from '$lib/test/render';
+import { headingTexts } from '$lib/test/text';
 
 import SettingsScreen from './SettingsScreen.svelte';
 
@@ -265,9 +266,7 @@ describe('SettingsScreen', () => {
 
 	test('(q) About section sits between Recovery and Account', () => {
 		const { container } = render(SettingsScreen);
-		const headings = [...container.querySelectorAll('section.preference-group h2')].map(
-			(h) => h.textContent
-		);
+		const headings = headingTexts(container, 'section.preference-group h2');
 		const about = headings.indexOf('About');
 		expect(about).toBeGreaterThan(-1);
 		expect(headings[about - 1]).toBe('Recovery');
@@ -276,9 +275,7 @@ describe('SettingsScreen', () => {
 
 	test('(p) Privacy & data section sits immediately before Recovery', () => {
 		const { container } = render(SettingsScreen);
-		const headings = [...container.querySelectorAll('section.preference-group h2')].map(
-			(h) => h.textContent
-		);
+		const headings = headingTexts(container, 'section.preference-group h2');
 		const privacyData = headings.indexOf('Privacy & data');
 		const recovery = headings.indexOf('Recovery');
 		expect(privacyData).toBeGreaterThan(-1);
