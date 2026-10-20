@@ -54,7 +54,7 @@ The docs are written to be read in roughly that order. `architecture.md` is the 
 
 ## Status
 
-Pre-v1. The architecture and data model are designed; implementation is in progress. This README will be updated when there's something runnable.
+Released: version 1.0.0 is live at <https://cairn.lynnscape.eu>. What changed in each version is in the root `CHANGELOG.md`; what's planned next is in `plans/0000_implementation_order.md`.
 
 ## Name
 

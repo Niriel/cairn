@@ -245,7 +245,23 @@ Test restore at least once after setting up backups, and again every six months.
 
 ## Releases
 
-A release is: commit and push to `main`, SSH to the VPS, pull, migrate, rebuild, swap.
+### Versions and tags
+
+Cairn has one version for the whole stack, following [Semantic Versioning](https://semver.org/): a minor bump (`1.1.0`) for new features, a patch bump (`1.0.1`) for fixes only, and a major bump only for a change that breaks existing users (accounts, data, or features they rely on). The About screen shows `web/package.json`'s version, so that file is the source of truth; `auth-proxy/` and `sidecar/` carry the same number.
+
+Tagging a version:
+
+1. Move the `## [Unreleased]` entries in `CHANGELOG.md` under a new `## [X.Y.Z] - YYYY-MM-DD` heading, and update the compare links at the bottom.
+2. Set `"version"` to `X.Y.Z` in `web/`, `auth-proxy/` and `sidecar/` `package.json`.
+3. Commit only those files as `chore(release): X.Y.Z`.
+4. Tag that commit with an annotated tag whose message is the subject `Cairn X.Y.Z`, a blank line, then that version's changelog section: `git tag -a vX.Y.Z -F <message-file>`.
+5. Push the commit and the tag (`git push origin main vX.Y.Z`), then deploy as below.
+
+Not every deploy is a release: a deploy can ship `[Unreleased]` changes, and the version moves only when a tag is cut.
+
+### Deploying
+
+A deploy is: commit and push to `main`, SSH to the VPS, pull, migrate, rebuild, swap.
 
 ```bash
 ssh cairn@<vps>
