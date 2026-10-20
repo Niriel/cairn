@@ -387,10 +387,10 @@ bullet after "The Lists screen is the back-stack root".
 
 ## Phase 4 — e2e and close-out
 
-### [ ] 4.1 Playwright touch: cold load and back-then-back
+### [x] 4.1 Playwright touch: cold load and back-then-back
 
 **Created:** 2026-06-12T15:24:00Z (revised 2026-10-20)
-**Completed:**
+**Completed:** 2026-10-20T19:00:00Z
 
 **Why:** The cold-load path is exactly what unit tests can't exercise: it
 depends on real session history, which is why the June version passed its
@@ -418,6 +418,17 @@ unit tests and failed live. A Playwright touch drives the real browser.
 2. Attempt `cd web && pnpm test:e2e back-or-home`; report the real result.
 
 **Verify:** `cd web && pnpm test:e2e back-or-home` (capable box only)
+
+**Notes:**
+
+- **Spec written, not run (no pass claimed).** `web/e2e/back-or-home.spec.ts`
+  covers both cases; `playwright test --list` enumerates its 6 tests (2 × 3
+  projects), so it compiles, and ESLint and Prettier are clean.
+- Attempted `playwright test back-or-home --project=chromium` on the laptop:
+  the launch fails with "Executable doesn't exist" (browsers never installed),
+  so no assertion executed. Run it on a Playwright-capable box.
+- `afterAll` closes the context with `context?.close()`: without the guard, a
+  failed `beforeAll` surfaced as a `TypeError` that masked the real error.
 
 ### [ ] 4.2 Run the full check, tick TODO #8, restore step 1800 in the roadmap
 
